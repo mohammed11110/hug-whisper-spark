@@ -321,39 +321,6 @@ export default function Settings() {
         </div>
       </section>
 
-      {/* Currency */}
-      <section className="px-5 mt-5">
-        <div className="flex items-center gap-2 mb-2">
-          <Coins className="h-4 w-4 text-sage-500" />
-          <h2 className="font-bold text-sage-600 text-sm">{L("currency_section")}</h2>
-        </div>
-        <button
-          onClick={() => setOpenCurr((v) => !v)}
-          className="w-full bg-card border border-sage-200/60 rounded-2xl p-4 flex items-center justify-between shadow-soft"
-        >
-          <span className="font-mono font-bold text-sage-600">{currency.code}</span>
-          <span className="text-sm text-muted-foreground flex-1 text-start ms-3">{currency.name}</span>
-          <span className="font-bold text-sage-500">{currency.symbol}</span>
-        </button>
-        {openCurr && (
-          <div className="mt-2 max-h-72 overflow-y-auto rounded-2xl border border-sage-200/40 bg-card divide-y divide-sage-100">
-            {CURRENCIES.map((c) => (
-              <button
-                key={c.code}
-                onClick={() => { setCurrency(c.code); setOpenCurr(false); toast.success(L("saved")); }}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm ${
-                  c.code === currency.code ? "bg-sage-100/70" : "hover:bg-muted"
-                }`}
-              >
-                <span className="font-mono font-bold w-12 text-start">{c.code}</span>
-                <span className="flex-1 text-start opacity-80">{c.name}</span>
-                <span className="font-semibold">{c.symbol}</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </section>
-
       {/* Status colors */}
       <section className="px-5 mt-6">
         <div className="flex items-center gap-2 mb-2">
