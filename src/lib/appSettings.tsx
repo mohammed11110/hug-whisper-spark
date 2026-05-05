@@ -1,10 +1,18 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 
 export interface StatusColor { bg: string; fg: string }
+export type PageSize = "A4" | "A5" | "Letter";
+export const PAGE_SIZES_MM: Record<PageSize, { w: number; h: number }> = {
+  A4: { w: 210, h: 297 },
+  A5: { w: 148, h: 210 },
+  Letter: { w: 216, h: 279 },
+};
 export interface AppSettings {
   statusColors: { paid: StatusColor; late: StatusColor; soon: StatusColor };
   /** filter retention in minutes; 0 = never persist, -1 = forever */
   filterRetentionMin: number;
+  pageSize: PageSize;
+  marginMm: number;
 }
 
 const DEFAULTS: AppSettings = {
@@ -14,6 +22,8 @@ const DEFAULTS: AppSettings = {
     soon: { bg: "#f5e3cf", fg: "#8a5a2a" },
   },
   filterRetentionMin: -1,
+  pageSize: "A4",
+  marginMm: 16,
 };
 
 const KEY = "amlaki.appSettings.v1";
