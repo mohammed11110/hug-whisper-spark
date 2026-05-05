@@ -98,59 +98,147 @@ export default function Settings() {
             );
           })}
         </div>
-        <div
-          className="relative overflow-hidden rounded-2xl border-2 p-4 shadow-soft"
-          style={{ borderColor: "#a3b89c", background: "#fff", color: "#3a4f3a" }}
-        >
-          <div
-            className="absolute inset-0 flex items-center justify-center pointer-events-none font-black tracking-[8px]"
-            style={{ fontSize: 64, color: "#a3b89c", opacity: 0.08 }}
-          >
-            {L(previewStatus).toUpperCase()}
-          </div>
-          <div className="relative">
-            <div className="flex justify-between items-start pb-3 mb-3 border-b-2" style={{ borderColor: "#eef3ea" }}>
-              <div>
-                <h3 className="text-base font-black" style={{ color: "#5a7359" }}>أملاكي · Amlaki</h3>
-                <p className="text-[10px] uppercase tracking-widest" style={{ color: "#7a8a78" }}>
-                  {t2("receipt_number")} · A-2025-001
-                </p>
-              </div>
-              <span
-                className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider"
-                style={{ background: pc.bg, color: pc.fg }}
+        {(() => {
+          const dim = PAGE_SIZES_MM[settings.pageSize];
+          const marginPct = (settings.marginMm / dim.w) * 100;
+          return (
+            <div className="bg-sage-100/40 rounded-2xl p-4 flex justify-center">
+              <div
+                className="relative bg-white shadow-soft mx-auto"
+                style={{
+                  width: "100%",
+                  maxWidth: 360,
+                  aspectRatio: `${dim.w} / ${dim.h}`,
+                  border: "1px solid #c9d4c2",
+                }}
               >
-                {L(previewStatus)}
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-2 mb-3">
-              <div className="rounded-lg px-2.5 py-1.5" style={{ background: "#f6faf3" }}>
-                <p className="text-[9px] uppercase tracking-wider" style={{ color: "#7a8a78" }}>{t2("payment_date")}</p>
-                <p className="text-xs font-bold" style={{ color: "#5a7359" }}>{today}</p>
+                {/* margin guides */}
+                <div
+                  className="absolute pointer-events-none border border-dashed"
+                  style={{
+                    inset: `${marginPct}%`,
+                    borderColor: "#a3b89c",
+                  }}
+                />
+                {/* margin label */}
+                <div
+                  className="absolute top-1 left-1 text-[9px] font-mono text-sage-500/70 bg-white/80 px-1 rounded"
+                >
+                  {settings.pageSize} · {settings.marginMm}{L("mm")}
+                </div>
+                {/* receipt content positioned inside margin */}
+                <div
+                  className="absolute overflow-hidden"
+                  style={{ inset: `${marginPct}%` }}
+                >
+                  <div
+                    className="relative h-full w-full overflow-hidden rounded-xl border-2 p-3"
+                    style={{ borderColor: "#a3b89c", background: "#fff", color: "#3a4f3a" }}
+                  >
+                    <div
+                      className="absolute inset-0 flex items-center justify-center pointer-events-none font-black tracking-[6px]"
+                      style={{ fontSize: 44, color: "#a3b89c", opacity: 0.08 }}
+                    >
+                      {L(previewStatus).toUpperCase()}
+                    </div>
+                    <div className="relative">
+                      <div className="flex justify-between items-start pb-2 mb-2 border-b" style={{ borderColor: "#eef3ea" }}>
+                        <div>
+                          <h3 className="text-xs font-black" style={{ color: "#5a7359" }}>أملاكي · Amlaki</h3>
+                          <p className="text-[7px] uppercase tracking-widest" style={{ color: "#7a8a78" }}>
+                            {t2("receipt_number")} · A-2025-001
+                          </p>
+                        </div>
+                        <span
+                          className="px-2 py-0.5 rounded-full text-[7px] font-black uppercase tracking-wider"
+                          style={{ background: pc.bg, color: pc.fg }}
+                        >
+                          {L(previewStatus)}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1 mb-2">
+                        <div className="rounded px-1.5 py-1" style={{ background: "#f6faf3" }}>
+                          <p className="text-[6px] uppercase tracking-wider" style={{ color: "#7a8a78" }}>{t2("payment_date")}</p>
+                          <p className="text-[9px] font-bold" style={{ color: "#5a7359" }}>{today}</p>
+                        </div>
+                        <div className="rounded px-1.5 py-1" style={{ background: "#f6faf3" }}>
+                          <p className="text-[6px] uppercase tracking-wider" style={{ color: "#7a8a78" }}>{t2("building_name")}</p>
+                          <p className="text-[9px] font-bold truncate" style={{ color: "#5a7359" }}>{L("sample_building")}</p>
+                        </div>
+                      </div>
+                      <div className="flex justify-between py-1 text-[9px] border-b border-dashed" style={{ borderColor: "#cdd9c8" }}>
+                        <span style={{ color: "#7a8a78" }}>{t2("unit_number")}</span>
+                        <span className="px-1.5 py-0 rounded text-[8px] font-black text-white" style={{ background: "#5a7359" }}>#A-12</span>
+                      </div>
+                      <div className="flex justify-between py-1 text-[9px] border-b border-dashed" style={{ borderColor: "#cdd9c8" }}>
+                        <span style={{ color: "#7a8a78" }}>{t2("status")}</span>
+                        <span className="font-bold" style={{ color: pc.fg }}>{L(previewStatus)}</span>
+                      </div>
+                      <div className="flex justify-between py-1 text-[9px] border-b border-dashed" style={{ borderColor: "#cdd9c8" }}>
+                        <span style={{ color: "#7a8a78" }}>{t2("tenant_name")}</span>
+                        <span className="font-bold truncate ms-2" style={{ color: "#3a4f3a" }}>{L("sample_tenant")}</span>
+                      </div>
+                      <div
+                        className="mt-2 px-2 py-1.5 rounded-lg flex justify-between items-center font-black text-[11px]"
+                        style={{ background: "linear-gradient(135deg,#eef3ea,#dcebd2)", color: "#3a6b3a" }}
+                      >
+                        <span>{t2("total")}</span>
+                        <span>{format(120)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="rounded-lg px-2.5 py-1.5" style={{ background: "#f6faf3" }}>
-                <p className="text-[9px] uppercase tracking-wider" style={{ color: "#7a8a78" }}>{t2("building_name")}</p>
-                <p className="text-xs font-bold" style={{ color: "#5a7359" }}>{L("sample_building")}</p>
-              </div>
             </div>
-            <div className="flex justify-between py-2 text-xs border-b border-dashed" style={{ borderColor: "#cdd9c8" }}>
-              <span style={{ color: "#7a8a78" }}>{t2("unit_number")}</span>
-              <span className="px-2 py-0.5 rounded text-[11px] font-black text-white" style={{ background: "#5a7359" }}>#A-12</span>
+          );
+        })()}
+      </section>
+
+      {/* Print layout */}
+      <section className="px-5 mt-6">
+        <div className="flex items-center gap-2 mb-2">
+          <Printer className="h-4 w-4 text-sage-500" />
+          <h2 className="font-bold text-sage-600 text-sm">{L("print_layout")}</h2>
+        </div>
+        <div className="bg-card border border-sage-200/50 rounded-2xl p-4 shadow-soft space-y-4">
+          <div>
+            <p className="text-xs text-muted-foreground mb-2">{L("page_size")}</p>
+            <div className="grid grid-cols-3 gap-2">
+              {(Object.keys(PAGE_SIZES_MM) as PageSize[]).map((s) => {
+                const active = settings.pageSize === s;
+                return (
+                  <button
+                    key={s}
+                    onClick={() => { update({ pageSize: s }); toast.success(L("saved")); }}
+                    className={`px-2 py-2 rounded-xl text-xs font-bold transition-all ${
+                      active ? "bg-gradient-sage text-primary-foreground shadow-soft" : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {s}
+                    <span className="block text-[9px] font-mono opacity-70 mt-0.5">
+                      {PAGE_SIZES_MM[s].w}×{PAGE_SIZES_MM[s].h}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-            <div className="flex justify-between py-2 text-xs border-b border-dashed" style={{ borderColor: "#cdd9c8" }}>
-              <span style={{ color: "#7a8a78" }}>{t2("status")}</span>
-              <span className="font-bold" style={{ color: pc.fg }}>{L(previewStatus)}</span>
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs text-muted-foreground">{L("margins")}</p>
+              <span className="text-xs font-mono font-bold text-sage-600">{settings.marginMm} {L("mm")}</span>
             </div>
-            <div className="flex justify-between py-2 text-xs border-b border-dashed" style={{ borderColor: "#cdd9c8" }}>
-              <span style={{ color: "#7a8a78" }}>{t2("tenant_name")}</span>
-              <span className="font-bold" style={{ color: "#3a4f3a" }}>{L("sample_tenant")}</span>
-            </div>
-            <div
-              className="mt-3 px-4 py-3 rounded-xl flex justify-between items-center font-black text-base"
-              style={{ background: "linear-gradient(135deg,#eef3ea,#dcebd2)", color: "#3a6b3a" }}
-            >
-              <span>{t2("total")}</span>
-              <span>{format(120)}</span>
+            <input
+              type="range"
+              min={5}
+              max={40}
+              step={1}
+              value={settings.marginMm}
+              onChange={(e) => update({ marginMm: Number(e.target.value) })}
+              className="w-full accent-sage-500"
+            />
+            <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
+              <span>5</span><span>20</span><span>40</span>
             </div>
           </div>
         </div>
