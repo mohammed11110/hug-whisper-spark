@@ -7,12 +7,15 @@ export const PAGE_SIZES_MM: Record<PageSize, { w: number; h: number }> = {
   A5: { w: 148, h: 210 },
   Letter: { w: 216, h: 279 },
 };
+export interface Margins { top: number; right: number; bottom: number; left: number }
 export interface AppSettings {
   statusColors: { paid: StatusColor; late: StatusColor; soon: StatusColor };
   /** filter retention in minutes; 0 = never persist, -1 = forever */
   filterRetentionMin: number;
   pageSize: PageSize;
-  marginMm: number;
+  /** @deprecated kept for migration; use margins */
+  marginMm?: number;
+  margins: Margins;
 }
 
 const DEFAULTS: AppSettings = {
@@ -23,7 +26,7 @@ const DEFAULTS: AppSettings = {
   },
   filterRetentionMin: -1,
   pageSize: "A4",
-  marginMm: 16,
+  margins: { top: 16, right: 16, bottom: 16, left: 16 },
 };
 
 const KEY = "amlaki.appSettings.v1";
