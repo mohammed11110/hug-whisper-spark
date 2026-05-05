@@ -12,6 +12,7 @@ import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { useI18n } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
+import { useAppSettings, readFilters, writeFilters } from "@/lib/appSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -30,23 +31,15 @@ interface Row {
 type Filter = "all" | "month" | "year";
 type StatusFilter = "all" | "paid" | "late";
 
-const LS_KEY = "amlaki.payments.filters.v1";
-const loadLS = (): { search: string; filter: Filter; statusFilter: StatusFilter } => {
-  try {
-    const v = JSON.parse(localStorage.getItem(LS_KEY) || "{}");
-    return {
-      search: typeof v.search === "string" ? v.search : "",
-      filter: ["all", "month", "year"].includes(v.filter) ? v.filter : "month",
-      statusFilter: ["all", "paid", "late"].includes(v.statusFilter) ? v.statusFilter : "all",
-    };
-  } catch { return { search: "", filter: "month", statusFilter: "all" }; }
-};
+const LS_KEY = "amlaki.payments.filters.v2";
+const DEFAULT_FILTERS = { search: "", filter: "month" as Filter, statusFilter: "all" as StatusFilter };
 
 export default function Payments() {
   const { t } = useI18n();
   const t2 = useT2();
   const { format, currency } = useCurrency();
-  const initial = loadLS();
+  const { settings } = useAppSettings();
+  const initial = readFilters(LS_KEY, DEFAULT_FILTERS, settings.filterRetentionMin);
   const [rows, setRows] = useState<Row[]>([]);
   const [search, setSearch] = useState(initial.search);
   const [filter, setFilter] = useState<Filter>(initial.filter);
@@ -56,8 +49,8 @@ export default function Payments() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    localStorage.setItem(LS_KEY, JSON.stringify({ search, filter, statusFilter }));
-  }, [search, filter, statusFilter]);
+    writeFilters(LS_KEY, { search, filter, statusFilter }, settings.filterRetentionMin);
+  }, [search, filter, statusFilter, settings.filterRetentionMin]);
 
   const load = async () => {
     setLoading(true);
@@ -130,10 +123,11 @@ export default function Payments() {
   };
 
   const buildReceiptHTML = (r: Row) => {
+    const sc = settings.statusColors;
     const statusColors: Record<string, { bg: string; fg: string; label: string }> = {
-      paid: { bg: "#dcebd2", fg: "#3a6b3a", label: t2("paid") },
-      late: { bg: "#f3d7d7", fg: "#8a2a2a", label: t2("late") },
-      soon: { bg: "#f5e3cf", fg: "#8a5a2a", label: t2("soon") },
+      paid: { bg: sc.paid.bg, fg: sc.paid.fg, label: t2("paid") },
+      late: { bg: sc.late.bg, fg: sc.late.fg, label: t2("late") },
+      soon: { bg: sc.soon.bg, fg: sc.soon.fg, label: t2("soon") },
     };
     const us = statusColors[r.unit_status] || statusColors.soon;
     const html = `
