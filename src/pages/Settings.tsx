@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Palette, Clock, Coins, RotateCcw } from "lucide-react";
+import { ArrowRight, Palette, Clock, Coins, RotateCcw, Eye } from "lucide-react";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
@@ -40,16 +40,22 @@ const SETTINGS_LABELS: Record<string, { ar: string; en: string }> = {
   late: { ar: "متأخر", en: "Late" },
   soon: { ar: "قريباً", en: "Soon" },
   saved: { ar: "تم الحفظ", en: "Saved" },
+  live_preview: { ar: "معاينة مباشرة للإيصال", en: "Live receipt preview" },
+  sample_tenant: { ar: "محمد العامري", en: "Sample Tenant" },
+  sample_building: { ar: "برج أملاكي", en: "Amlaki Tower" },
 };
 
 export default function Settings() {
   const { t, lang } = useI18n();
   const t2 = useT2();
-  const { currency, setCurrency } = useCurrency();
+  const { currency, setCurrency, format } = useCurrency();
   const { settings, update, setStatusColor, reset } = useAppSettings();
   const L = (k: string) => SETTINGS_LABELS[k]?.[lang === "ar" ? "ar" : "en"] || SETTINGS_LABELS[k]?.en || k;
   const RL = (k: string) => RET_LABELS[k]?.[lang === "ar" ? "ar" : "en"] || RET_LABELS[k]?.en || k;
   const [openCurr, setOpenCurr] = useState(false);
+  const [previewStatus, setPreviewStatus] = useState<"paid" | "late" | "soon">("paid");
+  const pc = settings.statusColors[previewStatus];
+  const today = new Date().toISOString().slice(0, 10);
 
   return (
     <div className="mobile-shell min-h-screen pb-24 bg-background">
@@ -59,6 +65,92 @@ export default function Settings() {
         <Link to="/" className="text-sage-500"><ArrowRight className="h-5 w-5 rtl:rotate-180" /></Link>
         <h1 className="text-2xl font-black text-sage-600">{L("page_title")}</h1>
       </div>
+
+      {/* Live receipt preview */}
+      <section className="px-5 mt-5">
+        <div className="flex items-center gap-2 mb-2">
+          <Eye className="h-4 w-4 text-sage-500" />
+          <h2 className="font-bold text-sage-600 text-sm">{L("live_preview")}</h2>
+        </div>
+        <div className="flex gap-1.5 mb-3">
+          {(["paid", "late", "soon"] as const).map((s) => {
+            const c = settings.statusColors[s];
+            const active = previewStatus === s;
+            return (
+              <button
+                key={s}
+                onClick={() => setPreviewStatus(s)}
+                className={`flex-1 px-2 py-1.5 rounded-xl text-xs font-bold transition-all border-2 ${
+                  active ? "shadow-soft scale-[1.02]" : "opacity-70"
+                }`}
+                style={{
+                  background: c.bg,
+                  color: c.fg,
+                  borderColor: active ? c.fg : "transparent",
+                }}
+              >
+                {L(s)}
+              </button>
+            );
+          })}
+        </div>
+        <div
+          className="relative overflow-hidden rounded-2xl border-2 p-4 shadow-soft"
+          style={{ borderColor: "#a3b89c", background: "#fff", color: "#3a4f3a" }}
+        >
+          <div
+            className="absolute inset-0 flex items-center justify-center pointer-events-none font-black tracking-[8px]"
+            style={{ fontSize: 64, color: "#a3b89c", opacity: 0.08 }}
+          >
+            {L(previewStatus).toUpperCase()}
+          </div>
+          <div className="relative">
+            <div className="flex justify-between items-start pb-3 mb-3 border-b-2" style={{ borderColor: "#eef3ea" }}>
+              <div>
+                <h3 className="text-base font-black" style={{ color: "#5a7359" }}>أملاكي · Amlaki</h3>
+                <p className="text-[10px] uppercase tracking-widest" style={{ color: "#7a8a78" }}>
+                  {t2("receipt_number")} · A-2025-001
+                </p>
+              </div>
+              <span
+                className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider"
+                style={{ background: pc.bg, color: pc.fg }}
+              >
+                {L(previewStatus)}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <div className="rounded-lg px-2.5 py-1.5" style={{ background: "#f6faf3" }}>
+                <p className="text-[9px] uppercase tracking-wider" style={{ color: "#7a8a78" }}>{t2("payment_date")}</p>
+                <p className="text-xs font-bold" style={{ color: "#5a7359" }}>{today}</p>
+              </div>
+              <div className="rounded-lg px-2.5 py-1.5" style={{ background: "#f6faf3" }}>
+                <p className="text-[9px] uppercase tracking-wider" style={{ color: "#7a8a78" }}>{t2("building_name")}</p>
+                <p className="text-xs font-bold" style={{ color: "#5a7359" }}>{L("sample_building")}</p>
+              </div>
+            </div>
+            <div className="flex justify-between py-2 text-xs border-b border-dashed" style={{ borderColor: "#cdd9c8" }}>
+              <span style={{ color: "#7a8a78" }}>{t2("unit_number")}</span>
+              <span className="px-2 py-0.5 rounded text-[11px] font-black text-white" style={{ background: "#5a7359" }}>#A-12</span>
+            </div>
+            <div className="flex justify-between py-2 text-xs border-b border-dashed" style={{ borderColor: "#cdd9c8" }}>
+              <span style={{ color: "#7a8a78" }}>{t2("status")}</span>
+              <span className="font-bold" style={{ color: pc.fg }}>{L(previewStatus)}</span>
+            </div>
+            <div className="flex justify-between py-2 text-xs border-b border-dashed" style={{ borderColor: "#cdd9c8" }}>
+              <span style={{ color: "#7a8a78" }}>{t2("tenant_name")}</span>
+              <span className="font-bold" style={{ color: "#3a4f3a" }}>{L("sample_tenant")}</span>
+            </div>
+            <div
+              className="mt-3 px-4 py-3 rounded-xl flex justify-between items-center font-black text-base"
+              style={{ background: "linear-gradient(135deg,#eef3ea,#dcebd2)", color: "#3a6b3a" }}
+            >
+              <span>{t2("total")}</span>
+              <span>{format(120)}</span>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Currency */}
       <section className="px-5 mt-5">
