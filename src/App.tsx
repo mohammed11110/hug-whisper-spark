@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { I18nProvider } from "@/lib/i18n";
 import { CurrencyProvider } from "@/lib/currency";
+import { AppSettingsProvider } from "@/lib/appSettings";
 import { AuthProvider } from "@/lib/auth";
 import { RequireAuth } from "@/components/RequireAuth";
 import Welcome from "./pages/Welcome";
@@ -14,6 +15,7 @@ import Buildings from "./pages/Buildings";
 import BuildingDetail from "./pages/BuildingDetail";
 import UnitDetail from "./pages/UnitDetail";
 import Payments from "./pages/Payments";
+import SettingsPage from "./pages/Settings";
 import Placeholder from "./pages/Placeholder";
 import NotFound from "./pages/NotFound.tsx";
 
@@ -23,6 +25,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <I18nProvider>
       <CurrencyProvider>
+        <AppSettingsProvider>
         <AuthProvider>
           <TooltipProvider>
             <Toaster />
@@ -37,6 +40,7 @@ const App = () => (
                 <Route path="/units/:id" element={<RequireAuth><UnitDetail /></RequireAuth>} />
                 <Route path="/tenants" element={<RequireAuth><Placeholder titleKey="tenants" /></RequireAuth>} />
                 <Route path="/payments" element={<RequireAuth><Payments /></RequireAuth>} />
+                <Route path="/settings" element={<RequireAuth><SettingsPage /></RequireAuth>} />
                 <Route path="/tenants" element={<RequireAuth><Placeholder titleKey="tenants" /></RequireAuth>} />
                 <Route path="/reports" element={<RequireAuth><Placeholder titleKey="reports" /></RequireAuth>} />
                 <Route path="*" element={<NotFound />} />
@@ -44,6 +48,7 @@ const App = () => (
             </BrowserRouter>
           </TooltipProvider>
         </AuthProvider>
+        </AppSettingsProvider>
       </CurrencyProvider>
     </I18nProvider>
   </QueryClientProvider>
