@@ -301,6 +301,9 @@ export default function Payments() {
                 <div className="text-end">
                   <p className="font-black text-sage-600 text-lg whitespace-nowrap">{format(r.amount)}</p>
                   <div className="flex gap-1 mt-1 justify-end">
+                    <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-sage-500" onClick={() => downloadReceipt(r)} aria-label="PDF">
+                      <Download className="h-3.5 w-3.5" />
+                    </Button>
                     <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-sage-500" onClick={() => printReceipt(r)}>
                       <Printer className="h-3.5 w-3.5" />
                     </Button>
