@@ -100,7 +100,11 @@ export default function Settings() {
         </div>
         {(() => {
           const dim = PAGE_SIZES_MM[settings.pageSize];
-          const marginPct = (settings.marginMm / dim.w) * 100;
+          const m = settings.margins;
+          const top = `${(m.top / dim.h) * 100}%`;
+          const right = `${(m.right / dim.w) * 100}%`;
+          const bottom = `${(m.bottom / dim.h) * 100}%`;
+          const left = `${(m.left / dim.w) * 100}%`;
           return (
             <div className="bg-sage-100/40 rounded-2xl p-4 flex justify-center">
               <div
