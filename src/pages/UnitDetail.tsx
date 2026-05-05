@@ -37,9 +37,10 @@ const STATUS_STYLES: Record<string, string> = {
 export default function UnitDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const t2 = useT2();
-  const { format } = useCurrency();
+  const { format, currency } = useCurrency();
+  const { settings } = useAppSettings();
   const [unit, setUnit] = useState<Unit | null>(null);
   const [buildingName, setBuildingName] = useState<string>("");
   const [tab, setTab] = useState<Tab>("details");
