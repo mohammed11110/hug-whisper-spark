@@ -40,16 +40,22 @@ const SETTINGS_LABELS: Record<string, { ar: string; en: string }> = {
   late: { ar: "متأخر", en: "Late" },
   soon: { ar: "قريباً", en: "Soon" },
   saved: { ar: "تم الحفظ", en: "Saved" },
+  live_preview: { ar: "معاينة مباشرة للإيصال", en: "Live receipt preview" },
+  sample_tenant: { ar: "محمد العامري", en: "Sample Tenant" },
+  sample_building: { ar: "برج أملاكي", en: "Amlaki Tower" },
 };
 
 export default function Settings() {
   const { t, lang } = useI18n();
   const t2 = useT2();
-  const { currency, setCurrency } = useCurrency();
+  const { currency, setCurrency, format } = useCurrency();
   const { settings, update, setStatusColor, reset } = useAppSettings();
   const L = (k: string) => SETTINGS_LABELS[k]?.[lang === "ar" ? "ar" : "en"] || SETTINGS_LABELS[k]?.en || k;
   const RL = (k: string) => RET_LABELS[k]?.[lang === "ar" ? "ar" : "en"] || RET_LABELS[k]?.en || k;
   const [openCurr, setOpenCurr] = useState(false);
+  const [previewStatus, setPreviewStatus] = useState<"paid" | "late" | "soon">("paid");
+  const pc = settings.statusColors[previewStatus];
+  const today = new Date().toISOString().slice(0, 10);
 
   return (
     <div className="mobile-shell min-h-screen pb-24 bg-background">
