@@ -33,14 +33,15 @@ export default function Buildings() {
   const [items, setItems] = useState<Building[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [filter, setFilter] = useState<string>("all");
+  const [sortKey, setSortKey] = useState<SortKey>(() => (localStorage.getItem("buildings_sort") as SortKey) || "newest");
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
     if (!user) return;
     setLoading(true);
-    const { data } = await supabase.from("buildings").select("id,name,name_en,type,floors,city").eq("user_id", user.id).order("created_at", { ascending: false });
-    setItems(data || []);
+    const { data } = await supabase.from("buildings").select("id,name,name_en,type,floors,city,created_at").eq("user_id", user.id).order("created_at", { ascending: false });
+    setItems((data || []) as Building[]);
     if (data?.length) {
       const ids = data.map((b) => b.id);
       const { data: us } = await supabase.from("units").select("building_id").in("building_id", ids);
@@ -53,7 +54,20 @@ export default function Buildings() {
 
   useEffect(() => { load(); }, [user]);
 
-  const visible = filter === "all" ? items : items.filter((b) => b.type === filter);
+  useEffect(() => { localStorage.setItem("buildings_sort", sortKey); }, [sortKey]);
+
+  const filtered = filter === "all" ? items : items.filter((b) => b.type === filter);
+  const visible = [...filtered].sort((a, b) => {
+    switch (sortKey) {
+      case "oldest": return a.created_at.localeCompare(b.created_at);
+      case "name_az": return a.name.localeCompare(b.name);
+      case "name_za": return b.name.localeCompare(a.name);
+      case "units_high": return (counts[b.id] || 0) - (counts[a.id] || 0);
+      case "units_low": return (counts[a.id] || 0) - (counts[b.id] || 0);
+      case "newest":
+      default: return b.created_at.localeCompare(a.created_at);
+    }
+  });
 
   return (
     <div className="mobile-shell pb-24 min-h-screen">
