@@ -131,12 +131,14 @@ export default function Payments() {
   const printReceipt = (r: Row) => {
     const w = window.open("", "_blank", "width=600,height=800");
     if (!w) return;
+  const buildReceiptHTML = (r: Row) => {
     const statusColors: Record<string, { bg: string; fg: string; label: string }> = {
       paid: { bg: "#dcebd2", fg: "#3a6b3a", label: t2("paid") },
       late: { bg: "#f3d7d7", fg: "#8a2a2a", label: t2("late") },
       soon: { bg: "#f5e3cf", fg: "#8a5a2a", label: t2("soon") },
     };
     const us = statusColors[r.unit_status] || statusColors.soon;
+    return { us, html: `
     w.document.write(`
       <html><head><title>${r.receipt_number || r.id}</title>
       <style>
