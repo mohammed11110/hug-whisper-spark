@@ -47,6 +47,11 @@ const SETTINGS_LABELS: Record<string, { ar: string; en: string }> = {
   page_size: { ar: "حجم الورق", en: "Page size" },
   margins: { ar: "الهوامش", en: "Margins" },
   mm: { ar: "مم", en: "mm" },
+  margin_top: { ar: "أعلى", en: "Top" },
+  margin_right: { ar: "يمين", en: "Right" },
+  margin_bottom: { ar: "أسفل", en: "Bottom" },
+  margin_left: { ar: "يسار", en: "Left" },
+  link_all: { ar: "توحيد الجوانب", en: "Link all sides" },
 };
 
 export default function Settings() {
@@ -100,7 +105,11 @@ export default function Settings() {
         </div>
         {(() => {
           const dim = PAGE_SIZES_MM[settings.pageSize];
-          const marginPct = (settings.marginMm / dim.w) * 100;
+          const m = settings.margins;
+          const top = `${(m.top / dim.h) * 100}%`;
+          const right = `${(m.right / dim.w) * 100}%`;
+          const bottom = `${(m.bottom / dim.h) * 100}%`;
+          const left = `${(m.left / dim.w) * 100}%`;
           return (
             <div className="bg-sage-100/40 rounded-2xl p-4 flex justify-center">
               <div
@@ -115,22 +124,14 @@ export default function Settings() {
                 {/* margin guides */}
                 <div
                   className="absolute pointer-events-none border border-dashed"
-                  style={{
-                    inset: `${marginPct}%`,
-                    borderColor: "#a3b89c",
-                  }}
+                  style={{ top, right, bottom, left, borderColor: "#a3b89c" }}
                 />
                 {/* margin label */}
-                <div
-                  className="absolute top-1 left-1 text-[9px] font-mono text-sage-500/70 bg-white/80 px-1 rounded"
-                >
-                  {settings.pageSize} · {settings.marginMm}{L("mm")}
+                <div className="absolute top-1 left-1 text-[9px] font-mono text-sage-500/70 bg-white/80 px-1 rounded">
+                  {settings.pageSize} · {m.top}/{m.right}/{m.bottom}/{m.left}{L("mm")}
                 </div>
                 {/* receipt content positioned inside margin */}
-                <div
-                  className="absolute overflow-hidden"
-                  style={{ inset: `${marginPct}%` }}
-                >
+                <div className="absolute overflow-hidden" style={{ top, right, bottom, left }}>
                   <div
                     className="relative h-full w-full overflow-hidden rounded-xl border-2 p-3"
                     style={{ borderColor: "#a3b89c", background: "#fff", color: "#3a4f3a" }}
@@ -224,21 +225,38 @@ export default function Settings() {
             </div>
           </div>
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-xs text-muted-foreground">{L("margins")}</p>
-              <span className="text-xs font-mono font-bold text-sage-600">{settings.marginMm} {L("mm")}</span>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-muted-foreground">{L("margins")} ({L("mm")})</p>
+              <button
+                type="button"
+                onClick={() => {
+                  const v = settings.margins.top;
+                  update({ margins: { top: v, right: v, bottom: v, left: v } });
+                }}
+                className="text-[10px] font-bold text-sage-500 underline"
+              >
+                {L("link_all")}
+              </button>
             </div>
-            <input
-              type="range"
-              min={5}
-              max={40}
-              step={1}
-              value={settings.marginMm}
-              onChange={(e) => update({ marginMm: Number(e.target.value) })}
-              className="w-full accent-sage-500"
-            />
-            <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
-              <span>5</span><span>20</span><span>40</span>
+            <div className="grid grid-cols-2 gap-2">
+              {(["top", "right", "bottom", "left"] as const).map((side) => (
+                <label key={side} className="flex items-center gap-2 bg-muted/50 rounded-xl px-3 py-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-sage-500 w-12">
+                    {L(`margin_${side}`)}
+                  </span>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={60}
+                    value={settings.margins[side]}
+                    onChange={(e) => {
+                      const n = Math.max(0, Math.min(60, Number(e.target.value) || 0));
+                      update({ margins: { ...settings.margins, [side]: n } });
+                    }}
+                    className="h-8 text-sm font-mono text-center"
+                  />
+                </label>
+              ))}
             </div>
           </div>
         </div>
