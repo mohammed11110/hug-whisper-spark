@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Receipt, Printer, Trash2, Search, Calendar, Plus } from "lucide-react";
+import { Receipt, Printer, Trash2, Search, Calendar, Plus, Download } from "lucide-react";
+import html2pdf from "html2pdf.js";
 import { AddPaymentDialog } from "@/components/AddPaymentDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
