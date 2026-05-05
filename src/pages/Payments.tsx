@@ -141,6 +141,10 @@ export default function Payments() {
       soon: { bg: sc.soon.bg, fg: sc.soon.fg, label: t2("soon") },
     };
     const us = statusColors[r.unit_status] || statusColors.soon;
+    const brand = settings.brand;
+    const brandHeader = brand.logo
+      ? `<img src="${brand.logo}" style="height:46px;object-fit:contain"/>`
+      : `<h1>${brand.name}</h1>`;
     const html = `
       <html><head><title>${r.receipt_number || r.id}</title>
       <style>
@@ -150,8 +154,9 @@ export default function Payments() {
         .card{border:2px solid #a3b89c;border-radius:24px;padding:28px;background:#fff;max-width:560px;margin:auto;position:relative;overflow:hidden}
         .watermark{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:90px;font-weight:900;color:#a3b89c;opacity:.08;pointer-events:none;letter-spacing:8px}
         .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #eef3ea;padding-bottom:14px;margin-bottom:14px}
-        h1{margin:0 0 2px;font-size:24px;color:#5a7359}
+        h1{margin:0 0 2px;font-size:22px;color:#5a7359}
         .sub{color:#7a8a78;font-size:11px;letter-spacing:2px;text-transform:uppercase}
+        .brand-meta{font-size:10px;color:#9aa898;margin-top:4px}
         .badge{display:inline-block;padding:6px 14px;border-radius:999px;font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:1px;background:${us.bg};color:${us.fg}}
         .meta{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin-bottom:14px;font-size:12px}
         .meta div{padding:8px 12px;background:#f6faf3;border-radius:10px}
@@ -168,8 +173,9 @@ export default function Payments() {
           <div class="watermark">${us.label}</div>
           <div class="header">
             <div>
-              <h1>أملاكي · Amlaki</h1>
+              ${brandHeader}
               <p class="sub">${t2("receipt_number")} · ${r.receipt_number || "—"}</p>
+              ${brand.address || brand.phone ? `<p class="brand-meta">${brand.address || ""} ${brand.phone ? "· " + brand.phone : ""}</p>` : ""}
             </div>
             <span class="badge">${us.label}</span>
           </div>

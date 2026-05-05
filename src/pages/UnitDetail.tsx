@@ -1,21 +1,25 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Trash2, User, Phone, FileText, IdCard, Calendar, Wallet, Plus, Receipt, Wrench, Scale, Camera, Droplets, Zap, Flame, Wifi } from "lucide-react";
+import { ArrowLeft, Trash2, User, Phone, FileText, IdCard, Calendar, Wallet, Plus, Receipt, Wrench, Scale, Camera, Droplets, Zap, Flame, Wifi, FileSignature } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { useI18n } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
+import { useAppSettings } from "@/lib/appSettings";
+import { buildLeaseHTML, downloadHTMLAsPDF, printHTML } from "@/lib/pdfDocs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { AddPaymentDialog } from "@/components/AddPaymentDialog";
 
 interface Unit {
   id: string; building_id: string; unit_number: string; floor: number; type: string;
-  tenant_name: string | null; tenant_phone: string | null;
+  tenant_name: string | null; tenant_phone: string | null; tenant_id_number: string | null;
   rent_amount: number; rent_type: string; due_day: number; status: string;
-  contract_end_date: string | null; last_paid_date: string | null;
+  contract_type: string; contract_start_date: string | null; contract_end_date: string | null;
+  contract_file_url: string | null; last_paid_date: string | null;
+  security_deposit: number;
   water_account: string | null; electric_account: string | null; gas_account: string | null; internet_account: string | null;
   utilities: any; legal_case: any; handover_photos: any;
 }
@@ -33,9 +37,10 @@ const STATUS_STYLES: Record<string, string> = {
 export default function UnitDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const t2 = useT2();
-  const { format } = useCurrency();
+  const { format, currency } = useCurrency();
+  const { settings } = useAppSettings();
   const [unit, setUnit] = useState<Unit | null>(null);
   const [buildingName, setBuildingName] = useState<string>("");
   const [tab, setTab] = useState<Tab>("details");
@@ -59,6 +64,37 @@ export default function UnitDetail() {
     if (error) return toast.error(error.message);
     toast.success("✓");
     navigate(`/buildings/${unit.building_id}`);
+  };
+
+  const exportLease = async (mode: "download" | "print") => {
+    if (!unit) return;
+    const html = buildLeaseHTML({
+      brand: settings.brand,
+      building_name: buildingName || "—",
+      unit_number: unit.unit_number,
+      unit_type: t2(unit.type as any),
+      floor: unit.floor,
+      tenant_name: unit.tenant_name || "",
+      tenant_phone: unit.tenant_phone || "",
+      tenant_id_number: (unit as any).tenant_id_number || "",
+      rent_amount: Number(unit.rent_amount),
+      rent_type: unit.rent_type,
+      contract_type: (unit as any).contract_type || "yearly",
+      contract_start_date: (unit as any).contract_start_date,
+      contract_end_date: unit.contract_end_date,
+      due_day: unit.due_day,
+      security_deposit: Number((unit as any).security_deposit || 0),
+      currency: currency.symbol,
+      lang: lang === "ar" ? "ar" : "en",
+    });
+    if (mode === "print") {
+      printHTML(html);
+    } else {
+      try {
+        await downloadHTMLAsPDF(html, `lease-${unit.unit_number}-${unit.tenant_name || "tenant"}.pdf`, settings);
+        toast.success("PDF ✓");
+      } catch (e: any) { toast.error(e.message || "PDF error"); }
+    }
   };
 
   if (!unit) return <div className="mobile-shell flex items-center justify-center min-h-screen"><p className="text-sage-500">{t("loading")}</p></div>;
@@ -107,7 +143,7 @@ export default function UnitDetail() {
       </div>
 
       <div className="px-5 py-5 space-y-4 animate-float-up" key={tab}>
-        {tab === "details" && <DetailsTab unit={unit} format={format} t2={t2} onPay={() => setPayOpen(true)} />}
+        {tab === "details" && <DetailsTab unit={unit} format={format} t2={t2} lang={lang} onPay={() => setPayOpen(true)} onLeasePDF={() => exportLease("download")} onLeasePrint={() => exportLease("print")} />}
         {tab === "maintenance" && <MaintenanceTab />}
         {tab === "utilities" && <UtilitiesTab unit={unit} reload={load} />}
         {tab === "legal" && <LegalTab unit={unit} reload={load} />}
@@ -120,7 +156,7 @@ export default function UnitDetail() {
   );
 }
 
-function DetailsTab({ unit, format, t2, onPay }: any) {
+function DetailsTab({ unit, format, t2, lang, onPay, onLeasePDF, onLeasePrint }: any) {
   return (
     <>
       <Card>
@@ -138,13 +174,16 @@ function DetailsTab({ unit, format, t2, onPay }: any) {
         <Row icon={Calendar} label={t2("contract_end")} value={unit.contract_end_date || "—"} />
       </Card>
       <div className="grid grid-cols-2 gap-2.5">
-        <Button variant="outline" className="rounded-xl border-sage-300 text-sage-600 h-12 font-semibold">
-          <Receipt className="h-4 w-4 me-1.5" />{t2("issue_receipt")}
+        <Button variant="outline" onClick={onLeasePDF} className="rounded-xl border-sage-300 text-sage-600 h-12 font-semibold">
+          <FileSignature className="h-4 w-4 me-1.5" />{lang === "ar" ? "عقد PDF" : "Lease PDF"}
         </Button>
         <Button onClick={onPay} className="rounded-xl bg-gradient-sage text-primary-foreground h-12 font-semibold shadow-soft">
           <Plus className="h-4 w-4 me-1.5" />{t2("register_payment")}
         </Button>
       </div>
+      <Button variant="ghost" onClick={onLeasePrint} className="w-full rounded-xl text-sage-500 h-10 text-xs">
+        {lang === "ar" ? "🖨️ طباعة العقد" : "🖨️ Print contract"}
+      </Button>
     </>
   );
 }

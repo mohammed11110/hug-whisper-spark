@@ -32,8 +32,46 @@ export default function Dashboard() {
       const { data: profile } = await supabase.from("profiles").select("name").eq("id", user.id).maybeSingle();
       setProfileName(profile?.name || user.email?.split("@")[0] || "");
 
-      const { count: bCount } = await supabase.from("buildings").select("*", { count: "exact", head: true }).eq("user_id", user.id);
-      setStats((s) => ({ ...s, buildings: bCount ?? 0 }));
+      // Buildings owned by this user
+      const { data: bRows } = await supabase.from("buildings").select("id").eq("user_id", user.id);
+      const bIds = (bRows || []).map((b: any) => b.id);
+      const buildings = bIds.length;
+
+      if (!bIds.length) {
+        setStats({ buildings: 0, units: 0, overdue: 0, expiring: 0, collected: 0, pending: 0 });
+        return;
+      }
+
+      // Units in those buildings
+      const { data: uRows } = await supabase.from("units").select("id, status, rent_amount, contract_end_date").in("building_id", bIds);
+      const units = uRows?.length ?? 0;
+      const overdue = (uRows || []).filter((u: any) => u.status === "late").length;
+
+      const today = new Date();
+      const warnUntil = new Date(); warnUntil.setDate(today.getDate() + 30);
+      const expiring = (uRows || []).filter((u: any) => {
+        if (!u.contract_end_date) return false;
+        const d = new Date(u.contract_end_date);
+        return d >= today && d <= warnUntil;
+      }).length;
+
+      // Pending = sum of rents on non-paid units
+      const pending = (uRows || [])
+        .filter((u: any) => u.status !== "paid")
+        .reduce((s: number, u: any) => s + Number(u.rent_amount || 0), 0);
+
+      // Collected this month
+      const unitIds = (uRows || []).map((u: any) => u.id);
+      let collected = 0;
+      if (unitIds.length) {
+        const start = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
+        const end = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().slice(0, 10);
+        const { data: pays } = await supabase.from("payments").select("amount").in("unit_id", unitIds)
+          .is("deleted_at", null).gte("payment_date", start).lte("payment_date", end);
+        collected = (pays || []).reduce((s: number, p: any) => s + Number(p.amount), 0);
+      }
+
+      setStats({ buildings, units, overdue, expiring, collected, pending });
     })();
   }, [user]);
 

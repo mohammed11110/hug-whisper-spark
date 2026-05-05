@@ -10,22 +10,19 @@ export const PAGE_SIZES_MM: Record<PageSize, { w: number; h: number }> = {
 };
 export interface Margins { top: number; right: number; bottom: number; left: number }
 export interface MessageTemplates { reminder: string; late: string; receipt: string }
+export interface BusinessBrand { name: string; logo: string | null; phone: string; address: string }
 export interface AppSettings {
   statusColors: { paid: StatusColor; late: StatusColor; soon: StatusColor };
-  /** filter retention in minutes; 0 = never persist, -1 = forever */
   filterRetentionMin: number;
   pageSize: PageSize;
-  /** @deprecated kept for migration; use margins */
   marginMm?: number;
   margins: Margins;
-  /** PIN required to delete payments; null = disabled */
   deletePin: string | null;
-  /** WhatsApp/SMS message templates */
   templates: MessageTemplates;
-  /** Days before due-date to mark "upcoming" */
   upcomingDays: number;
-  /** Days before contract-end to warn */
   contractWarnDays: number;
+  /** Business branding for receipts & contracts */
+  brand: BusinessBrand;
 }
 
 const DEFAULTS: AppSettings = {
@@ -41,6 +38,7 @@ const DEFAULTS: AppSettings = {
   templates: { ...DEFAULT_TEMPLATES },
   upcomingDays: 7,
   contractWarnDays: 30,
+  brand: { name: "أملاكي · Amlaki", logo: null, phone: "", address: "" },
 };
 
 const KEY = "amlaki.appSettings.v1";
@@ -69,6 +67,7 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
         statusColors: { ...DEFAULTS.statusColors, ...(v.statusColors || {}) },
         margins: { ...DEFAULTS.margins, ...(legacy || {}), ...(v.margins || {}) },
         templates: { ...DEFAULTS.templates, ...(v.templates || {}) },
+        brand: { ...DEFAULTS.brand, ...(v.brand || {}) },
       };
     } catch { return DEFAULTS; }
   });

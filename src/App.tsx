@@ -23,6 +23,7 @@ import BuildingExpenses from "./pages/BuildingExpenses";
 import Notifications from "./pages/Notifications";
 import Backup from "./pages/Backup";
 import Team from "./pages/Team";
+import Install from "./pages/Install";
 import Placeholder from "./pages/Placeholder";
 import NotFound from "./pages/NotFound.tsx";
 
@@ -54,6 +55,7 @@ const App = () => (
                 <Route path="/notifications" element={<RequireAuth><Notifications /></RequireAuth>} />
                 <Route path="/backup" element={<RequireAuth><Backup /></RequireAuth>} />
                 <Route path="/team" element={<RequireAuth><Team /></RequireAuth>} />
+                <Route path="/install" element={<Install />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Palette, Clock, Coins, RotateCcw, Eye, Printer, ShieldAlert, MessageCircle, Bell, Database, Users } from "lucide-react";
+import { ArrowRight, Palette, Clock, Coins, RotateCcw, Eye, Printer, ShieldAlert, MessageCircle, Bell, Database, Users, Image as ImageIcon, Smartphone } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
@@ -478,6 +478,72 @@ export default function Settings() {
           </div>
           <ArrowRight className="h-4 w-4 text-sage-500 rtl:rotate-180" />
         </Link>
+        <Link to="/install" className="flex items-center gap-3 bg-card border border-sage-200/60 rounded-2xl p-4 shadow-soft hover:bg-sage-50 transition">
+          <div className="p-2 rounded-xl bg-sage-100 text-sage-600"><Smartphone className="h-4 w-4" /></div>
+          <div className="flex-1 text-start">
+            <p className="font-bold text-sm text-sage-600">{lang === "ar" ? "تثبيت التطبيق على الجوال" : "Install on phone"}</p>
+            <p className="text-[11px] text-muted-foreground">{lang === "ar" ? "افتحه من الشاشة الرئيسية كتطبيق" : "Launch like a native app"}</p>
+          </div>
+          <ArrowRight className="h-4 w-4 text-sage-500 rtl:rotate-180" />
+        </Link>
+      </section>
+
+      {/* Business brand */}
+      <section className="px-5 mt-6">
+        <div className="flex items-center gap-2 mb-2">
+          <ImageIcon className="h-4 w-4 text-sage-600" />
+          <h2 className="font-bold text-sage-600 text-sm">
+            {lang === "ar" ? "هوية الإيصالات والعقود" : "Receipt & contract branding"}
+          </h2>
+        </div>
+        <div className="bg-card border border-sage-200/50 rounded-2xl p-4 shadow-soft space-y-3">
+          <p className="text-[10px] text-muted-foreground">
+            {lang === "ar"
+              ? "تظهر هذه البيانات في رأس كل إيصال وعقد PDF."
+              : "Shown in the header of every receipt and lease PDF."}
+          </p>
+          <label className="block space-y-1">
+            <span className="text-[11px] text-sage-500 font-semibold">{lang === "ar" ? "اسم العمل" : "Business name"}</span>
+            <Input value={settings.brand.name}
+              onChange={(e) => update({ brand: { ...settings.brand, name: e.target.value } })}
+              className="rounded-xl border-sage-200 bg-card h-10" />
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="block space-y-1">
+              <span className="text-[11px] text-sage-500 font-semibold">{lang === "ar" ? "هاتف" : "Phone"}</span>
+              <Input value={settings.brand.phone}
+                onChange={(e) => update({ brand: { ...settings.brand, phone: e.target.value } })}
+                className="rounded-xl border-sage-200 bg-card h-10" />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-[11px] text-sage-500 font-semibold">{lang === "ar" ? "العنوان" : "Address"}</span>
+              <Input value={settings.brand.address}
+                onChange={(e) => update({ brand: { ...settings.brand, address: e.target.value } })}
+                className="rounded-xl border-sage-200 bg-card h-10" />
+            </label>
+          </div>
+          <div>
+            <span className="text-[11px] text-sage-500 font-semibold block mb-1">{lang === "ar" ? "الشعار (PNG/JPG)" : "Logo (PNG/JPG)"}</span>
+            <div className="flex items-center gap-3">
+              {settings.brand.logo && (
+                <img src={settings.brand.logo} alt="logo" className="h-12 w-12 object-contain rounded-lg border border-sage-200 bg-white p-1" />
+              )}
+              <input type="file" accept="image/*"
+                onChange={(e) => {
+                  const f = e.target.files?.[0]; if (!f) return;
+                  if (f.size > 500_000) { toast.error(lang === "ar" ? "الحد 500 كيلوبايت" : "Max 500KB"); return; }
+                  const reader = new FileReader();
+                  reader.onload = () => { update({ brand: { ...settings.brand, logo: String(reader.result) } }); toast.success(L("saved")); };
+                  reader.readAsDataURL(f);
+                }}
+                className="text-xs text-sage-600 flex-1" />
+              {settings.brand.logo && (
+                <button onClick={() => update({ brand: { ...settings.brand, logo: null } })}
+                  className="text-[11px] text-burgundy font-bold">×</button>
+              )}
+            </div>
+          </div>
+        </div>
       </section>
 
       <div className="px-5 mt-8">

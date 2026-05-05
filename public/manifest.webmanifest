@@ -1,0 +1,15 @@
+{
+  "name": "Amlaki – Property Management",
+  "short_name": "Amlaki",
+  "description": "Manage your buildings, units, tenants and payments with ease.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#faf6ee",
+  "theme_color": "#5a7359",
+  "icons": [
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
