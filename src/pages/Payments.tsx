@@ -133,7 +133,7 @@ export default function Payments() {
     const html = `
       <html><head><title>${r.receipt_number || r.id}</title>
       <style>
-        @page{margin:16mm}
+        @page{size:${settings.pageSize};margin:${settings.marginMm}mm}
         *{box-sizing:border-box}
         body{font-family:system-ui,-apple-system,sans-serif;padding:32px;color:#3a4f3a;background:#faf6ee;margin:0}
         .card{border:2px solid #a3b89c;border-radius:24px;padding:28px;background:#fff;max-width:560px;margin:auto;position:relative;overflow:hidden}
@@ -198,9 +198,9 @@ export default function Payments() {
       const card = container.querySelector("#receipt-card") as HTMLElement;
       const canvas = await html2canvas(card, { scale: 2, backgroundColor: "#ffffff" });
       const img = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({ unit: "pt", format: "a4" });
+      const pdf = new jsPDF({ unit: "mm", format: settings.pageSize.toLowerCase() as any });
       const pageW = pdf.internal.pageSize.getWidth();
-      const margin = 32;
+      const margin = settings.marginMm;
       const w = pageW - margin * 2;
       const h = (canvas.height * w) / canvas.width;
       pdf.addImage(img, "PNG", margin, margin, w, h);
