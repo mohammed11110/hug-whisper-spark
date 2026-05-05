@@ -61,6 +61,7 @@ export default function Payments() {
     const { data: pays } = await supabase
       .from("payments")
       .select("id, unit_id, amount, payment_date, receipt_number")
+      .is("deleted_at", null)
       .order("payment_date", { ascending: false })
       .limit(500);
     const unitIds = Array.from(new Set((pays || []).map((p: any) => p.unit_id)));
