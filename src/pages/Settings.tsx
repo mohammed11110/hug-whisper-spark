@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Palette, Clock, Coins, RotateCcw, Eye, Printer, ShieldAlert, MessageCircle, Bell, Database, Users, Image as ImageIcon } from "lucide-react";
+import { ArrowRight, Palette, Clock, Coins, RotateCcw, Eye, Printer, ShieldAlert, MessageCircle, Bell, Database, Users, Image as ImageIcon, Smartphone } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
@@ -475,6 +475,14 @@ export default function Settings() {
           <div className="flex-1 text-start">
             <p className="font-bold text-sm text-sage-600">{lang === "ar" ? "النسخ الاحتياطي" : "Backup & restore"}</p>
             <p className="text-[11px] text-muted-foreground">{lang === "ar" ? "تصدير واستعادة كل بياناتك" : "Export and restore all your data"}</p>
+          </div>
+          <ArrowRight className="h-4 w-4 text-sage-500 rtl:rotate-180" />
+        </Link>
+        <Link to="/install" className="flex items-center gap-3 bg-card border border-sage-200/60 rounded-2xl p-4 shadow-soft hover:bg-sage-50 transition">
+          <div className="p-2 rounded-xl bg-sage-100 text-sage-600"><Smartphone className="h-4 w-4" /></div>
+          <div className="flex-1 text-start">
+            <p className="font-bold text-sm text-sage-600">{lang === "ar" ? "تثبيت التطبيق على الجوال" : "Install on phone"}</p>
+            <p className="text-[11px] text-muted-foreground">{lang === "ar" ? "افتحه من الشاشة الرئيسية كتطبيق" : "Launch like a native app"}</p>
           </div>
           <ArrowRight className="h-4 w-4 text-sage-500 rtl:rotate-180" />
         </Link>
