@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      building_members: {
+        Row: {
+          building_id: string
+          created_at: string
+          id: string
+          invited_by: string | null
+          role: Database["public"]["Enums"]["member_role"]
+          user_id: string
+        }
+        Insert: {
+          building_id: string
+          created_at?: string
+          id?: string
+          invited_by?: string | null
+          role?: Database["public"]["Enums"]["member_role"]
+          user_id: string
+        }
+        Update: {
+          building_id?: string
+          created_at?: string
+          id?: string
+          invited_by?: string | null
+          role?: Database["public"]["Enums"]["member_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "building_members_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       buildings: {
         Row: {
           address: string | null
@@ -85,6 +120,50 @@ export type Database = {
           vendor?: string | null
         }
         Relationships: []
+      }
+      invitations: {
+        Row: {
+          accepted_at: string | null
+          building_id: string
+          created_at: string
+          email: string
+          id: string
+          invited_by: string
+          role: Database["public"]["Enums"]["member_role"]
+          status: string
+          token: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          building_id: string
+          created_at?: string
+          email: string
+          id?: string
+          invited_by: string
+          role?: Database["public"]["Enums"]["member_role"]
+          status?: string
+          token?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          building_id?: string
+          created_at?: string
+          email?: string
+          id?: string
+          invited_by?: string
+          role?: Database["public"]["Enums"]["member_role"]
+          status?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invitations_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payments: {
         Row: {
@@ -202,6 +281,7 @@ export type Database = {
           rent_type: string
           security_deposit: number
           status: string
+          tenant_email: string | null
           tenant_id_image_url: string | null
           tenant_id_number: string | null
           tenant_id_type: string | null
@@ -235,6 +315,7 @@ export type Database = {
           rent_type?: string
           security_deposit?: number
           status?: string
+          tenant_email?: string | null
           tenant_id_image_url?: string | null
           tenant_id_number?: string | null
           tenant_id_type?: string | null
@@ -268,6 +349,7 @@ export type Database = {
           rent_type?: string
           security_deposit?: number
           status?: string
+          tenant_email?: string | null
           tenant_id_image_url?: string | null
           tenant_id_number?: string | null
           tenant_id_type?: string | null
@@ -293,10 +375,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_building_access: {
+        Args: {
+          _building_id: string
+          _min_role?: Database["public"]["Enums"]["member_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_building_owner: {
+        Args: { _building_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      member_role: "manager" | "accountant" | "viewer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -423,6 +516,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      member_role: ["manager", "accountant", "viewer"],
+    },
   },
 } as const
