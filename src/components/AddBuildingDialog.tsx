@@ -38,7 +38,7 @@ export function AddBuildingDialog({ open, onOpenChange, onCreated }: { open: boo
     setBusy(false);
     if (error) return toast.error(error.message);
     toast.success("✓");
-    setName(""); setNameEn(""); setFloors(1); setCity(""); setAddress(""); setType("tower");
+    setName(""); setNameEn(""); setFloors("1"); setCity(""); setAddress(""); setType("tower");
     onCreated?.();
     onOpenChange(false);
   };
