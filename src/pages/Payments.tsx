@@ -328,14 +328,17 @@ export default function Payments() {
                 </Link>
                 <div className="text-end">
                   <p className="font-black text-sage-600 text-lg whitespace-nowrap">{format(r.amount)}</p>
-                  <div className="flex gap-1 mt-1 justify-end">
+                  <div className="flex gap-1 mt-1 justify-end flex-wrap">
                     <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-sage-500" onClick={() => printReceipt(r)}>
                       <Printer className="h-3.5 w-3.5" />
                     </Button>
                     <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-sage-600" onClick={() => downloadReceiptPDF(r)}>
                       <Download className="h-3.5 w-3.5" />
                     </Button>
-                    <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-burgundy hover:bg-burgundy/10" onClick={() => setDelId(r.id)}>
+                    <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-sage-600" onClick={() => setEditId(r.id)}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-burgundy hover:bg-burgundy/10" onClick={() => onDeleteClick(r.id)}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
