@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Receipt, Printer, Trash2, Search, Calendar, Plus } from "lucide-react";
+import { Receipt, Printer, Trash2, Search, Calendar, Plus, Download } from "lucide-react";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 import { AddPaymentDialog } from "@/components/AddPaymentDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -127,16 +129,14 @@ export default function Payments() {
     load();
   };
 
-  const printReceipt = (r: Row) => {
-    const w = window.open("", "_blank", "width=600,height=800");
-    if (!w) return;
+  const buildReceiptHTML = (r: Row) => {
     const statusColors: Record<string, { bg: string; fg: string; label: string }> = {
       paid: { bg: "#dcebd2", fg: "#3a6b3a", label: t2("paid") },
       late: { bg: "#f3d7d7", fg: "#8a2a2a", label: t2("late") },
       soon: { bg: "#f5e3cf", fg: "#8a5a2a", label: t2("soon") },
     };
     const us = statusColors[r.unit_status] || statusColors.soon;
-    w.document.write(`
+    const html = `
       <html><head><title>${r.receipt_number || r.id}</title>
       <style>
         @page{margin:16mm}
@@ -159,7 +159,7 @@ export default function Payments() {
         .footer{margin-top:18px;text-align:center;color:#9aa898;font-size:10px;letter-spacing:1px}
         .unit-pill{display:inline-block;padding:4px 10px;border-radius:8px;background:#5a7359;color:#fff;font-weight:800;font-size:13px;margin-inline-end:6px}
       </style></head><body>
-        <div class="card">
+        <div class="card" id="receipt-card">
           <div class="watermark">${us.label}</div>
           <div class="header">
             <div>
@@ -178,10 +178,46 @@ export default function Payments() {
           <div class="total"><span>${t2("total")}</span><span>${format(r.amount)}</span></div>
           <div class="footer">— ${t2("issue_receipt") || "Receipt"} —</div>
         </div>
-      </body></html>`);
+      </body></html>`;
+    return { us, html };
+  };
+
+  const printReceipt = (r: Row) => {
+    const w = window.open("", "_blank", "width=600,height=800");
+    if (!w) return;
+    const { html } = buildReceiptHTML(r);
+    w.document.write(html);
     w.document.close();
     setTimeout(() => w.print(), 300);
   };
+
+  const downloadReceiptPDF = async (r: Row) => {
+    const { html } = buildReceiptHTML(r);
+    const container = document.createElement("div");
+    container.style.position = "fixed";
+    container.style.left = "-10000px";
+    container.style.top = "0";
+    container.style.width = "640px";
+    container.innerHTML = html;
+    document.body.appendChild(container);
+    try {
+      const card = container.querySelector("#receipt-card") as HTMLElement;
+      const canvas = await html2canvas(card, { scale: 2, backgroundColor: "#ffffff" });
+      const img = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({ unit: "pt", format: "a4" });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const margin = 32;
+      const w = pageW - margin * 2;
+      const h = (canvas.height * w) / canvas.width;
+      pdf.addImage(img, "PNG", margin, margin, w, h);
+      pdf.save(`${r.receipt_number || r.id}.pdf`);
+    } catch (e: any) {
+      toast.error(e.message || "PDF error");
+    } finally {
+      document.body.removeChild(container);
+    }
+  };
+
 
   return (
     <div className="mobile-shell min-h-screen pb-24 bg-background">
@@ -270,6 +306,9 @@ export default function Payments() {
                   <div className="flex gap-1 mt-1 justify-end">
                     <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-sage-500" onClick={() => printReceipt(r)}>
                       <Printer className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-sage-600" onClick={() => downloadReceiptPDF(r)}>
+                      <Download className="h-3.5 w-3.5" />
                     </Button>
                     <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-burgundy hover:bg-burgundy/10" onClick={() => setDelId(r.id)}>
                       <Trash2 className="h-3.5 w-3.5" />
