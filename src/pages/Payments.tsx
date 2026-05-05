@@ -22,20 +22,40 @@ interface Row {
   unit_number: string;
   building_name: string;
   tenant_name: string | null;
+  unit_status: string;
 }
 
 type Filter = "all" | "month" | "year";
+type StatusFilter = "all" | "paid" | "late";
+
+const LS_KEY = "amlaki.payments.filters.v1";
+const loadLS = (): { search: string; filter: Filter; statusFilter: StatusFilter } => {
+  try {
+    const v = JSON.parse(localStorage.getItem(LS_KEY) || "{}");
+    return {
+      search: typeof v.search === "string" ? v.search : "",
+      filter: ["all", "month", "year"].includes(v.filter) ? v.filter : "month",
+      statusFilter: ["all", "paid", "late"].includes(v.statusFilter) ? v.statusFilter : "all",
+    };
+  } catch { return { search: "", filter: "month", statusFilter: "all" }; }
+};
 
 export default function Payments() {
   const { t } = useI18n();
   const t2 = useT2();
   const { format, currency } = useCurrency();
+  const initial = loadLS();
   const [rows, setRows] = useState<Row[]>([]);
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<Filter>("month");
+  const [search, setSearch] = useState(initial.search);
+  const [filter, setFilter] = useState<Filter>(initial.filter);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(initial.statusFilter);
   const [delId, setDelId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    localStorage.setItem(LS_KEY, JSON.stringify({ search, filter, statusFilter }));
+  }, [search, filter, statusFilter]);
 
   const load = async () => {
     setLoading(true);
