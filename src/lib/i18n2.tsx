@@ -89,6 +89,13 @@ const dict: Record<Key, Partial<Record<Lang, string>>> = {
   rented: { ar: "مؤجّرة", en: "Rented", ur: "کرایہ پر", zh: "已租", hi: "किराये पर", bn: "ভাড়া দেওয়া", fr: "Louée", es: "Alquilada", tr: "Kirada" },
   occupancy_status: { ar: "حالة الإشغال", en: "Occupancy", ur: "حالت", zh: "入住状态", hi: "स्थिति", bn: "অবস্থা", fr: "Occupation", es: "Ocupación", tr: "Doluluk" },
   tenant_required: { ar: "بيانات المستأجر مطلوبة", en: "Tenant info required", ur: "کرایہ دار کی معلومات لازمی", zh: "需要租户信息", hi: "किरायेदार जानकारी अनिवार्य", bn: "ভাড়াটে তথ্য প্রয়োজন", fr: "Infos locataire requises", es: "Datos del inquilino requeridos", tr: "Kiracı bilgisi gerekli" },
+  sort: { ar: "ترتيب", en: "Sort", ur: "ترتیب", zh: "排序", hi: "क्रम", bn: "ক্রম", fr: "Trier", es: "Ordenar", tr: "Sırala" },
+  sort_newest: { ar: "الأحدث", en: "Newest", ur: "تازہ ترین", zh: "最新", hi: "नवीनतम", bn: "নতুন", fr: "Plus récent", es: "Más reciente", tr: "En yeni" },
+  sort_oldest: { ar: "الأقدم", en: "Oldest", ur: "پرانا", zh: "最旧", hi: "सबसे पुराना", bn: "পুরাতন", fr: "Plus ancien", es: "Más antiguo", tr: "En eski" },
+  sort_name_az: { ar: "الاسم (أ-ي)", en: "Name (A-Z)", ur: "نام (A-Z)", zh: "名称 A-Z", hi: "नाम A-Z", bn: "নাম A-Z", fr: "Nom (A-Z)", es: "Nombre (A-Z)", tr: "Ad (A-Z)" },
+  sort_name_za: { ar: "الاسم (ي-أ)", en: "Name (Z-A)", ur: "نام (Z-A)", zh: "名称 Z-A", hi: "नाम Z-A", bn: "নাম Z-A", fr: "Nom (Z-A)", es: "Nombre (Z-A)", tr: "Ad (Z-A)" },
+  sort_units_high: { ar: "الأكثر وحدات", en: "Most units", ur: "زیادہ یونٹ", zh: "单元最多", hi: "अधिक इकाइयाँ", bn: "বেশি ইউনিট", fr: "Plus d'unités", es: "Más unidades", tr: "En çok birim" },
+  sort_units_low: { ar: "الأقل وحدات", en: "Fewest units", ur: "کم یونٹ", zh: "单元最少", hi: "कम इकाइयाँ", bn: "কম ইউনিট", fr: "Moins d'unités", es: "Menos unidades", tr: "En az birim" },
 };
 
 export function useT2() {
