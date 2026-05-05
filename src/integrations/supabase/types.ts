@@ -227,6 +227,7 @@ export type Database = {
           id: string
           name: string | null
           phone: string | null
+          subscription_expires_at: string | null
           subscription_plan: string
           subscription_status: string
           updated_at: string
@@ -239,6 +240,7 @@ export type Database = {
           id: string
           name?: string | null
           phone?: string | null
+          subscription_expires_at?: string | null
           subscription_plan?: string
           subscription_status?: string
           updated_at?: string
@@ -251,9 +253,49 @@ export type Database = {
           id?: string
           name?: string | null
           phone?: string | null
+          subscription_expires_at?: string | null
           subscription_plan?: string
           subscription_status?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      promo_codes: {
+        Row: {
+          code: string
+          created_at: string
+          duration_days: number
+          expires_at: string | null
+          id: string
+          max_uses: number
+          plan: string
+          redeemed_at: string | null
+          redeemed_by: string | null
+          used_count: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          duration_days?: number
+          expires_at?: string | null
+          id?: string
+          max_uses?: number
+          plan?: string
+          redeemed_at?: string | null
+          redeemed_by?: string | null
+          used_count?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          duration_days?: number
+          expires_at?: string | null
+          id?: string
+          max_uses?: number
+          plan?: string
+          redeemed_at?: string | null
+          redeemed_by?: string | null
+          used_count?: number
         }
         Relationships: []
       }
@@ -387,6 +429,7 @@ export type Database = {
         Args: { _building_id: string; _user_id: string }
         Returns: boolean
       }
+      redeem_promo_code: { Args: { _code: string }; Returns: Json }
     }
     Enums: {
       member_role: "manager" | "accountant" | "viewer"
