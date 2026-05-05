@@ -14,7 +14,8 @@ type Key =
   | "no_legal_case" | "file_legal_case" | "case_number" | "court" | "lawyer" | "claim_amount" | "notes"
   | "no_photos" | "add_photo" | "back" | "search" | "no_tenants" | "no_payments"
   | "paid" | "late" | "soon" | "status" | "vacant" | "rented" | "occupancy_status" | "tenant_required"
-  | "sort" | "sort_newest" | "sort_oldest" | "sort_name_az" | "sort_name_za" | "sort_units_high" | "sort_units_low";
+  | "sort" | "sort_newest" | "sort_oldest" | "sort_name_az" | "sort_name_za" | "sort_units_high" | "sort_units_low"
+  | "payments" | "receipts" | "all_payments" | "receipt_number" | "payment_date" | "amount" | "no_payments_msg" | "total" | "this_month" | "filter_all" | "filter_month" | "filter_year" | "print_receipt" | "delete_payment";
 
 const dict: Record<Key, Partial<Record<Lang, string>>> = {
   all: { ar: "الكل", en: "All", ur: "تمام", zh: "全部", hi: "सभी", bn: "সব", fr: "Tous", es: "Todos", tr: "Tümü" },
