@@ -14,7 +14,217 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      buildings: {
+        Row: {
+          address: string | null
+          city: string | null
+          created_at: string
+          floors: number
+          id: string
+          name: string
+          name_en: string | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          floors?: number
+          id?: string
+          name: string
+          name_en?: string | null
+          type?: string
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          floors?: number
+          id?: string
+          name?: string
+          name_en?: string | null
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      payments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          payment_date: string
+          period_end: string | null
+          period_start: string | null
+          receipt_number: string | null
+          unit_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          payment_date?: string
+          period_end?: string | null
+          period_start?: string | null
+          receipt_number?: string | null
+          unit_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          payment_date?: string
+          period_end?: string | null
+          period_start?: string | null
+          receipt_number?: string | null
+          unit_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          canceled_at: string | null
+          country_code: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string | null
+          phone: string | null
+          subscription_plan: string
+          subscription_status: string
+          updated_at: string
+        }
+        Insert: {
+          canceled_at?: string | null
+          country_code?: string | null
+          created_at?: string
+          email?: string | null
+          id: string
+          name?: string | null
+          phone?: string | null
+          subscription_plan?: string
+          subscription_status?: string
+          updated_at?: string
+        }
+        Update: {
+          canceled_at?: string | null
+          country_code?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string | null
+          phone?: string | null
+          subscription_plan?: string
+          subscription_status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      units: {
+        Row: {
+          building_id: string
+          contract_end_date: string | null
+          contract_file_url: string | null
+          created_at: string
+          due_day: number
+          electric_account: string | null
+          floor: number
+          gas_account: string | null
+          handover_photos: Json
+          handover_video_url: string | null
+          id: string
+          internet_account: string | null
+          last_paid_date: string | null
+          legal_case: Json
+          rent_amount: number
+          rent_type: string
+          status: string
+          tenant_id_image_url: string | null
+          tenant_id_number: string | null
+          tenant_id_type: string | null
+          tenant_name: string | null
+          tenant_phone: string | null
+          type: string
+          unit_number: string
+          utilities: Json
+          water_account: string | null
+        }
+        Insert: {
+          building_id: string
+          contract_end_date?: string | null
+          contract_file_url?: string | null
+          created_at?: string
+          due_day?: number
+          electric_account?: string | null
+          floor?: number
+          gas_account?: string | null
+          handover_photos?: Json
+          handover_video_url?: string | null
+          id?: string
+          internet_account?: string | null
+          last_paid_date?: string | null
+          legal_case?: Json
+          rent_amount?: number
+          rent_type?: string
+          status?: string
+          tenant_id_image_url?: string | null
+          tenant_id_number?: string | null
+          tenant_id_type?: string | null
+          tenant_name?: string | null
+          tenant_phone?: string | null
+          type?: string
+          unit_number: string
+          utilities?: Json
+          water_account?: string | null
+        }
+        Update: {
+          building_id?: string
+          contract_end_date?: string | null
+          contract_file_url?: string | null
+          created_at?: string
+          due_day?: number
+          electric_account?: string | null
+          floor?: number
+          gas_account?: string | null
+          handover_photos?: Json
+          handover_video_url?: string | null
+          id?: string
+          internet_account?: string | null
+          last_paid_date?: string | null
+          legal_case?: Json
+          rent_amount?: number
+          rent_type?: string
+          status?: string
+          tenant_id_image_url?: string | null
+          tenant_id_number?: string | null
+          tenant_id_type?: string | null
+          tenant_name?: string | null
+          tenant_phone?: string | null
+          type?: string
+          unit_number?: string
+          utilities?: Json
+          water_account?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "units_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
