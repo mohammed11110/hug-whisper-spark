@@ -97,6 +97,20 @@ const dict: Record<Key, Partial<Record<Lang, string>>> = {
   sort_name_za: { ar: "الاسم (ي-أ)", en: "Name (Z-A)", ur: "نام (Z-A)", zh: "名称 Z-A", hi: "नाम Z-A", bn: "নাম Z-A", fr: "Nom (Z-A)", es: "Nombre (Z-A)", tr: "Ad (Z-A)" },
   sort_units_high: { ar: "الأكثر وحدات", en: "Most units", ur: "زیادہ یونٹ", zh: "单元最多", hi: "अधिक इकाइयाँ", bn: "বেশি ইউনিট", fr: "Plus d'unités", es: "Más unidades", tr: "En çok birim" },
   sort_units_low: { ar: "الأقل وحدات", en: "Fewest units", ur: "کم یونٹ", zh: "单元最少", hi: "कम इकाइयाँ", bn: "কম ইউনিট", fr: "Moins d'unités", es: "Menos unidades", tr: "En az birim" },
+  payments: { ar: "المدفوعات", en: "Payments", ur: "ادائیگیاں", zh: "付款", hi: "भुगतान", bn: "পেমেন্ট", fr: "Paiements", es: "Pagos", tr: "Ödemeler" },
+  receipts: { ar: "الإيصالات", en: "Receipts", ur: "رسیدیں", zh: "收据", hi: "रसीदें", bn: "রসিদ", fr: "Reçus", es: "Recibos", tr: "Makbuzlar" },
+  all_payments: { ar: "كل المدفوعات", en: "All payments", ur: "تمام ادائیگیاں", zh: "所有付款", hi: "सभी भुगतान", bn: "সব পেমেন্ট", fr: "Tous les paiements", es: "Todos los pagos", tr: "Tüm ödemeler" },
+  receipt_number: { ar: "رقم الإيصال", en: "Receipt #", ur: "رسید نمبر", zh: "收据号", hi: "रसीद नंबर", bn: "রসিদ নং", fr: "N° reçu", es: "Nº recibo", tr: "Makbuz No" },
+  payment_date: { ar: "تاريخ الدفع", en: "Payment date", ur: "تاریخ", zh: "日期", hi: "तारीख़", bn: "তারিখ", fr: "Date", es: "Fecha", tr: "Tarih" },
+  amount: { ar: "المبلغ", en: "Amount", ur: "رقم", zh: "金额", hi: "राशि", bn: "পরিমাণ", fr: "Montant", es: "Monto", tr: "Tutar" },
+  no_payments_msg: { ar: "لم يتم تسجيل أي مدفوعات بعد", en: "No payments recorded yet", ur: "ابھی کوئی ادائیگی نہیں", zh: "暂无付款记录", hi: "अभी कोई भुगतान नहीं", bn: "এখনো কোনো পেমেন্ট নেই", fr: "Aucun paiement", es: "Sin pagos", tr: "Henüz ödeme yok" },
+  total: { ar: "الإجمالي", en: "Total", ur: "کل", zh: "总计", hi: "कुल", bn: "মোট", fr: "Total", es: "Total", tr: "Toplam" },
+  this_month: { ar: "هذا الشهر", en: "This month", ur: "اس ماہ", zh: "本月", hi: "इस महीने", bn: "এই মাস", fr: "Ce mois", es: "Este mes", tr: "Bu ay" },
+  filter_all: { ar: "الكل", en: "All", ur: "تمام", zh: "全部", hi: "सभी", bn: "সব", fr: "Tout", es: "Todo", tr: "Tümü" },
+  filter_month: { ar: "شهر", en: "Month", ur: "ماہ", zh: "月", hi: "महीना", bn: "মাস", fr: "Mois", es: "Mes", tr: "Ay" },
+  filter_year: { ar: "سنة", en: "Year", ur: "سال", zh: "年", hi: "साल", bn: "বছর", fr: "Année", es: "Año", tr: "Yıl" },
+  print_receipt: { ar: "طباعة", en: "Print", ur: "پرنٹ", zh: "打印", hi: "प्रिंट", bn: "প্রিন্ট", fr: "Imprimer", es: "Imprimir", tr: "Yazdır" },
+  delete_payment: { ar: "حذف الدفعة", en: "Delete payment", ur: "حذف کریں", zh: "删除付款", hi: "भुगतान हटाएं", bn: "পেমেন্ট মুছুন", fr: "Supprimer", es: "Eliminar pago", tr: "Ödemeyi sil" },
 };
 
 export function useT2() {
