@@ -68,7 +68,7 @@ export function AddBuildingDialog({ open, onOpenChange, onCreated }: { open: boo
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label={t2("floors")}>
-              <Input type="number" min={1} value={floors} onChange={(e) => setFloors(parseInt(e.target.value) || 1)} className="rounded-xl border-sage-200 bg-card" />
+              <Input type="number" inputMode="numeric" min={1} value={floors} onChange={(e) => setFloors(e.target.value)} onBlur={() => { if (!floors || parseInt(floors) < 1) setFloors("1"); }} className="rounded-xl border-sage-200 bg-card" />
             </Field>
             <Field label={t2("city")}>
               <Input value={city} onChange={(e) => setCity(e.target.value)} className="rounded-xl border-sage-200 bg-card" />
