@@ -34,6 +34,7 @@ export default function Payments() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("month");
   const [delId, setDelId] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
