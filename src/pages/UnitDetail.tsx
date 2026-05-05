@@ -44,6 +44,10 @@ export default function UnitDetail() {
     if (!id) return;
     const { data } = await supabase.from("units").select("*").eq("id", id).maybeSingle();
     setUnit(data as any);
+    if (data?.building_id) {
+      const { data: b } = await supabase.from("buildings").select("name, name_en").eq("id", data.building_id).maybeSingle();
+      if (b) setBuildingName((b as any).name || (b as any).name_en || "");
+    }
   };
   useEffect(() => { load(); }, [id]);
 
