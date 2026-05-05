@@ -195,7 +195,7 @@ function UtilitiesTab({ unit, reload }: any) {
     reload();
   };
   const updateAccount = async (col: string, val: string) => {
-    await supabase.from("units").update({ [col]: val }).eq("id", unit.id);
+    await supabase.from("units").update({ [col]: val } as any).eq("id", unit.id);
   };
   return (
     <>
