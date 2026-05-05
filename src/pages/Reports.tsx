@@ -42,6 +42,13 @@ interface Payment {
   amount: number;
   payment_date: string;
 }
+interface Expense {
+  id: string;
+  building_id: string;
+  amount: number;
+  expense_date: string;
+  category: string;
+}
 
 export default function Reports() {
   const { t, lang } = useI18n();
@@ -52,6 +59,7 @@ export default function Reports() {
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -65,6 +73,7 @@ export default function Reports() {
       const ids = (bs || []).map((b) => b.id);
       let us: Unit[] = [];
       let ps: Payment[] = [];
+      let ex: Expense[] = [];
       if (ids.length) {
         const { data: usData } = await supabase
           .from("units")
@@ -79,33 +88,52 @@ export default function Reports() {
             .in("unit_id", unitIds);
           ps = (psData as Payment[]) || [];
         }
+        const { data: exData } = await supabase
+          .from("expenses")
+          .select("id, building_id, amount, expense_date, category")
+          .in("building_id", ids);
+        ex = (exData as Expense[]) || [];
       }
       setBuildings(bs || []);
       setUnits(us);
       setPayments(ps);
+      setExpenses(ex);
       setLoading(false);
     })();
   }, [user]);
 
   const now = new Date();
   const months = useMemo(() => {
-    const out: { key: string; label: string; income: number }[] = [];
+    const out: { key: string; label: string; income: number; expenses: number; net: number; prev: number }[] = [];
     for (let i = range - 1; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       const label = d.toLocaleDateString(lang === "ar" ? "ar" : "en", { month: "short" });
-      out.push({ key, label, income: 0 });
+      out.push({ key, label, income: 0, expenses: 0, net: 0, prev: 0 });
     }
     payments.forEach((p) => {
       const k = p.payment_date.slice(0, 7);
       const m = out.find((x) => x.key === k);
       if (m) m.income += Number(p.amount) || 0;
+      // previous-year comparison
+      const d = new Date(p.payment_date);
+      const prevKey = `${d.getFullYear() + 1}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const pm = out.find((x) => x.key === prevKey);
+      if (pm) pm.prev += Number(p.amount) || 0;
     });
+    expenses.forEach((e) => {
+      const k = e.expense_date.slice(0, 7);
+      const m = out.find((x) => x.key === k);
+      if (m) m.expenses += Number(e.amount) || 0;
+    });
+    out.forEach((m) => { m.net = m.income - m.expenses; });
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [payments, range, lang]);
+  }, [payments, expenses, range, lang]);
 
   const totalIncome = months.reduce((s, m) => s + m.income, 0);
+  const totalExpenses = months.reduce((s, m) => s + m.expenses, 0);
+  const totalNet = totalIncome - totalExpenses;
   const avgIncome = months.length ? totalIncome / months.length : 0;
   const lastMonth = months[months.length - 1]?.income || 0;
   const prevMonth = months[months.length - 2]?.income || 0;
@@ -151,7 +179,8 @@ export default function Reports() {
             <p className="text-sm text-muted-foreground">{lang === "ar" ? "نظرة شاملة على الأداء" : "Performance overview"}</p>
           </div>
           <Button size="sm" variant="outline" className="rounded-xl border-sage-300 text-sage-600"
-            onClick={() => exportToCSV(`reports-${new Date().toISOString().slice(0,10)}`, months.map((m) => ({ month: m.label, income: m.income })))}>
+            onClick={() => exportToCSV(`reports-${new Date().toISOString().slice(0,10)}`,
+              months.map((m) => ({ month: m.label, income: m.income, expenses: m.expenses, net: m.net, prev_year: m.prev })))}>
             <Download className="h-3.5 w-3.5 me-1" />CSV
           </Button>
         </div>
@@ -186,6 +215,18 @@ export default function Reports() {
             label={lang === "ar" ? "متوسط شهري" : "Monthly avg"}
             value={format(avgIncome)}
             tone="sage"
+          />
+          <Kpi
+            icon={<TrendingUp className="h-4 w-4" />}
+            label={lang === "ar" ? "إجمالي المصروفات" : "Total expenses"}
+            value={format(totalExpenses)}
+            tone="danger"
+          />
+          <Kpi
+            icon={<CheckCircle2 className="h-4 w-4" />}
+            label={lang === "ar" ? "صافي الربح" : "Net profit"}
+            value={format(totalNet)}
+            tone={totalNet >= 0 ? "sage" : "danger"}
           />
           <Kpi
             icon={<CheckCircle2 className="h-4 w-4" />}
@@ -249,10 +290,40 @@ export default function Reports() {
                   formatter={(v: number) => format(v)}
                 />
                 <Area type="monotone" dataKey="income" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#g1)" />
+                <Area type="monotone" dataKey="prev" stroke="hsl(var(--muted-foreground))" strokeWidth={1.5} strokeDasharray="4 3" fill="transparent" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
+          <p className="text-[10px] text-muted-foreground mt-1 text-center">
+            {lang === "ar" ? "خط متصل: السنة الحالية · متقطع: السنة السابقة" : "Solid: current year · Dashed: previous year"}
+          </p>
         </Card>
+
+        {/* Income vs expenses */}
+        {(totalExpenses > 0 || totalIncome > 0) && (
+          <Card title={lang === "ar" ? "الدخل مقابل المصروفات" : "Income vs expenses"}>
+            <div className="h-56 -mx-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={months} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} width={40} />
+                  <Tooltip
+                    contentStyle={{
+                      background: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: 12,
+                      fontSize: 12,
+                    }}
+                    formatter={(v: number) => format(v)}
+                  />
+                  <Bar dataKey="income" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="expenses" fill="hsl(var(--destructive))" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        )}
 
         {/* Status pie */}
         {statusData.length > 0 && (

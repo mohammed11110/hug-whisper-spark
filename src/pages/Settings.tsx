@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Palette, Clock, Coins, RotateCcw, Eye, Printer, ShieldAlert, MessageCircle, Bell } from "lucide-react";
+import { ArrowRight, Palette, Clock, Coins, RotateCcw, Eye, Printer, ShieldAlert, MessageCircle, Bell, Database, Users } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
@@ -460,8 +460,27 @@ export default function Settings() {
           ))}
         </div>
       </section>
-      <div className="px-5 mt-8">
+      {/* Advanced */}
+      <section className="px-5 mt-6 space-y-2">
+        <Link to="/team" className="flex items-center gap-3 bg-card border border-sage-200/60 rounded-2xl p-4 shadow-soft hover:bg-sage-50 transition">
+          <div className="p-2 rounded-xl bg-sage-100 text-sage-600"><Users className="h-4 w-4" /></div>
+          <div className="flex-1 text-start">
+            <p className="font-bold text-sm text-sage-600">{lang === "ar" ? "الفريق والصلاحيات" : "Team & roles"}</p>
+            <p className="text-[11px] text-muted-foreground">{lang === "ar" ? "ادعُ محاسبين أو مدراء فرع" : "Invite accountants or managers"}</p>
+          </div>
+          <ArrowRight className="h-4 w-4 text-sage-500 rtl:rotate-180" />
+        </Link>
+        <Link to="/backup" className="flex items-center gap-3 bg-card border border-sage-200/60 rounded-2xl p-4 shadow-soft hover:bg-sage-50 transition">
+          <div className="p-2 rounded-xl bg-sage-100 text-sage-600"><Database className="h-4 w-4" /></div>
+          <div className="flex-1 text-start">
+            <p className="font-bold text-sm text-sage-600">{lang === "ar" ? "النسخ الاحتياطي" : "Backup & restore"}</p>
+            <p className="text-[11px] text-muted-foreground">{lang === "ar" ? "تصدير واستعادة كل بياناتك" : "Export and restore all your data"}</p>
+          </div>
+          <ArrowRight className="h-4 w-4 text-sage-500 rtl:rotate-180" />
+        </Link>
+      </section>
 
+      <div className="px-5 mt-8">
         <Button variant="outline" onClick={() => { reset(); toast.success(L("saved")); }}
           className="w-full rounded-xl border-burgundy/30 text-burgundy hover:bg-burgundy/5">
           <RotateCcw className="h-4 w-4 me-2" /> {L("reset_defaults")}
