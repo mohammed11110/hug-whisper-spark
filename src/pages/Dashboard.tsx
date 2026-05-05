@@ -152,6 +152,15 @@ export default function Dashboard() {
         )}
       </div>
 
+      {/* Floating AI assistant FAB */}
+      <Link
+        to="/assistant"
+        aria-label="AI Assistant"
+        className="fixed z-40 bottom-24 end-4 h-14 w-14 rounded-full bg-gradient-sage text-primary-foreground shadow-glow grid place-items-center hover:scale-105 transition-transform"
+      >
+        <Sparkles className="h-6 w-6" />
+      </Link>
+
       <BottomNav />
     </div>
   );
