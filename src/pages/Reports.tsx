@@ -145,7 +145,7 @@ export default function Reports() {
       <div className="px-5 pt-5 space-y-5">
         <div className="animate-float-up">
           <h1 className="text-2xl font-black text-sage-600 tracking-tight">{t("reports")}</h1>
-          <p className="text-sm text-muted-foreground">{t2("reports_subtitle" as any) || ""}</p>
+          <p className="text-sm text-muted-foreground">{lang === "ar" ? "نظرة شاملة على الأداء" : "Performance overview"}</p>
         </div>
 
         {/* Range selector */}
@@ -160,7 +160,7 @@ export default function Reports() {
                   : "bg-card border border-sage-200/60 text-muted-foreground"
               }`}
             >
-              {r} {t2("months" as any) || (lang === "ar" ? "شهر" : "mo")}
+              {r} {lang === "ar" ? "شهر" : "mo"}
             </button>
           ))}
         </div>
