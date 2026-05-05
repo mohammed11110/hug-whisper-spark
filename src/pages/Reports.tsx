@@ -42,6 +42,13 @@ interface Payment {
   amount: number;
   payment_date: string;
 }
+interface Expense {
+  id: string;
+  building_id: string;
+  amount: number;
+  expense_date: string;
+  category: string;
+}
 
 export default function Reports() {
   const { t, lang } = useI18n();
@@ -52,6 +59,7 @@ export default function Reports() {
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -65,6 +73,7 @@ export default function Reports() {
       const ids = (bs || []).map((b) => b.id);
       let us: Unit[] = [];
       let ps: Payment[] = [];
+      let ex: Expense[] = [];
       if (ids.length) {
         const { data: usData } = await supabase
           .from("units")
@@ -79,10 +88,16 @@ export default function Reports() {
             .in("unit_id", unitIds);
           ps = (psData as Payment[]) || [];
         }
+        const { data: exData } = await supabase
+          .from("expenses")
+          .select("id, building_id, amount, expense_date, category")
+          .in("building_id", ids);
+        ex = (exData as Expense[]) || [];
       }
       setBuildings(bs || []);
       setUnits(us);
       setPayments(ps);
+      setExpenses(ex);
       setLoading(false);
     })();
   }, [user]);
