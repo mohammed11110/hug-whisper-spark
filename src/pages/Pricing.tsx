@@ -79,6 +79,8 @@ export default function Pricing() {
   const { lang } = useI18n();
   const ar = lang === "ar";
   const [yearly, setYearly] = useState(false);
+  const [code, setCode] = useState("");
+  const [redeeming, setRedeeming] = useState(false);
 
   const handleSelect = (p: Plan) => {
     if (p.id === "free") {
@@ -86,6 +88,34 @@ export default function Pricing() {
       return;
     }
     toast.info(ar ? "سيتم تفعيل الدفع قريباً" : "Payments will be enabled soon");
+  };
+
+  const redeem = async () => {
+    if (!code.trim()) return;
+    setRedeeming(true);
+    try {
+      const { data, error } = await supabase.rpc("redeem_promo_code", { _code: code.trim() });
+      if (error) throw error;
+      const res = data as any;
+      if (!res?.success) {
+        const msgs: Record<string, { ar: string; en: string }> = {
+          invalid_code: { ar: "كود غير صحيح", en: "Invalid code" },
+          already_used: { ar: "هذا الكود مستخدم مسبقاً", en: "Code already used" },
+          code_expired: { ar: "انتهت صلاحية الكود", en: "Code expired" },
+          not_authenticated: { ar: "سجّل الدخول أولاً", en: "Sign in first" },
+        };
+        const m = msgs[res?.error] || { ar: "خطأ", en: "Error" };
+        toast.error(ar ? m.ar : m.en);
+        return;
+      }
+      const exp = new Date(res.expires_at).toLocaleDateString(ar ? "ar" : "en");
+      toast.success(ar ? `تم التفعيل! ينتهي في ${exp}` : `Activated! Expires ${exp}`);
+      setCode("");
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setRedeeming(false);
+    }
   };
 
   return (
@@ -100,6 +130,24 @@ export default function Pricing() {
         <p className="text-sm text-muted-foreground text-center">
           {ar ? "اختر الخطة المناسبة لحجم أعمالك" : "Choose the plan that fits your business"}
         </p>
+
+        <div className="rounded-2xl p-4 border-2 border-sage-200/40 bg-card">
+          <div className="flex items-center gap-2 mb-2">
+            <Gift className="h-4 w-4 text-sage-500" />
+            <h3 className="font-bold text-sage-600 text-sm">{ar ? "هل لديك كود ترويجي؟" : "Have a promo code?"}</h3>
+          </div>
+          <div className="flex gap-2">
+            <Input
+              value={code}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              placeholder="AMLAKI-FREE-001"
+              className="h-11 rounded-xl"
+            />
+            <Button onClick={redeem} disabled={redeeming || !code.trim()} className="h-11 px-5 rounded-xl bg-gradient-sage text-primary-foreground font-bold">
+              {redeeming ? "..." : (ar ? "تفعيل" : "Redeem")}
+            </Button>
+          </div>
+        </div>
 
         {/* Toggle */}
         <div className="flex justify-center">
