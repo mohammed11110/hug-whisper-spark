@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Palette, Clock, Coins, RotateCcw, Eye } from "lucide-react";
+import { ArrowRight, Palette, Clock, Coins, RotateCcw, Eye, Printer } from "lucide-react";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { useI18n } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
 import { useCurrency, CURRENCIES } from "@/lib/currency";
-import { useAppSettings } from "@/lib/appSettings";
+import { useAppSettings, PAGE_SIZES_MM, type PageSize } from "@/lib/appSettings";
 import { toast } from "sonner";
 
 const RETENTIONS = [
@@ -43,6 +43,10 @@ const SETTINGS_LABELS: Record<string, { ar: string; en: string }> = {
   live_preview: { ar: "معاينة مباشرة للإيصال", en: "Live receipt preview" },
   sample_tenant: { ar: "محمد العامري", en: "Sample Tenant" },
   sample_building: { ar: "برج أملاكي", en: "Amlaki Tower" },
+  print_layout: { ar: "نمط الطباعة", en: "Print layout" },
+  page_size: { ar: "حجم الورق", en: "Page size" },
+  margins: { ar: "الهوامش", en: "Margins" },
+  mm: { ar: "مم", en: "mm" },
 };
 
 export default function Settings() {
