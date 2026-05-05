@@ -46,7 +46,15 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
       const raw = localStorage.getItem(KEY);
       if (!raw) return DEFAULTS;
       const v = JSON.parse(raw);
-      return { ...DEFAULTS, ...v, statusColors: { ...DEFAULTS.statusColors, ...(v.statusColors || {}) } };
+      const legacy = typeof v.marginMm === "number"
+        ? { top: v.marginMm, right: v.marginMm, bottom: v.marginMm, left: v.marginMm }
+        : null;
+      return {
+        ...DEFAULTS,
+        ...v,
+        statusColors: { ...DEFAULTS.statusColors, ...(v.statusColors || {}) },
+        margins: { ...DEFAULTS.margins, ...(legacy || {}), ...(v.margins || {}) },
+      };
     } catch { return DEFAULTS; }
   });
 
