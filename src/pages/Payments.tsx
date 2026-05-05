@@ -37,21 +37,35 @@ export default function Payments() {
 
   const load = async () => {
     setLoading(true);
-    const { data } = await supabase
+    const { data: pays } = await supabase
       .from("payments")
-      .select("id, unit_id, amount, payment_date, receipt_number, units(unit_number, tenant_name, buildings(name, name_en))")
+      .select("id, unit_id, amount, payment_date, receipt_number")
       .order("payment_date", { ascending: false })
       .limit(500);
-    const mapped: Row[] = (data || []).map((p: any) => ({
-      id: p.id,
-      unit_id: p.unit_id,
-      amount: Number(p.amount),
-      payment_date: p.payment_date,
-      receipt_number: p.receipt_number,
-      unit_number: p.units?.unit_number ?? "—",
-      tenant_name: p.units?.tenant_name ?? null,
-      building_name: p.units?.buildings?.name || p.units?.buildings?.name_en || "—",
-    }));
+    const unitIds = Array.from(new Set((pays || []).map((p: any) => p.unit_id)));
+    const { data: units } = unitIds.length
+      ? await supabase.from("units").select("id, unit_number, tenant_name, building_id").in("id", unitIds)
+      : { data: [] as any[] };
+    const buildingIds = Array.from(new Set((units || []).map((u: any) => u.building_id)));
+    const { data: builds } = buildingIds.length
+      ? await supabase.from("buildings").select("id, name, name_en").in("id", buildingIds)
+      : { data: [] as any[] };
+    const uMap = new Map((units || []).map((u: any) => [u.id, u]));
+    const bMap = new Map((builds || []).map((b: any) => [b.id, b]));
+    const mapped: Row[] = (pays || []).map((p: any) => {
+      const u = uMap.get(p.unit_id);
+      const b = u ? bMap.get(u.building_id) : null;
+      return {
+        id: p.id,
+        unit_id: p.unit_id,
+        amount: Number(p.amount),
+        payment_date: p.payment_date,
+        receipt_number: p.receipt_number,
+        unit_number: u?.unit_number ?? "—",
+        tenant_name: u?.tenant_name ?? null,
+        building_name: b?.name || b?.name_en || "—",
+      };
+    });
     setRows(mapped);
     setLoading(false);
   };
