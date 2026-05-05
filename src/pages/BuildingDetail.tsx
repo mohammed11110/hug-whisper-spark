@@ -20,6 +20,7 @@ const STATUS_STYLES: Record<string, string> = {
   paid: "bg-sage-300/30 text-sage-600",
   late: "bg-burgundy/15 text-burgundy",
   soon: "bg-terracotta/15 text-terracotta",
+  vacant: "bg-sage-100 text-sage-500 border border-sage-200",
 };
 
 export default function BuildingDetail() {
