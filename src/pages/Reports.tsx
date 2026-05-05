@@ -179,7 +179,8 @@ export default function Reports() {
             <p className="text-sm text-muted-foreground">{lang === "ar" ? "نظرة شاملة على الأداء" : "Performance overview"}</p>
           </div>
           <Button size="sm" variant="outline" className="rounded-xl border-sage-300 text-sage-600"
-            onClick={() => exportToCSV(`reports-${new Date().toISOString().slice(0,10)}`, months.map((m) => ({ month: m.label, income: m.income })))}>
+            onClick={() => exportToCSV(`reports-${new Date().toISOString().slice(0,10)}`,
+              months.map((m) => ({ month: m.label, income: m.income, expenses: m.expenses, net: m.net, prev_year: m.prev })))}>
             <Download className="h-3.5 w-3.5 me-1" />CSV
           </Button>
         </div>
@@ -214,6 +215,18 @@ export default function Reports() {
             label={lang === "ar" ? "متوسط شهري" : "Monthly avg"}
             value={format(avgIncome)}
             tone="sage"
+          />
+          <Kpi
+            icon={<TrendingUp className="h-4 w-4" />}
+            label={lang === "ar" ? "إجمالي المصروفات" : "Total expenses"}
+            value={format(totalExpenses)}
+            tone="danger"
+          />
+          <Kpi
+            icon={<CheckCircle2 className="h-4 w-4" />}
+            label={lang === "ar" ? "صافي الربح" : "Net profit"}
+            value={format(totalNet)}
+            tone={totalNet >= 0 ? "sage" : "danger"}
           />
           <Kpi
             icon={<CheckCircle2 className="h-4 w-4" />}
