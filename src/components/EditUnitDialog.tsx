@@ -203,3 +203,8 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </div>
   );
 }
+
+function depLabel(s: string) {
+  return ({ none: "—", held: "محتجز", refunded: "مسترد" } as Record<string, string>)[s] || s;
+}
+
