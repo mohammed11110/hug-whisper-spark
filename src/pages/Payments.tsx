@@ -128,9 +128,6 @@ export default function Payments() {
     load();
   };
 
-  const printReceipt = (r: Row) => {
-    const w = window.open("", "_blank", "width=600,height=800");
-    if (!w) return;
   const buildReceiptHTML = (r: Row) => {
     const statusColors: Record<string, { bg: string; fg: string; label: string }> = {
       paid: { bg: "#dcebd2", fg: "#3a6b3a", label: t2("paid") },
@@ -138,8 +135,7 @@ export default function Payments() {
       soon: { bg: "#f5e3cf", fg: "#8a5a2a", label: t2("soon") },
     };
     const us = statusColors[r.unit_status] || statusColors.soon;
-    return { us, html: `
-    w.document.write(`
+    const html = `
       <html><head><title>${r.receipt_number || r.id}</title>
       <style>
         @page{margin:16mm}
@@ -181,10 +177,44 @@ export default function Payments() {
           <div class="total"><span>${t2("total")}</span><span>${format(r.amount)}</span></div>
           <div class="footer">— ${t2("issue_receipt") || "Receipt"} —</div>
         </div>
-      </body></html>`);
+      </body></html>`;
+    return html;
+  };
+
+  const printReceipt = (r: Row) => {
+    const w = window.open("", "_blank", "width=600,height=800");
+    if (!w) return;
+    w.document.write(buildReceiptHTML(r));
     w.document.close();
     setTimeout(() => w.print(), 300);
   };
+
+  const downloadReceipt = async (r: Row) => {
+    const container = document.createElement("div");
+    container.innerHTML = buildReceiptHTML(r);
+    container.style.position = "fixed";
+    container.style.left = "-10000px";
+    container.style.top = "0";
+    document.body.appendChild(container);
+    try {
+      await html2pdf()
+        .set({
+          margin: 10,
+          filename: `receipt-${r.receipt_number || r.id}.pdf`,
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, backgroundColor: "#faf6ee" },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        })
+        .from(container)
+        .save();
+      toast.success("✓");
+    } catch (e: any) {
+      toast.error(e?.message || "Error");
+    } finally {
+      document.body.removeChild(container);
+    }
+  };
+
 
   return (
     <div className="mobile-shell min-h-screen pb-24 bg-background">
