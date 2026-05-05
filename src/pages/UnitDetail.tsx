@@ -9,6 +9,7 @@ import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { AddPaymentDialog } from "@/components/AddPaymentDialog";
 
 interface Unit {
   id: string; building_id: string; unit_number: string; floor: number; type: string;
@@ -39,6 +40,7 @@ export default function UnitDetail() {
   const [buildingName, setBuildingName] = useState<string>("");
   const [tab, setTab] = useState<Tab>("details");
   const [delOpen, setDelOpen] = useState(false);
+  const [payOpen, setPayOpen] = useState(false);
 
   const load = async () => {
     if (!id) return;
@@ -57,21 +59,6 @@ export default function UnitDetail() {
     if (error) return toast.error(error.message);
     toast.success("✓");
     navigate(`/buildings/${unit.building_id}`);
-  };
-
-  const registerPayment = async () => {
-    if (!unit) return;
-    const today = new Date().toISOString().slice(0, 10);
-    const { error } = await supabase.from("payments").insert({
-      unit_id: unit.id,
-      amount: unit.rent_amount,
-      payment_date: today,
-      receipt_number: `R-${Date.now()}`,
-    });
-    if (error) return toast.error(error.message);
-    await supabase.from("units").update({ last_paid_date: today, status: "paid" }).eq("id", unit.id);
-    toast.success("✓");
-    load();
   };
 
   if (!unit) return <div className="mobile-shell flex items-center justify-center min-h-screen"><p className="text-sage-500">{t("loading")}</p></div>;
@@ -120,7 +107,7 @@ export default function UnitDetail() {
       </div>
 
       <div className="px-5 py-5 space-y-4 animate-float-up" key={tab}>
-        {tab === "details" && <DetailsTab unit={unit} format={format} t2={t2} onPay={registerPayment} />}
+        {tab === "details" && <DetailsTab unit={unit} format={format} t2={t2} onPay={() => setPayOpen(true)} />}
         {tab === "maintenance" && <MaintenanceTab />}
         {tab === "utilities" && <UtilitiesTab unit={unit} reload={load} />}
         {tab === "legal" && <LegalTab unit={unit} reload={load} />}
@@ -128,6 +115,7 @@ export default function UnitDetail() {
       </div>
 
       <ConfirmDeleteDialog open={delOpen} onOpenChange={setDelOpen} onConfirm={handleDelete} />
+      <AddPaymentDialog open={payOpen} onOpenChange={setPayOpen} presetUnitId={unit.id} onSaved={load} />
     </div>
   );
 }

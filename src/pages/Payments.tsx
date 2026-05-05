@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Receipt, Printer, Trash2, Search, Calendar } from "lucide-react";
+import { Receipt, Printer, Trash2, Search, Calendar, Plus } from "lucide-react";
+import { AddPaymentDialog } from "@/components/AddPaymentDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TopBar } from "@/components/TopBar";
@@ -33,6 +34,7 @@ export default function Payments() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<Filter>("month");
   const [delId, setDelId] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
@@ -212,6 +214,12 @@ export default function Payments() {
         )}
       </div>
 
+      <button onClick={() => setAddOpen(true)} aria-label={t2("register_payment")}
+        className="fixed bottom-24 end-5 z-30 h-14 w-14 rounded-full bg-gradient-sage text-primary-foreground shadow-soft flex items-center justify-center active:scale-95 transition-transform">
+        <Plus className="h-6 w-6" />
+      </button>
+
+      <AddPaymentDialog open={addOpen} onOpenChange={setAddOpen} onSaved={load} />
       <BottomNav />
       <ConfirmDeleteDialog open={!!delId} onOpenChange={(o) => !o && setDelId(null)} onConfirm={handleDelete} />
     </div>
