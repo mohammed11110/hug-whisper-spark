@@ -107,7 +107,7 @@ export default function UnitDetail() {
       </div>
 
       <div className="px-5 py-5 space-y-4 animate-float-up" key={tab}>
-        {tab === "details" && <DetailsTab unit={unit} format={format} t2={t2} onPay={registerPayment} />}
+        {tab === "details" && <DetailsTab unit={unit} format={format} t2={t2} onPay={() => setPayOpen(true)} />}
         {tab === "maintenance" && <MaintenanceTab />}
         {tab === "utilities" && <UtilitiesTab unit={unit} reload={load} />}
         {tab === "legal" && <LegalTab unit={unit} reload={load} />}
