@@ -47,6 +47,11 @@ const SETTINGS_LABELS: Record<string, { ar: string; en: string }> = {
   page_size: { ar: "حجم الورق", en: "Page size" },
   margins: { ar: "الهوامش", en: "Margins" },
   mm: { ar: "مم", en: "mm" },
+  margin_top: { ar: "أعلى", en: "Top" },
+  margin_right: { ar: "يمين", en: "Right" },
+  margin_bottom: { ar: "أسفل", en: "Bottom" },
+  margin_left: { ar: "يسار", en: "Left" },
+  link_all: { ar: "توحيد الجوانب", en: "Link all sides" },
 };
 
 export default function Settings() {
