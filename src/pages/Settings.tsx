@@ -220,21 +220,38 @@ export default function Settings() {
             </div>
           </div>
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-xs text-muted-foreground">{L("margins")}</p>
-              <span className="text-xs font-mono font-bold text-sage-600">{settings.marginMm} {L("mm")}</span>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-muted-foreground">{L("margins")} ({L("mm")})</p>
+              <button
+                type="button"
+                onClick={() => {
+                  const v = settings.margins.top;
+                  update({ margins: { top: v, right: v, bottom: v, left: v } });
+                }}
+                className="text-[10px] font-bold text-sage-500 underline"
+              >
+                {L("link_all")}
+              </button>
             </div>
-            <input
-              type="range"
-              min={5}
-              max={40}
-              step={1}
-              value={settings.marginMm}
-              onChange={(e) => update({ marginMm: Number(e.target.value) })}
-              className="w-full accent-sage-500"
-            />
-            <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
-              <span>5</span><span>20</span><span>40</span>
+            <div className="grid grid-cols-2 gap-2">
+              {(["top", "right", "bottom", "left"] as const).map((side) => (
+                <label key={side} className="flex items-center gap-2 bg-muted/50 rounded-xl px-3 py-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-sage-500 w-12">
+                    {L(`margin_${side}`)}
+                  </span>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={60}
+                    value={settings.margins[side]}
+                    onChange={(e) => {
+                      const n = Math.max(0, Math.min(60, Number(e.target.value) || 0));
+                      update({ margins: { ...settings.margins, [side]: n } });
+                    }}
+                    className="h-8 text-sm font-mono text-center"
+                  />
+                </label>
+              ))}
             </div>
           </div>
         </div>
