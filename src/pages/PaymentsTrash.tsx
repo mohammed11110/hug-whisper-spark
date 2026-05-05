@@ -1,0 +1,178 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { ArrowRight, Trash2, RotateCcw, AlertTriangle } from "lucide-react";
+import { TopBar } from "@/components/TopBar";
+import { BottomNav } from "@/components/BottomNav";
+import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n";
+import { useT2 } from "@/lib/i18n2";
+import { useCurrency } from "@/lib/currency";
+import { useAppSettings } from "@/lib/appSettings";
+import { PinDialog } from "@/components/PinDialog";
+import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+interface Row {
+  id: string;
+  amount: number;
+  payment_date: string;
+  receipt_number: string | null;
+  deleted_at: string;
+  unit_number: string;
+  building_name: string;
+  tenant_name: string | null;
+}
+
+export default function PaymentsTrash() {
+  const { lang } = useI18n();
+  const t2 = useT2();
+  const { format } = useCurrency();
+  const { settings } = useAppSettings();
+  const [rows, setRows] = useState<Row[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [pendingPurge, setPendingPurge] = useState<string | null>(null);
+  const [pinFor, setPinFor] = useState<string | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("payments")
+      .select("id, amount, payment_date, receipt_number, deleted_at, unit_id")
+      .not("deleted_at", "is", null)
+      .order("deleted_at", { ascending: false })
+      .limit(500);
+    const unitIds = Array.from(new Set((data || []).map((p: any) => p.unit_id)));
+    const { data: units } = unitIds.length
+      ? await supabase.from("units").select("id, unit_number, tenant_name, building_id").in("id", unitIds)
+      : { data: [] as any[] };
+    const buildingIds = Array.from(new Set((units || []).map((u: any) => u.building_id)));
+    const { data: builds } = buildingIds.length
+      ? await supabase.from("buildings").select("id, name, name_en").in("id", buildingIds)
+      : { data: [] as any[] };
+    const uMap = new Map((units || []).map((u: any) => [u.id, u]));
+    const bMap = new Map((builds || []).map((b: any) => [b.id, b]));
+    setRows((data || []).map((p: any) => {
+      const u: any = uMap.get(p.unit_id);
+      const b: any = u ? bMap.get(u.building_id) : null;
+      return {
+        id: p.id,
+        amount: Number(p.amount),
+        payment_date: p.payment_date,
+        receipt_number: p.receipt_number,
+        deleted_at: p.deleted_at,
+        unit_number: u?.unit_number ?? "—",
+        tenant_name: u?.tenant_name ?? null,
+        building_name: b?.name || b?.name_en || "—",
+      };
+    }));
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  // auto-purge older than 30 days
+  useEffect(() => {
+    const cutoff = new Date(Date.now() - 30 * 86400_000).toISOString();
+    supabase.from("payments").delete().lt("deleted_at", cutoff).not("deleted_at", "is", null).then(() => {});
+  }, []);
+
+  const restore = async (id: string) => {
+    const { error } = await supabase.from("payments").update({ deleted_at: null }).eq("id", id);
+    if (error) return toast.error(error.message);
+    toast.success(lang === "ar" ? "تم الاسترجاع" : "Restored");
+    load();
+  };
+
+  const purge = async () => {
+    if (!pendingPurge) return;
+    const { error } = await supabase.from("payments").delete().eq("id", pendingPurge);
+    setPendingPurge(null);
+    if (error) return toast.error(error.message);
+    toast.success(lang === "ar" ? "تم الحذف نهائياً" : "Permanently deleted");
+    load();
+  };
+
+  const onPurgeClick = (id: string) => {
+    if (settings.deletePin) setPinFor(id);
+    else setPendingPurge(id);
+  };
+
+  const daysLeft = (deletedAt: string) => {
+    const ms = new Date(deletedAt).getTime() + 30 * 86400_000 - Date.now();
+    return Math.max(0, Math.ceil(ms / 86400_000));
+  };
+
+  return (
+    <div className="mobile-shell min-h-screen pb-24 bg-background">
+      <TopBar />
+      <div className="px-5 pt-2 flex items-center gap-2">
+        <Link to="/payments" className="text-sage-500"><ArrowRight className="h-5 w-5 rtl:rotate-180" /></Link>
+        <h1 className="text-2xl font-black text-sage-600">{lang === "ar" ? "سلة المحذوفات" : "Recycle bin"}</h1>
+      </div>
+      <p className="px-5 text-xs text-muted-foreground mt-1">
+        {lang === "ar" ? "تُحذف الدفعات نهائياً بعد 30 يوماً" : "Items are permanently deleted after 30 days"}
+      </p>
+
+      <div className="px-5 mt-4 space-y-2.5">
+        {loading ? (
+          <p className="text-center text-sage-500 py-12 text-sm">…</p>
+        ) : rows.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="inline-flex p-4 rounded-3xl bg-sage-100 mb-3">
+              <Trash2 className="h-8 w-8 text-sage-400" />
+            </div>
+            <p className="font-bold text-sage-600">{lang === "ar" ? "السلة فارغة" : "Bin is empty"}</p>
+          </div>
+        ) : (
+          rows.map((r) => (
+            <div key={r.id} className="bg-card border border-sage-200/40 rounded-2xl p-4 shadow-soft">
+              <div className="flex items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-sage-600 truncate">{r.building_name} · {r.unit_number}</div>
+                  {r.tenant_name && <p className="text-xs text-muted-foreground truncate mt-0.5">{r.tenant_name}</p>}
+                  <div className="flex items-center gap-2 mt-1.5 text-[11px] text-sage-500">
+                    <span>{r.payment_date}</span>
+                    {r.receipt_number && <span className="font-mono">{r.receipt_number}</span>}
+                  </div>
+                  <div className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-terracotta/10 text-terracotta">
+                    <AlertTriangle className="h-3 w-3" />
+                    {lang === "ar" ? `يُحذف خلال ${daysLeft(r.deleted_at)} يوم` : `Auto-delete in ${daysLeft(r.deleted_at)}d`}
+                  </div>
+                </div>
+                <div className="text-end">
+                  <p className="font-black text-sage-600 whitespace-nowrap">{format(r.amount)}</p>
+                  <div className="flex gap-1 mt-2 justify-end">
+                    <Button size="sm" variant="outline" className="h-8 rounded-lg border-sage-300 text-sage-600" onClick={() => restore(r.id)}>
+                      <RotateCcw className="h-3.5 w-3.5 me-1" />
+                      {lang === "ar" ? "استرجاع" : "Restore"}
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg text-burgundy hover:bg-burgundy/10" onClick={() => onPurgeClick(r.id)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <BottomNav />
+      <ConfirmDeleteDialog
+        open={!!pendingPurge}
+        onOpenChange={(o) => !o && setPendingPurge(null)}
+        onConfirm={purge}
+        title={lang === "ar" ? "حذف نهائي؟" : "Permanently delete?"}
+        description={lang === "ar" ? "لا يمكن التراجع عن هذا الإجراء" : "This action cannot be undone"}
+      />
+      <PinDialog
+        open={!!pinFor}
+        onOpenChange={(o) => !o && setPinFor(null)}
+        expectedPin={settings.deletePin || ""}
+        onSuccess={() => { setPendingPurge(pinFor); setPinFor(null); }}
+        title={lang === "ar" ? "تأكيد الحذف النهائي" : "Confirm permanent delete"}
+      />
+    </div>
+  );
+}

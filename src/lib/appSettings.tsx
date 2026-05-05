@@ -16,6 +16,8 @@ export interface AppSettings {
   /** @deprecated kept for migration; use margins */
   marginMm?: number;
   margins: Margins;
+  /** PIN required to delete payments; null = disabled */
+  deletePin: string | null;
 }
 
 const DEFAULTS: AppSettings = {
@@ -27,6 +29,7 @@ const DEFAULTS: AppSettings = {
   filterRetentionMin: -1,
   pageSize: "A4",
   margins: { top: 16, right: 16, bottom: 16, left: 16 },
+  deletePin: null,
 };
 
 const KEY = "amlaki.appSettings.v1";

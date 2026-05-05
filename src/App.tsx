@@ -15,6 +15,7 @@ import Buildings from "./pages/Buildings";
 import BuildingDetail from "./pages/BuildingDetail";
 import UnitDetail from "./pages/UnitDetail";
 import Payments from "./pages/Payments";
+import PaymentsTrash from "./pages/PaymentsTrash";
 import SettingsPage from "./pages/Settings";
 import Reports from "./pages/Reports";
 import Tenants from "./pages/Tenants";
@@ -44,6 +45,7 @@ const App = () => (
                 <Route path="/units/:id" element={<RequireAuth><UnitDetail /></RequireAuth>} />
                 <Route path="/tenants" element={<RequireAuth><Tenants /></RequireAuth>} />
                 <Route path="/payments" element={<RequireAuth><Payments /></RequireAuth>} />
+                <Route path="/payments/trash" element={<RequireAuth><PaymentsTrash /></RequireAuth>} />
                 <Route path="/settings" element={<RequireAuth><SettingsPage /></RequireAuth>} />
                 <Route path="/reports" element={<RequireAuth><Reports /></RequireAuth>} />
                 <Route path="*" element={<NotFound />} />

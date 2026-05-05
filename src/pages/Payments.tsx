@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Receipt, Printer, Trash2, Search, Calendar, Plus, Download } from "lucide-react";
+import { Receipt, Printer, Trash2, Search, Calendar, Plus, Download, Pencil, Archive } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { AddPaymentDialog } from "@/components/AddPaymentDialog";
+import { EditPaymentDialog } from "@/components/EditPaymentDialog";
+import { PinDialog } from "@/components/PinDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TopBar } from "@/components/TopBar";
@@ -35,7 +37,7 @@ const LS_KEY = "amlaki.payments.filters.v2";
 const DEFAULT_FILTERS = { search: "", filter: "month" as Filter, statusFilter: "all" as StatusFilter };
 
 export default function Payments() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const t2 = useT2();
   const { format, currency } = useCurrency();
   const { settings } = useAppSettings();
@@ -45,6 +47,8 @@ export default function Payments() {
   const [filter, setFilter] = useState<Filter>(initial.filter);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(initial.statusFilter);
   const [delId, setDelId] = useState<string | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [pinForDel, setPinForDel] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -57,6 +61,7 @@ export default function Payments() {
     const { data: pays } = await supabase
       .from("payments")
       .select("id, unit_id, amount, payment_date, receipt_number")
+      .is("deleted_at", null)
       .order("payment_date", { ascending: false })
       .limit(500);
     const unitIds = Array.from(new Set((pays || []).map((p: any) => p.unit_id)));
@@ -115,11 +120,17 @@ export default function Payments() {
 
   const handleDelete = async () => {
     if (!delId) return;
-    const { error } = await supabase.from("payments").delete().eq("id", delId);
+    // soft delete → goes to recycle bin
+    const { error } = await supabase.from("payments").update({ deleted_at: new Date().toISOString() }).eq("id", delId);
     if (error) return toast.error(error.message);
-    toast.success("✓");
+    toast.success(lang === "ar" ? "نُقلت إلى السلة (30 يوم للاسترجاع)" : "Moved to bin (30-day restore)");
     setDelId(null);
     load();
+  };
+
+  const onDeleteClick = (id: string) => {
+    if (settings.deletePin) setPinForDel(id);
+    else setDelId(id);
   };
 
   const buildReceiptHTML = (r: Row) => {
@@ -222,16 +233,24 @@ export default function Payments() {
           <h1 className="text-2xl font-black text-sage-600">{t2("payments")}</h1>
           <p className="text-xs text-muted-foreground mt-0.5">{t2("receipts")}</p>
         </div>
-        <Button size="sm" variant="outline" className="rounded-xl border-sage-300 text-sage-600"
-          onClick={() => import("@/lib/exportCSV").then(({ exportToCSV }) => exportToCSV(
-            `payments-${new Date().toISOString().slice(0,10)}`,
-            filtered.map((r) => ({
-              date: r.payment_date, receipt: r.receipt_number || "", building: r.building_name,
-              unit: r.unit_number, tenant: r.tenant_name || "", amount: r.amount, status: r.unit_status,
-            }))
-          ))}>
-          <Download className="h-3.5 w-3.5 me-1" />CSV
-        </Button>
+        <div className="flex gap-1.5">
+          <Link to="/payments/trash">
+            <Button size="sm" variant="outline" className="rounded-xl border-sage-300 text-sage-600">
+              <Archive className="h-3.5 w-3.5 me-1" />
+              {lang === "ar" ? "السلة" : "Bin"}
+            </Button>
+          </Link>
+          <Button size="sm" variant="outline" className="rounded-xl border-sage-300 text-sage-600"
+            onClick={() => import("@/lib/exportCSV").then(({ exportToCSV }) => exportToCSV(
+              `payments-${new Date().toISOString().slice(0,10)}`,
+              filtered.map((r) => ({
+                date: r.payment_date, receipt: r.receipt_number || "", building: r.building_name,
+                unit: r.unit_number, tenant: r.tenant_name || "", amount: r.amount, status: r.unit_status,
+              }))
+            ))}>
+            <Download className="h-3.5 w-3.5 me-1" />CSV
+          </Button>
+        </div>
       </div>
 
       {/* Stat */}
@@ -309,14 +328,17 @@ export default function Payments() {
                 </Link>
                 <div className="text-end">
                   <p className="font-black text-sage-600 text-lg whitespace-nowrap">{format(r.amount)}</p>
-                  <div className="flex gap-1 mt-1 justify-end">
+                  <div className="flex gap-1 mt-1 justify-end flex-wrap">
                     <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-sage-500" onClick={() => printReceipt(r)}>
                       <Printer className="h-3.5 w-3.5" />
                     </Button>
                     <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-sage-600" onClick={() => downloadReceiptPDF(r)}>
                       <Download className="h-3.5 w-3.5" />
                     </Button>
-                    <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-burgundy hover:bg-burgundy/10" onClick={() => setDelId(r.id)}>
+                    <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-sage-600" onClick={() => setEditId(r.id)}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-burgundy hover:bg-burgundy/10" onClick={() => onDeleteClick(r.id)}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
@@ -333,8 +355,22 @@ export default function Payments() {
       </button>
 
       <AddPaymentDialog open={addOpen} onOpenChange={setAddOpen} onSaved={load} />
+      <EditPaymentDialog open={!!editId} onOpenChange={(o) => !o && setEditId(null)} paymentId={editId} onSaved={load} />
       <BottomNav />
-      <ConfirmDeleteDialog open={!!delId} onOpenChange={(o) => !o && setDelId(null)} onConfirm={handleDelete} />
+      <ConfirmDeleteDialog
+        open={!!delId}
+        onOpenChange={(o) => !o && setDelId(null)}
+        onConfirm={handleDelete}
+        title={lang === "ar" ? "نقل إلى السلة؟" : "Move to bin?"}
+        description={lang === "ar" ? "يمكنك استرجاعها خلال 30 يوماً" : "You can restore within 30 days"}
+      />
+      <PinDialog
+        open={!!pinForDel}
+        onOpenChange={(o) => !o && setPinForDel(null)}
+        expectedPin={settings.deletePin || ""}
+        onSuccess={() => { setDelId(pinForDel); setPinForDel(null); }}
+        title={lang === "ar" ? "تأكيد الحذف" : "Confirm delete"}
+      />
     </div>
   );
 }
