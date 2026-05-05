@@ -22,20 +22,40 @@ interface Row {
   unit_number: string;
   building_name: string;
   tenant_name: string | null;
+  unit_status: string;
 }
 
 type Filter = "all" | "month" | "year";
+type StatusFilter = "all" | "paid" | "late";
+
+const LS_KEY = "amlaki.payments.filters.v1";
+const loadLS = (): { search: string; filter: Filter; statusFilter: StatusFilter } => {
+  try {
+    const v = JSON.parse(localStorage.getItem(LS_KEY) || "{}");
+    return {
+      search: typeof v.search === "string" ? v.search : "",
+      filter: ["all", "month", "year"].includes(v.filter) ? v.filter : "month",
+      statusFilter: ["all", "paid", "late"].includes(v.statusFilter) ? v.statusFilter : "all",
+    };
+  } catch { return { search: "", filter: "month", statusFilter: "all" }; }
+};
 
 export default function Payments() {
   const { t } = useI18n();
   const t2 = useT2();
   const { format, currency } = useCurrency();
+  const initial = loadLS();
   const [rows, setRows] = useState<Row[]>([]);
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<Filter>("month");
+  const [search, setSearch] = useState(initial.search);
+  const [filter, setFilter] = useState<Filter>(initial.filter);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(initial.statusFilter);
   const [delId, setDelId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    localStorage.setItem(LS_KEY, JSON.stringify({ search, filter, statusFilter }));
+  }, [search, filter, statusFilter]);
 
   const load = async () => {
     setLoading(true);
@@ -46,7 +66,7 @@ export default function Payments() {
       .limit(500);
     const unitIds = Array.from(new Set((pays || []).map((p: any) => p.unit_id)));
     const { data: units } = unitIds.length
-      ? await supabase.from("units").select("id, unit_number, tenant_name, building_id").in("id", unitIds)
+      ? await supabase.from("units").select("id, unit_number, tenant_name, status, building_id").in("id", unitIds)
       : { data: [] as any[] };
     const buildingIds = Array.from(new Set((units || []).map((u: any) => u.building_id)));
     const { data: builds } = buildingIds.length
@@ -55,8 +75,8 @@ export default function Payments() {
     const uMap = new Map((units || []).map((u: any) => [u.id, u]));
     const bMap = new Map((builds || []).map((b: any) => [b.id, b]));
     const mapped: Row[] = (pays || []).map((p: any) => {
-      const u = uMap.get(p.unit_id);
-      const b = u ? bMap.get(u.building_id) : null;
+      const u: any = uMap.get(p.unit_id);
+      const b: any = u ? bMap.get(u.building_id) : null;
       return {
         id: p.id,
         unit_id: p.unit_id,
@@ -66,6 +86,7 @@ export default function Payments() {
         unit_number: u?.unit_number ?? "—",
         tenant_name: u?.tenant_name ?? null,
         building_name: b?.name || b?.name_en || "—",
+        unit_status: u?.status ?? "soon",
       };
     });
     setRows(mapped);
@@ -76,12 +97,14 @@ export default function Payments() {
 
   const filtered = useMemo(() => {
     const now = new Date();
+    const q = search.trim().toLowerCase();
     return rows.filter((r) => {
       const d = new Date(r.payment_date);
       if (filter === "month" && (d.getMonth() !== now.getMonth() || d.getFullYear() !== now.getFullYear())) return false;
       if (filter === "year" && d.getFullYear() !== now.getFullYear()) return false;
-      if (search.trim()) {
-        const q = search.toLowerCase();
+      if (statusFilter === "paid" && r.unit_status !== "paid") return false;
+      if (statusFilter === "late" && r.unit_status !== "late") return false;
+      if (q) {
         return (
           r.receipt_number?.toLowerCase().includes(q) ||
           r.unit_number.toLowerCase().includes(q) ||
@@ -91,7 +114,7 @@ export default function Payments() {
       }
       return true;
     });
-  }, [rows, search, filter]);
+  }, [rows, search, filter, statusFilter]);
 
   const total = filtered.reduce((s, r) => s + r.amount, 0);
 
@@ -165,6 +188,22 @@ export default function Payments() {
                 filter === f ? "bg-gradient-sage text-primary-foreground shadow-soft" : "bg-muted text-muted-foreground"
               }`}>
               {t2(f === "all" ? "filter_all" : f === "month" ? "filter_month" : "filter_year")}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-1.5">
+          {(["all", "paid", "late"] as StatusFilter[]).map((s) => (
+            <button key={s} onClick={() => setStatusFilter(s)}
+              className={`flex-1 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                statusFilter === s
+                  ? s === "paid"
+                    ? "bg-sage-300/40 text-sage-600 ring-1 ring-sage-400"
+                    : s === "late"
+                      ? "bg-burgundy/15 text-burgundy ring-1 ring-burgundy/40"
+                      : "bg-gradient-sage text-primary-foreground shadow-soft"
+                  : "bg-muted text-muted-foreground"
+              }`}>
+              {t2(s === "all" ? "filter_all" : s)}
             </button>
           ))}
         </div>
