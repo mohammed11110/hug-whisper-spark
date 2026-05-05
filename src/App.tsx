@@ -13,6 +13,7 @@ import Dashboard from "./pages/Dashboard";
 import Buildings from "./pages/Buildings";
 import BuildingDetail from "./pages/BuildingDetail";
 import UnitDetail from "./pages/UnitDetail";
+import Payments from "./pages/Payments";
 import Placeholder from "./pages/Placeholder";
 import NotFound from "./pages/NotFound.tsx";
 
