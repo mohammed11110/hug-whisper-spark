@@ -1,21 +1,25 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Trash2, User, Phone, FileText, IdCard, Calendar, Wallet, Plus, Receipt, Wrench, Scale, Camera, Droplets, Zap, Flame, Wifi } from "lucide-react";
+import { ArrowLeft, Trash2, User, Phone, FileText, IdCard, Calendar, Wallet, Plus, Receipt, Wrench, Scale, Camera, Droplets, Zap, Flame, Wifi, FileSignature } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { useI18n } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
+import { useAppSettings } from "@/lib/appSettings";
+import { buildLeaseHTML, downloadHTMLAsPDF, printHTML } from "@/lib/pdfDocs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { AddPaymentDialog } from "@/components/AddPaymentDialog";
 
 interface Unit {
   id: string; building_id: string; unit_number: string; floor: number; type: string;
-  tenant_name: string | null; tenant_phone: string | null;
+  tenant_name: string | null; tenant_phone: string | null; tenant_id_number: string | null;
   rent_amount: number; rent_type: string; due_day: number; status: string;
-  contract_end_date: string | null; last_paid_date: string | null;
+  contract_type: string; contract_start_date: string | null; contract_end_date: string | null;
+  contract_file_url: string | null; last_paid_date: string | null;
+  security_deposit: number;
   water_account: string | null; electric_account: string | null; gas_account: string | null; internet_account: string | null;
   utilities: any; legal_case: any; handover_photos: any;
 }
