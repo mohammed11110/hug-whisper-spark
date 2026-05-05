@@ -97,12 +97,14 @@ export default function Payments() {
 
   const filtered = useMemo(() => {
     const now = new Date();
+    const q = search.trim().toLowerCase();
     return rows.filter((r) => {
       const d = new Date(r.payment_date);
       if (filter === "month" && (d.getMonth() !== now.getMonth() || d.getFullYear() !== now.getFullYear())) return false;
       if (filter === "year" && d.getFullYear() !== now.getFullYear()) return false;
-      if (search.trim()) {
-        const q = search.toLowerCase();
+      if (statusFilter === "paid" && r.unit_status !== "paid") return false;
+      if (statusFilter === "late" && r.unit_status !== "late") return false;
+      if (q) {
         return (
           r.receipt_number?.toLowerCase().includes(q) ||
           r.unit_number.toLowerCase().includes(q) ||
@@ -112,7 +114,7 @@ export default function Payments() {
       }
       return true;
     });
-  }, [rows, search, filter]);
+  }, [rows, search, filter, statusFilter]);
 
   const total = filtered.reduce((s, r) => s + r.amount, 0);
 
