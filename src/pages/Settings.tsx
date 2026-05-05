@@ -119,22 +119,14 @@ export default function Settings() {
                 {/* margin guides */}
                 <div
                   className="absolute pointer-events-none border border-dashed"
-                  style={{
-                    inset: `${marginPct}%`,
-                    borderColor: "#a3b89c",
-                  }}
+                  style={{ top, right, bottom, left, borderColor: "#a3b89c" }}
                 />
                 {/* margin label */}
-                <div
-                  className="absolute top-1 left-1 text-[9px] font-mono text-sage-500/70 bg-white/80 px-1 rounded"
-                >
-                  {settings.pageSize} · {settings.marginMm}{L("mm")}
+                <div className="absolute top-1 left-1 text-[9px] font-mono text-sage-500/70 bg-white/80 px-1 rounded">
+                  {settings.pageSize} · {m.top}/{m.right}/{m.bottom}/{m.left}{L("mm")}
                 </div>
                 {/* receipt content positioned inside margin */}
-                <div
-                  className="absolute overflow-hidden"
-                  style={{ inset: `${marginPct}%` }}
-                >
+                <div className="absolute overflow-hidden" style={{ top, right, bottom, left }}>
                   <div
                     className="relative h-full w-full overflow-hidden rounded-xl border-2 p-3"
                     style={{ borderColor: "#a3b89c", background: "#fff", color: "#3a4f3a" }}
