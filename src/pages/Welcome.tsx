@@ -1,0 +1,42 @@
+import { Logo } from "@/components/Logo";
+import { Button } from "@/components/ui/button";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { BotanicalDecor } from "@/components/BotanicalDecor";
+import { useI18n } from "@/lib/i18n";
+import { Link } from "react-router-dom";
+
+export default function Welcome() {
+  const { t } = useI18n();
+  return (
+    <div className="mobile-shell flex flex-col bg-gradient-cream overflow-hidden">
+      <header className="flex justify-end p-4">
+        <LanguageSwitcher />
+      </header>
+
+      <main className="flex-1 flex flex-col items-center justify-center px-8 pb-12 relative">
+        <BotanicalDecor className="absolute inset-0 w-full h-full text-sage-400 pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col items-center text-center animate-float-up">
+          <div className="mb-6 p-5 rounded-3xl bg-card shadow-elev">
+            <Logo size={64} />
+          </div>
+          <h1 className="text-5xl font-black text-sage-600 mb-3 tracking-tight">{t("app_name")}</h1>
+          <p className="text-base text-sage-500 max-w-xs leading-relaxed">{t("tagline")}</p>
+        </div>
+
+        <div className="w-full max-w-sm mt-12 space-y-3 relative z-10 animate-float-up" style={{ animationDelay: "0.15s" }}>
+          <Link to="/auth?mode=signup" className="block">
+            <Button className="w-full h-14 rounded-2xl bg-gradient-sage hover:opacity-95 text-primary-foreground text-base font-semibold shadow-glow">
+              {t("create_account")}
+            </Button>
+          </Link>
+          <Link to="/auth?mode=signin" className="block">
+            <Button variant="outline" className="w-full h-14 rounded-2xl border-sage-300 text-sage-600 hover:bg-sage-100 text-base font-semibold">
+              {t("have_account")}
+            </Button>
+          </Link>
+        </div>
+      </main>
+    </div>
+  );
+}
