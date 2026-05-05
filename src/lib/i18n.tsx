@@ -39,6 +39,7 @@ const dict: Dict = {
   dashboard: { ar: "الرئيسية", en: "Dashboard", ur: "ڈیش بورڈ", zh: "首页", hi: "डैशबोर्ड", bn: "ড্যাশবোর্ড", fr: "Tableau", es: "Panel", tr: "Panel" },
   tenants: { ar: "المستأجرون", en: "Tenants", ur: "کرایہ دار", zh: "租户", hi: "किरायेदार", bn: "ভাড়াটে", fr: "Locataires", es: "Inquilinos", tr: "Kiracılar" },
   reports: { ar: "التقارير", en: "Reports", ur: "رپورٹس", zh: "报告", hi: "रिपोर्ट", bn: "প্রতিবেদন", fr: "Rapports", es: "Informes", tr: "Raporlar" },
+  notifications: { ar: "تنبيهات", en: "Alerts", ur: "اطلاعات", zh: "提醒", hi: "अलर्ट", bn: "সতর্কতা", fr: "Alertes", es: "Alertas", tr: "Uyarılar" },
   payments: { ar: "المدفوعات", en: "Payments", ur: "ادائیگیاں", zh: "付款", hi: "भुगतान", bn: "পেমেন্ট", fr: "Paiements", es: "Pagos", tr: "Ödemeler" },
   search: { ar: "بحث", en: "Search", ur: "تلاش", zh: "搜索", hi: "खोज", bn: "খুঁজুন", fr: "Rechercher", es: "Buscar", tr: "Ara" },
   add_first_building: { ar: "أضف أول مبنى لك", en: "Add your first building", ur: "اپنی پہلی عمارت شامل کریں", zh: "添加您的第一栋建筑", hi: "अपनी पहली इमारत जोड़ें", bn: "প্রথম ভবন যোগ করুন", fr: "Ajoutez votre premier bâtiment", es: "Agrega tu primer edificio", tr: "İlk binanızı ekleyin" },
