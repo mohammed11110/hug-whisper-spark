@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Palette, Clock, Coins, RotateCcw, Eye, Printer, ShieldAlert, MessageCircle, Bell, Database, Users, Image as ImageIcon, Smartphone } from "lucide-react";
+import { ArrowRight, Palette, Clock, Coins, RotateCcw, Eye, Printer, ShieldAlert, MessageCircle, Bell, Database, Users, Image as ImageIcon, Smartphone, Globe } from "lucide-react";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Textarea } from "@/components/ui/textarea";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
@@ -75,6 +76,22 @@ export default function Settings() {
         <Link to="/" className="text-sage-500"><ArrowRight className="h-5 w-5 rtl:rotate-180" /></Link>
         <h1 className="text-2xl font-black text-sage-600">{L("page_title")}</h1>
       </div>
+
+      {/* Language */}
+      <section className="px-5 mt-5">
+        <div className="rounded-3xl bg-card shadow-soft p-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-sage text-primary-foreground grid place-items-center shadow-soft">
+              <Globe className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="font-bold text-sm text-sage-600">{t("language")}</p>
+              <p className="text-[11px] text-muted-foreground">{lang === "ar" ? "اختر لغة التطبيق" : "Choose app language"}</p>
+            </div>
+          </div>
+          <LanguageSwitcher variant="outline" />
+        </div>
+      </section>
 
       {/* Live receipt preview */}
       <section className="px-5 mt-5">
