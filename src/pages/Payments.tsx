@@ -355,8 +355,22 @@ export default function Payments() {
       </button>
 
       <AddPaymentDialog open={addOpen} onOpenChange={setAddOpen} onSaved={load} />
+      <EditPaymentDialog open={!!editId} onOpenChange={(o) => !o && setEditId(null)} paymentId={editId} onSaved={load} />
       <BottomNav />
-      <ConfirmDeleteDialog open={!!delId} onOpenChange={(o) => !o && setDelId(null)} onConfirm={handleDelete} />
+      <ConfirmDeleteDialog
+        open={!!delId}
+        onOpenChange={(o) => !o && setDelId(null)}
+        onConfirm={handleDelete}
+        title={lang === "ar" ? "نقل إلى السلة؟" : "Move to bin?"}
+        description={lang === "ar" ? "يمكنك استرجاعها خلال 30 يوماً" : "You can restore within 30 days"}
+      />
+      <PinDialog
+        open={!!pinForDel}
+        onOpenChange={(o) => !o && setPinForDel(null)}
+        expectedPin={settings.deletePin || ""}
+        onSuccess={() => { setDelId(pinForDel); setPinForDel(null); }}
+        title={lang === "ar" ? "تأكيد الحذف" : "Confirm delete"}
+      />
     </div>
   );
 }
