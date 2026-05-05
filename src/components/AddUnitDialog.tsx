@@ -9,6 +9,7 @@ import { toast } from "sonner";
 
 const UNIT_TYPES = ["apartment", "shop", "room", "villa"] as const;
 const RENT_TYPES = ["monthly", "daily", "yearly"] as const;
+const CONTRACT_TYPES = ["daily", "monthly", "yearly"] as const;
 
 export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreated }: {
   open: boolean; onOpenChange: (o: boolean) => void; buildingId: string; floors: number; onCreated?: () => void;
@@ -22,12 +23,15 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
   const [tenantPhone, setTenantPhone] = useState("");
   const [rentAmount, setRentAmount] = useState<string>("0");
   const [rentType, setRentType] = useState<typeof RENT_TYPES[number]>("monthly");
+  const [contractType, setContractType] = useState<typeof CONTRACT_TYPES[number]>("yearly");
+  const [contractStart, setContractStart] = useState<string>("");
   const [dueDay, setDueDay] = useState<string>("1");
   const [busy, setBusy] = useState(false);
 
   const reset = () => {
     setUnitNumber(""); setFloor("1"); setType("apartment"); setOccupied(false);
-    setTenantName(""); setTenantPhone(""); setRentAmount("0"); setRentType("monthly"); setDueDay("1");
+    setTenantName(""); setTenantPhone(""); setRentAmount("0"); setRentType("monthly");
+    setContractType("yearly"); setContractStart(""); setDueDay("1");
   };
 
   const submit = async () => {
@@ -47,6 +51,8 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
       rent_type: rentType,
       due_day: Math.min(31, Math.max(1, parseInt(dueDay) || 1)),
       status: occupied ? "soon" : "vacant",
+      contract_type: contractType,
+      contract_start_date: contractStart || null,
     });
     setBusy(false);
     if (error) return toast.error(error.message);
