@@ -37,7 +37,7 @@ const LS_KEY = "amlaki.payments.filters.v2";
 const DEFAULT_FILTERS = { search: "", filter: "month" as Filter, statusFilter: "all" as StatusFilter };
 
 export default function Payments() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const t2 = useT2();
   const { format, currency } = useCurrency();
   const { settings } = useAppSettings();
@@ -47,6 +47,8 @@ export default function Payments() {
   const [filter, setFilter] = useState<Filter>(initial.filter);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(initial.statusFilter);
   const [delId, setDelId] = useState<string | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [pinForDel, setPinForDel] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
