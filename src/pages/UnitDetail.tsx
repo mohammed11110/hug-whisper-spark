@@ -66,6 +66,37 @@ export default function UnitDetail() {
     navigate(`/buildings/${unit.building_id}`);
   };
 
+  const exportLease = async (mode: "download" | "print") => {
+    if (!unit) return;
+    const html = buildLeaseHTML({
+      brand: settings.brand,
+      building_name: buildingName || "—",
+      unit_number: unit.unit_number,
+      unit_type: t2(unit.type as any),
+      floor: unit.floor,
+      tenant_name: unit.tenant_name || "",
+      tenant_phone: unit.tenant_phone || "",
+      tenant_id_number: (unit as any).tenant_id_number || "",
+      rent_amount: Number(unit.rent_amount),
+      rent_type: unit.rent_type,
+      contract_type: (unit as any).contract_type || "yearly",
+      contract_start_date: (unit as any).contract_start_date,
+      contract_end_date: unit.contract_end_date,
+      due_day: unit.due_day,
+      security_deposit: Number((unit as any).security_deposit || 0),
+      currency: currency.symbol,
+      lang: lang === "ar" ? "ar" : "en",
+    });
+    if (mode === "print") {
+      printHTML(html);
+    } else {
+      try {
+        await downloadHTMLAsPDF(html, `lease-${unit.unit_number}-${unit.tenant_name || "tenant"}.pdf`, settings);
+        toast.success("PDF ✓");
+      } catch (e: any) { toast.error(e.message || "PDF error"); }
+    }
+  };
+
   if (!unit) return <div className="mobile-shell flex items-center justify-center min-h-screen"><p className="text-sage-500">{t("loading")}</p></div>;
 
   return (
