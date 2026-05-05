@@ -75,9 +75,29 @@ export default function Buildings() {
       <div className="px-5 pt-5">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-black text-sage-600 tracking-tight">{t("buildings")}</h1>
-          <Button onClick={() => setOpen(true)} size="sm" className="rounded-full bg-gradient-sage text-primary-foreground shadow-soft h-9 px-3.5">
-            <Plus className="h-4 w-4 me-1" /> {t2("add_unit").includes("ضافة") ? "إضافة" : "Add"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="rounded-full h-9 px-3 border-sage-200 text-sage-600 bg-card">
+                  <ArrowUpDown className="h-4 w-4 me-1" /> {t2("sort")}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="rounded-2xl">
+                <DropdownMenuLabel>{t2("sort")}</DropdownMenuLabel>
+                <DropdownMenuRadioGroup value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
+                  <DropdownMenuRadioItem value="newest">{t2("sort_newest")}</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="oldest">{t2("sort_oldest")}</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="name_az">{t2("sort_name_az")}</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="name_za">{t2("sort_name_za")}</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="units_high">{t2("sort_units_high")}</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="units_low">{t2("sort_units_low")}</DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button onClick={() => setOpen(true)} size="sm" className="rounded-full bg-gradient-sage text-primary-foreground shadow-soft h-9 px-3.5">
+              <Plus className="h-4 w-4 me-1" /> {t2("add_unit").includes("ضافة") ? "إضافة" : "Add"}
+            </Button>
+          </div>
         </div>
 
         {/* Filter chips */}
