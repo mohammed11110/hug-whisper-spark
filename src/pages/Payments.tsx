@@ -133,9 +133,9 @@ export default function Payments() {
     const html = `
       <html><head><title>${r.receipt_number || r.id}</title>
       <style>
-        @page{size:${settings.pageSize};margin:${settings.marginMm}mm}
+        @page{size:${settings.pageSize};margin:${settings.margins.top}mm ${settings.margins.right}mm ${settings.margins.bottom}mm ${settings.margins.left}mm}
         *{box-sizing:border-box}
-        body{font-family:system-ui,-apple-system,sans-serif;padding:32px;color:#3a4f3a;background:#faf6ee;margin:0}
+        body{font-family:system-ui,-apple-system,sans-serif;color:#3a4f3a;background:#faf6ee;margin:0;padding:0}
         .card{border:2px solid #a3b89c;border-radius:24px;padding:28px;background:#fff;max-width:560px;margin:auto;position:relative;overflow:hidden}
         .watermark{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:90px;font-weight:900;color:#a3b89c;opacity:.08;pointer-events:none;letter-spacing:8px}
         .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #eef3ea;padding-bottom:14px;margin-bottom:14px}
@@ -200,10 +200,10 @@ export default function Payments() {
       const img = canvas.toDataURL("image/png");
       const pdf = new jsPDF({ unit: "mm", format: settings.pageSize.toLowerCase() as any });
       const pageW = pdf.internal.pageSize.getWidth();
-      const margin = settings.marginMm;
-      const w = pageW - margin * 2;
+      const m = settings.margins;
+      const w = pageW - m.left - m.right;
       const h = (canvas.height * w) / canvas.width;
-      pdf.addImage(img, "PNG", margin, margin, w, h);
+      pdf.addImage(img, "PNG", m.left, m.top, w, h);
       pdf.save(`${r.receipt_number || r.id}.pdf`);
     } catch (e: any) {
       toast.error(e.message || "PDF error");
