@@ -16,6 +16,7 @@ import BuildingDetail from "./pages/BuildingDetail";
 import UnitDetail from "./pages/UnitDetail";
 import Payments from "./pages/Payments";
 import SettingsPage from "./pages/Settings";
+import Reports from "./pages/Reports";
 import Placeholder from "./pages/Placeholder";
 import NotFound from "./pages/NotFound.tsx";
 
@@ -42,7 +43,7 @@ const App = () => (
                 <Route path="/payments" element={<RequireAuth><Payments /></RequireAuth>} />
                 <Route path="/settings" element={<RequireAuth><SettingsPage /></RequireAuth>} />
                 <Route path="/tenants" element={<RequireAuth><Placeholder titleKey="tenants" /></RequireAuth>} />
-                <Route path="/reports" element={<RequireAuth><Placeholder titleKey="reports" /></RequireAuth>} />
+                <Route path="/reports" element={<RequireAuth><Reports /></RequireAuth>} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>
