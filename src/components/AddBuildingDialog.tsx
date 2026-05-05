@@ -18,7 +18,7 @@ export function AddBuildingDialog({ open, onOpenChange, onCreated }: { open: boo
   const [name, setName] = useState("");
   const [nameEn, setNameEn] = useState("");
   const [type, setType] = useState<typeof TYPES[number]>("tower");
-  const [floors, setFloors] = useState(1);
+  const [floors, setFloors] = useState<string>("1");
   const [city, setCity] = useState("");
   const [address, setAddress] = useState("");
   const [busy, setBusy] = useState(false);
