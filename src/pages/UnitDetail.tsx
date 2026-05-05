@@ -36,6 +36,7 @@ export default function UnitDetail() {
   const t2 = useT2();
   const { format } = useCurrency();
   const [unit, setUnit] = useState<Unit | null>(null);
+  const [buildingName, setBuildingName] = useState<string>("");
   const [tab, setTab] = useState<Tab>("details");
   const [delOpen, setDelOpen] = useState(false);
 
