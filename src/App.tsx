@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { I18nProvider } from "@/lib/i18n";
 import { CurrencyProvider } from "@/lib/currency";
 import { AppSettingsProvider } from "@/lib/appSettings";
+import { ThemeProvider } from "@/lib/theme";
 import { AuthProvider } from "@/lib/auth";
 import { RequireAuth } from "@/components/RequireAuth";
 import Welcome from "./pages/Welcome";
