@@ -156,7 +156,7 @@ export default function UnitDetail() {
   );
 }
 
-function DetailsTab({ unit, format, t2, onPay }: any) {
+function DetailsTab({ unit, format, t2, lang, onPay, onLeasePDF, onLeasePrint }: any) {
   return (
     <>
       <Card>
@@ -174,13 +174,16 @@ function DetailsTab({ unit, format, t2, onPay }: any) {
         <Row icon={Calendar} label={t2("contract_end")} value={unit.contract_end_date || "—"} />
       </Card>
       <div className="grid grid-cols-2 gap-2.5">
-        <Button variant="outline" className="rounded-xl border-sage-300 text-sage-600 h-12 font-semibold">
-          <Receipt className="h-4 w-4 me-1.5" />{t2("issue_receipt")}
+        <Button variant="outline" onClick={onLeasePDF} className="rounded-xl border-sage-300 text-sage-600 h-12 font-semibold">
+          <FileSignature className="h-4 w-4 me-1.5" />{lang === "ar" ? "عقد PDF" : "Lease PDF"}
         </Button>
         <Button onClick={onPay} className="rounded-xl bg-gradient-sage text-primary-foreground h-12 font-semibold shadow-soft">
           <Plus className="h-4 w-4 me-1.5" />{t2("register_payment")}
         </Button>
       </div>
+      <Button variant="ghost" onClick={onLeasePrint} className="w-full rounded-xl text-sage-500 h-10 text-xs">
+        {lang === "ar" ? "🖨️ طباعة العقد" : "🖨️ Print contract"}
+      </Button>
     </>
   );
 }
