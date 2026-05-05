@@ -112,6 +112,9 @@ const dict: Record<Key, Partial<Record<Lang, string>>> = {
   filter_year: { ar: "سنة", en: "Year", ur: "سال", zh: "年", hi: "साल", bn: "বছর", fr: "Année", es: "Año", tr: "Yıl" },
   print_receipt: { ar: "طباعة", en: "Print", ur: "پرنٹ", zh: "打印", hi: "प्रिंट", bn: "প্রিন্ট", fr: "Imprimer", es: "Imprimir", tr: "Yazdır" },
   delete_payment: { ar: "حذف الدفعة", en: "Delete payment", ur: "حذف کریں", zh: "删除付款", hi: "भुगतान हटाएं", bn: "পেমেন্ট মুছুন", fr: "Supprimer", es: "Eliminar pago", tr: "Ödemeyi sil" },
+  units_count: { ar: "عدد الوحدات", en: "Number of units", ur: "یونٹس کی تعداد", zh: "单元数量", hi: "इकाइयों की संख्या", bn: "ইউনিট সংখ্যা", fr: "Nombre d'unités", es: "Número de unidades", tr: "Birim sayısı" },
+  units_count_hint: { ar: "سيتم إنشاء وحدات شاغرة مرقّمة تلقائياً يمكن تعديلها لاحقاً", en: "Vacant numbered units will be auto-created; edit them later individually", ur: "خالی نمبر والے یونٹ خودکار بنائیں گے، بعد میں ترمیم کریں", zh: "将自动创建空置编号单元，稍后可单独编辑", hi: "स्वतः खाली क्रमांकित इकाइयाँ बनेंगी; बाद में अलग से संपादित करें", bn: "স্বয়ংক্রিয় খালি ইউনিট তৈরি হবে; পরে পৃথক সম্পাদনা করুন", fr: "Des unités vacantes numérotées seront créées; modifiez-les ensuite individuellement", es: "Se crearán unidades vacantes numeradas; edítalas después individualmente", tr: "Numaralı boş birimler oluşturulur; sonra tek tek düzenleyin" },
+  edit_unit: { ar: "تعديل الوحدة", en: "Edit unit", ur: "یونٹ ترمیم", zh: "编辑单元", hi: "इकाई संपादित", bn: "ইউনিট সম্পাদনা", fr: "Modifier l'unité", es: "Editar unidad", tr: "Birimi düzenle" },
 };
 
 export function useT2() {
