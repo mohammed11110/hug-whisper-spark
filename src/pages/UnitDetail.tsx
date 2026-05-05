@@ -115,6 +115,7 @@ export default function UnitDetail() {
       </div>
 
       <ConfirmDeleteDialog open={delOpen} onOpenChange={setDelOpen} onConfirm={handleDelete} />
+      <AddPaymentDialog open={payOpen} onOpenChange={setPayOpen} presetUnitId={unit.id} onSaved={load} />
     </div>
   );
 }
