@@ -367,6 +367,41 @@ export default function Settings() {
         </div>
       </section>
 
+      {/* Delete PIN */}
+      <section className="px-5 mt-6">
+        <div className="flex items-center gap-2 mb-2">
+          <ShieldAlert className="h-4 w-4 text-burgundy" />
+          <h2 className="font-bold text-sage-600 text-sm">
+            {lang === "ar" ? "حماية الحذف برقم سري" : "Delete protection PIN"}
+          </h2>
+        </div>
+        <div className="bg-card border border-sage-200/50 rounded-2xl p-4 shadow-soft space-y-2">
+          <p className="text-[11px] text-muted-foreground">
+            {lang === "ar"
+              ? "عند تفعيله، يطلب التطبيق هذا الرقم قبل حذف أي دفعة. يمنع الحذف بالخطأ. اتركه فارغاً للتعطيل."
+              : "When set, the app asks for this PIN before deleting any payment. Leave empty to disable."}
+          </p>
+          <Input
+            type="password"
+            inputMode="numeric"
+            maxLength={12}
+            placeholder={lang === "ar" ? "بدون رقم سري" : "No PIN"}
+            defaultValue={settings.deletePin || ""}
+            onBlur={(e) => {
+              const v = e.target.value.trim();
+              update({ deletePin: v ? v : null });
+              toast.success(L("saved"));
+            }}
+            className="rounded-xl border-sage-200 bg-card h-11 font-mono text-center tracking-[0.4em]"
+          />
+          {settings.deletePin && (
+            <p className="text-[10px] text-sage-500 text-center">
+              {lang === "ar" ? "✓ الحماية مفعّلة" : "✓ Protection enabled"}
+            </p>
+          )}
+        </div>
+      </section>
+
       <div className="px-5 mt-8">
         <Button variant="outline" onClick={() => { reset(); toast.success(L("saved")); }}
           className="w-full rounded-xl border-burgundy/30 text-burgundy hover:bg-burgundy/5">
