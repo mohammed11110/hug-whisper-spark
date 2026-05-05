@@ -1,0 +1,116 @@
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useT2 } from "@/lib/i18n2";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+const UNIT_TYPES = ["apartment", "shop", "room", "villa"] as const;
+const RENT_TYPES = ["monthly", "daily", "yearly"] as const;
+
+export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreated }: {
+  open: boolean; onOpenChange: (o: boolean) => void; buildingId: string; floors: number; onCreated?: () => void;
+}) {
+  const t2 = useT2();
+  const [unitNumber, setUnitNumber] = useState("");
+  const [floor, setFloor] = useState(1);
+  const [type, setType] = useState<typeof UNIT_TYPES[number]>("apartment");
+  const [tenantName, setTenantName] = useState("");
+  const [tenantPhone, setTenantPhone] = useState("");
+  const [rentAmount, setRentAmount] = useState(0);
+  const [rentType, setRentType] = useState<typeof RENT_TYPES[number]>("monthly");
+  const [dueDay, setDueDay] = useState(1);
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    if (!unitNumber.trim()) return;
+    setBusy(true);
+    const { error } = await supabase.from("units").insert({
+      building_id: buildingId,
+      unit_number: unitNumber.trim(),
+      floor,
+      type,
+      tenant_name: tenantName.trim() || null,
+      tenant_phone: tenantPhone.trim() || null,
+      rent_amount: rentAmount,
+      rent_type: rentType,
+      due_day: dueDay,
+      status: "soon",
+    });
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("✓");
+    setUnitNumber(""); setFloor(1); setType("apartment"); setTenantName(""); setTenantPhone(""); setRentAmount(0); setDueDay(1);
+    onCreated?.();
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-[400px] rounded-3xl border-sage-200 bg-background max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-sage-600 text-xl font-black">{t2("add_unit")}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 mt-2">
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={t2("unit_number")}>
+              <Input value={unitNumber} onChange={(e) => setUnitNumber(e.target.value)} className="rounded-xl border-sage-200 bg-card" />
+            </Field>
+            <Field label={t2("floors")}>
+              <Input type="number" min={1} max={floors} value={floor} onChange={(e) => setFloor(parseInt(e.target.value) || 1)} className="rounded-xl border-sage-200 bg-card" />
+            </Field>
+          </div>
+          <Field label={t2("unit_type")}>
+            <div className="flex flex-wrap gap-1.5">
+              {UNIT_TYPES.map((tp) => (
+                <button key={tp} type="button" onClick={() => setType(tp)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
+                    type === tp ? "bg-gradient-sage text-primary-foreground shadow-soft" : "bg-muted text-muted-foreground"
+                  }`}>{t2(tp as any)}</button>
+              ))}
+            </div>
+          </Field>
+          <Field label={t2("tenant_name")}>
+            <Input value={tenantName} onChange={(e) => setTenantName(e.target.value)} className="rounded-xl border-sage-200 bg-card" />
+          </Field>
+          <Field label={t2("tenant_phone")}>
+            <Input value={tenantPhone} onChange={(e) => setTenantPhone(e.target.value)} className="rounded-xl border-sage-200 bg-card" />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={t2("rent_amount")}>
+              <Input type="number" min={0} step="0.001" value={rentAmount} onChange={(e) => setRentAmount(parseFloat(e.target.value) || 0)} className="rounded-xl border-sage-200 bg-card" />
+            </Field>
+            <Field label={t2("due_day")}>
+              <Input type="number" min={1} max={31} value={dueDay} onChange={(e) => setDueDay(parseInt(e.target.value) || 1)} className="rounded-xl border-sage-200 bg-card" />
+            </Field>
+          </div>
+          <Field label={t2("rent_type")}>
+            <div className="flex gap-1.5">
+              {RENT_TYPES.map((rt) => (
+                <button key={rt} type="button" onClick={() => setRentType(rt)}
+                  className={`flex-1 px-3 py-2 rounded-xl text-xs font-semibold ${
+                    rentType === rt ? "bg-gradient-sage text-primary-foreground shadow-soft" : "bg-muted text-muted-foreground"
+                  }`}>{t2(rt)}</button>
+              ))}
+            </div>
+          </Field>
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" className="flex-1 rounded-xl border-sage-200" onClick={() => onOpenChange(false)}>{t2("cancel")}</Button>
+            <Button onClick={submit} disabled={busy || !unitNumber.trim()} className="flex-1 rounded-xl bg-gradient-sage text-primary-foreground font-semibold">{t2("save")}</Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs text-sage-600 font-semibold">{label}</Label>
+      {children}
+    </div>
+  );
+}

@@ -1,0 +1,154 @@
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { ArrowLeft, Trash2, Plus, Home } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { BotanicalDecor } from "@/components/BotanicalDecor";
+import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
+import { AddUnitDialog } from "@/components/AddUnitDialog";
+import { useI18n } from "@/lib/i18n";
+import { useT2 } from "@/lib/i18n2";
+import { useCurrency } from "@/lib/currency";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+interface Building { id: string; name: string; name_en: string | null; type: string; floors: number; city: string | null; address: string | null; }
+interface Unit { id: string; unit_number: string; floor: number; type: string; tenant_name: string | null; rent_amount: number; rent_type: string; status: string; }
+
+const UNIT_FILTERS = ["all", "apartment", "shop", "room", "villa"] as const;
+
+const STATUS_STYLES: Record<string, string> = {
+  paid: "bg-sage-300/30 text-sage-600",
+  late: "bg-burgundy/15 text-burgundy",
+  soon: "bg-terracotta/15 text-terracotta",
+};
+
+export default function BuildingDetail() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { t } = useI18n();
+  const t2 = useT2();
+  const { format } = useCurrency();
+  const [building, setBuilding] = useState<Building | null>(null);
+  const [units, setUnits] = useState<Unit[]>([]);
+  const [filter, setFilter] = useState<string>("all");
+  const [delOpen, setDelOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+
+  const load = async () => {
+    if (!id) return;
+    const { data: b } = await supabase.from("buildings").select("*").eq("id", id).maybeSingle();
+    setBuilding(b);
+    const { data: us } = await supabase.from("units").select("id,unit_number,floor,type,tenant_name,rent_amount,rent_type,status").eq("building_id", id).order("floor").order("unit_number");
+    setUnits(us || []);
+  };
+
+  useEffect(() => { load(); }, [id]);
+
+  const handleDelete = async () => {
+    if (!id) return;
+    const { error } = await supabase.from("buildings").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    toast.success("✓");
+    navigate("/buildings");
+  };
+
+  const visible = filter === "all" ? units : units.filter((u) => u.type === filter);
+  const occupied = units.filter((u) => u.tenant_name).length;
+  const occupancy = units.length ? Math.round((occupied / units.length) * 100) : 0;
+  const monthlyIncome = units.filter((u) => u.rent_type === "monthly").reduce((s, u) => s + Number(u.rent_amount), 0);
+
+  if (!building) return <div className="mobile-shell flex items-center justify-center min-h-screen"><p className="text-sage-500">{t("loading")}</p></div>;
+
+  return (
+    <div className="mobile-shell min-h-screen pb-10">
+      {/* Hero header */}
+      <div className="relative overflow-hidden bg-gradient-deep text-primary-foreground pt-4 pb-6 px-5 rounded-b-[2rem]">
+        <BotanicalDecor className="absolute -end-8 -top-4 w-52 h-52 text-primary-foreground" />
+        <div className="relative z-10 flex items-center justify-between mb-4">
+          <Link to="/buildings">
+            <Button variant="ghost" size="icon" className="rounded-full text-primary-foreground hover:bg-card/15">
+              <ArrowLeft className="h-5 w-5 rtl:rotate-180" />
+            </Button>
+          </Link>
+          <Button variant="ghost" size="icon" className="rounded-full text-primary-foreground hover:bg-burgundy/30" onClick={() => setDelOpen(true)}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="relative z-10">
+          <p className="text-xs uppercase tracking-wider opacity-75">{t2(building.type as any)}</p>
+          <h1 className="text-3xl font-black mt-1">{building.name}</h1>
+          {building.name_en && <p className="text-sm opacity-80">{building.name_en}</p>}
+          {building.city && <p className="text-xs opacity-70 mt-1">📍 {building.city}{building.address ? ` · ${building.address}` : ""}</p>}
+        </div>
+      </div>
+
+      <div className="px-5 -mt-4 relative z-10">
+        {/* Stats card */}
+        <div className="bg-card rounded-2xl shadow-elev p-4 grid grid-cols-3 gap-2 mb-5 animate-float-up">
+          <Stat label={t("units")} value={units.length} />
+          <Stat label={t2("occupancy")} value={`${occupancy}%`} />
+          <Stat label={t2("monthly_income")} value={format(monthlyIncome)} small />
+        </div>
+
+        {/* Filter chips */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
+            {UNIT_FILTERS.map((f) => (
+              <button key={f} onClick={() => setFilter(f)}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold ${
+                  filter === f ? "bg-gradient-sage text-primary-foreground shadow-soft" : "bg-muted text-muted-foreground"
+                }`}>{t2(f as any)}</button>
+            ))}
+          </div>
+          <Button onClick={() => setAddOpen(true)} size="sm" className="rounded-full bg-gradient-sage text-primary-foreground h-9 px-3.5 ms-2 flex-shrink-0">
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Units list */}
+        <div className="space-y-2">
+          {visible.length === 0 ? (
+            <div className="bg-card border border-sage-200/60 rounded-3xl p-8 text-center shadow-soft">
+              <div className="inline-flex p-3 rounded-2xl bg-sage-100 mb-3">
+                <Home className="h-7 w-7 text-sage-400" />
+              </div>
+              <h3 className="font-bold text-sage-600 mb-1">{t2("no_units")}</h3>
+              <p className="text-sm text-muted-foreground mb-4">{t2("no_units_msg")}</p>
+              <Button onClick={() => setAddOpen(true)} className="bg-gradient-sage text-primary-foreground rounded-xl h-11 px-5 font-semibold">
+                <Plus className="h-4 w-4 me-1.5" /> {t2("add_unit")}
+              </Button>
+            </div>
+          ) : (
+            visible.map((u, i) => (
+              <Link key={u.id} to={`/units/${u.id}`} className="block animate-float-up" style={{ animationDelay: `${i * 0.03}s` }}>
+                <div className="bg-card border border-sage-200/40 rounded-2xl p-4 flex items-center gap-3 shadow-soft hover:shadow-elev transition-all">
+                  <div className="h-12 w-12 rounded-xl bg-gradient-sage text-primary-foreground flex flex-col items-center justify-center font-black flex-shrink-0">
+                    <span className="text-[10px] opacity-80">F{u.floor}</span>
+                    <span className="text-sm leading-none">{u.unit_number}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sage-600 truncate">{u.tenant_name || `${t2(u.type as any)} ${u.unit_number}`}</p>
+                    <p className="text-xs text-muted-foreground">{t2(u.type as any)} · {format(Number(u.rent_amount))}/{t2(u.rent_type as any)}</p>
+                  </div>
+                  <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase ${STATUS_STYLES[u.status] || ""}`}>{t2(u.status as any)}</span>
+                </div>
+              </Link>
+            ))
+          )}
+        </div>
+      </div>
+
+      <ConfirmDeleteDialog open={delOpen} onOpenChange={setDelOpen} onConfirm={handleDelete} description={t2("delete_building_msg")} />
+      <AddUnitDialog open={addOpen} onOpenChange={setAddOpen} buildingId={building.id} floors={building.floors} onCreated={load} />
+    </div>
+  );
+}
+
+function Stat({ label, value, small }: { label: string; value: any; small?: boolean }) {
+  return (
+    <div className="text-center">
+      <p className={`font-black text-sage-600 ${small ? "text-sm" : "text-xl"}`}>{value}</p>
+      <p className="text-[10px] text-muted-foreground font-medium mt-0.5">{label}</p>
+    </div>
+  );
+}

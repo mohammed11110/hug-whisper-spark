@@ -1,0 +1,92 @@
+import { useI18n, type Lang } from "@/lib/i18n";
+
+type Key =
+  | "all" | "tower" | "compound" | "villa" | "commercial" | "mixed"
+  | "apartment" | "shop" | "room"
+  | "building_name" | "building_name_en" | "building_type" | "floors" | "address" | "city"
+  | "save" | "cancel" | "delete" | "delete_confirm" | "delete_building_msg"
+  | "add_unit" | "unit_number" | "unit_type" | "tenant_name" | "tenant_phone"
+  | "rent_amount" | "rent_type" | "due_day" | "monthly" | "daily" | "yearly"
+  | "occupancy" | "monthly_income" | "no_units" | "no_units_msg"
+  | "details" | "maintenance" | "utilities" | "legal" | "photos"
+  | "contract_end" | "last_payment" | "issue_receipt" | "register_payment"
+  | "water" | "electric" | "gas" | "internet" | "active" | "inactive" | "account_number"
+  | "no_legal_case" | "file_legal_case" | "case_number" | "court" | "lawyer" | "claim_amount" | "notes"
+  | "no_photos" | "add_photo" | "back" | "search" | "no_tenants" | "no_payments"
+  | "paid" | "late" | "soon" | "status";
+
+const dict: Record<Key, Partial<Record<Lang, string>>> = {
+  all: { ar: "الكل", en: "All", ur: "تمام", zh: "全部", hi: "सभी", bn: "সব", fr: "Tous", es: "Todos", tr: "Tümü" },
+  tower: { ar: "برج", en: "Tower", ur: "ٹاور", zh: "塔楼", hi: "टॉवर", bn: "টাওয়ার", fr: "Tour", es: "Torre", tr: "Kule" },
+  compound: { ar: "مجمع", en: "Compound", ur: "کمپاؤنڈ", zh: "园区", hi: "कंपाउंड", bn: "কম্পাউন্ড", fr: "Complexe", es: "Complejo", tr: "Site" },
+  villa: { ar: "فيلا", en: "Villa", ur: "ولا", zh: "别墅", hi: "विला", bn: "ভিলা", fr: "Villa", es: "Villa", tr: "Villa" },
+  commercial: { ar: "تجاري", en: "Commercial", ur: "تجارتی", zh: "商业", hi: "वाणिज्यिक", bn: "বাণিজ্যিক", fr: "Commercial", es: "Comercial", tr: "Ticari" },
+  mixed: { ar: "مختلط", en: "Mixed", ur: "مخلوط", zh: "混合", hi: "मिश्रित", bn: "মিশ্র", fr: "Mixte", es: "Mixto", tr: "Karma" },
+  apartment: { ar: "شقة", en: "Apartment", ur: "اپارٹمنٹ", zh: "公寓", hi: "अपार्टमेंट", bn: "অ্যাপার্টমেন্ট", fr: "Appart.", es: "Apto.", tr: "Daire" },
+  shop: { ar: "محل", en: "Shop", ur: "دکان", zh: "店铺", hi: "दुकान", bn: "দোকান", fr: "Magasin", es: "Tienda", tr: "Dükkan" },
+  room: { ar: "غرفة", en: "Room", ur: "کمرہ", zh: "房间", hi: "कमरा", bn: "ঘর", fr: "Chambre", es: "Habitación", tr: "Oda" },
+  building_name: { ar: "اسم المبنى", en: "Building name", ur: "عمارت کا نام", zh: "建筑名称", hi: "इमारत का नाम", bn: "ভবনের নাম", fr: "Nom du bâtiment", es: "Nombre del edificio", tr: "Bina adı" },
+  building_name_en: { ar: "الاسم بالإنجليزية", en: "Name (English)", ur: "نام (انگریزی)", zh: "英文名", hi: "नाम (अंग्रेज़ी)", bn: "নাম (ইংরেজি)", fr: "Nom (anglais)", es: "Nombre (inglés)", tr: "Ad (İng.)" },
+  building_type: { ar: "النوع", en: "Type", ur: "قسم", zh: "类型", hi: "प्रकार", bn: "ধরন", fr: "Type", es: "Tipo", tr: "Tür" },
+  floors: { ar: "عدد الطوابق", en: "Floors", ur: "منزلیں", zh: "楼层", hi: "मंज़िलें", bn: "তলা", fr: "Étages", es: "Pisos", tr: "Kat" },
+  address: { ar: "العنوان", en: "Address", ur: "پتہ", zh: "地址", hi: "पता", bn: "ঠিকানা", fr: "Adresse", es: "Dirección", tr: "Adres" },
+  city: { ar: "المدينة", en: "City", ur: "شہر", zh: "城市", hi: "शहर", bn: "শহর", fr: "Ville", es: "Ciudad", tr: "Şehir" },
+  save: { ar: "حفظ", en: "Save", ur: "محفوظ", zh: "保存", hi: "सहेजें", bn: "সংরক্ষণ", fr: "Enregistrer", es: "Guardar", tr: "Kaydet" },
+  cancel: { ar: "إلغاء", en: "Cancel", ur: "منسوخ", zh: "取消", hi: "रद्द", bn: "বাতিল", fr: "Annuler", es: "Cancelar", tr: "İptal" },
+  delete: { ar: "حذف", en: "Delete", ur: "حذف", zh: "删除", hi: "हटाएं", bn: "মুছুন", fr: "Supprimer", es: "Eliminar", tr: "Sil" },
+  delete_confirm: { ar: "هل أنت متأكد؟", en: "Are you sure?", ur: "کیا آپ کو یقین ہے؟", zh: "您确定吗？", hi: "क्या आप निश्चित हैं?", bn: "আপনি কি নিশ্চিত?", fr: "Êtes-vous sûr ?", es: "¿Está seguro?", tr: "Emin misiniz?" },
+  delete_building_msg: { ar: "سيتم حذف المبنى وجميع وحداته نهائياً", en: "Building and all its units will be permanently deleted", ur: "عمارت اور تمام یونٹس مستقل طور پر حذف ہو جائیں گے", zh: "将永久删除建筑及其所有单元", hi: "इमारत और सभी इकाइयाँ स्थायी रूप से हटा दी जाएँगी", bn: "ভবন ও সব ইউনিট স্থায়ীভাবে মুছে যাবে", fr: "Le bâtiment et toutes ses unités seront supprimés", es: "El edificio y todas sus unidades serán eliminados", tr: "Bina ve tüm birimleri kalıcı olarak silinecek" },
+  add_unit: { ar: "إضافة وحدة", en: "Add unit", ur: "یونٹ شامل کریں", zh: "添加单元", hi: "इकाई जोड़ें", bn: "ইউনিট যোগ", fr: "Ajouter une unité", es: "Agregar unidad", tr: "Birim ekle" },
+  unit_number: { ar: "رقم الوحدة", en: "Unit number", ur: "یونٹ نمبر", zh: "单元号", hi: "इकाई संख्या", bn: "ইউনিট নম্বর", fr: "N° d'unité", es: "Nº unidad", tr: "Birim no" },
+  unit_type: { ar: "نوع الوحدة", en: "Unit type", ur: "قسم", zh: "类型", hi: "प्रकार", bn: "ধরন", fr: "Type", es: "Tipo", tr: "Tür" },
+  tenant_name: { ar: "اسم المستأجر", en: "Tenant name", ur: "کرایہ دار کا نام", zh: "租户姓名", hi: "किरायेदार का नाम", bn: "ভাড়াটের নাম", fr: "Locataire", es: "Inquilino", tr: "Kiracı adı" },
+  tenant_phone: { ar: "هاتف المستأجر", en: "Tenant phone", ur: "فون", zh: "电话", hi: "फ़ोन", bn: "ফোন", fr: "Téléphone", es: "Teléfono", tr: "Telefon" },
+  rent_amount: { ar: "قيمة الإيجار", en: "Rent amount", ur: "کرایہ", zh: "租金", hi: "किराया राशि", bn: "ভাড়া", fr: "Loyer", es: "Renta", tr: "Kira" },
+  rent_type: { ar: "نوع الإيجار", en: "Rent type", ur: "کرایہ کی قسم", zh: "周期", hi: "किराया प्रकार", bn: "ভাড়ার ধরন", fr: "Périodicité", es: "Periodicidad", tr: "Kira tipi" },
+  due_day: { ar: "يوم الاستحقاق", en: "Due day", ur: "ادائیگی کا دن", zh: "付款日", hi: "देय दिन", bn: "দেয় দিন", fr: "Jour dû", es: "Día venc.", tr: "Vade günü" },
+  monthly: { ar: "شهري", en: "Monthly", ur: "ماہانہ", zh: "月", hi: "मासिक", bn: "মাসিক", fr: "Mensuel", es: "Mensual", tr: "Aylık" },
+  daily: { ar: "يومي", en: "Daily", ur: "روزانہ", zh: "日", hi: "दैनिक", bn: "দৈনিক", fr: "Quotidien", es: "Diario", tr: "Günlük" },
+  yearly: { ar: "سنوي", en: "Yearly", ur: "سالانہ", zh: "年", hi: "वार्षिक", bn: "বার্ষিক", fr: "Annuel", es: "Anual", tr: "Yıllık" },
+  occupancy: { ar: "الإشغال", en: "Occupancy", ur: "قبضہ", zh: "入住率", hi: "अधिभोग", bn: "দখল", fr: "Occupation", es: "Ocupación", tr: "Doluluk" },
+  monthly_income: { ar: "الدخل الشهري", en: "Monthly income", ur: "ماہانہ آمدنی", zh: "月收入", hi: "मासिक आय", bn: "মাসিক আয়", fr: "Revenu mensuel", es: "Ingreso mensual", tr: "Aylık gelir" },
+  no_units: { ar: "لا توجد وحدات بعد", en: "No units yet", ur: "ابھی کوئی یونٹ نہیں", zh: "暂无单元", hi: "अभी कोई इकाई नहीं", bn: "এখনো ইউনিট নেই", fr: "Aucune unité", es: "Sin unidades", tr: "Henüz birim yok" },
+  no_units_msg: { ar: "أضف أول وحدة في هذا المبنى", en: "Add the first unit in this building", ur: "اس عمارت میں پہلا یونٹ شامل کریں", zh: "在此建筑添加第一个单元", hi: "इस इमारत में पहली इकाई जोड़ें", bn: "এই ভবনে প্রথম ইউনিট যোগ করুন", fr: "Ajoutez la première unité", es: "Agrega la primera unidad", tr: "İlk birimi ekleyin" },
+  details: { ar: "التفاصيل", en: "Details", ur: "تفصیلات", zh: "详情", hi: "विवरण", bn: "বিস্তারিত", fr: "Détails", es: "Detalles", tr: "Detaylar" },
+  maintenance: { ar: "الصيانة", en: "Maintenance", ur: "دیکھ بھال", zh: "维护", hi: "रखरखाव", bn: "রক্ষণাবেক্ষণ", fr: "Maintenance", es: "Mantenim.", tr: "Bakım" },
+  utilities: { ar: "المرافق", en: "Utilities", ur: "سہولیات", zh: "公用事业", hi: "उपयोगिता", bn: "ইউটিলিটি", fr: "Services", es: "Servicios", tr: "Hizmetler" },
+  legal: { ar: "قانوني", en: "Legal", ur: "قانونی", zh: "法律", hi: "कानूनी", bn: "আইনি", fr: "Légal", es: "Legal", tr: "Hukuki" },
+  photos: { ar: "الصور", en: "Photos", ur: "تصاویر", zh: "照片", hi: "तस्वीरें", bn: "ছবি", fr: "Photos", es: "Fotos", tr: "Fotoğraflar" },
+  contract_end: { ar: "نهاية العقد", en: "Contract end", ur: "معاہدہ ختم", zh: "合同到期", hi: "अनुबंध समाप्ति", bn: "চুক্তি শেষ", fr: "Fin contrat", es: "Fin contrato", tr: "Sözl. bitişi" },
+  last_payment: { ar: "آخر دفعة", en: "Last payment", ur: "آخری ادائیگی", zh: "最后付款", hi: "अंतिम भुगतान", bn: "শেষ পেমেন্ট", fr: "Dernier paiement", es: "Último pago", tr: "Son ödeme" },
+  issue_receipt: { ar: "إصدار إيصال", en: "Issue receipt", ur: "رسید جاری کریں", zh: "开收据", hi: "रसीद जारी करें", bn: "রসিদ ইস্যু", fr: "Émettre reçu", es: "Emitir recibo", tr: "Makbuz oluştur" },
+  register_payment: { ar: "تسجيل دفعة", en: "Register payment", ur: "ادائیگی درج کریں", zh: "登记付款", hi: "भुगतान दर्ज करें", bn: "পেমেন্ট নথিভুক্ত", fr: "Enregistrer paiement", es: "Registrar pago", tr: "Ödeme kaydet" },
+  water: { ar: "ماء", en: "Water", ur: "پانی", zh: "水", hi: "पानी", bn: "পানি", fr: "Eau", es: "Agua", tr: "Su" },
+  electric: { ar: "كهرباء", en: "Electric", ur: "بجلی", zh: "电", hi: "बिजली", bn: "বিদ্যুৎ", fr: "Électricité", es: "Electricidad", tr: "Elektrik" },
+  gas: { ar: "غاز", en: "Gas", ur: "گیس", zh: "燃气", hi: "गैस", bn: "গ্যাস", fr: "Gaz", es: "Gas", tr: "Gaz" },
+  internet: { ar: "إنترنت", en: "Internet", ur: "انٹرنیٹ", zh: "网络", hi: "इंटरनेट", bn: "ইন্টারনেট", fr: "Internet", es: "Internet", tr: "İnternet" },
+  active: { ar: "مفعّل", en: "Active", ur: "فعال", zh: "已启用", hi: "सक्रिय", bn: "সক্রিয়", fr: "Actif", es: "Activo", tr: "Aktif" },
+  inactive: { ar: "معطّل", en: "Inactive", ur: "غیر فعال", zh: "未启用", hi: "निष्क्रिय", bn: "নিষ্ক্রিয়", fr: "Inactif", es: "Inactivo", tr: "Pasif" },
+  account_number: { ar: "رقم الحساب", en: "Account number", ur: "اکاؤنٹ نمبر", zh: "账号", hi: "खाता संख्या", bn: "অ্যাকাউন্ট নং", fr: "N° compte", es: "Nº cuenta", tr: "Hesap no" },
+  no_legal_case: { ar: "لا توجد قضية", en: "No legal case", ur: "کوئی مقدمہ نہیں", zh: "无法律案件", hi: "कोई मामला नहीं", bn: "কোনো মামলা নেই", fr: "Aucune affaire", es: "Sin caso", tr: "Dava yok" },
+  file_legal_case: { ar: "رفع قضية", en: "File legal case", ur: "مقدمہ دائر کریں", zh: "提起诉讼", hi: "मामला दर्ज करें", bn: "মামলা দাখিল", fr: "Déposer une plainte", es: "Presentar caso", tr: "Dava aç" },
+  case_number: { ar: "رقم القضية", en: "Case number", ur: "مقدمہ نمبر", zh: "案件号", hi: "केस नंबर", bn: "মামলা নং", fr: "N° dossier", es: "Nº caso", tr: "Dava no" },
+  court: { ar: "المحكمة", en: "Court", ur: "عدالت", zh: "法院", hi: "न्यायालय", bn: "আদালত", fr: "Tribunal", es: "Tribunal", tr: "Mahkeme" },
+  lawyer: { ar: "المحامي", en: "Lawyer", ur: "وکیل", zh: "律师", hi: "वकील", bn: "আইনজীবী", fr: "Avocat", es: "Abogado", tr: "Avukat" },
+  claim_amount: { ar: "قيمة المطالبة", en: "Claim amount", ur: "دعوی رقم", zh: "索赔金额", hi: "दावा राशि", bn: "দাবি পরিমাণ", fr: "Montant", es: "Monto", tr: "Talep tutarı" },
+  notes: { ar: "ملاحظات", en: "Notes", ur: "نوٹس", zh: "备注", hi: "टिप्पणियाँ", bn: "নোট", fr: "Notes", es: "Notas", tr: "Notlar" },
+  no_photos: { ar: "لا توجد صور", en: "No photos", ur: "تصاویر نہیں", zh: "无照片", hi: "कोई फ़ोटो नहीं", bn: "ছবি নেই", fr: "Pas de photos", es: "Sin fotos", tr: "Fotoğraf yok" },
+  add_photo: { ar: "إضافة صورة", en: "Add photo", ur: "تصویر شامل کریں", zh: "添加照片", hi: "फ़ोटो जोड़ें", bn: "ছবি যোগ", fr: "Ajouter photo", es: "Agregar foto", tr: "Fotoğraf ekle" },
+  back: { ar: "رجوع", en: "Back", ur: "واپس", zh: "返回", hi: "वापस", bn: "ফিরুন", fr: "Retour", es: "Volver", tr: "Geri" },
+  search: { ar: "بحث", en: "Search", ur: "تلاش", zh: "搜索", hi: "खोजें", bn: "অনুসন্ধান", fr: "Rechercher", es: "Buscar", tr: "Ara" },
+  no_tenants: { ar: "لا يوجد مستأجرون", en: "No tenants yet", ur: "کوئی کرایہ دار نہیں", zh: "暂无租户", hi: "कोई किरायेदार नहीं", bn: "ভাড়াটে নেই", fr: "Aucun locataire", es: "Sin inquilinos", tr: "Kiracı yok" },
+  no_payments: { ar: "لا توجد مدفوعات", en: "No payments", ur: "کوئی ادائیگی نہیں", zh: "无付款", hi: "कोई भुगतान नहीं", bn: "কোনো পেমেন্ট নেই", fr: "Aucun paiement", es: "Sin pagos", tr: "Ödeme yok" },
+  paid: { ar: "مدفوع", en: "Paid", ur: "ادا شدہ", zh: "已付", hi: "भुगतान", bn: "প্রদত্ত", fr: "Payé", es: "Pagado", tr: "Ödendi" },
+  late: { ar: "متأخر", en: "Late", ur: "تاخیر", zh: "逾期", hi: "देर", bn: "বিলম্বিত", fr: "Retard", es: "Atrasado", tr: "Gecikmiş" },
+  soon: { ar: "قريباً", en: "Soon", ur: "جلد", zh: "即将", hi: "जल्द", bn: "শীঘ্রই", fr: "Bientôt", es: "Pronto", tr: "Yakında" },
+  status: { ar: "الحالة", en: "Status", ur: "حالت", zh: "状态", hi: "स्थिति", bn: "অবস্থা", fr: "Statut", es: "Estado", tr: "Durum" },
+};
+
+export function useT2() {
+  const { lang } = useI18n();
+  return (k: Key) => dict[k]?.[lang] ?? dict[k]?.en ?? k;
+}

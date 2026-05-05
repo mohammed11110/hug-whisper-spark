@@ -10,6 +10,9 @@ import { RequireAuth } from "@/components/RequireAuth";
 import Welcome from "./pages/Welcome";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
+import Buildings from "./pages/Buildings";
+import BuildingDetail from "./pages/BuildingDetail";
+import UnitDetail from "./pages/UnitDetail";
 import Placeholder from "./pages/Placeholder";
 import NotFound from "./pages/NotFound.tsx";
 
@@ -28,7 +31,9 @@ const App = () => (
                 <Route path="/welcome" element={<Welcome />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/" element={<RequireAuth><Dashboard /></RequireAuth>} />
-                <Route path="/buildings" element={<RequireAuth><Placeholder titleKey="buildings" /></RequireAuth>} />
+                <Route path="/buildings" element={<RequireAuth><Buildings /></RequireAuth>} />
+                <Route path="/buildings/:id" element={<RequireAuth><BuildingDetail /></RequireAuth>} />
+                <Route path="/units/:id" element={<RequireAuth><UnitDetail /></RequireAuth>} />
                 <Route path="/tenants" element={<RequireAuth><Placeholder titleKey="tenants" /></RequireAuth>} />
                 <Route path="/reports" element={<RequireAuth><Placeholder titleKey="reports" /></RequireAuth>} />
                 <Route path="*" element={<NotFound />} />
