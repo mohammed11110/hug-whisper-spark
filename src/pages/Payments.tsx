@@ -120,11 +120,17 @@ export default function Payments() {
 
   const handleDelete = async () => {
     if (!delId) return;
-    const { error } = await supabase.from("payments").delete().eq("id", delId);
+    // soft delete → goes to recycle bin
+    const { error } = await supabase.from("payments").update({ deleted_at: new Date().toISOString() }).eq("id", delId);
     if (error) return toast.error(error.message);
-    toast.success("✓");
+    toast.success(lang === "ar" ? "نُقلت إلى السلة (30 يوم للاسترجاع)" : "Moved to bin (30-day restore)");
     setDelId(null);
     load();
+  };
+
+  const onDeleteClick = (id: string) => {
+    if (settings.deletePin) setPinForDel(id);
+    else setDelId(id);
   };
 
   const buildReceiptHTML = (r: Row) => {
