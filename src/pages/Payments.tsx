@@ -217,9 +217,21 @@ export default function Payments() {
     <div className="mobile-shell min-h-screen pb-24 bg-background">
       <TopBar />
 
-      <div className="px-5 pt-2">
-        <h1 className="text-2xl font-black text-sage-600">{t2("payments")}</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">{t2("receipts")}</p>
+      <div className="px-5 pt-2 flex items-start justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-black text-sage-600">{t2("payments")}</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">{t2("receipts")}</p>
+        </div>
+        <Button size="sm" variant="outline" className="rounded-xl border-sage-300 text-sage-600"
+          onClick={() => import("@/lib/exportCSV").then(({ exportToCSV }) => exportToCSV(
+            `payments-${new Date().toISOString().slice(0,10)}`,
+            filtered.map((r) => ({
+              date: r.payment_date, receipt: r.receipt_number || "", building: r.building_name,
+              unit: r.unit_number, tenant: r.tenant_name || "", amount: r.amount, status: r.unit_status,
+            }))
+          ))}>
+          <Download className="h-3.5 w-3.5 me-1" />CSV
+        </Button>
       </div>
 
       {/* Stat */}

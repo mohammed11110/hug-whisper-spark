@@ -50,12 +50,51 @@ export type Database = {
         }
         Relationships: []
       }
+      expenses: {
+        Row: {
+          amount: number
+          building_id: string
+          category: string
+          created_at: string
+          description: string | null
+          expense_date: string
+          id: string
+          unit_id: string | null
+          vendor: string | null
+        }
+        Insert: {
+          amount?: number
+          building_id: string
+          category?: string
+          created_at?: string
+          description?: string | null
+          expense_date?: string
+          id?: string
+          unit_id?: string | null
+          vendor?: string | null
+        }
+        Update: {
+          amount?: number
+          building_id?: string
+          category?: string
+          created_at?: string
+          description?: string | null
+          expense_date?: string
+          id?: string
+          unit_id?: string | null
+          vendor?: string | null
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           amount: number
           created_at: string
+          expected_amount: number | null
           id: string
+          notes: string | null
           payment_date: string
+          payment_method: string
           period_end: string | null
           period_start: string | null
           receipt_number: string | null
@@ -64,8 +103,11 @@ export type Database = {
         Insert: {
           amount: number
           created_at?: string
+          expected_amount?: number | null
           id?: string
+          notes?: string | null
           payment_date?: string
+          payment_method?: string
           period_end?: string | null
           period_start?: string | null
           receipt_number?: string | null
@@ -74,8 +116,11 @@ export type Database = {
         Update: {
           amount?: number
           created_at?: string
+          expected_amount?: number | null
           id?: string
+          notes?: string | null
           payment_date?: string
+          payment_method?: string
           period_end?: string | null
           period_start?: string | null
           receipt_number?: string | null
@@ -136,6 +181,8 @@ export type Database = {
           contract_end_date: string | null
           contract_file_url: string | null
           created_at: string
+          deposit_refunded_at: string | null
+          deposit_status: string
           due_day: number
           electric_account: string | null
           floor: number
@@ -148,6 +195,7 @@ export type Database = {
           legal_case: Json
           rent_amount: number
           rent_type: string
+          security_deposit: number
           status: string
           tenant_id_image_url: string | null
           tenant_id_number: string | null
@@ -164,6 +212,8 @@ export type Database = {
           contract_end_date?: string | null
           contract_file_url?: string | null
           created_at?: string
+          deposit_refunded_at?: string | null
+          deposit_status?: string
           due_day?: number
           electric_account?: string | null
           floor?: number
@@ -176,6 +226,7 @@ export type Database = {
           legal_case?: Json
           rent_amount?: number
           rent_type?: string
+          security_deposit?: number
           status?: string
           tenant_id_image_url?: string | null
           tenant_id_number?: string | null
@@ -192,6 +243,8 @@ export type Database = {
           contract_end_date?: string | null
           contract_file_url?: string | null
           created_at?: string
+          deposit_refunded_at?: string | null
+          deposit_status?: string
           due_day?: number
           electric_account?: string | null
           floor?: number
@@ -204,6 +257,7 @@ export type Database = {
           legal_case?: Json
           rent_amount?: number
           rent_type?: string
+          security_deposit?: number
           status?: string
           tenant_id_image_url?: string | null
           tenant_id_number?: string | null

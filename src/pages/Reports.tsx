@@ -6,7 +6,9 @@ import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
-import { Building2, Users, AlertCircle, TrendingUp, CheckCircle2, Home } from "lucide-react";
+import { Building2, Users, AlertCircle, TrendingUp, CheckCircle2, Home, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { exportToCSV } from "@/lib/exportCSV";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -143,9 +145,15 @@ export default function Reports() {
     <div className="mobile-shell pb-24">
       <TopBar />
       <div className="px-5 pt-5 space-y-5">
-        <div className="animate-float-up">
-          <h1 className="text-2xl font-black text-sage-600 tracking-tight">{t("reports")}</h1>
-          <p className="text-sm text-muted-foreground">{lang === "ar" ? "نظرة شاملة على الأداء" : "Performance overview"}</p>
+        <div className="animate-float-up flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-black text-sage-600 tracking-tight">{t("reports")}</h1>
+            <p className="text-sm text-muted-foreground">{lang === "ar" ? "نظرة شاملة على الأداء" : "Performance overview"}</p>
+          </div>
+          <Button size="sm" variant="outline" className="rounded-xl border-sage-300 text-sage-600"
+            onClick={() => exportToCSV(`reports-${new Date().toISOString().slice(0,10)}`, months.map((m) => ({ month: m.label, income: m.income })))}>
+            <Download className="h-3.5 w-3.5 me-1" />CSV
+          </Button>
         </div>
 
         {/* Range selector */}

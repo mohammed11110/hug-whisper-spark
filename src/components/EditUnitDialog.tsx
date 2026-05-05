@@ -22,6 +22,8 @@ interface UnitInput {
   rent_amount: number;
   rent_type: string;
   due_day: number;
+  security_deposit?: number;
+  deposit_status?: string;
 }
 
 export function EditUnitDialog({
@@ -43,6 +45,8 @@ export function EditUnitDialog({
   const [rentAmount, setRentAmount] = useState("0");
   const [rentType, setRentType] = useState<string>("monthly");
   const [dueDay, setDueDay] = useState("1");
+  const [securityDeposit, setSecurityDeposit] = useState("0");
+  const [depositStatus, setDepositStatus] = useState<string>("none");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -56,6 +60,8 @@ export function EditUnitDialog({
     setRentAmount(String(unit.rent_amount ?? 0));
     setRentType(unit.rent_type);
     setDueDay(String(unit.due_day ?? 1));
+    setSecurityDeposit(String(unit.security_deposit ?? 0));
+    setDepositStatus(unit.deposit_status || "none");
   }, [unit]);
 
   if (!unit) return null;
@@ -76,6 +82,9 @@ export function EditUnitDialog({
       rent_amount: parseFloat(rentAmount) || 0,
       rent_type: rentType,
       due_day: Math.min(31, Math.max(1, parseInt(dueDay) || 1)),
+      security_deposit: parseFloat(securityDeposit) || 0,
+      deposit_status: depositStatus,
+      deposit_refunded_at: depositStatus === "refunded" ? new Date().toISOString().slice(0, 10) : null,
     }).eq("id", unit.id);
     setBusy(false);
     if (error) return toast.error(error.message);
@@ -158,6 +167,24 @@ export function EditUnitDialog({
             </div>
           </Field>
 
+          <div className="grid grid-cols-2 gap-3 pt-2 border-t border-sage-100 mt-1">
+            <Field label="عربون / Deposit">
+              <Input type="number" inputMode="decimal" min={0} step="0.001" value={securityDeposit}
+                onChange={(e) => setSecurityDeposit(e.target.value)}
+                className="rounded-xl border-sage-200 bg-card" />
+            </Field>
+            <Field label="حالة العربون">
+              <div className="flex gap-1">
+                {(["none", "held", "refunded"] as const).map((s) => (
+                  <button key={s} type="button" onClick={() => setDepositStatus(s)}
+                    className={`flex-1 px-2 py-2 rounded-xl text-[10px] font-semibold ${
+                      depositStatus === s ? "bg-gradient-sage text-primary-foreground" : "bg-muted text-muted-foreground"
+                    }`}>{depLabel(s)}</button>
+                ))}
+              </div>
+            </Field>
+          </div>
+
           <div className="flex gap-2 pt-2">
             <Button variant="outline" className="flex-1 rounded-xl border-sage-200" onClick={() => onOpenChange(false)}>{t2("cancel")}</Button>
             <Button onClick={submit} disabled={busy || !unitNumber.trim()} className="flex-1 rounded-xl bg-gradient-sage text-primary-foreground font-semibold">{t2("save")}</Button>
@@ -176,3 +203,8 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </div>
   );
 }
+
+function depLabel(s: string) {
+  return ({ none: "—", held: "محتجز", refunded: "مسترد" } as Record<string, string>)[s] || s;
+}
+
