@@ -22,6 +22,8 @@ interface UnitInput {
   rent_amount: number;
   rent_type: string;
   due_day: number;
+  security_deposit?: number;
+  deposit_status?: string;
 }
 
 export function EditUnitDialog({
@@ -43,6 +45,8 @@ export function EditUnitDialog({
   const [rentAmount, setRentAmount] = useState("0");
   const [rentType, setRentType] = useState<string>("monthly");
   const [dueDay, setDueDay] = useState("1");
+  const [securityDeposit, setSecurityDeposit] = useState("0");
+  const [depositStatus, setDepositStatus] = useState<string>("none");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -56,6 +60,8 @@ export function EditUnitDialog({
     setRentAmount(String(unit.rent_amount ?? 0));
     setRentType(unit.rent_type);
     setDueDay(String(unit.due_day ?? 1));
+    setSecurityDeposit(String(unit.security_deposit ?? 0));
+    setDepositStatus(unit.deposit_status || "none");
   }, [unit]);
 
   if (!unit) return null;
@@ -76,6 +82,9 @@ export function EditUnitDialog({
       rent_amount: parseFloat(rentAmount) || 0,
       rent_type: rentType,
       due_day: Math.min(31, Math.max(1, parseInt(dueDay) || 1)),
+      security_deposit: parseFloat(securityDeposit) || 0,
+      deposit_status: depositStatus,
+      deposit_refunded_at: depositStatus === "refunded" ? new Date().toISOString().slice(0, 10) : null,
     }).eq("id", unit.id);
     setBusy(false);
     if (error) return toast.error(error.message);
