@@ -20,6 +20,7 @@ interface UnitInput {
   status: string;
   tenant_name: string | null;
   tenant_phone: string | null;
+  tenant_email?: string | null;
   rent_amount: number;
   rent_type: string;
   due_day: number;
@@ -45,6 +46,7 @@ export function EditUnitDialog({
   const [status, setStatus] = useState<string>("vacant");
   const [tenantName, setTenantName] = useState("");
   const [tenantPhone, setTenantPhone] = useState("");
+  const [tenantEmail, setTenantEmail] = useState("");
   const [rentAmount, setRentAmount] = useState("0");
   const [rentType, setRentType] = useState<string>("monthly");
   const [dueDay, setDueDay] = useState("1");
@@ -62,6 +64,7 @@ export function EditUnitDialog({
     setStatus(unit.status);
     setTenantName(unit.tenant_name || "");
     setTenantPhone(unit.tenant_phone || "");
+    setTenantEmail(unit.tenant_email || "");
     setRentAmount(String(unit.rent_amount ?? 0));
     setRentType(unit.rent_type);
     setDueDay(String(unit.due_day ?? 1));
@@ -86,6 +89,7 @@ export function EditUnitDialog({
       status,
       tenant_name: occupied ? tenantName.trim() : null,
       tenant_phone: occupied ? tenantPhone.trim() || null : null,
+      tenant_email: occupied ? tenantEmail.trim() || null : null,
       rent_amount: parseFloat(rentAmount) || 0,
       rent_type: rentType,
       due_day: Math.min(31, Math.max(1, parseInt(dueDay) || 1)),
@@ -149,6 +153,9 @@ export function EditUnitDialog({
               </Field>
               <Field label={t2("tenant_phone")}>
                 <Input value={tenantPhone} onChange={(e) => setTenantPhone(e.target.value)} className="rounded-xl border-sage-200 bg-card" />
+              </Field>
+              <Field label="البريد الإلكتروني / Email">
+                <Input type="email" value={tenantEmail} onChange={(e) => setTenantEmail(e.target.value)} placeholder="tenant@example.com" className="rounded-xl border-sage-200 bg-card" />
               </Field>
             </>
           )}
