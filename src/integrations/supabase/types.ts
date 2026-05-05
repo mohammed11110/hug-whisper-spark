@@ -183,6 +183,8 @@ export type Database = {
           building_id: string
           contract_end_date: string | null
           contract_file_url: string | null
+          contract_start_date: string | null
+          contract_type: string
           created_at: string
           deposit_refunded_at: string | null
           deposit_status: string
@@ -214,6 +216,8 @@ export type Database = {
           building_id: string
           contract_end_date?: string | null
           contract_file_url?: string | null
+          contract_start_date?: string | null
+          contract_type?: string
           created_at?: string
           deposit_refunded_at?: string | null
           deposit_status?: string
@@ -245,6 +249,8 @@ export type Database = {
           building_id?: string
           contract_end_date?: string | null
           contract_file_url?: string | null
+          contract_start_date?: string | null
+          contract_type?: string
           created_at?: string
           deposit_refunded_at?: string | null
           deposit_status?: string
