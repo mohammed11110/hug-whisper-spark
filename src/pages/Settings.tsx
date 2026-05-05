@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Palette, Clock, Coins, RotateCcw, Eye, Printer, ShieldAlert } from "lucide-react";
+import { ArrowRight, Palette, Clock, Coins, RotateCcw, Eye, Printer, ShieldAlert, MessageCircle, Bell } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
@@ -402,7 +403,65 @@ export default function Settings() {
         </div>
       </section>
 
+      {/* Notifications timing */}
+      <section className="px-5 mt-6">
+        <div className="flex items-center gap-2 mb-2">
+          <Bell className="h-4 w-4 text-sage-600" />
+          <h2 className="font-bold text-sage-600 text-sm">
+            {lang === "ar" ? "إعدادات التنبيهات" : "Notification timing"}
+          </h2>
+        </div>
+        <div className="bg-card border border-sage-200/50 rounded-2xl p-4 shadow-soft grid grid-cols-2 gap-3">
+          <label className="space-y-1">
+            <span className="text-[11px] text-sage-500 font-semibold">
+              {lang === "ar" ? "تنبيه قبل الاستحقاق (يوم)" : "Days before due"}
+            </span>
+            <Input type="number" min={1} max={30} value={settings.upcomingDays}
+              onChange={(e) => update({ upcomingDays: Math.max(1, parseInt(e.target.value) || 7) })}
+              className="rounded-xl border-sage-200 bg-card h-10" />
+          </label>
+          <label className="space-y-1">
+            <span className="text-[11px] text-sage-500 font-semibold">
+              {lang === "ar" ? "تنبيه قبل انتهاء العقد (يوم)" : "Days before contract end"}
+            </span>
+            <Input type="number" min={1} max={180} value={settings.contractWarnDays}
+              onChange={(e) => update({ contractWarnDays: Math.max(1, parseInt(e.target.value) || 30) })}
+              className="rounded-xl border-sage-200 bg-card h-10" />
+          </label>
+        </div>
+      </section>
+
+      {/* Message templates */}
+      <section className="px-5 mt-6">
+        <div className="flex items-center gap-2 mb-2">
+          <MessageCircle className="h-4 w-4 text-[#128C7E]" />
+          <h2 className="font-bold text-sage-600 text-sm">
+            {lang === "ar" ? "قوالب رسائل واتساب" : "WhatsApp templates"}
+          </h2>
+        </div>
+        <div className="bg-card border border-sage-200/50 rounded-2xl p-4 shadow-soft space-y-3">
+          <p className="text-[10px] text-muted-foreground">
+            {lang === "ar"
+              ? "متغيرات متاحة: {tenant} {unit} {building} {amount} {date}"
+              : "Variables: {tenant} {unit} {building} {amount} {date}"}
+          </p>
+          {(["reminder", "late", "receipt"] as const).map((k) => (
+            <label key={k} className="block space-y-1">
+              <span className="text-[11px] text-sage-500 font-semibold">
+                {k === "reminder" ? (lang === "ar" ? "تذكير عام" : "Reminder") :
+                 k === "late" ? (lang === "ar" ? "متأخر" : "Late") :
+                 (lang === "ar" ? "إيصال" : "Receipt")}
+              </span>
+              <Textarea value={settings.templates[k]}
+                onChange={(e) => update({ templates: { ...settings.templates, [k]: e.target.value } })}
+                rows={3}
+                className="rounded-xl border-sage-200 bg-card text-xs" />
+            </label>
+          ))}
+        </div>
+      </section>
       <div className="px-5 mt-8">
+
         <Button variant="outline" onClick={() => { reset(); toast.success(L("saved")); }}
           className="w-full rounded-xl border-burgundy/30 text-burgundy hover:bg-burgundy/5">
           <RotateCcw className="h-4 w-4 me-2" /> {L("reset_defaults")}

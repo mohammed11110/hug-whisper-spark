@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { DEFAULT_TEMPLATES } from "@/lib/whatsapp";
 
 export interface StatusColor { bg: string; fg: string }
 export type PageSize = "A4" | "A5" | "Letter";
@@ -8,6 +9,7 @@ export const PAGE_SIZES_MM: Record<PageSize, { w: number; h: number }> = {
   Letter: { w: 216, h: 279 },
 };
 export interface Margins { top: number; right: number; bottom: number; left: number }
+export interface MessageTemplates { reminder: string; late: string; receipt: string }
 export interface AppSettings {
   statusColors: { paid: StatusColor; late: StatusColor; soon: StatusColor };
   /** filter retention in minutes; 0 = never persist, -1 = forever */
@@ -18,6 +20,12 @@ export interface AppSettings {
   margins: Margins;
   /** PIN required to delete payments; null = disabled */
   deletePin: string | null;
+  /** WhatsApp/SMS message templates */
+  templates: MessageTemplates;
+  /** Days before due-date to mark "upcoming" */
+  upcomingDays: number;
+  /** Days before contract-end to warn */
+  contractWarnDays: number;
 }
 
 const DEFAULTS: AppSettings = {
@@ -30,6 +38,9 @@ const DEFAULTS: AppSettings = {
   pageSize: "A4",
   margins: { top: 16, right: 16, bottom: 16, left: 16 },
   deletePin: null,
+  templates: { ...DEFAULT_TEMPLATES },
+  upcomingDays: 7,
+  contractWarnDays: 30,
 };
 
 const KEY = "amlaki.appSettings.v1";
@@ -57,6 +68,7 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
         ...v,
         statusColors: { ...DEFAULTS.statusColors, ...(v.statusColors || {}) },
         margins: { ...DEFAULTS.margins, ...(legacy || {}), ...(v.margins || {}) },
+        templates: { ...DEFAULTS.templates, ...(v.templates || {}) },
       };
     } catch { return DEFAULTS; }
   });

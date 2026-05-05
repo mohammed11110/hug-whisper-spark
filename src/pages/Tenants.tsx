@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Search, Phone, Users, ChevronLeft } from "lucide-react";
+import { Search, Phone, Users, ChevronLeft, MessageCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
@@ -9,6 +9,8 @@ import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
+import { useAppSettings } from "@/lib/appSettings";
+import { openWhatsApp, fillTemplate } from "@/lib/whatsapp";
 
 interface TenantRow {
   unit_id: string;
@@ -35,6 +37,7 @@ export default function Tenants() {
   const t2 = useT2();
   const { format } = useCurrency();
   const { user } = useAuth();
+  const { settings } = useAppSettings();
   const [rows, setRows] = useState<TenantRow[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -141,6 +144,19 @@ export default function Tenants() {
                       <span>{t2("contract_end")}: {r.contract_end_date}</span>
                     )}
                   </div>
+                  {r.tenant_phone && (
+                    <button onClick={(e) => {
+                      e.preventDefault(); e.stopPropagation();
+                      const tpl = r.status === "late" ? settings.templates.late : settings.templates.reminder;
+                      openWhatsApp(r.tenant_phone!, fillTemplate(tpl, {
+                        tenant: r.tenant_name, unit: r.unit_number, building: r.building_name, amount: format(r.rent_amount),
+                      }));
+                    }}
+                      className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#25D366]/15 text-[#128C7E] text-[11px] font-bold hover:bg-[#25D366]/25">
+                      <MessageCircle className="h-3 w-3" />
+                      {lang === "ar" ? "إرسال تذكير" : "Send reminder"}
+                    </button>
+                  )}
                 </div>
                 <ChevronLeft className="h-4 w-4 text-sage-400 mt-1 rtl:rotate-180" />
               </div>
