@@ -45,6 +45,7 @@ const App = () => (
                 <Route path="/units/:id" element={<RequireAuth><UnitDetail /></RequireAuth>} />
                 <Route path="/tenants" element={<RequireAuth><Tenants /></RequireAuth>} />
                 <Route path="/payments" element={<RequireAuth><Payments /></RequireAuth>} />
+                <Route path="/payments/trash" element={<RequireAuth><PaymentsTrash /></RequireAuth>} />
                 <Route path="/settings" element={<RequireAuth><SettingsPage /></RequireAuth>} />
                 <Route path="/reports" element={<RequireAuth><Reports /></RequireAuth>} />
                 <Route path="*" element={<NotFound />} />
