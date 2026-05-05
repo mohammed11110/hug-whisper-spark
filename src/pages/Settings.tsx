@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Palette, Clock, Coins, RotateCcw, Eye, Printer } from "lucide-react";
+import { ArrowRight, Palette, Clock, Coins, RotateCcw, Eye, Printer, ShieldAlert } from "lucide-react";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
