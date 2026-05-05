@@ -17,6 +17,8 @@ import UnitDetail from "./pages/UnitDetail";
 import Payments from "./pages/Payments";
 import SettingsPage from "./pages/Settings";
 import Reports from "./pages/Reports";
+import Tenants from "./pages/Tenants";
+import BuildingExpenses from "./pages/BuildingExpenses";
 import Placeholder from "./pages/Placeholder";
 import NotFound from "./pages/NotFound.tsx";
 

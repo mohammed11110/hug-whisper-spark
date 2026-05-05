@@ -100,7 +100,7 @@ export default function BuildingDetail() {
             <div className="h-9 w-9 rounded-xl bg-burgundy/10 text-burgundy flex items-center justify-center">
               <Wallet className="h-4 w-4" />
             </div>
-            <span className="font-bold text-sage-600 text-sm">{t("lang") === "ar" ? "المصروفات" : "Expenses"} / صافي الربح</span>
+            <span className="font-bold text-sage-600 text-sm">المصروفات / Expenses</span>
           </div>
           <span className="text-sage-400 rtl:rotate-180">›</span>
         </Link>
