@@ -39,6 +39,7 @@ const DEFAULTS: AppSettings = {
   upcomingDays: 7,
   contractWarnDays: 30,
   brand: { name: "أملاكي · Amlaki", logo: null, phone: "", address: "" },
+};
 
 const KEY = "amlaki.appSettings.v1";
 
