@@ -167,6 +167,24 @@ export function EditUnitDialog({
             </div>
           </Field>
 
+          <div className="grid grid-cols-2 gap-3 pt-2 border-t border-sage-100 mt-1">
+            <Field label="عربون / Deposit">
+              <Input type="number" inputMode="decimal" min={0} step="0.001" value={securityDeposit}
+                onChange={(e) => setSecurityDeposit(e.target.value)}
+                className="rounded-xl border-sage-200 bg-card" />
+            </Field>
+            <Field label="حالة العربون">
+              <div className="flex gap-1">
+                {(["none", "held", "refunded"] as const).map((s) => (
+                  <button key={s} type="button" onClick={() => setDepositStatus(s)}
+                    className={`flex-1 px-2 py-2 rounded-xl text-[10px] font-semibold ${
+                      depositStatus === s ? "bg-gradient-sage text-primary-foreground" : "bg-muted text-muted-foreground"
+                    }`}>{depLabel(s)}</button>
+                ))}
+              </div>
+            </Field>
+          </div>
+
           <div className="flex gap-2 pt-2">
             <Button variant="outline" className="flex-1 rounded-xl border-sage-200" onClick={() => onOpenChange(false)}>{t2("cancel")}</Button>
             <Button onClick={submit} disabled={busy || !unitNumber.trim()} className="flex-1 rounded-xl bg-gradient-sage text-primary-foreground font-semibold">{t2("save")}</Button>
