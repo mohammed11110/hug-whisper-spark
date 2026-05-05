@@ -40,6 +40,7 @@ export default function UnitDetail() {
   const [buildingName, setBuildingName] = useState<string>("");
   const [tab, setTab] = useState<Tab>("details");
   const [delOpen, setDelOpen] = useState(false);
+  const [payOpen, setPayOpen] = useState(false);
 
   const load = async () => {
     if (!id) return;
