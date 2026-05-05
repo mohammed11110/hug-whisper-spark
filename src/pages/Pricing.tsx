@@ -1,11 +1,13 @@
-import { ArrowRight, Check, Crown, Sparkles, Zap } from "lucide-react";
+import { ArrowRight, Check, Crown, Gift, Sparkles, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useI18n } from "@/lib/i18n";
 import { useState } from "react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 type Plan = {
   id: "free" | "basic" | "pro" | "business";
