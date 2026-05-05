@@ -130,24 +130,53 @@ export default function Payments() {
   const printReceipt = (r: Row) => {
     const w = window.open("", "_blank", "width=600,height=800");
     if (!w) return;
+    const statusColors: Record<string, { bg: string; fg: string; label: string }> = {
+      paid: { bg: "#dcebd2", fg: "#3a6b3a", label: t2("paid") },
+      late: { bg: "#f3d7d7", fg: "#8a2a2a", label: t2("late") },
+      soon: { bg: "#f5e3cf", fg: "#8a5a2a", label: t2("soon") },
+    };
+    const us = statusColors[r.unit_status] || statusColors.soon;
     w.document.write(`
       <html><head><title>${r.receipt_number || r.id}</title>
       <style>
-        body{font-family:system-ui,sans-serif;padding:40px;color:#3a4f3a;background:#faf6ee}
-        .card{border:2px solid #a3b89c;border-radius:24px;padding:32px;background:#fff}
-        h1{margin:0 0 4px;font-size:28px;color:#5a7359}
-        .muted{color:#7a8a78;font-size:13px}
-        .row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px dashed #cdd9c8}
-        .total{margin-top:16px;padding:16px;background:#eef3ea;border-radius:16px;display:flex;justify-content:space-between;font-weight:800;font-size:20px}
+        @page{margin:16mm}
+        *{box-sizing:border-box}
+        body{font-family:system-ui,-apple-system,sans-serif;padding:32px;color:#3a4f3a;background:#faf6ee;margin:0}
+        .card{border:2px solid #a3b89c;border-radius:24px;padding:28px;background:#fff;max-width:560px;margin:auto;position:relative;overflow:hidden}
+        .watermark{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:90px;font-weight:900;color:#a3b89c;opacity:.08;pointer-events:none;letter-spacing:8px}
+        .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #eef3ea;padding-bottom:14px;margin-bottom:14px}
+        h1{margin:0 0 2px;font-size:24px;color:#5a7359}
+        .sub{color:#7a8a78;font-size:11px;letter-spacing:2px;text-transform:uppercase}
+        .badge{display:inline-block;padding:6px 14px;border-radius:999px;font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:1px;background:${us.bg};color:${us.fg}}
+        .meta{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin-bottom:14px;font-size:12px}
+        .meta div{padding:8px 12px;background:#f6faf3;border-radius:10px}
+        .meta b{display:block;color:#5a7359;font-size:13px;margin-top:2px}
+        .meta span{color:#7a8a78;font-size:10px;text-transform:uppercase;letter-spacing:1px}
+        .row{display:flex;justify-content:space-between;padding:11px 4px;border-bottom:1px dashed #cdd9c8;font-size:13px}
+        .row span{color:#7a8a78}
+        .row b{color:#3a4f3a}
+        .total{margin-top:18px;padding:18px 22px;background:linear-gradient(135deg,#eef3ea,#dcebd2);border-radius:18px;display:flex;justify-content:space-between;align-items:center;font-weight:900;font-size:22px;color:#3a6b3a}
+        .footer{margin-top:18px;text-align:center;color:#9aa898;font-size:10px;letter-spacing:1px}
+        .unit-pill{display:inline-block;padding:4px 10px;border-radius:8px;background:#5a7359;color:#fff;font-weight:800;font-size:13px;margin-inline-end:6px}
       </style></head><body>
         <div class="card">
-          <h1>أملاكي · Amlaki</h1>
-          <p class="muted">${t2("receipt_number")}: <b>${r.receipt_number || "—"}</b></p>
-          <p class="muted">${t2("payment_date")}: <b>${r.payment_date}</b></p>
-          <div class="row"><span>${t2("building_name")}</span><b>${r.building_name}</b></div>
-          <div class="row"><span>${t2("unit_number")}</span><b>${r.unit_number}</b></div>
+          <div class="watermark">${us.label}</div>
+          <div class="header">
+            <div>
+              <h1>أملاكي · Amlaki</h1>
+              <p class="sub">${t2("receipt_number")} · ${r.receipt_number || "—"}</p>
+            </div>
+            <span class="badge">${us.label}</span>
+          </div>
+          <div class="meta">
+            <div><span>${t2("payment_date")}</span><b>${r.payment_date}</b></div>
+            <div><span>${t2("building_name")}</span><b>${r.building_name}</b></div>
+          </div>
+          <div class="row"><span>${t2("unit_number")}</span><b><span class="unit-pill">#${r.unit_number}</span></b></div>
+          <div class="row"><span>${t2("occupancy_status") || t2("status")}</span><b style="color:${us.fg}">${us.label}</b></div>
           <div class="row"><span>${t2("tenant_name")}</span><b>${r.tenant_name || "—"}</b></div>
           <div class="total"><span>${t2("total")}</span><span>${format(r.amount)}</span></div>
+          <div class="footer">— ${t2("issue_receipt") || "Receipt"} —</div>
         </div>
       </body></html>`);
     w.document.close();
