@@ -136,12 +136,7 @@ export default function Payments() {
       soon: { bg: "#f5e3cf", fg: "#8a5a2a", label: t2("soon") },
     };
     const us = statusColors[r.unit_status] || statusColors.soon;
-    return { us, html: `
-      late: { bg: "#f3d7d7", fg: "#8a2a2a", label: t2("late") },
-      soon: { bg: "#f5e3cf", fg: "#8a5a2a", label: t2("soon") },
-    };
-    const us = statusColors[r.unit_status] || statusColors.soon;
-    w.document.write(`
+    const html = `
       <html><head><title>${r.receipt_number || r.id}</title>
       <style>
         @page{margin:16mm}
@@ -164,7 +159,7 @@ export default function Payments() {
         .footer{margin-top:18px;text-align:center;color:#9aa898;font-size:10px;letter-spacing:1px}
         .unit-pill{display:inline-block;padding:4px 10px;border-radius:8px;background:#5a7359;color:#fff;font-weight:800;font-size:13px;margin-inline-end:6px}
       </style></head><body>
-        <div class="card">
+        <div class="card" id="receipt-card">
           <div class="watermark">${us.label}</div>
           <div class="header">
             <div>
@@ -183,10 +178,46 @@ export default function Payments() {
           <div class="total"><span>${t2("total")}</span><span>${format(r.amount)}</span></div>
           <div class="footer">— ${t2("issue_receipt") || "Receipt"} —</div>
         </div>
-      </body></html>`);
+      </body></html>`;
+    return { us, html };
+  };
+
+  const printReceipt = (r: Row) => {
+    const w = window.open("", "_blank", "width=600,height=800");
+    if (!w) return;
+    const { html } = buildReceiptHTML(r);
+    w.document.write(html);
     w.document.close();
     setTimeout(() => w.print(), 300);
   };
+
+  const downloadReceiptPDF = async (r: Row) => {
+    const { html } = buildReceiptHTML(r);
+    const container = document.createElement("div");
+    container.style.position = "fixed";
+    container.style.left = "-10000px";
+    container.style.top = "0";
+    container.style.width = "640px";
+    container.innerHTML = html;
+    document.body.appendChild(container);
+    try {
+      const card = container.querySelector("#receipt-card") as HTMLElement;
+      const canvas = await html2canvas(card, { scale: 2, backgroundColor: "#ffffff" });
+      const img = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({ unit: "pt", format: "a4" });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const margin = 32;
+      const w = pageW - margin * 2;
+      const h = (canvas.height * w) / canvas.width;
+      pdf.addImage(img, "PNG", margin, margin, w, h);
+      pdf.save(`${r.receipt_number || r.id}.pdf`);
+    } catch (e: any) {
+      toast.error(e.message || "PDF error");
+    } finally {
+      document.body.removeChild(container);
+    }
+  };
+
 
   return (
     <div className="mobile-shell min-h-screen pb-24 bg-background">
