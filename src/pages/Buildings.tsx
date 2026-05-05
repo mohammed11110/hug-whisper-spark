@@ -10,6 +10,7 @@ import { useI18n } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 
 interface Building {
   id: string;
@@ -18,7 +19,10 @@ interface Building {
   type: string;
   floors: number;
   city: string | null;
+  created_at: string;
 }
+
+type SortKey = "newest" | "oldest" | "name_az" | "name_za" | "units_high" | "units_low";
 
 const FILTERS = ["all", "tower", "compound", "villa", "commercial"] as const;
 
