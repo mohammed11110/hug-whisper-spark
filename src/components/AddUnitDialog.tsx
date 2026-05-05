@@ -21,6 +21,7 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
   const [occupied, setOccupied] = useState(false);
   const [tenantName, setTenantName] = useState("");
   const [tenantPhone, setTenantPhone] = useState("");
+  const [tenantEmail, setTenantEmail] = useState("");
   const [rentAmount, setRentAmount] = useState<string>("0");
   const [rentType, setRentType] = useState<typeof RENT_TYPES[number]>("monthly");
   const [contractType, setContractType] = useState<typeof CONTRACT_TYPES[number]>("yearly");
@@ -30,7 +31,7 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
 
   const reset = () => {
     setUnitNumber(""); setFloor("1"); setType("apartment"); setOccupied(false);
-    setTenantName(""); setTenantPhone(""); setRentAmount("0"); setRentType("monthly");
+    setTenantName(""); setTenantPhone(""); setTenantEmail(""); setRentAmount("0"); setRentType("monthly");
     setContractType("yearly"); setContractStart(""); setDueDay("1");
   };
 
@@ -47,6 +48,7 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
       type,
       tenant_name: occupied ? tenantName.trim() : null,
       tenant_phone: occupied ? tenantPhone.trim() : null,
+      tenant_email: occupied ? tenantEmail.trim() || null : null,
       rent_amount: occupied ? (parseFloat(rentAmount) || 0) : 0,
       rent_type: rentType,
       due_day: Math.min(31, Math.max(1, parseInt(dueDay) || 1)),
@@ -111,6 +113,9 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
               </Field>
               <Field label={`${t2("tenant_phone")} *`}>
                 <Input value={tenantPhone} onChange={(e) => setTenantPhone(e.target.value)} className="rounded-xl border-sage-200 bg-card" />
+              </Field>
+              <Field label="البريد الإلكتروني / Email">
+                <Input type="email" value={tenantEmail} onChange={(e) => setTenantEmail(e.target.value)} placeholder="tenant@example.com" className="rounded-xl border-sage-200 bg-card" />
               </Field>
               <div className="grid grid-cols-2 gap-3">
                 <Field label={t2("rent_amount")}>
