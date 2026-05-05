@@ -9,6 +9,7 @@ import { toast } from "sonner";
 
 const UNIT_TYPES = ["apartment", "shop", "room", "villa"] as const;
 const RENT_TYPES = ["monthly", "daily", "yearly"] as const;
+const CONTRACT_TYPES = ["daily", "monthly", "yearly"] as const;
 
 export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreated }: {
   open: boolean; onOpenChange: (o: boolean) => void; buildingId: string; floors: number; onCreated?: () => void;
@@ -22,12 +23,15 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
   const [tenantPhone, setTenantPhone] = useState("");
   const [rentAmount, setRentAmount] = useState<string>("0");
   const [rentType, setRentType] = useState<typeof RENT_TYPES[number]>("monthly");
+  const [contractType, setContractType] = useState<typeof CONTRACT_TYPES[number]>("yearly");
+  const [contractStart, setContractStart] = useState<string>("");
   const [dueDay, setDueDay] = useState<string>("1");
   const [busy, setBusy] = useState(false);
 
   const reset = () => {
     setUnitNumber(""); setFloor("1"); setType("apartment"); setOccupied(false);
-    setTenantName(""); setTenantPhone(""); setRentAmount("0"); setRentType("monthly"); setDueDay("1");
+    setTenantName(""); setTenantPhone(""); setRentAmount("0"); setRentType("monthly");
+    setContractType("yearly"); setContractStart(""); setDueDay("1");
   };
 
   const submit = async () => {
@@ -47,6 +51,8 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
       rent_type: rentType,
       due_day: Math.min(31, Math.max(1, parseInt(dueDay) || 1)),
       status: occupied ? "soon" : "vacant",
+      contract_type: contractType,
+      contract_start_date: contractStart || null,
     });
     setBusy(false);
     if (error) return toast.error(error.message);
@@ -120,7 +126,21 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
                     className="rounded-xl border-sage-200 bg-card" />
                 </Field>
               </div>
-              <Field label={t2("rent_type")}>
+              <Field label="نوع العقد / Contract type">
+                <div className="flex gap-1.5">
+                  {CONTRACT_TYPES.map((ct) => (
+                    <button key={ct} type="button" onClick={() => setContractType(ct)}
+                      className={`flex-1 px-3 py-2 rounded-xl text-xs font-semibold ${
+                        contractType === ct ? "bg-gradient-sage text-primary-foreground shadow-soft" : "bg-muted text-muted-foreground"
+                      }`}>{t2(ct)}</button>
+                  ))}
+                </div>
+              </Field>
+              <Field label="تاريخ بداية العقد / Contract start">
+                <Input type="date" value={contractStart} onChange={(e) => setContractStart(e.target.value)}
+                  className="rounded-xl border-sage-200 bg-card" />
+              </Field>
+              <Field label={`${t2("rent_type")} (دورة الدفع)`}>
                 <div className="flex gap-1.5">
                   {RENT_TYPES.map((rt) => (
                     <button key={rt} type="button" onClick={() => setRentType(rt)}
