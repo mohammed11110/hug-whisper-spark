@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Building2 } from "lucide-react";
+import { Plus, Building2, ArrowUpDown } from "lucide-react";
 import { Link } from "react-router-dom";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
@@ -10,6 +10,7 @@ import { useI18n } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 
 interface Building {
   id: string;
@@ -18,7 +19,10 @@ interface Building {
   type: string;
   floors: number;
   city: string | null;
+  created_at: string;
 }
+
+type SortKey = "newest" | "oldest" | "name_az" | "name_za" | "units_high" | "units_low";
 
 const FILTERS = ["all", "tower", "compound", "villa", "commercial"] as const;
 
@@ -29,14 +33,15 @@ export default function Buildings() {
   const [items, setItems] = useState<Building[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [filter, setFilter] = useState<string>("all");
+  const [sortKey, setSortKey] = useState<SortKey>(() => (localStorage.getItem("buildings_sort") as SortKey) || "newest");
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
     if (!user) return;
     setLoading(true);
-    const { data } = await supabase.from("buildings").select("id,name,name_en,type,floors,city").eq("user_id", user.id).order("created_at", { ascending: false });
-    setItems(data || []);
+    const { data } = await supabase.from("buildings").select("id,name,name_en,type,floors,city,created_at").eq("user_id", user.id).order("created_at", { ascending: false });
+    setItems((data || []) as Building[]);
     if (data?.length) {
       const ids = data.map((b) => b.id);
       const { data: us } = await supabase.from("units").select("building_id").in("building_id", ids);
@@ -49,7 +54,20 @@ export default function Buildings() {
 
   useEffect(() => { load(); }, [user]);
 
-  const visible = filter === "all" ? items : items.filter((b) => b.type === filter);
+  useEffect(() => { localStorage.setItem("buildings_sort", sortKey); }, [sortKey]);
+
+  const filtered = filter === "all" ? items : items.filter((b) => b.type === filter);
+  const visible = [...filtered].sort((a, b) => {
+    switch (sortKey) {
+      case "oldest": return a.created_at.localeCompare(b.created_at);
+      case "name_az": return a.name.localeCompare(b.name);
+      case "name_za": return b.name.localeCompare(a.name);
+      case "units_high": return (counts[b.id] || 0) - (counts[a.id] || 0);
+      case "units_low": return (counts[a.id] || 0) - (counts[b.id] || 0);
+      case "newest":
+      default: return b.created_at.localeCompare(a.created_at);
+    }
+  });
 
   return (
     <div className="mobile-shell pb-24 min-h-screen">
@@ -57,9 +75,29 @@ export default function Buildings() {
       <div className="px-5 pt-5">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-black text-sage-600 tracking-tight">{t("buildings")}</h1>
-          <Button onClick={() => setOpen(true)} size="sm" className="rounded-full bg-gradient-sage text-primary-foreground shadow-soft h-9 px-3.5">
-            <Plus className="h-4 w-4 me-1" /> {t2("add_unit").includes("ضافة") ? "إضافة" : "Add"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="rounded-full h-9 px-3 border-sage-200 text-sage-600 bg-card">
+                  <ArrowUpDown className="h-4 w-4 me-1" /> {t2("sort")}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="rounded-2xl">
+                <DropdownMenuLabel>{t2("sort")}</DropdownMenuLabel>
+                <DropdownMenuRadioGroup value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
+                  <DropdownMenuRadioItem value="newest">{t2("sort_newest")}</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="oldest">{t2("sort_oldest")}</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="name_az">{t2("sort_name_az")}</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="name_za">{t2("sort_name_za")}</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="units_high">{t2("sort_units_high")}</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="units_low">{t2("sort_units_low")}</DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button onClick={() => setOpen(true)} size="sm" className="rounded-full bg-gradient-sage text-primary-foreground shadow-soft h-9 px-3.5">
+              <Plus className="h-4 w-4 me-1" /> {t2("add_unit").includes("ضافة") ? "إضافة" : "Add"}
+            </Button>
+          </div>
         </div>
 
         {/* Filter chips */}
