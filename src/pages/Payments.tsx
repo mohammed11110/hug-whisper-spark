@@ -191,6 +191,22 @@ export default function Payments() {
             </button>
           ))}
         </div>
+        <div className="flex gap-1.5">
+          {(["all", "paid", "late"] as StatusFilter[]).map((s) => (
+            <button key={s} onClick={() => setStatusFilter(s)}
+              className={`flex-1 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                statusFilter === s
+                  ? s === "paid"
+                    ? "bg-sage-300/40 text-sage-600 ring-1 ring-sage-400"
+                    : s === "late"
+                      ? "bg-burgundy/15 text-burgundy ring-1 ring-burgundy/40"
+                      : "bg-gradient-sage text-primary-foreground shadow-soft"
+                  : "bg-muted text-muted-foreground"
+              }`}>
+              {t2(s === "all" ? "filter_all" : s)}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* List */}
