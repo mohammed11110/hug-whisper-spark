@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Trash2, Plus, Home, Pencil } from "lucide-react";
+import { ArrowLeft, Trash2, Plus, Home, Pencil, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BotanicalDecor } from "@/components/BotanicalDecor";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
@@ -13,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface Building { id: string; name: string; name_en: string | null; type: string; floors: number; city: string | null; address: string | null; }
-interface Unit { id: string; unit_number: string; floor: number; type: string; tenant_name: string | null; tenant_phone: string | null; rent_amount: number; rent_type: string; status: string; due_day: number; }
+interface Unit { id: string; unit_number: string; floor: number; type: string; tenant_name: string | null; tenant_phone: string | null; rent_amount: number; rent_type: string; status: string; due_day: number; security_deposit?: number; deposit_status?: string; }
 
 const UNIT_FILTERS = ["all", "apartment", "shop", "room", "villa"] as const;
 
@@ -41,7 +41,7 @@ export default function BuildingDetail() {
     if (!id) return;
     const { data: b } = await supabase.from("buildings").select("*").eq("id", id).maybeSingle();
     setBuilding(b);
-    const { data: us } = await supabase.from("units").select("id,unit_number,floor,type,tenant_name,tenant_phone,rent_amount,rent_type,status,due_day").eq("building_id", id).order("floor").order("unit_number");
+    const { data: us } = await supabase.from("units").select("id,unit_number,floor,type,tenant_name,tenant_phone,rent_amount,rent_type,status,due_day,security_deposit,deposit_status").eq("building_id", id).order("floor").order("unit_number");
     setUnits(us || []);
   };
 
@@ -92,6 +92,19 @@ export default function BuildingDetail() {
           <Stat label={t2("occupancy")} value={`${occupancy}%`} />
           <Stat label={t2("monthly_income")} value={format(monthlyIncome)} small />
         </div>
+
+        {/* Expenses link */}
+        <Link to={`/buildings/${building.id}/expenses`}
+          className="flex items-center justify-between bg-card rounded-2xl p-3.5 mb-4 border border-sage-200/40 shadow-soft">
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 rounded-xl bg-burgundy/10 text-burgundy flex items-center justify-center">
+              <Wallet className="h-4 w-4" />
+            </div>
+            <span className="font-bold text-sage-600 text-sm">{t("lang") === "ar" ? "المصروفات" : "Expenses"} / صافي الربح</span>
+          </div>
+          <span className="text-sage-400 rtl:rotate-180">›</span>
+        </Link>
+
 
         {/* Filter chips */}
         <div className="flex items-center justify-between mb-3">
