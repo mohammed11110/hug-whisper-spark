@@ -460,7 +460,7 @@ export default function Settings() {
           ))}
         </div>
       </section>
-
+      <div className="px-5 mt-8">
 
         <Button variant="outline" onClick={() => { reset(); toast.success(L("saved")); }}
           className="w-full rounded-xl border-burgundy/30 text-burgundy hover:bg-burgundy/5">
