@@ -307,6 +307,9 @@ export default function Payments() {
                     <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-sage-500" onClick={() => printReceipt(r)}>
                       <Printer className="h-3.5 w-3.5" />
                     </Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-sage-600" onClick={() => downloadReceiptPDF(r)}>
+                      <Download className="h-3.5 w-3.5" />
+                    </Button>
                     <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-burgundy hover:bg-burgundy/10" onClick={() => setDelId(r.id)}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
