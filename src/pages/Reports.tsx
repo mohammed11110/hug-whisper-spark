@@ -290,10 +290,40 @@ export default function Reports() {
                   formatter={(v: number) => format(v)}
                 />
                 <Area type="monotone" dataKey="income" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#g1)" />
+                <Area type="monotone" dataKey="prev" stroke="hsl(var(--muted-foreground))" strokeWidth={1.5} strokeDasharray="4 3" fill="transparent" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
+          <p className="text-[10px] text-muted-foreground mt-1 text-center">
+            {lang === "ar" ? "خط متصل: السنة الحالية · متقطع: السنة السابقة" : "Solid: current year · Dashed: previous year"}
+          </p>
         </Card>
+
+        {/* Income vs expenses */}
+        {(totalExpenses > 0 || totalIncome > 0) && (
+          <Card title={lang === "ar" ? "الدخل مقابل المصروفات" : "Income vs expenses"}>
+            <div className="h-56 -mx-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={months} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} width={40} />
+                  <Tooltip
+                    contentStyle={{
+                      background: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: 12,
+                      fontSize: 12,
+                    }}
+                    formatter={(v: number) => format(v)}
+                  />
+                  <Bar dataKey="income" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="expenses" fill="hsl(var(--destructive))" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        )}
 
         {/* Status pie */}
         {statusData.length > 0 && (
