@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Trash2, Plus, Home } from "lucide-react";
+import { ArrowLeft, Trash2, Plus, Home, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BotanicalDecor } from "@/components/BotanicalDecor";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { AddUnitDialog } from "@/components/AddUnitDialog";
+import { EditUnitDialog } from "@/components/EditUnitDialog";
 import { useI18n } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
@@ -12,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface Building { id: string; name: string; name_en: string | null; type: string; floors: number; city: string | null; address: string | null; }
-interface Unit { id: string; unit_number: string; floor: number; type: string; tenant_name: string | null; rent_amount: number; rent_type: string; status: string; }
+interface Unit { id: string; unit_number: string; floor: number; type: string; tenant_name: string | null; tenant_phone: string | null; rent_amount: number; rent_type: string; status: string; due_day: number; }
 
 const UNIT_FILTERS = ["all", "apartment", "shop", "room", "villa"] as const;
 
@@ -34,12 +35,13 @@ export default function BuildingDetail() {
   const [filter, setFilter] = useState<string>("all");
   const [delOpen, setDelOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const [editUnit, setEditUnit] = useState<Unit | null>(null);
 
   const load = async () => {
     if (!id) return;
     const { data: b } = await supabase.from("buildings").select("*").eq("id", id).maybeSingle();
     setBuilding(b);
-    const { data: us } = await supabase.from("units").select("id,unit_number,floor,type,tenant_name,rent_amount,rent_type,status").eq("building_id", id).order("floor").order("unit_number");
+    const { data: us } = await supabase.from("units").select("id,unit_number,floor,type,tenant_name,tenant_phone,rent_amount,rent_type,status,due_day").eq("building_id", id).order("floor").order("unit_number");
     setUnits(us || []);
   };
 
@@ -121,19 +123,29 @@ export default function BuildingDetail() {
             </div>
           ) : (
             visible.map((u, i) => (
-              <Link key={u.id} to={`/units/${u.id}`} className="block animate-float-up" style={{ animationDelay: `${i * 0.03}s` }}>
-                <div className="bg-card border border-sage-200/40 rounded-2xl p-4 flex items-center gap-3 shadow-soft hover:shadow-elev transition-all">
-                  <div className="h-12 w-12 rounded-xl bg-gradient-sage text-primary-foreground flex flex-col items-center justify-center font-black flex-shrink-0">
-                    <span className="text-[10px] opacity-80">F{u.floor}</span>
-                    <span className="text-sm leading-none">{u.unit_number}</span>
+              <div key={u.id} className="relative animate-float-up" style={{ animationDelay: `${i * 0.03}s` }}>
+                <Link to={`/units/${u.id}`} className="block">
+                  <div className="bg-card border border-sage-200/40 rounded-2xl p-4 flex items-center gap-3 shadow-soft hover:shadow-elev transition-all">
+                    <div className="h-12 w-12 rounded-xl bg-gradient-sage text-primary-foreground flex flex-col items-center justify-center font-black flex-shrink-0">
+                      <span className="text-[10px] opacity-80">F{u.floor}</span>
+                      <span className="text-sm leading-none">{u.unit_number}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-sage-600 truncate">{u.tenant_name || `${t2(u.type as any)} ${u.unit_number}`}</p>
+                      <p className="text-xs text-muted-foreground">{t2(u.type as any)} · {format(Number(u.rent_amount))}/{t2(u.rent_type as any)}</p>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase ${STATUS_STYLES[u.status] || ""}`}>{t2(u.status as any)}</span>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-sage-600 truncate">{u.tenant_name || `${t2(u.type as any)} ${u.unit_number}`}</p>
-                    <p className="text-xs text-muted-foreground">{t2(u.type as any)} · {format(Number(u.rent_amount))}/{t2(u.rent_type as any)}</p>
-                  </div>
-                  <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase ${STATUS_STYLES[u.status] || ""}`}>{t2(u.status as any)}</span>
-                </div>
-              </Link>
+                </Link>
+                <button
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditUnit(u); }}
+                  aria-label={t2("edit_unit")}
+                  className="absolute top-2 end-2 h-8 w-8 rounded-full bg-card/90 backdrop-blur border border-sage-200/60 flex items-center justify-center text-sage-500 hover:text-sage-600 hover:bg-card shadow-soft"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+              </div>
             ))
           )}
         </div>
@@ -141,6 +153,7 @@ export default function BuildingDetail() {
 
       <ConfirmDeleteDialog open={delOpen} onOpenChange={setDelOpen} onConfirm={handleDelete} description={t2("delete_building_msg")} />
       <AddUnitDialog open={addOpen} onOpenChange={setAddOpen} buildingId={building.id} floors={building.floors} onCreated={load} />
+      <EditUnitDialog open={!!editUnit} onOpenChange={(o) => !o && setEditUnit(null)} unit={editUnit} floors={building.floors} onSaved={load} />
     </div>
   );
 }
