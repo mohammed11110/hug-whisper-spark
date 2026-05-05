@@ -77,6 +77,22 @@ export default function Settings() {
         <h1 className="text-2xl font-black text-sage-600">{L("page_title")}</h1>
       </div>
 
+      {/* Language */}
+      <section className="px-5 mt-5">
+        <div className="rounded-3xl bg-card shadow-soft p-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-sage text-primary-foreground grid place-items-center shadow-soft">
+              <Globe className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="font-bold text-sm text-sage-600">{t("language")}</p>
+              <p className="text-[11px] text-muted-foreground">{lang === "ar" ? "اختر لغة التطبيق" : "Choose app language"}</p>
+            </div>
+          </div>
+          <LanguageSwitcher variant="outline" />
+        </div>
+      </section>
+
       {/* Live receipt preview */}
       <section className="px-5 mt-5">
         <div className="flex items-center gap-2 mb-2">
