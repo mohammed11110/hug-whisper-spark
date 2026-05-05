@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Building2, Users, AlertCircle, Clock, TrendingUp } from "lucide-react";
+import { Plus, Building2, Users, AlertCircle, Clock, TrendingUp, Sparkles } from "lucide-react";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { BotanicalDecor } from "@/components/BotanicalDecor";
