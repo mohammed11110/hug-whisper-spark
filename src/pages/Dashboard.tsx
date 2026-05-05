@@ -119,10 +119,17 @@ export default function Dashboard() {
   );
 }
 
+const colorMap: Record<string, string> = {
+  "sage-400": "bg-sage-400/10 text-sage-400",
+  "sage-500": "bg-sage-500/10 text-sage-500",
+  burgundy: "bg-burgundy/10 text-burgundy",
+  terracotta: "bg-terracotta/10 text-terracotta",
+};
+
 function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: number; color: string }) {
   return (
     <div className="bg-card rounded-2xl p-4 shadow-soft border border-sage-200/40">
-      <div className={`inline-flex p-2 rounded-lg bg-${color}/10 text-${color} mb-2`}>{icon}</div>
+      <div className={`inline-flex p-2 rounded-lg mb-2 ${colorMap[color]}`}>{icon}</div>
       <p className="text-xs text-muted-foreground font-medium">{label}</p>
       <p className="text-2xl font-black text-sage-600 mt-0.5">{value}</p>
     </div>
