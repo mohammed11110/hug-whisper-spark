@@ -66,7 +66,7 @@ export default function Payments() {
       .limit(500);
     const unitIds = Array.from(new Set((pays || []).map((p: any) => p.unit_id)));
     const { data: units } = unitIds.length
-      ? await supabase.from("units").select("id, unit_number, tenant_name, building_id").in("id", unitIds)
+      ? await supabase.from("units").select("id, unit_number, tenant_name, status, building_id").in("id", unitIds)
       : { data: [] as any[] };
     const buildingIds = Array.from(new Set((units || []).map((u: any) => u.building_id)));
     const { data: builds } = buildingIds.length
@@ -75,8 +75,8 @@ export default function Payments() {
     const uMap = new Map((units || []).map((u: any) => [u.id, u]));
     const bMap = new Map((builds || []).map((b: any) => [b.id, b]));
     const mapped: Row[] = (pays || []).map((p: any) => {
-      const u = uMap.get(p.unit_id);
-      const b = u ? bMap.get(u.building_id) : null;
+      const u: any = uMap.get(p.unit_id);
+      const b: any = u ? bMap.get(u.building_id) : null;
       return {
         id: p.id,
         unit_id: p.unit_id,
@@ -86,6 +86,7 @@ export default function Payments() {
         unit_number: u?.unit_number ?? "—",
         tenant_name: u?.tenant_name ?? null,
         building_name: b?.name || b?.name_en || "—",
+        unit_status: u?.status ?? "soon",
       };
     });
     setRows(mapped);
