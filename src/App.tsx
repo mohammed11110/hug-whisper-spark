@@ -13,6 +13,7 @@ import Dashboard from "./pages/Dashboard";
 import Buildings from "./pages/Buildings";
 import BuildingDetail from "./pages/BuildingDetail";
 import UnitDetail from "./pages/UnitDetail";
+import Payments from "./pages/Payments";
 import Placeholder from "./pages/Placeholder";
 import NotFound from "./pages/NotFound.tsx";
 
@@ -34,6 +35,8 @@ const App = () => (
                 <Route path="/buildings" element={<RequireAuth><Buildings /></RequireAuth>} />
                 <Route path="/buildings/:id" element={<RequireAuth><BuildingDetail /></RequireAuth>} />
                 <Route path="/units/:id" element={<RequireAuth><UnitDetail /></RequireAuth>} />
+                <Route path="/tenants" element={<RequireAuth><Placeholder titleKey="tenants" /></RequireAuth>} />
+                <Route path="/payments" element={<RequireAuth><Payments /></RequireAuth>} />
                 <Route path="/tenants" element={<RequireAuth><Placeholder titleKey="tenants" /></RequireAuth>} />
                 <Route path="/reports" element={<RequireAuth><Placeholder titleKey="reports" /></RequireAuth>} />
                 <Route path="*" element={<NotFound />} />

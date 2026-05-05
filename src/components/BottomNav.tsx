@@ -4,7 +4,7 @@ import { useI18n } from "@/lib/i18n";
 const tabs = [
   { to: "/", label: "dashboard", icon: "◐" },
   { to: "/buildings", label: "buildings", icon: "⌬" },
-  { to: "/tenants", label: "tenants", icon: "◉" },
+  { to: "/payments", label: "payments", icon: "◈" },
   { to: "/reports", label: "reports", icon: "◫" },
 ];
 
