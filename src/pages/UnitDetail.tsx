@@ -36,6 +36,7 @@ export default function UnitDetail() {
   const t2 = useT2();
   const { format } = useCurrency();
   const [unit, setUnit] = useState<Unit | null>(null);
+  const [buildingName, setBuildingName] = useState<string>("");
   const [tab, setTab] = useState<Tab>("details");
   const [delOpen, setDelOpen] = useState(false);
 
@@ -43,6 +44,10 @@ export default function UnitDetail() {
     if (!id) return;
     const { data } = await supabase.from("units").select("*").eq("id", id).maybeSingle();
     setUnit(data as any);
+    if (data?.building_id) {
+      const { data: b } = await supabase.from("buildings").select("name, name_en").eq("id", data.building_id).maybeSingle();
+      if (b) setBuildingName((b as any).name || (b as any).name_en || "");
+    }
   };
   useEffect(() => { load(); }, [id]);
 
@@ -89,6 +94,7 @@ export default function UnitDetail() {
           <div>
             <p className="text-xs uppercase tracking-wider opacity-75">{t2(unit.type as any)} · F{unit.floor}</p>
             <h1 className="text-3xl font-black mt-1">{unit.unit_number}</h1>
+            {buildingName && <p className="text-xs opacity-75 mt-1">🏢 {buildingName}</p>}
             {unit.tenant_name && <p className="text-sm opacity-90 mt-0.5">{unit.tenant_name}</p>}
           </div>
           <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase ${STATUS_STYLES[unit.status]}`}>{t2(unit.status as any)}</span>
