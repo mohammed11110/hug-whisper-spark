@@ -1,0 +1,84 @@
+import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+
+export type Lang = "ar" | "ur" | "en" | "zh" | "hi" | "bn" | "fr" | "es" | "tr";
+
+export const LANGUAGES: { code: Lang; name: string; flag: string; rtl: boolean }[] = [
+  { code: "ar", name: "العربية", flag: "🇸🇦", rtl: true },
+  { code: "ur", name: "اردو", flag: "🇵🇰", rtl: true },
+  { code: "en", name: "English", flag: "🇬🇧", rtl: false },
+  { code: "zh", name: "中文", flag: "🇨🇳", rtl: false },
+  { code: "hi", name: "हिन्दी", flag: "🇮🇳", rtl: false },
+  { code: "bn", name: "বাংলা", flag: "🇧🇩", rtl: false },
+  { code: "fr", name: "Français", flag: "🇫🇷", rtl: false },
+  { code: "es", name: "Español", flag: "🇪🇸", rtl: false },
+  { code: "tr", name: "Türkçe", flag: "🇹🇷", rtl: false },
+];
+
+type Dict = Record<string, Partial<Record<Lang, string>>>;
+
+const dict: Dict = {
+  app_name: { ar: "أملاكي", en: "Amlaki", ur: "املاکی", zh: "阿姆拉基", hi: "अमलाकी", bn: "আমলাকি", fr: "Amlaki", es: "Amlaki", tr: "Amlaki" },
+  tagline: { ar: "إدارة عقاراتك بذكاء وأناقة", en: "Smart property management", ur: "ذہین جائیداد کا انتظام", zh: "智能物业管理", hi: "स्मार्ट संपत्ति प्रबंधन", bn: "স্মার্ট সম্পত্তি ব্যবস্থাপনা", fr: "Gestion immobilière intelligente", es: "Gestión inteligente de propiedades", tr: "Akıllı mülk yönetimi" },
+  create_account: { ar: "إنشاء حساب جديد", en: "Create new account", ur: "نیا اکاؤنٹ بنائیں", zh: "创建新账户", hi: "नया खाता बनाएं", bn: "নতুন অ্যাকাউন্ট তৈরি করুন", fr: "Créer un compte", es: "Crear cuenta", tr: "Hesap oluştur" },
+  have_account: { ar: "لدي حساب", en: "I have an account", ur: "میرا اکاؤنٹ ہے", zh: "我已有账户", hi: "मेरा खाता है", bn: "আমার অ্যাকাউন্ট আছে", fr: "J'ai déjà un compte", es: "Ya tengo cuenta", tr: "Hesabım var" },
+  email: { ar: "البريد الإلكتروني", en: "Email", ur: "ای میل", zh: "邮箱", hi: "ईमेल", bn: "ইমেইল", fr: "E-mail", es: "Correo", tr: "E-posta" },
+  password: { ar: "كلمة المرور", en: "Password", ur: "پاس ورڈ", zh: "密码", hi: "पासवर्ड", bn: "পাসওয়ার্ড", fr: "Mot de passe", es: "Contraseña", tr: "Şifre" },
+  name: { ar: "الاسم", en: "Name", ur: "نام", zh: "姓名", hi: "नाम", bn: "নাম", fr: "Nom", es: "Nombre", tr: "İsim" },
+  sign_in: { ar: "تسجيل الدخول", en: "Sign in", ur: "سائن ان", zh: "登录", hi: "साइन इन", bn: "সাইন ইন", fr: "Connexion", es: "Iniciar sesión", tr: "Giriş yap" },
+  sign_up: { ar: "إنشاء حساب", en: "Sign up", ur: "سائن اپ", zh: "注册", hi: "साइन अप", bn: "সাইন আপ", fr: "S'inscrire", es: "Registrarse", tr: "Kayıt ol" },
+  sign_out: { ar: "تسجيل الخروج", en: "Sign out", ur: "سائن آؤٹ", zh: "退出", hi: "साइन आउट", bn: "সাইন আউট", fr: "Déconnexion", es: "Cerrar sesión", tr: "Çıkış" },
+  good_morning: { ar: "صباح الخير", en: "Good morning", ur: "صبح بخیر", zh: "早上好", hi: "सुप्रभात", bn: "সুপ্রভাত", fr: "Bonjour", es: "Buenos días", tr: "Günaydın" },
+  good_afternoon: { ar: "مساء الخير", en: "Good afternoon", ur: "دوپہر بخیر", zh: "下午好", hi: "नमस्कार", bn: "শুভ অপরাহ্ন", fr: "Bon après-midi", es: "Buenas tardes", tr: "İyi günler" },
+  good_evening: { ar: "مساء الخير", en: "Good evening", ur: "شام بخیر", zh: "晚上好", hi: "शुभ संध्या", bn: "শুভ সন্ধ্যা", fr: "Bonsoir", es: "Buenas noches", tr: "İyi akşamlar" },
+  collected_this_month: { ar: "المحصل هذا الشهر", en: "Collected this month", ur: "اس مہینے جمع", zh: "本月收款", hi: "इस महीने एकत्र", bn: "এই মাসে সংগৃহীত", fr: "Collecté ce mois", es: "Cobrado este mes", tr: "Bu ay tahsil" },
+  buildings: { ar: "المباني", en: "Buildings", ur: "عمارتیں", zh: "建筑", hi: "इमारतें", bn: "ভবন", fr: "Bâtiments", es: "Edificios", tr: "Binalar" },
+  units: { ar: "الوحدات", en: "Units", ur: "یونٹس", zh: "单元", hi: "इकाइयां", bn: "ইউনিট", fr: "Unités", es: "Unidades", tr: "Birimler" },
+  overdue: { ar: "متأخر", en: "Overdue", ur: "تاخیر", zh: "逾期", hi: "बकाया", bn: "মেয়াদোত্তীর্ণ", fr: "En retard", es: "Vencido", tr: "Gecikmiş" },
+  expiring: { ar: "ينتهي قريباً", en: "Expiring", ur: "ختم ہونے والا", zh: "即将到期", hi: "समाप्त हो रहा", bn: "মেয়াদ শেষ হচ্ছে", fr: "Expire bientôt", es: "Por vencer", tr: "Bitmek üzere" },
+  pending: { ar: "المتبقي", en: "Pending", ur: "زیر التواء", zh: "待付", hi: "लंबित", bn: "মুলতুবি", fr: "En attente", es: "Pendiente", tr: "Beklemede" },
+  dashboard: { ar: "الرئيسية", en: "Dashboard", ur: "ڈیش بورڈ", zh: "首页", hi: "डैशबोर्ड", bn: "ড্যাশবোর্ড", fr: "Tableau", es: "Panel", tr: "Panel" },
+  tenants: { ar: "المستأجرون", en: "Tenants", ur: "کرایہ دار", zh: "租户", hi: "किरायेदार", bn: "ভাড়াটে", fr: "Locataires", es: "Inquilinos", tr: "Kiracılar" },
+  reports: { ar: "التقارير", en: "Reports", ur: "رپورٹس", zh: "报告", hi: "रिपोर्ट", bn: "প্রতিবেদন", fr: "Rapports", es: "Informes", tr: "Raporlar" },
+  add_first_building: { ar: "أضف أول مبنى لك", en: "Add your first building", ur: "اپنی پہلی عمارت شامل کریں", zh: "添加您的第一栋建筑", hi: "अपनी पहली इमारत जोड़ें", bn: "প্রথম ভবন যোগ করুন", fr: "Ajoutez votre premier bâtiment", es: "Agrega tu primer edificio", tr: "İlk binanızı ekleyin" },
+  add_building: { ar: "إضافة مبنى", en: "Add building", ur: "عمارت شامل کریں", zh: "添加建筑", hi: "इमारत जोड़ें", bn: "ভবন যোগ করুন", fr: "Ajouter un bâtiment", es: "Agregar edificio", tr: "Bina ekle" },
+  empty_buildings_msg: { ar: "ابدأ بإضافة مبناك الأول لإدارة الوحدات والمستأجرين بسهولة.", en: "Start by adding your first building to manage units and tenants with ease.", ur: "اپنی پہلی عمارت شامل کر کے شروع کریں۔", zh: "添加您的第一栋建筑开始管理。", hi: "प्रबंधन शुरू करने के लिए पहली इमारत जोड़ें।", bn: "প্রথম ভবন যোগ করে শুরু করুন।", fr: "Commencez en ajoutant votre premier bâtiment.", es: "Comienza agregando tu primer edificio.", tr: "İlk binanızı ekleyerek başlayın." },
+  language: { ar: "اللغة", en: "Language", ur: "زبان", zh: "语言", hi: "भाषा", bn: "ভাষা", fr: "Langue", es: "Idioma", tr: "Dil" },
+  currency: { ar: "العملة", en: "Currency", ur: "کرنسی", zh: "货币", hi: "मुद्रा", bn: "মুদ্রা", fr: "Devise", es: "Moneda", tr: "Para birimi" },
+  settings: { ar: "الإعدادات", en: "Settings", ur: "ترتیبات", zh: "设置", hi: "सेटिंग्स", bn: "সেটিংস", fr: "Paramètres", es: "Ajustes", tr: "Ayarlar" },
+  welcome: { ar: "أهلاً بك", en: "Welcome", ur: "خوش آمدید", zh: "欢迎", hi: "स्वागत है", bn: "স্বাগতম", fr: "Bienvenue", es: "Bienvenido", tr: "Hoş geldiniz" },
+  current_plan: { ar: "الخطة الحالية", en: "Current plan", ur: "موجودہ منصوبہ", zh: "当前套餐", hi: "वर्तमान योजना", bn: "বর্তমান পরিকল্পনা", fr: "Plan actuel", es: "Plan actual", tr: "Mevcut plan" },
+  free: { ar: "مجاني", en: "Free", ur: "مفت", zh: "免费", hi: "मुफ़्त", bn: "ফ্রি", fr: "Gratuit", es: "Gratis", tr: "Ücretsiz" },
+  loading: { ar: "جاري التحميل...", en: "Loading...", ur: "لوڈ ہو رہا ہے...", zh: "加载中...", hi: "लोड हो रहा है...", bn: "লোড হচ্ছে...", fr: "Chargement...", es: "Cargando...", tr: "Yükleniyor..." },
+};
+
+interface I18nCtx {
+  lang: Lang;
+  setLang: (l: Lang) => void;
+  t: (k: string) => string;
+  rtl: boolean;
+}
+
+const I18nContext = createContext<I18nCtx | null>(null);
+
+export function I18nProvider({ children }: { children: ReactNode }) {
+  const [lang, setLangState] = useState<Lang>(() => (localStorage.getItem("amlaki_lang") as Lang) || "ar");
+
+  const meta = LANGUAGES.find((l) => l.code === lang)!;
+
+  useEffect(() => {
+    document.documentElement.lang = lang;
+    document.documentElement.dir = meta.rtl ? "rtl" : "ltr";
+    localStorage.setItem("amlaki_lang", lang);
+  }, [lang, meta.rtl]);
+
+  const setLang = (l: Lang) => setLangState(l);
+  const t = (k: string) => dict[k]?.[lang] ?? dict[k]?.en ?? k;
+
+  return <I18nContext.Provider value={{ lang, setLang, t, rtl: meta.rtl }}>{children}</I18nContext.Provider>;
+}
+
+export const useI18n = () => {
+  const ctx = useContext(I18nContext);
+  if (!ctx) throw new Error("useI18n must be used inside I18nProvider");
+  return ctx;
+};
