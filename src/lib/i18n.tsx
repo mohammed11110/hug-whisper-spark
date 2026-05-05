@@ -1,24 +1,89 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 
-export type Lang = "ar" | "ur" | "en" | "zh" | "hi" | "bn" | "fr" | "es" | "tr";
+export type Lang =
+  | "ar" | "ur" | "en" | "zh" | "hi" | "bn" | "fr" | "es" | "tr"
+  | "pt" | "de" | "it" | "ru" | "ja" | "ko" | "id" | "ms" | "fa"
+  | "fil" | "vi" | "th" | "sw" | "nl" | "pl" | "uk" | "ro" | "el"
+  | "he" | "az" | "kk" | "uz" | "ps" | "am" | "ha" | "yo" | "so"
+  | "ku" | "sv" | "no" | "da" | "fi" | "cs" | "hu" | "bg" | "sr"
+  | "hr" | "sk" | "sl" | "lt" | "lv" | "et" | "ka" | "hy" | "my"
+  | "km" | "lo" | "si" | "ne" | "pa" | "ta" | "te" | "ml" | "kn"
+  | "gu" | "mr" | "or";
 
 export const LANGUAGES: { code: Lang; name: string; flag: string; rtl: boolean }[] = [
   { code: "ar", name: "العربية", flag: "🇸🇦", rtl: true },
-  { code: "ur", name: "اردو", flag: "🇵🇰", rtl: true },
   { code: "en", name: "English", flag: "🇬🇧", rtl: false },
+  { code: "ur", name: "اردو", flag: "🇵🇰", rtl: true },
+  { code: "fa", name: "فارسی", flag: "🇮🇷", rtl: true },
+  { code: "he", name: "עברית", flag: "🇮🇱", rtl: true },
+  { code: "ku", name: "کوردی", flag: "🇮🇶", rtl: true },
+  { code: "ps", name: "پښتو", flag: "🇦🇫", rtl: true },
   { code: "zh", name: "中文", flag: "🇨🇳", rtl: false },
+  { code: "ja", name: "日本語", flag: "🇯🇵", rtl: false },
+  { code: "ko", name: "한국어", flag: "🇰🇷", rtl: false },
   { code: "hi", name: "हिन्दी", flag: "🇮🇳", rtl: false },
   { code: "bn", name: "বাংলা", flag: "🇧🇩", rtl: false },
+  { code: "pa", name: "ਪੰਜਾਬੀ", flag: "🇮🇳", rtl: false },
+  { code: "ta", name: "தமிழ்", flag: "🇮🇳", rtl: false },
+  { code: "te", name: "తెలుగు", flag: "🇮🇳", rtl: false },
+  { code: "ml", name: "മലയാളം", flag: "🇮🇳", rtl: false },
+  { code: "kn", name: "ಕನ್ನಡ", flag: "🇮🇳", rtl: false },
+  { code: "gu", name: "ગુજરાતી", flag: "🇮🇳", rtl: false },
+  { code: "mr", name: "मराठी", flag: "🇮🇳", rtl: false },
+  { code: "or", name: "ଓଡ଼ିଆ", flag: "🇮🇳", rtl: false },
+  { code: "ne", name: "नेपाली", flag: "🇳🇵", rtl: false },
+  { code: "si", name: "සිංහල", flag: "🇱🇰", rtl: false },
+  { code: "my", name: "မြန်မာ", flag: "🇲🇲", rtl: false },
+  { code: "th", name: "ไทย", flag: "🇹🇭", rtl: false },
+  { code: "vi", name: "Tiếng Việt", flag: "🇻🇳", rtl: false },
+  { code: "km", name: "ខ្មែរ", flag: "🇰🇭", rtl: false },
+  { code: "lo", name: "ລາວ", flag: "🇱🇦", rtl: false },
+  { code: "id", name: "Bahasa Indonesia", flag: "🇮🇩", rtl: false },
+  { code: "ms", name: "Bahasa Melayu", flag: "🇲🇾", rtl: false },
+  { code: "fil", name: "Filipino", flag: "🇵🇭", rtl: false },
   { code: "fr", name: "Français", flag: "🇫🇷", rtl: false },
   { code: "es", name: "Español", flag: "🇪🇸", rtl: false },
+  { code: "pt", name: "Português", flag: "🇵🇹", rtl: false },
+  { code: "de", name: "Deutsch", flag: "🇩🇪", rtl: false },
+  { code: "it", name: "Italiano", flag: "🇮🇹", rtl: false },
+  { code: "nl", name: "Nederlands", flag: "🇳🇱", rtl: false },
+  { code: "sv", name: "Svenska", flag: "🇸🇪", rtl: false },
+  { code: "no", name: "Norsk", flag: "🇳🇴", rtl: false },
+  { code: "da", name: "Dansk", flag: "🇩🇰", rtl: false },
+  { code: "fi", name: "Suomi", flag: "🇫🇮", rtl: false },
+  { code: "pl", name: "Polski", flag: "🇵🇱", rtl: false },
+  { code: "cs", name: "Čeština", flag: "🇨🇿", rtl: false },
+  { code: "sk", name: "Slovenčina", flag: "🇸🇰", rtl: false },
+  { code: "hu", name: "Magyar", flag: "🇭🇺", rtl: false },
+  { code: "ro", name: "Română", flag: "🇷🇴", rtl: false },
+  { code: "bg", name: "Български", flag: "🇧🇬", rtl: false },
+  { code: "sr", name: "Српски", flag: "🇷🇸", rtl: false },
+  { code: "hr", name: "Hrvatski", flag: "🇭🇷", rtl: false },
+  { code: "sl", name: "Slovenščina", flag: "🇸🇮", rtl: false },
+  { code: "el", name: "Ελληνικά", flag: "🇬🇷", rtl: false },
   { code: "tr", name: "Türkçe", flag: "🇹🇷", rtl: false },
+  { code: "az", name: "Azərbaycan", flag: "🇦🇿", rtl: false },
+  { code: "kk", name: "Қазақша", flag: "🇰🇿", rtl: false },
+  { code: "uz", name: "Oʻzbekcha", flag: "🇺🇿", rtl: false },
+  { code: "ru", name: "Русский", flag: "🇷🇺", rtl: false },
+  { code: "uk", name: "Українська", flag: "🇺🇦", rtl: false },
+  { code: "lt", name: "Lietuvių", flag: "🇱🇹", rtl: false },
+  { code: "lv", name: "Latviešu", flag: "🇱🇻", rtl: false },
+  { code: "et", name: "Eesti", flag: "🇪🇪", rtl: false },
+  { code: "ka", name: "ქართული", flag: "🇬🇪", rtl: false },
+  { code: "hy", name: "Հայերեն", flag: "🇦🇲", rtl: false },
+  { code: "am", name: "አማርኛ", flag: "🇪🇹", rtl: false },
+  { code: "sw", name: "Kiswahili", flag: "🇰🇪", rtl: false },
+  { code: "ha", name: "Hausa", flag: "🇳🇬", rtl: false },
+  { code: "yo", name: "Yorùbá", flag: "🇳🇬", rtl: false },
+  { code: "so", name: "Soomaali", flag: "🇸🇴", rtl: false },
 ];
 
 type Dict = Record<string, Partial<Record<Lang, string>>>;
 
 const dict: Dict = {
   app_name: { ar: "أملاكي", en: "Amlaki", ur: "املاکی", zh: "阿姆拉基", hi: "अमलाकी", bn: "আমলাকি", fr: "Amlaki", es: "Amlaki", tr: "Amlaki" },
-  tagline: { ar: "إدارة عقاراتك بذكاء وأناقة", en: "Smart property management", ur: "ذہین جائیداد کا انتظام", zh: "智能物业管理", hi: "स्मार्ट संपत्ति प्रबंधन", bn: "স্মার্ট সম্পত্তি ব্যবস্থাপনা", fr: "Gestion immobilière intelligente", es: "Gestión inteligente de propiedades", tr: "Akıllı mülk yönetimi" },
+  tagline: { ar: "إدارة عقاراتك بذكاء وأناقة", en: "Smart property management", ur: "ذہین جائیداد کا انتظام", zh: "智能物业管理", hi: "स्मार्ट संपत्ति प्रबंधन", bn: "স্মার্ট সম্পত্তি ব্যবস্থাপনা", fr: "Gestion immobilière intelligente", es: "Gestión inteligente de propiedades", tr: "Akıllı mülk yönetimi", ru: "Умное управление недвижимостью", de: "Intelligente Immobilienverwaltung", pt: "Gestão inteligente de imóveis", it: "Gestione immobiliare intelligente", ja: "スマート不動産管理", ko: "스마트 부동산 관리" },
   create_account: { ar: "إنشاء حساب جديد", en: "Create new account", ur: "نیا اکاؤنٹ بنائیں", zh: "创建新账户", hi: "नया खाता बनाएं", bn: "নতুন অ্যাকাউন্ট তৈরি করুন", fr: "Créer un compte", es: "Crear cuenta", tr: "Hesap oluştur" },
   have_account: { ar: "لدي حساب", en: "I have an account", ur: "میرا اکاؤنٹ ہے", zh: "我已有账户", hi: "मेरा खाता है", bn: "আমার অ্যাকাউন্ট আছে", fr: "J'ai déjà un compte", es: "Ya tengo cuenta", tr: "Hesabım var" },
   email: { ar: "البريد الإلكتروني", en: "Email", ur: "ای میل", zh: "邮箱", hi: "ईमेल", bn: "ইমেইল", fr: "E-mail", es: "Correo", tr: "E-posta" },
@@ -45,7 +110,7 @@ const dict: Dict = {
   add_first_building: { ar: "أضف أول مبنى لك", en: "Add your first building", ur: "اپنی پہلی عمارت شامل کریں", zh: "添加您的第一栋建筑", hi: "अपनी पहली इमारत जोड़ें", bn: "প্রথম ভবন যোগ করুন", fr: "Ajoutez votre premier bâtiment", es: "Agrega tu primer edificio", tr: "İlk binanızı ekleyin" },
   add_building: { ar: "إضافة مبنى", en: "Add building", ur: "عمارت شامل کریں", zh: "添加建筑", hi: "इमारत जोड़ें", bn: "ভবন যোগ করুন", fr: "Ajouter un bâtiment", es: "Agregar edificio", tr: "Bina ekle" },
   empty_buildings_msg: { ar: "ابدأ بإضافة مبناك الأول لإدارة الوحدات والمستأجرين بسهولة.", en: "Start by adding your first building to manage units and tenants with ease.", ur: "اپنی پہلی عمارت شامل کر کے شروع کریں۔", zh: "添加您的第一栋建筑开始管理。", hi: "प्रबंधन शुरू करने के लिए पहली इमारत जोड़ें।", bn: "প্রথম ভবন যোগ করে শুরু করুন।", fr: "Commencez en ajoutant votre premier bâtiment.", es: "Comienza agregando tu primer edificio.", tr: "İlk binanızı ekleyerek başlayın." },
-  language: { ar: "اللغة", en: "Language", ur: "زبان", zh: "语言", hi: "भाषा", bn: "ভাষা", fr: "Langue", es: "Idioma", tr: "Dil" },
+  language: { ar: "اللغة", en: "Language", ur: "زبان", zh: "语言", hi: "भाषा", bn: "ভাষা", fr: "Langue", es: "Idioma", tr: "Dil", ru: "Язык", de: "Sprache", pt: "Idioma", it: "Lingua", ja: "言語", ko: "언어", fa: "زبان", he: "שפה" },
   currency: { ar: "العملة", en: "Currency", ur: "کرنسی", zh: "货币", hi: "मुद्रा", bn: "মুদ্রা", fr: "Devise", es: "Moneda", tr: "Para birimi" },
   settings: { ar: "الإعدادات", en: "Settings", ur: "ترتیبات", zh: "设置", hi: "सेटिंग्स", bn: "সেটিংস", fr: "Paramètres", es: "Ajustes", tr: "Ayarlar" },
   welcome: { ar: "أهلاً بك", en: "Welcome", ur: "خوش آمدید", zh: "欢迎", hi: "स्वागत है", bn: "স্বাগতম", fr: "Bienvenue", es: "Bienvenido", tr: "Hoş geldiniz" },
@@ -66,7 +131,7 @@ const I18nContext = createContext<I18nCtx | null>(null);
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(() => (localStorage.getItem("amlaki_lang") as Lang) || "ar");
 
-  const meta = LANGUAGES.find((l) => l.code === lang)!;
+  const meta = LANGUAGES.find((l) => l.code === lang) ?? LANGUAGES[0];
 
   useEffect(() => {
     document.documentElement.lang = lang;
