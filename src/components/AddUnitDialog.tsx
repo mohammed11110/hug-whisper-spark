@@ -126,7 +126,21 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
                     className="rounded-xl border-sage-200 bg-card" />
                 </Field>
               </div>
-              <Field label={t2("rent_type")}>
+              <Field label="نوع العقد / Contract type">
+                <div className="flex gap-1.5">
+                  {CONTRACT_TYPES.map((ct) => (
+                    <button key={ct} type="button" onClick={() => setContractType(ct)}
+                      className={`flex-1 px-3 py-2 rounded-xl text-xs font-semibold ${
+                        contractType === ct ? "bg-gradient-sage text-primary-foreground shadow-soft" : "bg-muted text-muted-foreground"
+                      }`}>{t2(ct)}</button>
+                  ))}
+                </div>
+              </Field>
+              <Field label="تاريخ بداية العقد / Contract start">
+                <Input type="date" value={contractStart} onChange={(e) => setContractStart(e.target.value)}
+                  className="rounded-xl border-sage-200 bg-card" />
+              </Field>
+              <Field label={`${t2("rent_type")} (دورة الدفع)`}>
                 <div className="flex gap-1.5">
                   {RENT_TYPES.map((rt) => (
                     <button key={rt} type="button" onClick={() => setRentType(rt)}
