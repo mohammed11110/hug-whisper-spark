@@ -18,7 +18,7 @@ export function AddBuildingDialog({ open, onOpenChange, onCreated }: { open: boo
   const [name, setName] = useState("");
   const [nameEn, setNameEn] = useState("");
   const [type, setType] = useState<typeof TYPES[number]>("tower");
-  const [floors, setFloors] = useState(1);
+  const [floors, setFloors] = useState<string>("1");
   const [city, setCity] = useState("");
   const [address, setAddress] = useState("");
   const [busy, setBusy] = useState(false);
@@ -31,14 +31,14 @@ export function AddBuildingDialog({ open, onOpenChange, onCreated }: { open: boo
       name: name.trim(),
       name_en: nameEn.trim() || null,
       type,
-      floors,
+      floors: Math.max(1, parseInt(floors) || 1),
       city: city.trim() || null,
       address: address.trim() || null,
     });
     setBusy(false);
     if (error) return toast.error(error.message);
     toast.success("✓");
-    setName(""); setNameEn(""); setFloors(1); setCity(""); setAddress(""); setType("tower");
+    setName(""); setNameEn(""); setFloors("1"); setCity(""); setAddress(""); setType("tower");
     onCreated?.();
     onOpenChange(false);
   };
@@ -68,7 +68,7 @@ export function AddBuildingDialog({ open, onOpenChange, onCreated }: { open: boo
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label={t2("floors")}>
-              <Input type="number" min={1} value={floors} onChange={(e) => setFloors(parseInt(e.target.value) || 1)} className="rounded-xl border-sage-200 bg-card" />
+              <Input type="number" inputMode="numeric" min={1} value={floors} onChange={(e) => setFloors(e.target.value)} onBlur={() => { if (!floors || parseInt(floors) < 1) setFloors("1"); }} className="rounded-xl border-sage-200 bg-card" />
             </Field>
             <Field label={t2("city")}>
               <Input value={city} onChange={(e) => setCity(e.target.value)} className="rounded-xl border-sage-200 bg-card" />

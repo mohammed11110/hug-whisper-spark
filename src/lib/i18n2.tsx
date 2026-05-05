@@ -13,7 +13,7 @@ type Key =
   | "water" | "electric" | "gas" | "internet" | "active" | "inactive" | "account_number"
   | "no_legal_case" | "file_legal_case" | "case_number" | "court" | "lawyer" | "claim_amount" | "notes"
   | "no_photos" | "add_photo" | "back" | "search" | "no_tenants" | "no_payments"
-  | "paid" | "late" | "soon" | "status";
+  | "paid" | "late" | "soon" | "status" | "vacant" | "rented" | "occupancy_status" | "tenant_required";
 
 const dict: Record<Key, Partial<Record<Lang, string>>> = {
   all: { ar: "الكل", en: "All", ur: "تمام", zh: "全部", hi: "सभी", bn: "সব", fr: "Tous", es: "Todos", tr: "Tümü" },
@@ -84,6 +84,10 @@ const dict: Record<Key, Partial<Record<Lang, string>>> = {
   late: { ar: "متأخر", en: "Late", ur: "تاخیر", zh: "逾期", hi: "देर", bn: "বিলম্বিত", fr: "Retard", es: "Atrasado", tr: "Gecikmiş" },
   soon: { ar: "قريباً", en: "Soon", ur: "جلد", zh: "即将", hi: "जल्द", bn: "শীঘ্রই", fr: "Bientôt", es: "Pronto", tr: "Yakında" },
   status: { ar: "الحالة", en: "Status", ur: "حالت", zh: "状态", hi: "स्थिति", bn: "অবস্থা", fr: "Statut", es: "Estado", tr: "Durum" },
+  vacant: { ar: "شاغرة", en: "Vacant", ur: "خالی", zh: "空置", hi: "खाली", bn: "খালি", fr: "Vacant", es: "Vacante", tr: "Boş" },
+  rented: { ar: "مؤجّرة", en: "Rented", ur: "کرایہ پر", zh: "已租", hi: "किराये पर", bn: "ভাড়া দেওয়া", fr: "Louée", es: "Alquilada", tr: "Kirada" },
+  occupancy_status: { ar: "حالة الإشغال", en: "Occupancy", ur: "حالت", zh: "入住状态", hi: "स्थिति", bn: "অবস্থা", fr: "Occupation", es: "Ocupación", tr: "Doluluk" },
+  tenant_required: { ar: "بيانات المستأجر مطلوبة", en: "Tenant info required", ur: "کرایہ دار کی معلومات لازمی", zh: "需要租户信息", hi: "किरायेदार जानकारी अनिवार्य", bn: "ভাড়াটে তথ্য প্রয়োজন", fr: "Infos locataire requises", es: "Datos del inquilino requeridos", tr: "Kiracı bilgisi gerekli" },
 };
 
 export function useT2() {
