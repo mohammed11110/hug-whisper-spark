@@ -19,6 +19,7 @@ export function AddBuildingDialog({ open, onOpenChange, onCreated }: { open: boo
   const [nameEn, setNameEn] = useState("");
   const [type, setType] = useState<typeof TYPES[number]>("tower");
   const [floors, setFloors] = useState<string>("1");
+  const [unitsCount, setUnitsCount] = useState<string>("0");
   const [city, setCity] = useState("");
   const [address, setAddress] = useState("");
   const [busy, setBusy] = useState(false);
@@ -26,7 +27,7 @@ export function AddBuildingDialog({ open, onOpenChange, onCreated }: { open: boo
   const submit = async () => {
     if (!user || !name.trim()) return;
     setBusy(true);
-    const { error } = await supabase.from("buildings").insert({
+    const { data: created, error } = await supabase.from("buildings").insert({
       user_id: user.id,
       name: name.trim(),
       name_en: nameEn.trim() || null,
@@ -34,11 +35,29 @@ export function AddBuildingDialog({ open, onOpenChange, onCreated }: { open: boo
       floors: Math.max(1, parseInt(floors) || 1),
       city: city.trim() || null,
       address: address.trim() || null,
-    });
+    }).select("id").single();
+    if (error || !created) {
+      setBusy(false);
+      return toast.error(error?.message || "");
+    }
+    const n = Math.max(0, Math.min(500, parseInt(unitsCount) || 0));
+    if (n > 0) {
+      const rows = Array.from({ length: n }).map((_, i) => ({
+        building_id: created.id,
+        unit_number: String(i + 1),
+        floor: 1,
+        type: "apartment",
+        status: "vacant",
+        rent_amount: 0,
+        rent_type: "monthly",
+        due_day: 1,
+      }));
+      const { error: uErr } = await supabase.from("units").insert(rows);
+      if (uErr) toast.error(uErr.message);
+    }
     setBusy(false);
-    if (error) return toast.error(error.message);
     toast.success("✓");
-    setName(""); setNameEn(""); setFloors("1"); setCity(""); setAddress(""); setType("tower");
+    setName(""); setNameEn(""); setFloors("1"); setUnitsCount("0"); setCity(""); setAddress(""); setType("tower");
     onCreated?.();
     onOpenChange(false);
   };
@@ -74,6 +93,14 @@ export function AddBuildingDialog({ open, onOpenChange, onCreated }: { open: boo
               <Input value={city} onChange={(e) => setCity(e.target.value)} className="rounded-xl border-sage-200 bg-card" />
             </Field>
           </div>
+          <Field label={t2("units_count")}>
+            <Input type="number" inputMode="numeric" min={0} max={500} value={unitsCount}
+              onChange={(e) => setUnitsCount(e.target.value)}
+              onBlur={() => { if (!unitsCount || parseInt(unitsCount) < 0) setUnitsCount("0"); }}
+              placeholder="0"
+              className="rounded-xl border-sage-200 bg-card" />
+            <p className="text-[11px] text-muted-foreground mt-1">{t2("units_count_hint")}</p>
+          </Field>
           <Field label={t2("address")}>
             <Input value={address} onChange={(e) => setAddress(e.target.value)} className="rounded-xl border-sage-200 bg-card" />
           </Field>
