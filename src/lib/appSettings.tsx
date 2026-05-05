@@ -67,6 +67,7 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
         statusColors: { ...DEFAULTS.statusColors, ...(v.statusColors || {}) },
         margins: { ...DEFAULTS.margins, ...(legacy || {}), ...(v.margins || {}) },
         templates: { ...DEFAULTS.templates, ...(v.templates || {}) },
+        brand: { ...DEFAULTS.brand, ...(v.brand || {}) },
       };
     } catch { return DEFAULTS; }
   });
