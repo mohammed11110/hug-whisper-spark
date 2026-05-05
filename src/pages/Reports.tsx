@@ -61,24 +61,26 @@ export default function Reports() {
         .select("id, name")
         .eq("user_id", user.id);
       const ids = (bs || []).map((b) => b.id);
-      const [{ data: us }, { data: ps }] = await Promise.all([
-        ids.length
-          ? supabase.from("units").select("id, building_id, status, rent_amount").in("building_id", ids)
-          : Promise.resolve({ data: [] as Unit[] }),
-        ids.length
-          ? supabase
-              .from("payments")
-              .select("id, unit_id, amount, payment_date")
-              .in(
-                "unit_id",
-                // we need unit ids, fetch separately below if too many — but small dataset OK
-                (await supabase.from("units").select("id").in("building_id", ids)).data?.map((x: any) => x.id) || []
-              )
-          : Promise.resolve({ data: [] as Payment[] }),
-      ]);
+      let us: Unit[] = [];
+      let ps: Payment[] = [];
+      if (ids.length) {
+        const { data: usData } = await supabase
+          .from("units")
+          .select("id, building_id, status, rent_amount")
+          .in("building_id", ids);
+        us = (usData as Unit[]) || [];
+        const unitIds = us.map((u) => u.id);
+        if (unitIds.length) {
+          const { data: psData } = await supabase
+            .from("payments")
+            .select("id, unit_id, amount, payment_date")
+            .in("unit_id", unitIds);
+          ps = (psData as Payment[]) || [];
+        }
+      }
       setBuildings(bs || []);
-      setUnits((us as Unit[]) || []);
-      setPayments((ps as Payment[]) || []);
+      setUnits(us);
+      setPayments(ps);
       setLoading(false);
     })();
   }, [user]);
