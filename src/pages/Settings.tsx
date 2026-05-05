@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Palette, Clock, Coins, RotateCcw, Eye, Printer, ShieldAlert, MessageCircle, Bell, Database, Users, Image as ImageIcon, Smartphone, Globe } from "lucide-react";
+import { ArrowRight, Palette, Clock, Coins, RotateCcw, Eye, Printer, ShieldAlert, MessageCircle, Bell, Database, Users, Image as ImageIcon, Smartphone, Globe, Moon, Sun, Monitor, Crown, Sparkles } from "lucide-react";
+import { useTheme } from "@/lib/theme";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Textarea } from "@/components/ui/textarea";
 import { TopBar } from "@/components/TopBar";
@@ -64,6 +65,7 @@ export default function Settings() {
   const L = (k: string) => SETTINGS_LABELS[k]?.[lang === "ar" ? "ar" : "en"] || SETTINGS_LABELS[k]?.en || k;
   const RL = (k: string) => RET_LABELS[k]?.[lang === "ar" ? "ar" : "en"] || RET_LABELS[k]?.en || k;
   const [openCurr, setOpenCurr] = useState(false);
+  const { theme, setTheme } = useTheme();
   const [previewStatus, setPreviewStatus] = useState<"paid" | "late" | "soon">("paid");
   const pc = settings.statusColors[previewStatus];
   const today = new Date().toISOString().slice(0, 10);
@@ -132,6 +134,62 @@ export default function Settings() {
             </div>
           )}
         </div>
+      </section>
+
+      {/* Theme */}
+      <section className="px-5 mt-3">
+        <div className="rounded-3xl bg-card shadow-soft p-4">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-sage text-primary-foreground grid place-items-center shadow-soft">
+              <Moon className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="font-bold text-sm text-sage-600">{lang === "ar" ? "المظهر" : "Appearance"}</p>
+              <p className="text-[11px] text-muted-foreground">{lang === "ar" ? "فاتح، داكن، أو حسب النظام" : "Light, dark, or system"}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {([
+              { key: "light", icon: Sun, lbl: lang === "ar" ? "فاتح" : "Light" },
+              { key: "dark", icon: Moon, lbl: lang === "ar" ? "داكن" : "Dark" },
+              { key: "system", icon: Monitor, lbl: lang === "ar" ? "النظام" : "System" },
+            ] as const).map(({ key, icon: Ic, lbl }) => {
+              const active = theme === key;
+              return (
+                <button
+                  key={key}
+                  onClick={() => { setTheme(key); toast.success(L("saved")); }}
+                  className={`flex flex-col items-center gap-1.5 py-3 rounded-xl text-xs font-bold transition-all ${
+                    active ? "bg-gradient-sage text-primary-foreground shadow-soft" : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  <Ic className="h-4 w-4" />
+                  {lbl}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing & AI quick links */}
+      <section className="px-5 mt-3 space-y-2">
+        <Link to="/pricing" className="flex items-center gap-3 rounded-3xl bg-gradient-gold p-4 shadow-soft text-primary-foreground">
+          <div className="p-2 rounded-xl bg-card/15"><Crown className="h-4 w-4" /></div>
+          <div className="flex-1 text-start">
+            <p className="font-bold text-sm">{lang === "ar" ? "الخطط والأسعار" : "Plans & Pricing"}</p>
+            <p className="text-[11px] opacity-80">{lang === "ar" ? "ترقّ لإمكانات احترافية" : "Upgrade for pro features"}</p>
+          </div>
+          <ArrowRight className="h-4 w-4 rtl:rotate-180" />
+        </Link>
+        <Link to="/assistant" className="flex items-center gap-3 bg-card border border-sage-200/60 rounded-2xl p-4 shadow-soft hover:bg-sage-100/40 transition">
+          <div className="p-2 rounded-xl bg-sage-100 text-sage-600"><Sparkles className="h-4 w-4" /></div>
+          <div className="flex-1 text-start">
+            <p className="font-bold text-sm text-sage-600">{lang === "ar" ? "المساعد الذكي" : "AI Assistant"}</p>
+            <p className="text-[11px] text-muted-foreground">{lang === "ar" ? "اسأل عن عقاراتك واحصل على رؤى" : "Ask about your properties"}</p>
+          </div>
+          <ArrowRight className="h-4 w-4 text-sage-500 rtl:rotate-180" />
+        </Link>
       </section>
 
       {/* Live receipt preview */}

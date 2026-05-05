@@ -72,6 +72,67 @@
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
+
+  .dark {
+    /* Amlaki Dark - Deep Sage Night */
+    --background: 130 10% 8%;
+    --foreground: 42 30% 92%;
+
+    --card: 130 10% 12%;
+    --card-foreground: 42 30% 92%;
+
+    --popover: 130 10% 12%;
+    --popover-foreground: 42 30% 92%;
+
+    --sage-100: 130 10% 18%;
+    --sage-200: 130 10% 24%;
+    --sage-300: 115 11% 45%;
+    --sage-400: 130 22% 58%;
+    --sage-500: 130 25% 70%;
+    --sage-600: 130 25% 85%;
+
+    --primary: 130 22% 58%;
+    --primary-foreground: 130 10% 8%;
+
+    --secondary: 130 10% 18%;
+    --secondary-foreground: 42 30% 92%;
+
+    --muted: 130 10% 16%;
+    --muted-foreground: 122 8% 65%;
+
+    --accent: 42 50% 60%;
+    --accent-foreground: 130 10% 8%;
+
+    --gold: 42 50% 60%;
+    --terracotta: 22 50% 62%;
+    --burgundy: 0 50% 65%;
+    --slate-info: 207 20% 65%;
+
+    --destructive: 0 50% 55%;
+    --destructive-foreground: 42 30% 95%;
+
+    --border: 130 10% 22%;
+    --input: 130 10% 22%;
+    --ring: 130 22% 58%;
+
+    --gradient-sage: linear-gradient(135deg, hsl(130 22% 38%), hsl(130 25% 28%));
+    --gradient-deep: linear-gradient(135deg, hsl(130 16% 22%), hsl(130 12% 14%));
+    --gradient-cream: linear-gradient(135deg, hsl(130 10% 14%), hsl(130 10% 10%));
+    --gradient-gold: linear-gradient(135deg, hsl(42 50% 55%), hsl(42 45% 42%));
+
+    --shadow-soft: 0 4px 12px hsl(0 0% 0% / 0.3);
+    --shadow-elev: 0 8px 28px hsl(0 0% 0% / 0.4);
+    --shadow-glow: 0 12px 40px hsl(130 22% 30% / 0.5);
+
+    --sidebar-background: 130 10% 10%;
+    --sidebar-foreground: 42 30% 88%;
+    --sidebar-primary: 130 22% 58%;
+    --sidebar-primary-foreground: 130 10% 8%;
+    --sidebar-accent: 130 10% 16%;
+    --sidebar-accent-foreground: 42 30% 88%;
+    --sidebar-border: 130 10% 22%;
+    --sidebar-ring: 130 22% 58%;
+  }
 }
 
 @layer base {
