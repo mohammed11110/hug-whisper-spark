@@ -61,21 +61,6 @@ export default function UnitDetail() {
     navigate(`/buildings/${unit.building_id}`);
   };
 
-  const registerPayment = async () => {
-    if (!unit) return;
-    const today = new Date().toISOString().slice(0, 10);
-    const { error } = await supabase.from("payments").insert({
-      unit_id: unit.id,
-      amount: unit.rent_amount,
-      payment_date: today,
-      receipt_number: `R-${Date.now()}`,
-    });
-    if (error) return toast.error(error.message);
-    await supabase.from("units").update({ last_paid_date: today, status: "paid" }).eq("id", unit.id);
-    toast.success("✓");
-    load();
-  };
-
   if (!unit) return <div className="mobile-shell flex items-center justify-center min-h-screen"><p className="text-sage-500">{t("loading")}</p></div>;
 
   return (
