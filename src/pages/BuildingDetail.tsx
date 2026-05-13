@@ -154,7 +154,7 @@ export default function BuildingDetail() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-sage-600 truncate">{u.tenant_name || `${t2(u.type as any)} ${u.unit_number}`}</p>
-                      <p className="text-xs text-muted-foreground">{t2(u.type as any)} · {format(Number(u.rent_amount))}/{t2(u.rent_type as any)}</p>
+                      <p className="text-xs text-muted-foreground">{u.status === "vacant" ? t2(u.type as any) : `${t2(u.type as any)} · ${format(Number(u.rent_amount))}/${t2(u.rent_type as any)}`}</p>
                       {bal && bal.outstanding > 0 && (
                         <p className="text-[11px] font-bold text-burgundy mt-0.5">{t2("outstanding_balance")}: {format(bal.outstanding)}</p>
                       )}
