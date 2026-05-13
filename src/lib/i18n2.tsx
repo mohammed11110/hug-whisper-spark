@@ -24,7 +24,8 @@ type Key =
   | "monthly_collection" | "paid_tenants" | "late_tenants"
   | "expected_total" | "collected_total" | "collection_rate"
   | "partial_payment" | "quick_collect"
-  | "due_day_of_month" | "next_due" | "days_left" | "days_overdue" | "due_today" | "select_month";
+  | "due_day_of_month" | "next_due" | "days_left" | "days_overdue" | "due_today" | "select_month"
+  | "remember_me" | "password_english_only";
 
 const dict: Record<Key, Partial<Record<Lang, string>>> = {
   all: { ar: "الكل", en: "All", ur: "تمام", zh: "全部", hi: "सभी", bn: "সব", fr: "Tous", es: "Todos", tr: "Tümü" },
