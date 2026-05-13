@@ -270,10 +270,16 @@ export default function MonthlyCollection() {
   );
 }
 
-function Kpi({ label, value, tone }: { label: string; value: string; tone: "sage" | "muted" | "danger" }) {
+function Kpi({ label, value, tone, onClick, clickable }: { label: string; value: string; tone: "sage" | "muted" | "danger"; onClick?: () => void; clickable?: boolean }) {
   const cls = tone === "sage" ? "text-sage-600" : tone === "danger" ? "text-burgundy" : "text-sage-600";
   return (
-    <div className="bg-card rounded-2xl p-3 shadow-soft border border-sage-200/40">
+    <div
+      onClick={onClick}
+      className={cn(
+        "bg-card rounded-2xl p-3 shadow-soft border border-sage-200/40",
+        clickable && "cursor-pointer hover:shadow-md active:scale-[0.98] transition-all"
+      )}
+    >
       <p className="text-[11px] text-muted-foreground font-semibold leading-tight">{label}</p>
       <p className={`text-lg font-black mt-1 truncate ${cls}`}>{value}</p>
     </div>
