@@ -37,6 +37,16 @@ type StatusFilter = "all" | "paid" | "late";
 const LS_KEY = "amlaki.payments.filters.v2";
 const DEFAULT_FILTERS = { search: "", filter: "month" as Filter, statusFilter: "all" as StatusFilter };
 
+const AR_MONTHS = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+const EN_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function monthLabel(dateStr: string | null, lang: string) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  const names = lang === "ar" ? AR_MONTHS : EN_MONTHS;
+  return `${names[d.getMonth()]} ${d.getFullYear()}`;
+}
+
 export default function Payments() {
   const { t, lang } = useI18n();
   const t2 = useT2();
