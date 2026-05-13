@@ -185,6 +185,8 @@ const dict: Record<Key, Partial<Record<Lang, string>>> = {
   tenancy_ended_ok: { ar: "تم إنهاء العقد بنجاح", en: "Tenancy ended", ur: "ختم", zh: "已结束", hi: "समाप्त", bn: "শেষ", fr: "Bail terminé", es: "Arrendamiento finalizado", tr: "Sözleşme bitti" },
   tenancy_started_ok: { ar: "تم تسجيل المستأجر الجديد", en: "New tenant added", ur: "نیا کرایہ دار شامل", zh: "新租户已添加", hi: "नया किरायेदार जोड़ा", bn: "নতুন ভাড়াটিয়া যোগ", fr: "Nouveau locataire ajouté", es: "Inquilino añadido", tr: "Yeni kiracı eklendi" },
   contract_start_date: { ar: "بداية العقد", en: "Contract start", ur: "معاہدہ آغاز", zh: "合同开始", hi: "अनुबंध शुरू", bn: "চুক্তি শুরু", fr: "Début du bail", es: "Inicio de contrato", tr: "Sözleşme başlangıcı" },
+  vacancy: { ar: "الشواغر", en: "Vacancy", ur: "خالی", zh: "空置率", hi: "रिक्ति", bn: "শূন্যতা", fr: "Vacance", es: "Vacancia", tr: "Boşluk" },
+  expected_month: { ar: "إيجارات الشهر", en: "Month rents", ur: "ماہ کا کرایہ", zh: "本月租金", hi: "माह का किराया", bn: "মাসের ভাড়া", fr: "Loyers du mois", es: "Rentas del mes", tr: "Ay kirası" },
 };
 
 export function useT2() {
