@@ -265,6 +265,7 @@ export default function Payments() {
               filtered.map((r) => ({
                 date: r.payment_date, receipt: r.receipt_number || "", building: r.building_name,
                 unit: r.unit_number, tenant: r.tenant_name || "", amount: r.amount, status: r.unit_status,
+                rent_month: r.period_start ? monthLabel(r.period_start, lang) : "",
               }))
             ))}>
             <Download className="h-3.5 w-3.5 me-1" />CSV
