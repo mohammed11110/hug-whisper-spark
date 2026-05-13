@@ -12,6 +12,8 @@ import { buildLeaseHTML, downloadHTMLAsPDF, printHTML } from "@/lib/pdfDocs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { AddPaymentDialog } from "@/components/AddPaymentDialog";
+import { EndTenancyDialog } from "@/components/EndTenancyDialog";
+import { NewTenancyDialog } from "@/components/NewTenancyDialog";
 import { computeBalance, type PaymentForBalance } from "@/lib/balance";
 
 interface Unit {
