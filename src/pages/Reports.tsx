@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { useI18n } from "@/lib/i18n";
@@ -184,6 +185,20 @@ export default function Reports() {
             <Download className="h-3.5 w-3.5 me-1" />CSV
           </Button>
         </div>
+
+        {/* Quick link to Monthly Collection */}
+        <Link to="/collection" className="block animate-float-up">
+          <div className="bg-gradient-sage text-primary-foreground rounded-2xl p-4 shadow-soft flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">▦</span>
+              <div>
+                <p className="text-sm font-black">{t2("monthly_collection")}</p>
+                <p className="text-[11px] opacity-90">{lang === "ar" ? "دافعون · متأخرون · إجماليات شهرية" : "Paid · Late · Monthly totals"}</p>
+              </div>
+            </div>
+            <span className="text-xl rtl:rotate-180">›</span>
+          </div>
+        </Link>
 
         {/* Range selector */}
         <div className="flex gap-2 animate-float-up" style={{ animationDelay: "0.05s" }}>

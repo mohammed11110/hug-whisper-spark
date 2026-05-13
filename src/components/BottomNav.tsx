@@ -1,15 +1,18 @@
 import { NavLink } from "react-router-dom";
 import { useI18n } from "@/lib/i18n";
+import { useT2 } from "@/lib/i18n2";
 
 const tabs = [
-  { to: "/", label: "dashboard", icon: "◐" },
-  { to: "/buildings", label: "buildings", icon: "⌬" },
-  { to: "/tenants", label: "tenants", icon: "◉" },
-  { to: "/payments", label: "payments", icon: "◈" },
+  { to: "/", label: "dashboard", icon: "◐", t2: false },
+  { to: "/buildings", label: "buildings", icon: "⌬", t2: false },
+  { to: "/tenants", label: "tenants", icon: "◉", t2: false },
+  { to: "/payments", label: "payments", icon: "◈", t2: false },
+  { to: "/collection", label: "monthly_collection", icon: "▦", t2: true },
 ];
 
 export function BottomNav() {
   const { t } = useI18n();
+  const t2 = useT2();
   return (
     <nav className="fixed bottom-0 inset-x-0 mx-auto max-w-[430px] z-40">
       <div className="glass border-t border-sage-200/60 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
@@ -28,7 +31,7 @@ export function BottomNav() {
                 {({ isActive }) => (
                   <>
                     <span className={`text-2xl leading-none transition-transform ${isActive ? "scale-110" : ""}`}>{tab.icon}</span>
-                    <span className="text-[10px] font-semibold">{t(tab.label)}</span>
+                    <span className="text-[10px] font-semibold">{tab.t2 ? t2(tab.label as any) : t(tab.label)}</span>
                   </>
                 )}
               </NavLink>
