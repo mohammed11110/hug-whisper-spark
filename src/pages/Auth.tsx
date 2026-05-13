@@ -110,16 +110,37 @@ export default function Auth() {
             <Label htmlFor="email" className="text-sage-600 font-semibold">{t("email")}</Label>
             <div className="relative">
               <Mail className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="ps-10 h-12 rounded-xl bg-card border-sage-200" />
+              <Input id="email" type="email" dir="ltr" lang="en" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="ps-10 h-12 rounded-xl bg-card border-sage-200" />
             </div>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="password" className="text-sage-600 font-semibold">{t("password")}</Label>
             <div className="relative">
               <Lock className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} className="ps-10 h-12 rounded-xl bg-card border-sage-200" />
+              <Input
+                id="password"
+                type="password"
+                dir="ltr"
+                lang="en"
+                autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                value={password}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (ASCII_RE.test(v)) { setPassword(v); setPwError(false); }
+                  else { setPwError(true); }
+                }}
+                required
+                minLength={6}
+                className={`ps-10 h-12 rounded-xl bg-card ${pwError ? "border-burgundy" : "border-sage-200"}`}
+              />
             </div>
+            {pwError && <p className="text-xs text-burgundy">{t2("password_english_only")}</p>}
           </div>
+
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <Checkbox checked={remember} onCheckedChange={(v) => setRemember(!!v)} />
+            <span className="text-sm text-sage-600 font-medium">{t2("remember_me")}</span>
+          </label>
 
           <Button type="submit" disabled={busy} className="w-full h-13 py-3.5 rounded-2xl bg-gradient-sage text-primary-foreground font-semibold shadow-glow">
             {busy ? t("loading") : mode === "signup" ? t("sign_up") : t("sign_in")}
