@@ -50,6 +50,10 @@ export default function UnitDetail() {
   const [tab, setTab] = useState<Tab>("details");
   const [delOpen, setDelOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
+  const [endOpen, setEndOpen] = useState(false);
+  const [newTenantOpen, setNewTenantOpen] = useState(false);
+  const [activeTenancyId, setActiveTenancyId] = useState<string | null>(null);
+  const [priorArrears, setPriorArrears] = useState<{ count: number; total: number }>({ count: 0, total: 0 });
 
   const load = async () => {
     if (!id) return;
@@ -61,6 +65,11 @@ export default function UnitDetail() {
     }
     const { data: ps } = await supabase.from("payments").select("unit_id,amount,deleted_at").eq("unit_id", id).is("deleted_at", null);
     setPayments((ps || []) as any);
+    const { data: ts } = await supabase.from("tenancies").select("id,status,outstanding_at_end").eq("unit_id", id);
+    const active = (ts || []).find((t: any) => t.status === "active");
+    setActiveTenancyId(active?.id || null);
+    const ended = (ts || []).filter((t: any) => t.status === "ended" && Number(t.outstanding_at_end) > 0);
+    setPriorArrears({ count: ended.length, total: ended.reduce((s: number, t: any) => s + Number(t.outstanding_at_end), 0) });
   };
   useEffect(() => { load(); }, [id]);
 
