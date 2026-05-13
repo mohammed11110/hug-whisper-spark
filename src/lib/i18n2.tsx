@@ -153,6 +153,14 @@ const dict: Record<Key, Partial<Record<Lang, string>>> = {
   select_month: { ar: "اختر الشهر", en: "Select month", ur: "ماہ منتخب کریں", zh: "选择月份", hi: "महीना चुनें", bn: "মাস নির্বাচন", fr: "Choisir le mois", es: "Elegir mes", tr: "Ay seç" },
   remember_me: { ar: "تذكرني", en: "Remember me", ur: "مجھے یاد رکھیں", zh: "记住我", hi: "मुझे याद रखें", bn: "আমাকে মনে রাখো", fr: "Se souvenir de moi", es: "Recuérdame", tr: "Beni hatırla" },
   password_english_only: { ar: "كلمة المرور بالأحرف الإنجليزية فقط", en: "Password must be in English only", ur: "پاس ورڈ صرف انگریزی میں", zh: "密码仅限英文", hi: "पासवर्ड केवल अंग्रेज़ी में", bn: "পাসওয়ার্ড শুধু ইংরেজিতে", fr: "Mot de passe en anglais uniquement", es: "Contraseña solo en inglés", tr: "Şifre yalnızca İngilizce" },
+  forgot_password: { ar: "نسيت كلمة المرور؟", en: "Forgot password?", ur: "پاس ورڈ بھول گئے؟", zh: "忘记密码？", hi: "पासवर्ड भूल गए?", bn: "পাসওয়ার্ড ভুলে গেছেন?", fr: "Mot de passe oublié ?", es: "¿Olvidó su contraseña?", tr: "Şifremi unuttum" },
+  reset_password: { ar: "إعادة تعيين كلمة المرور", en: "Reset password", ur: "پاس ورڈ ری سیٹ کریں", zh: "重置密码", hi: "पासवर्ड रीसेट करें", bn: "পাসওয়ার্ড রিসেট", fr: "Réinitialiser le mot de passe", es: "Restablecer contraseña", tr: "Şifreyi sıfırla" },
+  send_reset_link: { ar: "إرسال رابط الاستعادة", en: "Send reset link", ur: "ری سیٹ لنک بھیجیں", zh: "发送重置链接", hi: "रीसेट लिंक भेजें", bn: "রিসেট লিঙ্ক পাঠান", fr: "Envoyer le lien", es: "Enviar enlace", tr: "Bağlantıyı gönder" },
+  reset_email_sent: { ar: "تحقق من بريدك الإلكتروني لإعادة التعيين", en: "Check your email to reset your password", ur: "ای میل چیک کریں", zh: "请查收您的邮件", hi: "अपना ईमेल देखें", bn: "ইমেইল চেক করুন", fr: "Vérifiez votre e-mail", es: "Revise su correo", tr: "E-postanızı kontrol edin" },
+  new_password: { ar: "كلمة مرور جديدة", en: "New password", ur: "نیا پاس ورڈ", zh: "新密码", hi: "नया पासवर्ड", bn: "নতুন পাসওয়ার্ড", fr: "Nouveau mot de passe", es: "Nueva contraseña", tr: "Yeni şifre" },
+  confirm_password: { ar: "تأكيد كلمة المرور", en: "Confirm password", ur: "پاس ورڈ کی تصدیق", zh: "确认密码", hi: "पासवर्ड पुष्टि करें", bn: "পাসওয়ার্ড নিশ্চিত করুন", fr: "Confirmer le mot de passe", es: "Confirmar contraseña", tr: "Şifreyi onayla" },
+  passwords_dont_match: { ar: "كلمتا المرور غير متطابقتين", en: "Passwords don't match", ur: "پاس ورڈز مماثل نہیں", zh: "密码不匹配", hi: "पासवर्ड मेल नहीं खाते", bn: "পাসওয়ার্ড মিলছে না", fr: "Les mots de passe ne correspondent pas", es: "Las contraseñas no coinciden", tr: "Şifreler eşleşmiyor" },
+  password_updated: { ar: "تم تحديث كلمة المرور", en: "Password updated", ur: "پاس ورڈ اپ ڈیٹ ہو گیا", zh: "密码已更新", hi: "पासवर्ड अपडेट हो गया", bn: "পাসওয়ার্ড আপডেট হয়েছে", fr: "Mot de passe mis à jour", es: "Contraseña actualizada", tr: "Şifre güncellendi" },
 };
 
 export function useT2() {
