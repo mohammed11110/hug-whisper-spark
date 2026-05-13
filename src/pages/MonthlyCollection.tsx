@@ -102,14 +102,7 @@ export default function MonthlyCollection() {
     })();
   }, [user]);
 
-  const month = months.find((m) => m.key === selected)!;
-
   const openPaymentsDialog = () => {
-    const filtered = payments.filter((p) => {
-      const ref = p.period_start ? new Date(p.period_start) : new Date(p.payment_date);
-      return ref >= month.start && ref <= month.end;
-    });
-    setDialogPayments(filtered);
     setShowPaymentsDialog(true);
   };
 
