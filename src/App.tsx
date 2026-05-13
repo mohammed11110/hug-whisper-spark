@@ -64,6 +64,7 @@ const App = () => (
                     <Route path="/install" element={<Install />} />
                     <Route path="/pricing" element={<RequireAuth><Pricing /></RequireAuth>} />
                     <Route path="/assistant" element={<RequireAuth><Assistant /></RequireAuth>} />
+                    <Route path="/admin" element={<RequireAuth><Admin /></RequireAuth>} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </BrowserRouter>
