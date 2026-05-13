@@ -114,11 +114,12 @@ export default function Reports() {
       out.push({ key, label, income: 0, expenses: 0, net: 0, prev: 0 });
     }
     payments.forEach((p) => {
-      const k = p.payment_date.slice(0, 7);
+      const ref = p.period_start || p.payment_date;
+      const k = ref.slice(0, 7);
       const m = out.find((x) => x.key === k);
       if (m) m.income += Number(p.amount) || 0;
       // previous-year comparison
-      const d = new Date(p.payment_date);
+      const d = new Date(ref);
       const prevKey = `${d.getFullYear() + 1}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       const pm = out.find((x) => x.key === prevKey);
       if (pm) pm.prev += Number(p.amount) || 0;
