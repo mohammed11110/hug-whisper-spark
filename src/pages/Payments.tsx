@@ -329,9 +329,14 @@ export default function Payments() {
                     <span className="font-bold text-sage-600 truncate">{r.building_name} · {r.unit_number}</span>
                   </div>
                   {r.tenant_name && <p className="text-xs text-muted-foreground truncate mt-0.5">{r.tenant_name}</p>}
-                  <div className="flex items-center gap-3 mt-2 text-[11px] text-sage-500">
+                  <div className="flex flex-wrap items-center gap-3 mt-2 text-[11px] text-sage-500">
                     <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{r.payment_date}</span>
                     {r.receipt_number && <span className="font-mono">{r.receipt_number}</span>}
+                    {r.period_start && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sage-100 text-sage-600 font-semibold">
+                        {lang === "ar" ? "إيجار" : "Rent"} {monthLabel(r.period_start, lang)}
+                      </span>
+                    )}
                   </div>
                 </Link>
                 <div className="text-end">
