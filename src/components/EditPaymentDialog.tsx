@@ -103,7 +103,7 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
     onSaved?.();
   };
 
-  const monthOpts = getMonthOptions(lang);
+  const years = yearOptions();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -117,14 +117,24 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
           <div className="space-y-3">
             <div className="space-y-1.5">
               <Label className="text-xs text-sage-500">{t2("rent_month")}</Label>
-              <Select value={periodMonth} onValueChange={onPickMonth}>
-                <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11"><SelectValue placeholder={lang === "ar" ? "اختر الشهر" : "Select month"} /></SelectTrigger>
-                <SelectContent>
-                  {monthOpts.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="grid grid-cols-2 gap-2">
+                <Select value={String(periodMonthNum)} onValueChange={(v) => setPeriodMonthNum(Number(v))}>
+                  <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11"><SelectValue /></SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    {monthNames.map((n, i) => (
+                      <SelectItem key={i} value={String(i + 1)}>{n}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={String(periodYear)} onValueChange={(v) => setPeriodYear(Number(v))}>
+                  <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11"><SelectValue /></SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    {years.map((y) => (
+                      <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
