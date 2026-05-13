@@ -147,6 +147,7 @@ const dict: Record<Key, Partial<Record<Lang, string>>> = {
   days_left: { ar: "متبقي {n} يوم", en: "{n} days left", ur: "{n} دن باقی", zh: "剩 {n} 天", hi: "{n} दिन बाकी", bn: "{n} দিন বাকি", fr: "{n} j restants", es: "{n} días", tr: "{n} gün kaldı" },
   days_overdue: { ar: "متأخر {n} يوم", en: "{n} days overdue", ur: "{n} دن تاخیر", zh: "逾期 {n} 天", hi: "{n} दिन विलंब", bn: "{n} দিন বিলম্ব", fr: "{n} j de retard", es: "{n} días atraso", tr: "{n} gün gecikme" },
   due_today: { ar: "مستحق اليوم", en: "Due today", ur: "آج واجب", zh: "今日到期", hi: "आज देय", bn: "আজ দেয়", fr: "Dû aujourd'hui", es: "Vence hoy", tr: "Bugün vade" },
+  select_month: { ar: "اختر الشهر", en: "Select month", ur: "ماہ منتخب کریں", zh: "选择月份", hi: "महीना चुनें", bn: "মাস নির্বাচন", fr: "Choisir le mois", es: "Elegir mes", tr: "Ay seç" },
 };
 
 export function useT2() {
