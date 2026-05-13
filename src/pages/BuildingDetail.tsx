@@ -48,13 +48,14 @@ export default function BuildingDetail() {
     setUnits((us || []) as any);
     const ids = (us || []).map((u: any) => u.id);
     if (ids.length) {
-      const { data: ps } = await supabase.from("payments").select("unit_id,amount,deleted_at").in("unit_id", ids).is("deleted_at", null);
+      const { data: ps } = await supabase.from("payments").select("unit_id,amount,deleted_at,payment_date,period_start").in("unit_id", ids).is("deleted_at", null);
       setPayments((ps || []) as any);
       const today = new Date();
-      const start = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
-      const end = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().slice(0, 10);
-      const { data: pm } = await supabase.from("payments").select("amount").in("unit_id", ids).is("deleted_at", null).gte("payment_date", start).lte("payment_date", end);
-      setCollectedMonth((pm || []).reduce((s: number, p: any) => s + Number(p.amount), 0));
+      const monthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+      const monthSum = (ps || [])
+        .filter((p: any) => ((p.period_start || p.payment_date) || "").slice(0, 7) === monthKey)
+        .reduce((s: number, p: any) => s + Number(p.amount), 0);
+      setCollectedMonth(monthSum);
     } else { setPayments([]); setCollectedMonth(0); }
   };
 
