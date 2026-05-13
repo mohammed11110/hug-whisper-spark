@@ -32,21 +32,19 @@ const PAYMENT_METHODS = ["cash", "transfer", "cheque", "card"] as const;
 const AR_MONTHS = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
 const EN_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-function getMonthOptions(lang: string) {
-  const names = lang === "ar" ? AR_MONTHS : EN_MONTHS;
-  const opts: { label: string; value: string; start: string; end: string }[] = [];
-  const today = new Date();
-  for (let i = -2; i <= 1; i++) {
-    const d = new Date(today.getFullYear(), today.getMonth() + i, 1);
-    const y = d.getFullYear();
-    const m = d.getMonth();
-    const lastDay = new Date(y, m + 1, 0).getDate();
-    const start = `${y}-${String(m + 1).padStart(2, "0")}-01`;
-    const end = `${y}-${String(m + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-    const label = `${names[m]} ${y}`;
-    opts.push({ label, value: `${y}-${String(m + 1).padStart(2, "0")}`, start, end });
-  }
-  return opts;
+function monthRange(year: number, month1to12: number) {
+  const y = year, m = month1to12 - 1;
+  const lastDay = new Date(y, m + 1, 0).getDate();
+  const start = `${y}-${String(m + 1).padStart(2, "0")}-01`;
+  const end = `${y}-${String(m + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+  return { start, end };
+}
+
+function yearOptions() {
+  const cur = new Date().getFullYear();
+  const out: number[] = [];
+  for (let y = cur + 2; y >= 2020; y--) out.push(y);
+  return out;
 }
 
 const schema = z.object({
@@ -68,10 +66,12 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const [receipt, setReceipt] = useState("");
   const [method, setMethod] = useState<string>("cash");
   const [notes, setNotes] = useState("");
-  const [periodMonth, setPeriodMonth] = useState("");
-  const [periodStart, setPeriodStart] = useState("");
-  const [periodEnd, setPeriodEnd] = useState("");
+  const [periodYear, setPeriodYear] = useState<number>(() => new Date().getFullYear());
+  const [periodMonthNum, setPeriodMonthNum] = useState<number>(() => new Date().getMonth() + 1);
   const [saving, setSaving] = useState(false);
+
+  const { start: periodStart, end: periodEnd } = monthRange(periodYear, periodMonthNum);
+  const monthNames = lang === "ar" ? AR_MONTHS : EN_MONTHS;
 
   useEffect(() => {
     if (!open) return;
@@ -99,11 +99,9 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         }
       }
       if (!receipt) setReceipt(`R-${Date.now()}`);
-      const moOpts = getMonthOptions(lang);
-      const cur = moOpts.find((o) => o.value === new Date().toISOString().slice(0, 7)) || moOpts[2];
-      setPeriodMonth(cur.value);
-      setPeriodStart(cur.start);
-      setPeriodEnd(cur.end);
+      const today = new Date();
+      setPeriodYear(today.getFullYear());
+      setPeriodMonthNum(today.getMonth() + 1);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, presetUnitId]);
@@ -112,16 +110,6 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     setUnitId(id);
     const u = units.find((x) => x.id === id);
     if (u) { setAmount(String(u.rent_amount)); setExpected(String(u.rent_amount)); }
-  };
-
-  const onPickMonth = (val: string) => {
-    const moOpts = getMonthOptions(lang);
-    const opt = moOpts.find((o) => o.value === val);
-    if (opt) {
-      setPeriodMonth(opt.value);
-      setPeriodStart(opt.start);
-      setPeriodEnd(opt.end);
-    }
   };
 
   const remaining = Math.max(0, (Number(expected) || 0) - (Number(amount) || 0));
@@ -163,7 +151,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     onSaved?.();
   };
 
-  const monthOpts = getMonthOptions(lang);
+  const years = yearOptions();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -190,16 +178,24 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
           {/* Rent month */}
           <div className="space-y-1.5">
             <Label className="text-xs text-sage-500">{t2("rent_month")}</Label>
-            <Select value={periodMonth} onValueChange={onPickMonth}>
-              <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {monthOpts.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="grid grid-cols-2 gap-2">
+              <Select value={String(periodMonthNum)} onValueChange={(v) => setPeriodMonthNum(Number(v))}>
+                <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11"><SelectValue /></SelectTrigger>
+                <SelectContent className="max-h-72">
+                  {monthNames.map((n, i) => (
+                    <SelectItem key={i} value={String(i + 1)}>{n}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={String(periodYear)} onValueChange={(v) => setPeriodYear(Number(v))}>
+                <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11"><SelectValue /></SelectTrigger>
+                <SelectContent className="max-h-72">
+                  {years.map((y) => (
+                    <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
