@@ -65,7 +65,14 @@ export default function MonthlyCollection() {
   const [payOpen, setPayOpen] = useState(false);
   const [presetUnit, setPresetUnit] = useState<string | undefined>();
   const [showPaymentsDialog, setShowPaymentsDialog] = useState(false);
-  const [dialogPayments, setDialogPayments] = useState<PaymentRow[]>([]);
+  const month = months.find((m) => m.key === selected)!;
+
+  const dialogPayments = useMemo(() => {
+    return payments.filter((p) => {
+      const ref = p.period_start ? new Date(p.period_start) : new Date(p.payment_date);
+      return ref >= month.start && ref <= month.end;
+    });
+  }, [payments, month]);
 
   useEffect(() => {
     if (!user) return;
