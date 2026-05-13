@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Download, CheckCircle2, AlertCircle, Phone, Building2 } from "lucide-react";
+import { ArrowLeft, Download, CheckCircle2, AlertCircle, Phone, Building2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { useI18n } from "@/lib/i18n";
@@ -11,6 +12,8 @@ import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { exportToCSV } from "@/lib/exportCSV";
 import { AddPaymentDialog } from "@/components/AddPaymentDialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
 
 interface UnitRow {
   id: string;
@@ -61,6 +64,8 @@ export default function MonthlyCollection() {
   const [loading, setLoading] = useState(true);
   const [payOpen, setPayOpen] = useState(false);
   const [presetUnit, setPresetUnit] = useState<string | undefined>();
+  const [showPaymentsDialog, setShowPaymentsDialog] = useState(false);
+  const [dialogPayments, setDialogPayments] = useState<PaymentRow[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -91,6 +96,15 @@ export default function MonthlyCollection() {
   }, [user]);
 
   const month = months.find((m) => m.key === selected)!;
+
+  const openPaymentsDialog = () => {
+    const filtered = payments.filter((p) => {
+      const ref = p.period_start ? new Date(p.period_start) : new Date(p.payment_date);
+      return ref >= month.start && ref <= month.end;
+    });
+    setDialogPayments(filtered);
+    setShowPaymentsDialog(true);
+  };
 
   // For each unit, compute paid amount in this month (period_start in month, or fallback payment_date)
   const rows = useMemo(() => {
@@ -170,9 +184,9 @@ export default function MonthlyCollection() {
         {/* KPI cards */}
         <div className="grid grid-cols-2 gap-3 animate-float-up">
           <Kpi label={t2("expected_total")} value={format(totalDue)} tone="muted" />
-          <Kpi label={t2("collected_total")} value={format(totalPaid)} tone="sage" />
+          <Kpi label={t2("collected_total")} value={format(totalPaid)} tone="sage" onClick={openPaymentsDialog} clickable />
           <Kpi label={t2("outstanding_balance")} value={format(remaining)} tone={remaining > 0 ? "danger" : "sage"} />
-          <Kpi label={t2("collection_rate")} value={`${rate}%`} tone="sage" />
+          <Kpi label={t2("collection_rate")} value={`${rate}%`} tone="sage" onClick={openPaymentsDialog} clickable />
         </div>
 
         <div className="grid grid-cols-2 gap-3 animate-float-up">
@@ -252,15 +266,60 @@ export default function MonthlyCollection() {
             setPayments((ps || []) as PaymentRow[]);
           }
         }} />
+
+      <Dialog open={showPaymentsDialog} onOpenChange={setShowPaymentsDialog}>
+        <DialogContent className="max-w-lg max-h-[80vh] p-0 gap-0">
+          <DialogHeader className="px-5 pt-5 pb-2">
+            <DialogTitle className="text-lg font-bold text-sage-600">
+              {t2("payments")} — {month.label}
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="px-5 pb-5 max-h-[60vh]">
+            {dialogPayments.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">{t2("no_payments")}</p>
+            ) : (
+              <div className="space-y-2">
+                {dialogPayments.map((p) => {
+                  const unit = units.find((u) => u.id === p.unit_id);
+                  const buildingName = unit ? (buildings[unit.building_id] || "") : "";
+                  const period = p.period_start
+                    ? `${(lang === "ar" ? AR_MONTHS : EN_MONTHS)[new Date(p.period_start).getMonth()]} ${new Date(p.period_start).getFullYear()}`
+                    : "";
+                  return (
+                    <div key={`${p.unit_id}-${p.payment_date}-${p.amount}`} className="bg-card border border-sage-200/40 rounded-xl p-3 flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-sage-600 truncate">{unit?.tenant_name || "—"}</p>
+                        <p className="text-[11px] text-muted-foreground truncate">{buildingName} · #{unit?.unit_number}</p>
+                        {period && <p className="text-[10px] text-sage-500 mt-0.5">{t2("rent_month")}: {period}</p>}
+                      </div>
+                      <div className="text-end flex-shrink-0">
+                        <p className="text-sm font-black text-sage-600">{format(Number(p.amount))}</p>
+                        <p className="text-[10px] text-muted-foreground">{p.payment_date}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
       <BottomNav />
     </div>
   );
 }
 
-function Kpi({ label, value, tone }: { label: string; value: string; tone: "sage" | "muted" | "danger" }) {
+function Kpi({ label, value, tone, onClick, clickable }: { label: string; value: string; tone: "sage" | "muted" | "danger"; onClick?: () => void; clickable?: boolean }) {
   const cls = tone === "sage" ? "text-sage-600" : tone === "danger" ? "text-burgundy" : "text-sage-600";
   return (
-    <div className="bg-card rounded-2xl p-3 shadow-soft border border-sage-200/40">
+    <div
+      onClick={onClick}
+      className={cn(
+        "bg-card rounded-2xl p-3 shadow-soft border border-sage-200/40",
+        clickable && "cursor-pointer hover:shadow-md active:scale-[0.98] transition-all"
+      )}
+    >
       <p className="text-[11px] text-muted-foreground font-semibold leading-tight">{label}</p>
       <p className={`text-lg font-black mt-1 truncate ${cls}`}>{value}</p>
     </div>
