@@ -12,6 +12,8 @@ import { RequireAuth } from "@/components/RequireAuth";
 import { OnboardingTour } from "@/components/OnboardingTour";
 import Welcome from "./pages/Welcome";
 import Auth from "./pages/Auth";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Buildings from "./pages/Buildings";
 import BuildingDetail from "./pages/BuildingDetail";
