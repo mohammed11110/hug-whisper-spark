@@ -158,7 +158,21 @@ export default function UnitDetail() {
       </div>
 
       <div className="px-5 py-5 space-y-4 animate-float-up" key={tab}>
-        {tab === "details" && <DetailsTab unit={unit} payments={payments} format={format} t2={t2} lang={lang} onPay={() => setPayOpen(true)} onLeasePDF={() => exportLease("download")} onLeasePrint={() => exportLease("print")} reload={load} />}
+        {priorArrears.count > 0 && (
+          <div className="rounded-2xl border border-burgundy/30 bg-burgundy/10 px-4 py-3 flex items-center justify-between">
+            <span className="text-xs font-semibold text-burgundy">⚠️ {t2("previous_tenant_arrears")}</span>
+            <span className="text-sm font-black text-burgundy">{format(priorArrears.total)}</span>
+          </div>
+        )}
+        {tab === "details" && (
+          unit.tenant_name ? (
+            <DetailsTab unit={unit} payments={payments} format={format} t2={t2} lang={lang}
+              onPay={() => setPayOpen(true)} onLeasePDF={() => exportLease("download")} onLeasePrint={() => exportLease("print")}
+              onEnd={() => setEndOpen(true)} reload={load} />
+          ) : (
+            <VacantState t2={t2} onAdd={() => setNewTenantOpen(true)} />
+          )
+        )}
         {tab === "maintenance" && <MaintenanceTab />}
         {tab === "utilities" && <UtilitiesTab unit={unit} reload={load} />}
         {tab === "legal" && <LegalTab unit={unit} reload={load} />}
@@ -167,6 +181,21 @@ export default function UnitDetail() {
 
       <ConfirmDeleteDialog open={delOpen} onOpenChange={setDelOpen} onConfirm={handleDelete} />
       <AddPaymentDialog open={payOpen} onOpenChange={setPayOpen} presetUnitId={unit.id} onSaved={load} />
+      <EndTenancyDialog open={endOpen} onOpenChange={setEndOpen} unit={unit} tenancyId={activeTenancyId} onDone={load} />
+      <NewTenancyDialog open={newTenantOpen} onOpenChange={setNewTenantOpen} unit={unit} onDone={load} />
+    </div>
+  );
+}
+
+function VacantState({ t2, onAdd }: any) {
+  return (
+    <div className="rounded-2xl border-2 border-dashed border-sage-300/60 bg-card px-6 py-10 text-center space-y-3">
+      <div className="text-4xl">🏠</div>
+      <h3 className="text-base font-black text-sage-600">{t2("vacant_unit")}</h3>
+      <p className="text-xs text-muted-foreground">{t2("vacant_unit_msg")}</p>
+      <Button onClick={onAdd} className="rounded-xl bg-gradient-sage text-primary-foreground h-11 mt-2">
+        <Plus className="h-4 w-4 me-1.5" />{t2("add_tenant")}
+      </Button>
     </div>
   );
 }
