@@ -137,10 +137,17 @@ export default function Auth() {
             {pwError && <p className="text-xs text-burgundy">{t2("password_english_only")}</p>}
           </div>
 
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <Checkbox checked={remember} onCheckedChange={(v) => setRemember(!!v)} />
-            <span className="text-sm text-sage-600 font-medium">{t2("remember_me")}</span>
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <Checkbox checked={remember} onCheckedChange={(v) => setRemember(!!v)} />
+              <span className="text-sm text-sage-600 font-medium">{t2("remember_me")}</span>
+            </label>
+            {mode === "signin" && (
+              <Link to="/forgot-password" className="text-sm text-sage-600 font-medium hover:underline">
+                {t2("forgot_password")}
+              </Link>
+            )}
+          </div>
 
           <Button type="submit" disabled={busy} className="w-full h-13 py-3.5 rounded-2xl bg-gradient-sage text-primary-foreground font-semibold shadow-glow">
             {busy ? t("loading") : mode === "signup" ? t("sign_up") : t("sign_in")}

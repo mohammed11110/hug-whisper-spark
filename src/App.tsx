@@ -12,6 +12,8 @@ import { RequireAuth } from "@/components/RequireAuth";
 import { OnboardingTour } from "@/components/OnboardingTour";
 import Welcome from "./pages/Welcome";
 import Auth from "./pages/Auth";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Buildings from "./pages/Buildings";
 import BuildingDetail from "./pages/BuildingDetail";
@@ -49,6 +51,8 @@ const App = () => (
                   <Routes>
                     <Route path="/welcome" element={<Welcome />} />
                     <Route path="/auth" element={<Auth />} />
+                    <Route path="/forgot-password" element={<ForgotPassword />} />
+                    <Route path="/reset-password" element={<ResetPassword />} />
                     <Route path="/" element={<RequireAuth><Dashboard /></RequireAuth>} />
                     <Route path="/buildings" element={<RequireAuth><Buildings /></RequireAuth>} />
                     <Route path="/buildings/:id" element={<RequireAuth><BuildingDetail /></RequireAuth>} />
