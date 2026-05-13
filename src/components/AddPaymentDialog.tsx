@@ -151,7 +151,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     onSaved?.();
   };
 
-  const monthOpts = getMonthOptions(lang);
+  const years = yearOptions();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
