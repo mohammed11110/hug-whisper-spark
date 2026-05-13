@@ -28,6 +28,7 @@ import Team from "./pages/Team";
 import Install from "./pages/Install";
 import Pricing from "./pages/Pricing";
 import Assistant from "./pages/Assistant";
+import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
