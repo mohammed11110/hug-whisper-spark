@@ -85,7 +85,7 @@ export default function Reports() {
         if (unitIds.length) {
           const { data: psData } = await supabase
             .from("payments")
-            .select("id, unit_id, amount, payment_date")
+            .select("id, unit_id, amount, payment_date, period_start")
             .in("unit_id", unitIds);
           ps = (psData as Payment[]) || [];
         }
