@@ -183,9 +183,9 @@ export default function MonthlyCollection() {
         {/* KPI cards */}
         <div className="grid grid-cols-2 gap-3 animate-float-up">
           <Kpi label={t2("expected_total")} value={format(totalDue)} tone="muted" />
-          <Kpi label={t2("collected_total")} value={format(totalPaid)} tone="sage" />
+          <Kpi label={t2("collected_total")} value={format(totalPaid)} tone="sage" onClick={openPaymentsDialog} clickable />
           <Kpi label={t2("outstanding_balance")} value={format(remaining)} tone={remaining > 0 ? "danger" : "sage"} />
-          <Kpi label={t2("collection_rate")} value={`${rate}%`} tone="sage" />
+          <Kpi label={t2("collection_rate")} value={`${rate}%`} tone="sage" onClick={openPaymentsDialog} clickable />
         </div>
 
         <div className="grid grid-cols-2 gap-3 animate-float-up">
