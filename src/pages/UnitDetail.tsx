@@ -160,8 +160,27 @@ export default function UnitDetail() {
   );
 }
 
-function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLeasePrint }: any) {
+function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLeasePrint, reload }: any) {
   const bal = computeBalance(unit, payments);
+  const [editingArrears, setEditingArrears] = useState(false);
+  const [arrearsVal, setArrearsVal] = useState<string>(String(unit.opening_balance ?? 0));
+  const [arrearsDate, setArrearsDate] = useState<string>(unit.opening_balance_date || new Date().toISOString().slice(0, 10));
+  const [savingArrears, setSavingArrears] = useState(false);
+
+  const saveArrears = async () => {
+    setSavingArrears(true);
+    const val = parseFloat(arrearsVal) || 0;
+    const { error } = await supabase.from("units").update({
+      opening_balance: val,
+      opening_balance_date: val > 0 ? arrearsDate : null,
+    }).eq("id", unit.id);
+    setSavingArrears(false);
+    if (error) return toast.error(error.message);
+    toast.success("✓");
+    setEditingArrears(false);
+    reload?.();
+  };
+
   return (
     <>
       <Card>
@@ -181,7 +200,48 @@ function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLea
       {unit.tenant_name && (
         <Card>
           <h3 className="text-sage-600 font-bold mb-3 text-sm">{t2("payment_summary")}</h3>
-          <Row icon={Wallet} label={t2("arrears")} value={format(bal.opening)} />
+          {/* Editable arrears row */}
+          {!editingArrears ? (
+            <div className="flex items-center justify-between py-2 border-b border-sage-200/30">
+              <span className="text-xs text-muted-foreground inline-flex items-center gap-2">
+                <Wallet className="h-3.5 w-3.5" />{t2("arrears")}
+              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-sage-600">{format(bal.opening)}</span>
+                <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-sage-500 hover:text-sage-600"
+                  onClick={() => { setArrearsVal(String(unit.opening_balance ?? 0)); setEditingArrears(true); }}>
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="py-2 border-b border-sage-200/30 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-muted-foreground inline-flex items-center gap-2">
+                  <Wallet className="h-3.5 w-3.5" />{t2("arrears_amount")}
+                </span>
+                <Input type="number" inputMode="decimal" min={0} step="0.001" value={arrearsVal}
+                  onChange={(e) => setArrearsVal(e.target.value)}
+                  className="h-9 w-32 text-end rounded-lg border-sage-200" autoFocus />
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-muted-foreground">{lang === "ar" ? "تاريخ الرصيد" : "Balance date"}</span>
+                <Input type="date" value={arrearsDate} onChange={(e) => setArrearsDate(e.target.value)}
+                  className="h-9 w-40 rounded-lg border-sage-200" />
+              </div>
+              <p className="text-[11px] text-muted-foreground">{t2("arrears_hint")}</p>
+              <div className="flex gap-1.5 justify-end">
+                <Button size="sm" variant="ghost" className="h-8 rounded-lg text-muted-foreground"
+                  onClick={() => setEditingArrears(false)} disabled={savingArrears}>
+                  <X className="h-3.5 w-3.5 me-1" />{t2("cancel")}
+                </Button>
+                <Button size="sm" className="h-8 rounded-lg bg-gradient-sage text-primary-foreground"
+                  onClick={saveArrears} disabled={savingArrears}>
+                  <Check className="h-3.5 w-3.5 me-1" />{t2("save")}
+                </Button>
+              </div>
+            </div>
+          )}
           <Row icon={Wallet} label={t2("total_due")} value={format(bal.totalDue)} />
           <Row icon={Wallet} label={t2("total_received")} value={format(bal.paid)} />
           <div className="flex items-center justify-between pt-2 mt-1 border-t border-sage-200/40">
