@@ -24,6 +24,7 @@ export default function Dashboard() {
   const { t } = useI18n();
   const { format } = useCurrency();
   const { user } = useAuth();
+  const { settings } = useAppSettings();
   const [stats, setStats] = useState<Stats>({ buildings: 0, units: 0, overdue: 0, expiring: 0, collected: 0, pending: 0 });
   const [profileName, setProfileName] = useState("");
 
