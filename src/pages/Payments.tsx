@@ -84,6 +84,7 @@ export default function Payments() {
         amount: Number(p.amount),
         payment_date: p.payment_date,
         receipt_number: p.receipt_number,
+        period_start: p.period_start,
         unit_number: u?.unit_number ?? "—",
         tenant_name: u?.tenant_name ?? null,
         building_name: b?.name || b?.name_en || "—",
