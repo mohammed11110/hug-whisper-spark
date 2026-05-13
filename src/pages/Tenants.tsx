@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Search, Phone, Users, ChevronLeft, MessageCircle } from "lucide-react";
+import { Search, Phone, Users, ChevronLeft, MessageCircle, CheckCircle2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
@@ -11,6 +11,7 @@ import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useAppSettings } from "@/lib/appSettings";
 import { openWhatsApp, fillTemplate } from "@/lib/whatsapp";
+import { toast } from "sonner";
 
 interface TenantRow {
   unit_id: string;
@@ -41,6 +42,38 @@ export default function Tenants() {
   const [rows, setRows] = useState<TenantRow[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [collecting, setCollecting] = useState<string | null>(null);
+
+  const quickCollect = async (r: TenantRow) => {
+    setCollecting(r.unit_id);
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = today.getMonth();
+    const lastDay = new Date(y, m + 1, 0).getDate();
+    const start = `${y}-${String(m + 1).padStart(2, "0")}-01`;
+    const end = `${y}-${String(m + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+    const today_iso = today.toISOString().slice(0, 10);
+    const { error } = await supabase.from("payments").insert({
+      unit_id: r.unit_id,
+      amount: r.rent_amount,
+      expected_amount: r.rent_amount,
+      payment_date: today_iso,
+      receipt_number: `R-${Date.now()}`,
+      payment_method: "cash",
+      period_start: start,
+      period_end: end,
+    });
+    if (!error) {
+      await supabase.from("units").update({ last_paid_date: today_iso, status: "paid" }).eq("id", r.unit_id);
+      setRows((prev) => prev.map((x) => x.unit_id === r.unit_id
+        ? { ...x, status: "paid", last_paid_date: today_iso, total_paid: x.total_paid + r.rent_amount }
+        : x));
+      toast.success(lang === "ar" ? "تم تسجيل الدفعة ✓" : "Payment recorded ✓");
+    } else {
+      toast.error(error.message);
+    }
+    setCollecting(null);
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -144,19 +177,33 @@ export default function Tenants() {
                       <span>{t2("contract_end")}: {r.contract_end_date}</span>
                     )}
                   </div>
-                  {r.tenant_phone && (
-                    <button onClick={(e) => {
-                      e.preventDefault(); e.stopPropagation();
-                      const tpl = r.status === "late" ? settings.templates.late : settings.templates.reminder;
-                      openWhatsApp(r.tenant_phone!, fillTemplate(tpl, {
-                        tenant: r.tenant_name, unit: r.unit_number, building: r.building_name, amount: format(r.rent_amount),
-                      }));
-                    }}
-                      className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#25D366]/15 text-[#128C7E] text-[11px] font-bold hover:bg-[#25D366]/25">
-                      <MessageCircle className="h-3 w-3" />
-                      {lang === "ar" ? "إرسال تذكير" : "Send reminder"}
-                    </button>
-                  )}
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {r.status !== "paid" && (
+                      <button
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); quickCollect(r); }}
+                        disabled={collecting === r.unit_id}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sage-500 text-primary-foreground text-[11px] font-bold hover:bg-sage-600 disabled:opacity-60"
+                      >
+                        <CheckCircle2 className="h-3 w-3" />
+                        {collecting === r.unit_id
+                          ? (lang === "ar" ? "..." : "...")
+                          : (lang === "ar" ? `تم استلام ${format(r.rent_amount)}` : `Collected ${format(r.rent_amount)}`)}
+                      </button>
+                    )}
+                    {r.tenant_phone && (
+                      <button onClick={(e) => {
+                        e.preventDefault(); e.stopPropagation();
+                        const tpl = r.status === "late" ? settings.templates.late : settings.templates.reminder;
+                        openWhatsApp(r.tenant_phone!, fillTemplate(tpl, {
+                          tenant: r.tenant_name, unit: r.unit_number, building: r.building_name, amount: format(r.rent_amount),
+                        }));
+                      }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#25D366]/15 text-[#128C7E] text-[11px] font-bold hover:bg-[#25D366]/25">
+                        <MessageCircle className="h-3 w-3" />
+                        {lang === "ar" ? "إرسال تذكير" : "Send reminder"}
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <ChevronLeft className="h-4 w-4 text-sage-400 mt-1 rtl:rotate-180" />
               </div>

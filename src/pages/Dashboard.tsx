@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
 import { useAuth } from "@/lib/auth";
+import { useAppSettings } from "@/lib/appSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 
@@ -23,6 +24,7 @@ export default function Dashboard() {
   const { t } = useI18n();
   const { format } = useCurrency();
   const { user } = useAuth();
+  const { settings } = useAppSettings();
   const [stats, setStats] = useState<Stats>({ buildings: 0, units: 0, overdue: 0, expiring: 0, collected: 0, pending: 0 });
   const [profileName, setProfileName] = useState("");
 
@@ -152,14 +154,16 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Floating AI assistant FAB */}
-      <Link
-        to="/assistant"
-        aria-label="AI Assistant"
-        className="fixed z-40 bottom-24 end-4 h-14 w-14 rounded-full bg-gradient-sage text-primary-foreground shadow-glow grid place-items-center hover:scale-105 transition-transform"
-      >
-        <Sparkles className="h-6 w-6" />
-      </Link>
+      {/* Floating AI assistant FAB (opt-in via settings) */}
+      {settings.showAiFab && (
+        <Link
+          to="/assistant"
+          aria-label="AI Assistant"
+          className="fixed z-40 bottom-24 end-4 h-14 w-14 rounded-full bg-gradient-sage text-primary-foreground shadow-glow grid place-items-center hover:scale-105 transition-transform"
+        >
+          <Sparkles className="h-6 w-6" />
+        </Link>
+      )}
 
       <BottomNav />
     </div>

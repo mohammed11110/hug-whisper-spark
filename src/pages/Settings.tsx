@@ -190,6 +190,20 @@ export default function Settings() {
           </div>
           <ArrowRight className="h-4 w-4 text-sage-500 rtl:rotate-180" />
         </Link>
+        <div className="bg-card border border-sage-200/60 rounded-2xl p-4 shadow-soft flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-sage-100 text-sage-600"><Sparkles className="h-4 w-4" /></div>
+          <div className="flex-1">
+            <p className="font-bold text-sm text-sage-600">{lang === "ar" ? "زر المساعد الذكي العائم" : "Floating AI button"}</p>
+            <p className="text-[11px] text-muted-foreground">{lang === "ar" ? "إظهار زر سريع للمساعد على الرئيسية" : "Show quick AI button on dashboard"}</p>
+          </div>
+          <button
+            onClick={() => { update({ showAiFab: !settings.showAiFab }); toast.success(L("saved")); }}
+            className={`relative w-11 h-6 rounded-full transition-colors ${settings.showAiFab ? "bg-sage-500" : "bg-muted"}`}
+            aria-label="toggle ai fab"
+          >
+            <span className={`absolute top-0.5 ${settings.showAiFab ? "end-0.5" : "start-0.5"} h-5 w-5 rounded-full bg-white shadow-soft transition-all`} />
+          </button>
+        </div>
       </section>
 
       {/* Live receipt preview */}
