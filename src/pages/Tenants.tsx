@@ -177,19 +177,33 @@ export default function Tenants() {
                       <span>{t2("contract_end")}: {r.contract_end_date}</span>
                     )}
                   </div>
-                  {r.tenant_phone && (
-                    <button onClick={(e) => {
-                      e.preventDefault(); e.stopPropagation();
-                      const tpl = r.status === "late" ? settings.templates.late : settings.templates.reminder;
-                      openWhatsApp(r.tenant_phone!, fillTemplate(tpl, {
-                        tenant: r.tenant_name, unit: r.unit_number, building: r.building_name, amount: format(r.rent_amount),
-                      }));
-                    }}
-                      className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#25D366]/15 text-[#128C7E] text-[11px] font-bold hover:bg-[#25D366]/25">
-                      <MessageCircle className="h-3 w-3" />
-                      {lang === "ar" ? "إرسال تذكير" : "Send reminder"}
-                    </button>
-                  )}
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {r.status !== "paid" && (
+                      <button
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); quickCollect(r); }}
+                        disabled={collecting === r.unit_id}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sage-500 text-primary-foreground text-[11px] font-bold hover:bg-sage-600 disabled:opacity-60"
+                      >
+                        <CheckCircle2 className="h-3 w-3" />
+                        {collecting === r.unit_id
+                          ? (lang === "ar" ? "..." : "...")
+                          : (lang === "ar" ? `تم استلام ${format(r.rent_amount)}` : `Collected ${format(r.rent_amount)}`)}
+                      </button>
+                    )}
+                    {r.tenant_phone && (
+                      <button onClick={(e) => {
+                        e.preventDefault(); e.stopPropagation();
+                        const tpl = r.status === "late" ? settings.templates.late : settings.templates.reminder;
+                        openWhatsApp(r.tenant_phone!, fillTemplate(tpl, {
+                          tenant: r.tenant_name, unit: r.unit_number, building: r.building_name, amount: format(r.rent_amount),
+                        }));
+                      }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#25D366]/15 text-[#128C7E] text-[11px] font-bold hover:bg-[#25D366]/25">
+                        <MessageCircle className="h-3 w-3" />
+                        {lang === "ar" ? "إرسال تذكير" : "Send reminder"}
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <ChevronLeft className="h-4 w-4 text-sage-400 mt-1 rtl:rotate-180" />
               </div>
