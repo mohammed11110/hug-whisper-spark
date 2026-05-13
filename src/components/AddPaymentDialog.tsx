@@ -66,10 +66,12 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const [receipt, setReceipt] = useState("");
   const [method, setMethod] = useState<string>("cash");
   const [notes, setNotes] = useState("");
-  const [periodMonth, setPeriodMonth] = useState("");
-  const [periodStart, setPeriodStart] = useState("");
-  const [periodEnd, setPeriodEnd] = useState("");
+  const [periodYear, setPeriodYear] = useState<number>(() => new Date().getFullYear());
+  const [periodMonthNum, setPeriodMonthNum] = useState<number>(() => new Date().getMonth() + 1);
   const [saving, setSaving] = useState(false);
+
+  const { start: periodStart, end: periodEnd } = monthRange(periodYear, periodMonthNum);
+  const monthNames = lang === "ar" ? AR_MONTHS : EN_MONTHS;
 
   useEffect(() => {
     if (!open) return;
@@ -97,11 +99,9 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         }
       }
       if (!receipt) setReceipt(`R-${Date.now()}`);
-      const moOpts = getMonthOptions(lang);
-      const cur = moOpts.find((o) => o.value === new Date().toISOString().slice(0, 7)) || moOpts[2];
-      setPeriodMonth(cur.value);
-      setPeriodStart(cur.start);
-      setPeriodEnd(cur.end);
+      const today = new Date();
+      setPeriodYear(today.getFullYear());
+      setPeriodMonthNum(today.getMonth() + 1);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, presetUnitId]);
@@ -110,16 +110,6 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     setUnitId(id);
     const u = units.find((x) => x.id === id);
     if (u) { setAmount(String(u.rent_amount)); setExpected(String(u.rent_amount)); }
-  };
-
-  const onPickMonth = (val: string) => {
-    const moOpts = getMonthOptions(lang);
-    const opt = moOpts.find((o) => o.value === val);
-    if (opt) {
-      setPeriodMonth(opt.value);
-      setPeriodStart(opt.start);
-      setPeriodEnd(opt.end);
-    }
   };
 
   const remaining = Math.max(0, (Number(expected) || 0) - (Number(amount) || 0));
