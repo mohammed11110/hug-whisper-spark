@@ -12,6 +12,7 @@ import { buildLeaseHTML, downloadHTMLAsPDF, printHTML } from "@/lib/pdfDocs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { AddPaymentDialog } from "@/components/AddPaymentDialog";
+import { computeBalance, type PaymentForBalance } from "@/lib/balance";
 
 interface Unit {
   id: string; building_id: string; unit_number: string; floor: number; type: string;
@@ -42,6 +43,7 @@ export default function UnitDetail() {
   const { format, currency } = useCurrency();
   const { settings } = useAppSettings();
   const [unit, setUnit] = useState<Unit | null>(null);
+  const [payments, setPayments] = useState<PaymentForBalance[]>([]);
   const [buildingName, setBuildingName] = useState<string>("");
   const [tab, setTab] = useState<Tab>("details");
   const [delOpen, setDelOpen] = useState(false);
@@ -55,6 +57,8 @@ export default function UnitDetail() {
       const { data: b } = await supabase.from("buildings").select("name, name_en").eq("id", data.building_id).maybeSingle();
       if (b) setBuildingName((b as any).name || (b as any).name_en || "");
     }
+    const { data: ps } = await supabase.from("payments").select("unit_id,amount,deleted_at").eq("unit_id", id).is("deleted_at", null);
+    setPayments((ps || []) as any);
   };
   useEffect(() => { load(); }, [id]);
 
@@ -143,7 +147,7 @@ export default function UnitDetail() {
       </div>
 
       <div className="px-5 py-5 space-y-4 animate-float-up" key={tab}>
-        {tab === "details" && <DetailsTab unit={unit} format={format} t2={t2} lang={lang} onPay={() => setPayOpen(true)} onLeasePDF={() => exportLease("download")} onLeasePrint={() => exportLease("print")} />}
+        {tab === "details" && <DetailsTab unit={unit} payments={payments} format={format} t2={t2} lang={lang} onPay={() => setPayOpen(true)} onLeasePDF={() => exportLease("download")} onLeasePrint={() => exportLease("print")} />}
         {tab === "maintenance" && <MaintenanceTab />}
         {tab === "utilities" && <UtilitiesTab unit={unit} reload={load} />}
         {tab === "legal" && <LegalTab unit={unit} reload={load} />}
@@ -156,7 +160,8 @@ export default function UnitDetail() {
   );
 }
 
-function DetailsTab({ unit, format, t2, lang, onPay, onLeasePDF, onLeasePrint }: any) {
+function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLeasePrint }: any) {
+  const bal = computeBalance(unit, payments);
   return (
     <>
       <Card>
@@ -173,6 +178,18 @@ function DetailsTab({ unit, format, t2, lang, onPay, onLeasePDF, onLeasePrint }:
         <Row icon={Receipt} label={t2("last_payment")} value={unit.last_paid_date || "—"} />
         <Row icon={Calendar} label={t2("contract_end")} value={unit.contract_end_date || "—"} />
       </Card>
+      {unit.tenant_name && (
+        <Card>
+          <h3 className="text-sage-600 font-bold mb-3 text-sm">{t2("payment_summary")}</h3>
+          <Row icon={Wallet} label={t2("arrears")} value={format(bal.opening)} />
+          <Row icon={Wallet} label={t2("total_due")} value={format(bal.totalDue)} />
+          <Row icon={Wallet} label={t2("total_received")} value={format(bal.paid)} />
+          <div className="flex items-center justify-between pt-2 mt-1 border-t border-sage-200/40">
+            <span className="text-sm font-bold text-sage-600">{t2("outstanding_balance")}</span>
+            <span className={`text-base font-black ${bal.outstanding > 0 ? "text-burgundy" : "text-sage-600"}`}>{format(bal.outstanding)}</span>
+          </div>
+        </Card>
+      )}
       <div className="grid grid-cols-2 gap-2.5">
         <Button variant="outline" onClick={onLeasePDF} className="rounded-xl border-sage-300 text-sage-600 h-12 font-semibold">
           <FileSignature className="h-4 w-4 me-1.5" />{lang === "ar" ? "عقد PDF" : "Lease PDF"}
