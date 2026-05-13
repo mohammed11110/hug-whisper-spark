@@ -1,11 +1,13 @@
 import { NavLink } from "react-router-dom";
 import { useI18n } from "@/lib/i18n";
+import { useT2 } from "@/lib/i18n2";
 
 const tabs = [
-  { to: "/", label: "dashboard", icon: "◐" },
-  { to: "/buildings", label: "buildings", icon: "⌬" },
-  { to: "/tenants", label: "tenants", icon: "◉" },
-  { to: "/payments", label: "payments", icon: "◈" },
+  { to: "/", label: "dashboard", icon: "◐", t2: false },
+  { to: "/buildings", label: "buildings", icon: "⌬", t2: false },
+  { to: "/tenants", label: "tenants", icon: "◉", t2: false },
+  { to: "/payments", label: "payments", icon: "◈", t2: false },
+  { to: "/collection", label: "monthly_collection", icon: "▦", t2: true },
 ];
 
 export function BottomNav() {
