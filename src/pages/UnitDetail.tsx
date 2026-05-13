@@ -193,7 +193,7 @@ function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLea
       <Card>
         <h3 className="text-sage-600 font-bold mb-3 text-sm">{t2("rent_amount")}</h3>
         <Row icon={Wallet} label={t2("rent_amount")} value={`${format(Number(unit.rent_amount))} / ${t2(unit.rent_type)}`} />
-        <Row icon={Calendar} label={t2("due_day")} value={`${unit.due_day}`} />
+        <DueDateRow unit={unit} t2={t2} lang={lang} />
         <Row icon={Receipt} label={t2("last_payment")} value={unit.last_paid_date || "—"} />
         <Row icon={Calendar} label={t2("contract_end")} value={unit.contract_end_date || "—"} />
       </Card>
@@ -421,6 +421,71 @@ function Row({ icon: Icon, label, value }: any) {
       <Icon className="h-4 w-4 text-sage-400" />
       <span className="text-xs text-muted-foreground flex-1">{label}</span>
       <span className="text-sm font-semibold text-sage-600 truncate max-w-[55%] text-end">{value}</span>
+    </div>
+  );
+}
+
+function computeNextDue(dueDay: number, lastPaidDate: string | null): Date {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const day = Math.max(1, Math.min(31, dueDay || 1));
+  const lastPaid = lastPaidDate ? new Date(lastPaidDate) : null;
+  // Anchor month: month after last payment, else current month
+  let anchor: Date;
+  if (lastPaid) {
+    anchor = new Date(lastPaid.getFullYear(), lastPaid.getMonth() + 1, 1);
+  } else {
+    anchor = new Date(today.getFullYear(), today.getMonth(), 1);
+  }
+  const clamp = (y: number, m: number) => {
+    const lastOfMonth = new Date(y, m + 1, 0).getDate();
+    return new Date(y, m, Math.min(day, lastOfMonth));
+  };
+  let next = clamp(anchor.getFullYear(), anchor.getMonth());
+  // If already passed and not paid for that period, push forward until it's not in the past beyond grace
+  // We want the *upcoming* one — only advance if next is far behind (more than ~60 days) to avoid stale anchors
+  while (next.getTime() < today.getTime() - 60 * 86400000) {
+    const m = next.getMonth() + 1;
+    next = clamp(next.getFullYear(), m);
+  }
+  return next;
+}
+
+function DueDateRow({ unit, t2, lang }: any) {
+  const next = computeNextDue(unit.due_day, unit.last_paid_date);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const diff = Math.round((next.getTime() - today.getTime()) / 86400000);
+  const locale = lang === "ar" ? "ar" : lang === "fr" ? "fr" : lang === "es" ? "es" : lang === "tr" ? "tr" : "en";
+  const dateStr = next.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" });
+  const dayLabel = (t2("due_day_of_month") as string).replace("{n}", String(unit.due_day));
+
+  let badgeText: string; let badgeCls: string;
+  if (diff < 0) {
+    badgeText = (t2("days_overdue") as string).replace("{n}", String(Math.abs(diff)));
+    badgeCls = "bg-burgundy/15 text-burgundy";
+  } else if (diff === 0) {
+    badgeText = t2("due_today") as string;
+    badgeCls = "bg-terracotta/15 text-terracotta";
+  } else if (diff <= 3) {
+    badgeText = (t2("days_left") as string).replace("{n}", String(diff));
+    badgeCls = "bg-terracotta/15 text-terracotta";
+  } else {
+    badgeText = (t2("days_left") as string).replace("{n}", String(diff));
+    badgeCls = "bg-sage-300/30 text-sage-600";
+  }
+
+  return (
+    <div className="py-2 border-b border-sage-200/30 space-y-1.5">
+      <div className="flex items-center gap-3">
+        <Calendar className="h-4 w-4 text-sage-400" />
+        <span className="text-xs text-muted-foreground flex-1">{t2("due_day")}</span>
+        <span className="text-sm font-semibold text-sage-600 text-end">{dayLabel}</span>
+      </div>
+      <div className="flex items-center gap-3 ps-7">
+        <span className="text-[11px] text-muted-foreground flex-1">{t2("next_due")}</span>
+        <span className="text-xs font-semibold text-sage-600">{dateStr}</span>
+        <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${badgeCls}`}>{badgeText}</span>
+      </div>
     </div>
   );
 }
