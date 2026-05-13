@@ -229,10 +229,14 @@ export type Database = {
           email: string | null
           id: string
           name: string | null
+          paddle_customer_id: string | null
+          paddle_subscription_id: string | null
           phone: string | null
           subscription_expires_at: string | null
+          subscription_interval: string | null
           subscription_plan: string
           subscription_status: string
+          trial_ends_at: string | null
           updated_at: string
         }
         Insert: {
@@ -242,10 +246,14 @@ export type Database = {
           email?: string | null
           id: string
           name?: string | null
+          paddle_customer_id?: string | null
+          paddle_subscription_id?: string | null
           phone?: string | null
           subscription_expires_at?: string | null
+          subscription_interval?: string | null
           subscription_plan?: string
           subscription_status?: string
+          trial_ends_at?: string | null
           updated_at?: string
         }
         Update: {
@@ -255,10 +263,14 @@ export type Database = {
           email?: string | null
           id?: string
           name?: string | null
+          paddle_customer_id?: string | null
+          paddle_subscription_id?: string | null
           phone?: string | null
           subscription_expires_at?: string | null
+          subscription_interval?: string | null
           subscription_plan?: string
           subscription_status?: string
+          trial_ends_at?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -299,6 +311,51 @@ export type Database = {
           redeemed_at?: string | null
           redeemed_by?: string | null
           used_count?: number
+        }
+        Relationships: []
+      }
+      subscription_events: {
+        Row: {
+          amount: number | null
+          created_at: string
+          currency: string | null
+          event_type: string
+          id: string
+          invoice_url: string | null
+          occurred_at: string
+          paddle_event_id: string | null
+          paddle_subscription_id: string | null
+          paddle_transaction_id: string | null
+          payload: Json | null
+          user_id: string
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          currency?: string | null
+          event_type: string
+          id?: string
+          invoice_url?: string | null
+          occurred_at?: string
+          paddle_event_id?: string | null
+          paddle_subscription_id?: string | null
+          paddle_transaction_id?: string | null
+          payload?: Json | null
+          user_id: string
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          currency?: string | null
+          event_type?: string
+          id?: string
+          invoice_url?: string | null
+          occurred_at?: string
+          paddle_event_id?: string | null
+          paddle_subscription_id?: string | null
+          paddle_transaction_id?: string | null
+          payload?: Json | null
+          user_id?: string
         }
         Relationships: []
       }
