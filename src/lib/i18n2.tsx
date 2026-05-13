@@ -32,7 +32,7 @@ type Key =
   | "end_date" | "end_reason" | "deposit_outcome" | "deposit_full_refund" | "deposit_partial" | "deposit_kept"
   | "refund_amount" | "outstanding_at_end" | "settle_debt" | "carry_debt"
   | "previous_tenant_arrears" | "tenancy_ended_ok" | "tenancy_started_ok"
-  | "contract_start_date";
+  | "contract_start_date" | "vacancy" | "expected_month";
 
 const dict: Record<Key, Partial<Record<Lang, string>>> = {
   all: { ar: "الكل", en: "All", ur: "تمام", zh: "全部", hi: "सभी", bn: "সব", fr: "Tous", es: "Todos", tr: "Tümü" },
