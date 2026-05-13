@@ -42,6 +42,38 @@ export default function Tenants() {
   const [rows, setRows] = useState<TenantRow[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [collecting, setCollecting] = useState<string | null>(null);
+
+  const quickCollect = async (r: TenantRow) => {
+    setCollecting(r.unit_id);
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = today.getMonth();
+    const lastDay = new Date(y, m + 1, 0).getDate();
+    const start = `${y}-${String(m + 1).padStart(2, "0")}-01`;
+    const end = `${y}-${String(m + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+    const today_iso = today.toISOString().slice(0, 10);
+    const { error } = await supabase.from("payments").insert({
+      unit_id: r.unit_id,
+      amount: r.rent_amount,
+      expected_amount: r.rent_amount,
+      payment_date: today_iso,
+      receipt_number: `R-${Date.now()}`,
+      payment_method: "cash",
+      period_start: start,
+      period_end: end,
+    });
+    if (!error) {
+      await supabase.from("units").update({ last_paid_date: today_iso, status: "paid" }).eq("id", r.unit_id);
+      setRows((prev) => prev.map((x) => x.unit_id === r.unit_id
+        ? { ...x, status: "paid", last_paid_date: today_iso, total_paid: x.total_paid + r.rent_amount }
+        : x));
+      toast.success(lang === "ar" ? "تم تسجيل الدفعة ✓" : "Payment recorded ✓");
+    } else {
+      toast.error(error.message);
+    }
+    setCollecting(null);
+  };
 
   useEffect(() => {
     if (!user) return;
