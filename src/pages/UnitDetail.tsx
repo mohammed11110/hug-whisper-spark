@@ -301,6 +301,9 @@ function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLea
       <Button variant="ghost" onClick={onLeasePrint} className="w-full rounded-xl text-sage-500 h-10 text-xs">
         {lang === "ar" ? "🖨️ طباعة العقد" : "🖨️ Print contract"}
       </Button>
+      <Button variant="outline" onClick={onEnd} className="w-full rounded-xl border-burgundy/40 text-burgundy hover:bg-burgundy/10 h-11">
+        {t2("end_tenancy")}
+      </Button>
     </>
   );
 }
