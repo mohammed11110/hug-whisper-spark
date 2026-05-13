@@ -29,6 +29,26 @@ interface Props {
 
 const PAYMENT_METHODS = ["cash", "transfer", "cheque", "card"] as const;
 
+const AR_MONTHS = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+const EN_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function getMonthOptions(lang: string) {
+  const names = lang === "ar" ? AR_MONTHS : EN_MONTHS;
+  const opts: { label: string; value: string; start: string; end: string }[] = [];
+  const today = new Date();
+  for (let i = -2; i <= 1; i++) {
+    const d = new Date(today.getFullYear(), today.getMonth() + i, 1);
+    const y = d.getFullYear();
+    const m = d.getMonth();
+    const lastDay = new Date(y, m + 1, 0).getDate();
+    const start = `${y}-${String(m + 1).padStart(2, "0")}-01`;
+    const end = `${y}-${String(m + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+    const label = `${names[m]} ${y}`;
+    opts.push({ label, value: `${y}-${String(m + 1).padStart(2, "0")}`, start, end });
+  }
+  return opts;
+}
+
 const schema = z.object({
   unit_id: z.string().uuid({ message: "Select a unit" }),
   amount: z.number().positive().max(10_000_000),
@@ -48,6 +68,9 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const [receipt, setReceipt] = useState("");
   const [method, setMethod] = useState<string>("cash");
   const [notes, setNotes] = useState("");
+  const [periodMonth, setPeriodMonth] = useState("");
+  const [periodStart, setPeriodStart] = useState("");
+  const [periodEnd, setPeriodEnd] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -76,6 +99,11 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         }
       }
       if (!receipt) setReceipt(`R-${Date.now()}`);
+      const moOpts = getMonthOptions(lang);
+      const cur = moOpts.find((o) => o.value === new Date().toISOString().slice(0, 7)) || moOpts[2];
+      setPeriodMonth(cur.value);
+      setPeriodStart(cur.start);
+      setPeriodEnd(cur.end);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, presetUnitId]);
@@ -84,6 +112,16 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     setUnitId(id);
     const u = units.find((x) => x.id === id);
     if (u) { setAmount(String(u.rent_amount)); setExpected(String(u.rent_amount)); }
+  };
+
+  const onPickMonth = (val: string) => {
+    const moOpts = getMonthOptions(lang);
+    const opt = moOpts.find((o) => o.value === val);
+    if (opt) {
+      setPeriodMonth(opt.value);
+      setPeriodStart(opt.start);
+      setPeriodEnd(opt.end);
+    }
   };
 
   const remaining = Math.max(0, (Number(expected) || 0) - (Number(amount) || 0));
@@ -108,9 +146,10 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
       receipt_number: receipt.trim() || null,
       payment_method: method,
       notes: notes.trim() || null,
+      period_start: periodStart || null,
+      period_end: periodEnd || null,
     });
     if (!error) {
-      // partial → keep status soon/late; full → paid
       const newStatus = isPartial ? "soon" : "paid";
       await supabase.from("units").update({ last_paid_date: date, status: newStatus }).eq("id", unitId);
     }
@@ -121,6 +160,8 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     onOpenChange(false);
     onSaved?.();
   };
+
+  const monthOpts = getMonthOptions(lang);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -140,6 +181,20 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                   <SelectItem key={u.id} value={u.id}>
                     {u.building_name} · {u.unit_number}{u.tenant_name ? ` — ${u.tenant_name}` : ""}
                   </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {/* Rent month */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-sage-500">{t2("rent_month")}</Label>
+            <Select value={periodMonth} onValueChange={onPickMonth}>
+              <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {monthOpts.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

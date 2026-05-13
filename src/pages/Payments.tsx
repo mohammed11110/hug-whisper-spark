@@ -28,6 +28,7 @@ interface Row {
   building_name: string;
   tenant_name: string | null;
   unit_status: string;
+  period_start: string | null;
 }
 
 type Filter = "all" | "month" | "year";
@@ -35,6 +36,16 @@ type StatusFilter = "all" | "paid" | "late";
 
 const LS_KEY = "amlaki.payments.filters.v2";
 const DEFAULT_FILTERS = { search: "", filter: "month" as Filter, statusFilter: "all" as StatusFilter };
+
+const AR_MONTHS = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+const EN_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function monthLabel(dateStr: string | null, lang: string) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  const names = lang === "ar" ? AR_MONTHS : EN_MONTHS;
+  return `${names[d.getMonth()]} ${d.getFullYear()}`;
+}
 
 export default function Payments() {
   const { t, lang } = useI18n();
@@ -60,7 +71,7 @@ export default function Payments() {
     setLoading(true);
     const { data: pays } = await supabase
       .from("payments")
-      .select("id, unit_id, amount, payment_date, receipt_number")
+      .select("id, unit_id, amount, payment_date, receipt_number, period_start")
       .is("deleted_at", null)
       .order("payment_date", { ascending: false })
       .limit(500);
@@ -83,6 +94,7 @@ export default function Payments() {
         amount: Number(p.amount),
         payment_date: p.payment_date,
         receipt_number: p.receipt_number,
+        period_start: p.period_start,
         unit_number: u?.unit_number ?? "—",
         tenant_name: u?.tenant_name ?? null,
         building_name: b?.name || b?.name_en || "—",
@@ -186,6 +198,7 @@ export default function Payments() {
           <div class="row"><span>${t2("unit_number")}</span><b><span class="unit-pill">#${r.unit_number}</span></b></div>
           <div class="row"><span>${t2("occupancy_status") || t2("status")}</span><b style="color:${us.fg}">${us.label}</b></div>
           <div class="row"><span>${t2("tenant_name")}</span><b>${r.tenant_name || "—"}</b></div>
+          ${r.period_start ? `<div class="row"><span>${t2("rent_month")}</span><b>${monthLabel(r.period_start, lang)}</b></div>` : ""}
           <div class="total"><span>${t2("total")}</span><span>${format(r.amount)}</span></div>
           <div class="footer">— ${t2("issue_receipt") || "Receipt"} —</div>
         </div>
@@ -252,6 +265,7 @@ export default function Payments() {
               filtered.map((r) => ({
                 date: r.payment_date, receipt: r.receipt_number || "", building: r.building_name,
                 unit: r.unit_number, tenant: r.tenant_name || "", amount: r.amount, status: r.unit_status,
+                rent_month: r.period_start ? monthLabel(r.period_start, lang) : "",
               }))
             ))}>
             <Download className="h-3.5 w-3.5 me-1" />CSV
@@ -327,9 +341,14 @@ export default function Payments() {
                     <span className="font-bold text-sage-600 truncate">{r.building_name} · {r.unit_number}</span>
                   </div>
                   {r.tenant_name && <p className="text-xs text-muted-foreground truncate mt-0.5">{r.tenant_name}</p>}
-                  <div className="flex items-center gap-3 mt-2 text-[11px] text-sage-500">
+                  <div className="flex flex-wrap items-center gap-3 mt-2 text-[11px] text-sage-500">
                     <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{r.payment_date}</span>
                     {r.receipt_number && <span className="font-mono">{r.receipt_number}</span>}
+                    {r.period_start && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sage-100 text-sage-600 font-semibold">
+                        {lang === "ar" ? "إيجار" : "Rent"} {monthLabel(r.period_start, lang)}
+                      </span>
+                    )}
                   </div>
                 </Link>
                 <div className="text-end">
