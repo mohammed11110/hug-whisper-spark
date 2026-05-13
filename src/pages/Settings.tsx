@@ -650,6 +650,23 @@ export default function Settings() {
         </Button>
       </div>
 
+      {/* Legal */}
+      <section className="px-5 mt-6">
+        <h2 className="font-bold text-sage-600 text-sm mb-2">{lang === "ar" ? "الصفحات القانونية" : "Legal"}</h2>
+        <div className="rounded-2xl bg-card shadow-soft divide-y divide-sage-100 overflow-hidden">
+          {([
+            { to: "/terms", ar: "شروط الاستخدام", en: "Terms of Service" },
+            { to: "/privacy", ar: "سياسة الخصوصية", en: "Privacy Policy" },
+            { to: "/refund", ar: "سياسة الاسترجاع", en: "Refund Policy" },
+          ] as const).map((l) => (
+            <Link key={l.to} to={l.to} className="flex items-center justify-between px-4 py-3 text-sm font-bold text-sage-600 hover:bg-sage-100/40">
+              <span>{lang === "ar" ? l.ar : l.en}</span>
+              <ArrowRight className="h-4 w-4 text-sage-400 rtl:rotate-180" />
+            </Link>
+          ))}
+        </div>
+      </section>
+
       <BottomNav />
     </div>
   );
