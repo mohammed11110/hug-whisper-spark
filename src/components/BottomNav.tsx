@@ -31,7 +31,7 @@ export function BottomNav() {
                 {({ isActive }) => (
                   <>
                     <span className={`text-2xl leading-none transition-transform ${isActive ? "scale-110" : ""}`}>{tab.icon}</span>
-                    <span className="text-[10px] font-semibold">{tab.t2 ? t2(tab.label) : t(tab.label)}</span>
+                    <span className="text-[10px] font-semibold">{tab.t2 ? t2(tab.label as any) : t(tab.label)}</span>
                   </>
                 )}
               </NavLink>
