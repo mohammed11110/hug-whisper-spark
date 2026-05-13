@@ -138,8 +138,10 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
       return toast.error(parsed.error.issues[0].message);
     }
     setSaving(true);
+    const { data: activeT } = await supabase.from("tenancies").select("id").eq("unit_id", unitId).eq("status", "active").maybeSingle();
     const { error } = await supabase.from("payments").insert({
       unit_id: unitId,
+      tenancy_id: (activeT as any)?.id || null,
       amount: Number(amount),
       expected_amount: Number(expected) || null,
       payment_date: date,
