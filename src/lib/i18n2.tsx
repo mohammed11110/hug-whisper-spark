@@ -16,6 +16,7 @@ type Key =
   | "paid" | "late" | "soon" | "status" | "vacant" | "rented" | "occupancy_status" | "tenant_required"
   | "sort" | "sort_newest" | "sort_oldest" | "sort_name_az" | "sort_name_za" | "sort_units_high" | "sort_units_low"
   | "payments" | "receipts" | "all_payments" | "receipt_number" | "payment_date" | "amount" | "no_payments_msg" | "total" | "this_month" | "filter_all" | "filter_month" | "filter_year" | "print_receipt" | "delete_payment"
+  | "rent_month"
   | "units_count" | "units_count_hint" | "edit_unit";
 
 const dict: Record<Key, Partial<Record<Lang, string>>> = {
