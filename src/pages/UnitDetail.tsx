@@ -425,32 +425,6 @@ function Row({ icon: Icon, label, value }: any) {
   );
 }
 
-function computeNextDue(dueDay: number, lastPaidDate: string | null): Date {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const day = Math.max(1, Math.min(31, dueDay || 1));
-  const lastPaid = lastPaidDate ? new Date(lastPaidDate) : null;
-  // Anchor month: month after last payment, else current month
-  let anchor: Date;
-  if (lastPaid) {
-    anchor = new Date(lastPaid.getFullYear(), lastPaid.getMonth() + 1, 1);
-  } else {
-    anchor = new Date(today.getFullYear(), today.getMonth(), 1);
-  }
-  const clamp = (y: number, m: number) => {
-    const lastOfMonth = new Date(y, m + 1, 0).getDate();
-    return new Date(y, m, Math.min(day, lastOfMonth));
-  };
-  let next = clamp(anchor.getFullYear(), anchor.getMonth());
-  // If already passed and not paid for that period, push forward until it's not in the past beyond grace
-  // We want the *upcoming* one — only advance if next is far behind (more than ~60 days) to avoid stale anchors
-  while (next.getTime() < today.getTime() - 60 * 86400000) {
-    const m = next.getMonth() + 1;
-    next = clamp(next.getFullYear(), m);
-  }
-  return next;
-}
-
 function getDueForMonth(dueDay: number, year: number, month: number): Date {
   const day = Math.max(1, Math.min(31, dueDay || 1));
   const lastOfMonth = new Date(year, month + 1, 0).getDate();
