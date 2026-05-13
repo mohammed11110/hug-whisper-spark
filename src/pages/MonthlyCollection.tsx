@@ -65,7 +65,14 @@ export default function MonthlyCollection() {
   const [payOpen, setPayOpen] = useState(false);
   const [presetUnit, setPresetUnit] = useState<string | undefined>();
   const [showPaymentsDialog, setShowPaymentsDialog] = useState(false);
-  const [dialogPayments, setDialogPayments] = useState<PaymentRow[]>([]);
+  const month = months.find((m) => m.key === selected)!;
+
+  const dialogPayments = useMemo(() => {
+    return payments.filter((p) => {
+      const ref = p.period_start ? new Date(p.period_start) : new Date(p.payment_date);
+      return ref >= month.start && ref <= month.end;
+    });
+  }, [payments, month]);
 
   useEffect(() => {
     if (!user) return;
@@ -95,14 +102,7 @@ export default function MonthlyCollection() {
     })();
   }, [user]);
 
-  const month = months.find((m) => m.key === selected)!;
-
   const openPaymentsDialog = () => {
-    const filtered = payments.filter((p) => {
-      const ref = p.period_start ? new Date(p.period_start) : new Date(p.payment_date);
-      return ref >= month.start && ref <= month.end;
-    });
-    setDialogPayments(filtered);
     setShowPaymentsDialog(true);
   };
 
@@ -242,6 +242,32 @@ export default function MonthlyCollection() {
                 tone="sage"
               />
             ))}
+          </Section>
+        )}
+
+        {/* Payment details list */}
+        {dialogPayments.length > 0 && (
+          <Section title={`📋 ${t2("payments")} (${dialogPayments.length})`} accent="sage">
+            {dialogPayments.map((p) => {
+              const unit = units.find((u) => u.id === p.unit_id);
+              const buildingName = unit ? (buildings[unit.building_id] || "") : "";
+              const period = p.period_start
+                ? `${(lang === "ar" ? AR_MONTHS : EN_MONTHS)[new Date(p.period_start).getMonth()]} ${new Date(p.period_start).getFullYear()}`
+                : "";
+              return (
+                <div key={`${p.unit_id}-${p.payment_date}-${p.amount}`} className="bg-card border border-sage-200/40 rounded-xl p-3 flex items-center gap-3 shadow-soft">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sage-600 truncate">{unit?.tenant_name || "—"}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">{buildingName} · #{unit?.unit_number}</p>
+                    {period && <p className="text-[10px] text-sage-500 mt-0.5">{t2("rent_month")}: {period}</p>}
+                  </div>
+                  <div className="text-end flex-shrink-0">
+                    <p className="text-sm font-black text-sage-600">{format(Number(p.amount))}</p>
+                    <p className="text-[10px] text-muted-foreground">{p.payment_date}</p>
+                  </div>
+                </div>
+              );
+            })}
           </Section>
         )}
 
