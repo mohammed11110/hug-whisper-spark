@@ -61,7 +61,7 @@ export default function Payments() {
     setLoading(true);
     const { data: pays } = await supabase
       .from("payments")
-      .select("id, unit_id, amount, payment_date, receipt_number")
+      .select("id, unit_id, amount, payment_date, receipt_number, period_start")
       .is("deleted_at", null)
       .order("payment_date", { ascending: false })
       .limit(500);
