@@ -319,6 +319,8 @@ export type Database = {
           internet_account: string | null
           last_paid_date: string | null
           legal_case: Json
+          opening_balance: number
+          opening_balance_date: string | null
           rent_amount: number
           rent_type: string
           security_deposit: number
@@ -353,6 +355,8 @@ export type Database = {
           internet_account?: string | null
           last_paid_date?: string | null
           legal_case?: Json
+          opening_balance?: number
+          opening_balance_date?: string | null
           rent_amount?: number
           rent_type?: string
           security_deposit?: number
@@ -387,6 +391,8 @@ export type Database = {
           internet_account?: string | null
           last_paid_date?: string | null
           legal_case?: Json
+          opening_balance?: number
+          opening_balance_date?: string | null
           rent_amount?: number
           rent_type?: string
           security_deposit?: number
