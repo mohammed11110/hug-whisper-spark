@@ -12,6 +12,33 @@ import { toast } from "sonner";
 
 const METHODS = ["cash", "transfer", "cheque", "card"] as const;
 
+const AR_MONTHS = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+const EN_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function getMonthOptions(lang: string) {
+  const names = lang === "ar" ? AR_MONTHS : EN_MONTHS;
+  const opts: { label: string; value: string; start: string; end: string }[] = [];
+  const today = new Date();
+  for (let i = -3; i <= 3; i++) {
+    const d = new Date(today.getFullYear(), today.getMonth() + i, 1);
+    const y = d.getFullYear();
+    const m = d.getMonth();
+    const lastDay = new Date(y, m + 1, 0).getDate();
+    const start = `${y}-${String(m + 1).padStart(2, "0")}-01`;
+    const end = `${y}-${String(m + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+    const label = `${names[m]} ${y}`;
+    opts.push({ label, value: `${y}-${String(m + 1).padStart(2, "0")}`, start, end });
+  }
+  return opts;
+}
+
+function monthLabelFromDate(dateStr: string | null, lang: string) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  const names = lang === "ar" ? AR_MONTHS : EN_MONTHS;
+  return `${names[d.getMonth()]} ${d.getFullYear()}`;
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -28,6 +55,9 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
   const [receipt, setReceipt] = useState("");
   const [method, setMethod] = useState("cash");
   const [notes, setNotes] = useState("");
+  const [periodMonth, setPeriodMonth] = useState("");
+  const [periodStart, setPeriodStart] = useState("");
+  const [periodEnd, setPeriodEnd] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -37,7 +67,7 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
     (async () => {
       const { data, error } = await supabase
         .from("payments")
-        .select("amount, expected_amount, payment_date, receipt_number, payment_method, notes")
+        .select("amount, expected_amount, payment_date, receipt_number, payment_method, notes, period_start, period_end")
         .eq("id", paymentId)
         .maybeSingle();
       setLoading(false);
@@ -48,8 +78,32 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
       setReceipt(data.receipt_number ?? "");
       setMethod(data.payment_method ?? "cash");
       setNotes(data.notes ?? "");
+      const ps = data.period_start;
+      if (ps) {
+        const v = ps.slice(0, 7);
+        setPeriodMonth(v);
+        setPeriodStart(ps);
+        const y = Number(v.slice(0, 4));
+        const m = Number(v.slice(5, 7));
+        const lastDay = new Date(y, m, 0).getDate();
+        setPeriodEnd(`${v}-${String(lastDay).padStart(2, "0")}`);
+      } else {
+        setPeriodMonth("");
+        setPeriodStart("");
+        setPeriodEnd("");
+      }
     })();
   }, [open, paymentId]);
+
+  const onPickMonth = (val: string) => {
+    const moOpts = getMonthOptions(lang);
+    const opt = moOpts.find((o) => o.value === val);
+    if (opt) {
+      setPeriodMonth(opt.value);
+      setPeriodStart(opt.start);
+      setPeriodEnd(opt.end);
+    }
+  };
 
   const submit = async () => {
     if (!paymentId) return;
@@ -63,6 +117,8 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
       receipt_number: receipt.trim() || null,
       payment_method: method,
       notes: notes.trim() || null,
+      period_start: periodStart || null,
+      period_end: periodEnd || null,
     }).eq("id", paymentId);
     setSaving(false);
     if (error) return toast.error(error.message);
@@ -70,6 +126,8 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
     onOpenChange(false);
     onSaved?.();
   };
+
+  const monthOpts = getMonthOptions(lang);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -81,6 +139,17 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
           <p className="text-center text-sage-500 py-8">…</p>
         ) : (
           <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-sage-500">{t2("rent_month")}</Label>
+              <Select value={periodMonth} onValueChange={onPickMonth}>
+                <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11"><SelectValue placeholder={lang === "ar" ? "اختر الشهر" : "Select month"} /></SelectTrigger>
+                <SelectContent>
+                  {monthOpts.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs text-sage-500">{lang === "ar" ? "المتوقع" : "Expected"}</Label>
