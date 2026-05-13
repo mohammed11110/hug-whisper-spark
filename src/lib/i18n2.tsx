@@ -20,7 +20,10 @@ type Key =
   | "units_count" | "units_count_hint" | "edit_unit"
   | "arrears" | "arrears_amount" | "arrears_hint" | "record_payment_now"
   | "payment_summary" | "outstanding_balance" | "total_due" | "total_received"
-  | "current_period_rent" | "remaining_after_payment";
+  | "current_period_rent" | "remaining_after_payment"
+  | "monthly_collection" | "paid_tenants" | "late_tenants"
+  | "expected_total" | "collected_total" | "collection_rate"
+  | "partial_payment" | "quick_collect";
 
 const dict: Record<Key, Partial<Record<Lang, string>>> = {
   all: { ar: "الكل", en: "All", ur: "تمام", zh: "全部", hi: "सभी", bn: "সব", fr: "Tous", es: "Todos", tr: "Tümü" },
