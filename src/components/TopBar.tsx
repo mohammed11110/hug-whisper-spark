@@ -1,15 +1,19 @@
 import { useEffect, useState } from "react";
-import { Settings, Bell } from "lucide-react";
+import { Settings, Bell, Search, Shield } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/lib/i18n";
 import { SettingsPanel } from "@/components/SettingsPanel";
+import { GlobalSearch } from "@/components/GlobalSearch";
+import { useAdmin } from "@/lib/useAdmin";
 
 export function TopBar({ hasAlerts = false }: { hasAlerts?: boolean }) {
   const { t } = useI18n();
   const [time, setTime] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const { isAdmin } = useAdmin();
 
   useEffect(() => {
     const update = () => {
@@ -30,7 +34,17 @@ export function TopBar({ hasAlerts = false }: { hasAlerts?: boolean }) {
             <Logo size={28} />
             <span className="font-black text-sage-600 text-lg tracking-tight">{t("app_name")}</span>
           </div>
-          <div className="flex items-center gap-1 w-12 justify-end">
+          <div className="flex items-center gap-1 justify-end">
+            <Button variant="ghost" size="icon" className="rounded-full h-9 w-9" onClick={() => setSearchOpen(true)} aria-label="بحث">
+              <Search className="h-4 w-4 text-sage-500" />
+            </Button>
+            {isAdmin && (
+              <Link to="/admin" aria-label="لوحة المسؤول">
+                <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
+                  <Shield className="h-4 w-4 text-accent" />
+                </Button>
+              </Link>
+            )}
             <Button variant="ghost" size="icon" className="rounded-full h-9 w-9 relative">
               <Bell className="h-4 w-4 text-sage-500" />
               {hasAlerts && <span className="absolute top-1.5 end-1.5 h-2 w-2 bg-burgundy rounded-full animate-pulse-soft" />}
@@ -44,6 +58,7 @@ export function TopBar({ hasAlerts = false }: { hasAlerts?: boolean }) {
         </div>
       </header>
       <SettingsPanel open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
     </>
   );
 }
