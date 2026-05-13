@@ -412,15 +412,84 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
-      [_ in never]: never
+      admin_users_overview: {
+        Row: {
+          buildings_count: number | null
+          created_at: string | null
+          email: string | null
+          id: string | null
+          name: string | null
+          phone: string | null
+          subscription_expires_at: string | null
+          subscription_plan: string | null
+          subscription_status: string | null
+          tenants_count: number | null
+          units_count: number | null
+        }
+        Insert: {
+          buildings_count?: never
+          created_at?: string | null
+          email?: string | null
+          id?: string | null
+          name?: string | null
+          phone?: string | null
+          subscription_expires_at?: string | null
+          subscription_plan?: string | null
+          subscription_status?: string | null
+          tenants_count?: never
+          units_count?: never
+        }
+        Update: {
+          buildings_count?: never
+          created_at?: string | null
+          email?: string | null
+          id?: string | null
+          name?: string | null
+          phone?: string | null
+          subscription_expires_at?: string | null
+          subscription_plan?: string | null
+          subscription_status?: string | null
+          tenants_count?: never
+          units_count?: never
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_building_access: {
         Args: {
           _building_id: string
           _min_role?: Database["public"]["Enums"]["member_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
@@ -432,6 +501,7 @@ export type Database = {
       redeem_promo_code: { Args: { _code: string }; Returns: Json }
     }
     Enums: {
+      app_role: "admin" | "user"
       member_role: "manager" | "accountant" | "viewer"
     }
     CompositeTypes: {
@@ -560,6 +630,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "user"],
       member_role: ["manager", "accountant", "viewer"],
     },
   },
