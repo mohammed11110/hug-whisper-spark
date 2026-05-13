@@ -127,7 +127,7 @@ export default function Dashboard() {
         </div>
 
         {/* Pending */}
-        <div className="bg-terracotta/10 border border-terracotta/20 rounded-2xl p-4 flex items-center gap-3 animate-float-up" style={{ animationDelay: "0.2s" }}>
+        <Link to="/collection" className="block bg-terracotta/10 border border-terracotta/20 rounded-2xl p-4 flex items-center gap-3 animate-float-up shadow-soft hover:shadow-elev transition-all" style={{ animationDelay: "0.2s" }}>
           <div className="h-10 w-10 rounded-xl bg-terracotta/20 flex items-center justify-center">
             <Clock className="h-5 w-5 text-terracotta" />
           </div>
@@ -135,7 +135,8 @@ export default function Dashboard() {
             <p className="text-xs text-terracotta/80 font-semibold">{t("pending")}</p>
             <p className="text-lg font-bold text-terracotta">{format(stats.pending)}</p>
           </div>
-        </div>
+          <span className="text-terracotta rtl:rotate-180 text-xl">›</span>
+        </Link>
 
         {/* Empty state */}
         {isEmpty && (
