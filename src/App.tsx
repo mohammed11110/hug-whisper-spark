@@ -29,6 +29,9 @@ import Backup from "./pages/Backup";
 import Team from "./pages/Team";
 import Install from "./pages/Install";
 import Pricing from "./pages/Pricing";
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
+import Refund from "./pages/Refund";
 import Assistant from "./pages/Assistant";
 import Admin from "./pages/Admin";
 import MonthlyCollection from "./pages/MonthlyCollection";
@@ -67,6 +70,9 @@ const App = () => (
                     <Route path="/backup" element={<RequireAuth><Backup /></RequireAuth>} />
                     <Route path="/team" element={<RequireAuth><Team /></RequireAuth>} />
                     <Route path="/install" element={<Install />} />
+                    <Route path="/terms" element={<Terms />} />
+                    <Route path="/privacy" element={<Privacy />} />
+                    <Route path="/refund" element={<Refund />} />
                     <Route path="/pricing" element={<RequireAuth><Pricing /></RequireAuth>} />
                     <Route path="/assistant" element={<RequireAuth><Assistant /></RequireAuth>} />
                     <Route path="/admin" element={<RequireAuth><Admin /></RequireAuth>} />
