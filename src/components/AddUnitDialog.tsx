@@ -1,20 +1,45 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useT2 } from "@/lib/i18n2";
+import { useI18n } from "@/lib/i18n";
+import { useCurrency } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const UNIT_TYPES = ["apartment", "shop", "room", "villa"] as const;
 const RENT_TYPES = ["monthly", "daily", "yearly"] as const;
 const CONTRACT_TYPES = ["daily", "monthly", "yearly"] as const;
+const PAYMENT_METHODS = ["cash", "transfer", "cheque", "card"] as const;
+
+const AR_MONTHS = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+const EN_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function getMonthOptions(lang: string) {
+  const names = lang === "ar" ? AR_MONTHS : EN_MONTHS;
+  const opts: { label: string; value: string; start: string; end: string }[] = [];
+  const today = new Date();
+  for (let i = -2; i <= 1; i++) {
+    const d = new Date(today.getFullYear(), today.getMonth() + i, 1);
+    const y = d.getFullYear();
+    const m = d.getMonth();
+    const lastDay = new Date(y, m + 1, 0).getDate();
+    const start = `${y}-${String(m + 1).padStart(2, "0")}-01`;
+    const end = `${y}-${String(m + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+    opts.push({ label: `${names[m]} ${y}`, value: `${y}-${String(m + 1).padStart(2, "0")}`, start, end });
+  }
+  return opts;
+}
 
 export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreated }: {
   open: boolean; onOpenChange: (o: boolean) => void; buildingId: string; floors: number; onCreated?: () => void;
 }) {
   const t2 = useT2();
+  const { lang } = useI18n();
+  const { format } = useCurrency();
   const [unitNumber, setUnitNumber] = useState("");
   const [floor, setFloor] = useState<string>("1");
   const [type, setType] = useState<typeof UNIT_TYPES[number]>("apartment");
@@ -27,13 +52,29 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
   const [contractType, setContractType] = useState<typeof CONTRACT_TYPES[number]>("yearly");
   const [contractStart, setContractStart] = useState<string>("");
   const [dueDay, setDueDay] = useState<string>("1");
+  const [arrears, setArrears] = useState<string>("0");
+  const [recordPay, setRecordPay] = useState(false);
+  const monthOpts = useMemo(() => getMonthOptions(lang), [lang]);
+  const defaultMonth = monthOpts.find((o) => {
+    const t = new Date();
+    return o.value === `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}`;
+  })?.value || monthOpts[2]?.value;
+  const [payMonth, setPayMonth] = useState<string>(defaultMonth || "");
+  const [payAmount, setPayAmount] = useState<string>("0");
+  const [payMethod, setPayMethod] = useState<typeof PAYMENT_METHODS[number]>("cash");
   const [busy, setBusy] = useState(false);
 
   const reset = () => {
     setUnitNumber(""); setFloor("1"); setType("apartment"); setOccupied(false);
     setTenantName(""); setTenantPhone(""); setTenantEmail(""); setRentAmount("0"); setRentType("monthly");
     setContractType("yearly"); setContractStart(""); setDueDay("1");
+    setArrears("0"); setRecordPay(false); setPayAmount("0"); setPayMethod("cash");
   };
+
+  const arrN = parseFloat(arrears) || 0;
+  const rentN = parseFloat(rentAmount) || 0;
+  const payN = recordPay ? (parseFloat(payAmount) || 0) : 0;
+  const remaining = Math.max(0, arrN + rentN - payN);
 
   const submit = async () => {
     if (!unitNumber.trim()) return;
@@ -41,7 +82,7 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
       return toast.error(t2("tenant_required"));
     }
     setBusy(true);
-    const { error } = await supabase.from("units").insert({
+    const { data: created, error } = await supabase.from("units").insert({
       building_id: buildingId,
       unit_number: unitNumber.trim(),
       floor: Math.max(1, parseInt(floor) || 1),
@@ -49,15 +90,37 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
       tenant_name: occupied ? tenantName.trim() : null,
       tenant_phone: occupied ? tenantPhone.trim() : null,
       tenant_email: occupied ? tenantEmail.trim() || null : null,
-      rent_amount: occupied ? (parseFloat(rentAmount) || 0) : 0,
+      rent_amount: occupied ? rentN : 0,
       rent_type: rentType,
       due_day: Math.min(31, Math.max(1, parseInt(dueDay) || 1)),
       status: occupied ? "soon" : "vacant",
       contract_type: contractType,
       contract_start_date: contractStart || null,
-    });
+      opening_balance: occupied ? arrN : 0,
+      opening_balance_date: occupied && arrN > 0 ? (contractStart || new Date().toISOString().slice(0, 10)) : null,
+    }).select("id").single();
+
+    if (error || !created) { setBusy(false); return toast.error(error?.message || ""); }
+
+    if (occupied && recordPay && payN > 0) {
+      const sel = monthOpts.find((o) => o.value === payMonth);
+      const today = new Date().toISOString().slice(0, 10);
+      const { error: pErr } = await supabase.from("payments").insert({
+        unit_id: created.id,
+        amount: payN,
+        payment_method: payMethod,
+        payment_date: today,
+        period_start: sel?.start || null,
+        period_end: sel?.end || null,
+        expected_amount: rentN,
+      });
+      if (pErr) toast.error(pErr.message);
+      else if (payN >= rentN) {
+        await supabase.from("units").update({ status: "paid", last_paid_date: today }).eq("id", created.id);
+      }
+    }
+
     setBusy(false);
-    if (error) return toast.error(error.message);
     toast.success("✓");
     reset();
     onCreated?.();
@@ -155,6 +218,70 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
                   ))}
                 </div>
               </Field>
+
+              {/* Arrears */}
+              <div className="pt-2 border-t border-sage-100">
+                <Field label={t2("arrears_amount")}>
+                  <Input type="number" inputMode="decimal" min={0} step="0.001" value={arrears}
+                    onChange={(e) => setArrears(e.target.value)}
+                    onBlur={() => { if (!arrears) setArrears("0"); }}
+                    placeholder="0"
+                    className="rounded-xl border-sage-200 bg-card" />
+                  <p className="text-[11px] text-muted-foreground mt-1">{t2("arrears_hint")}</p>
+                </Field>
+              </div>
+
+              {/* Initial payment */}
+              <div className="pt-2 border-t border-sage-100">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={recordPay} onChange={(e) => setRecordPay(e.target.checked)}
+                    className="h-4 w-4 accent-sage-500" />
+                  <span className="text-xs font-semibold text-sage-600">{t2("record_payment_now")}</span>
+                </label>
+                {recordPay && (
+                  <div className="mt-2 space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <Field label={t2("amount")}>
+                        <Input type="number" inputMode="decimal" min={0} step="0.001" value={payAmount}
+                          onChange={(e) => setPayAmount(e.target.value)}
+                          className="rounded-xl border-sage-200 bg-card" />
+                      </Field>
+                      <Field label={t2("rent_month")}>
+                        <Select value={payMonth} onValueChange={setPayMonth}>
+                          <SelectTrigger className="rounded-xl border-sage-200 bg-card h-10"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {monthOpts.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                    </div>
+                    <Field label={t2("rent_type")}>
+                      <div className="flex gap-1">
+                        {PAYMENT_METHODS.map((m) => (
+                          <button key={m} type="button" onClick={() => setPayMethod(m)}
+                            className={`flex-1 px-2 py-2 rounded-xl text-[11px] font-semibold ${
+                              payMethod === m ? "bg-gradient-sage text-primary-foreground" : "bg-muted text-muted-foreground"
+                            }`}>{m}</button>
+                        ))}
+                      </div>
+                    </Field>
+                  </div>
+                )}
+              </div>
+
+              {/* Live summary */}
+              {(arrN > 0 || rentN > 0 || payN > 0) && (
+                <div className="rounded-2xl bg-sage-50 border border-sage-200/60 p-3 text-xs space-y-1.5">
+                  <p className="font-bold text-sage-600 mb-1">{t2("payment_summary")}</p>
+                  <SummaryRow label={t2("arrears")} value={format(arrN)} />
+                  <SummaryRow label={t2("current_period_rent")} value={`+ ${format(rentN)}`} />
+                  {recordPay && <SummaryRow label={t2("total_received")} value={`− ${format(payN)}`} />}
+                  <div className="border-t border-sage-200 pt-1.5 mt-1.5 flex items-center justify-between font-black text-sage-600">
+                    <span>{t2("remaining_after_payment")}</span>
+                    <span className={remaining > 0 ? "text-burgundy" : "text-sage-600"}>{format(remaining)}</span>
+                  </div>
+                </div>
+              )}
             </>
           )}
 
@@ -173,6 +300,15 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     <div className="space-y-1">
       <Label className="text-xs text-sage-600 font-semibold">{label}</Label>
       {children}
+    </div>
+  );
+}
+
+function SummaryRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between text-sage-600">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-bold">{value}</span>
     </div>
   );
 }

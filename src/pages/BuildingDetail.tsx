@@ -11,9 +11,10 @@ import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { computeBalance, type PaymentForBalance } from "@/lib/balance";
 
 interface Building { id: string; name: string; name_en: string | null; type: string; floors: number; city: string | null; address: string | null; }
-interface Unit { id: string; unit_number: string; floor: number; type: string; tenant_name: string | null; tenant_phone: string | null; rent_amount: number; rent_type: string; status: string; due_day: number; security_deposit?: number; deposit_status?: string; }
+interface Unit { id: string; unit_number: string; floor: number; type: string; tenant_name: string | null; tenant_phone: string | null; rent_amount: number; rent_type: string; status: string; due_day: number; security_deposit?: number; deposit_status?: string; opening_balance?: number; opening_balance_date?: string | null; contract_start_date?: string | null; }
 
 const UNIT_FILTERS = ["all", "apartment", "shop", "room", "villa"] as const;
 
@@ -32,6 +33,7 @@ export default function BuildingDetail() {
   const { format } = useCurrency();
   const [building, setBuilding] = useState<Building | null>(null);
   const [units, setUnits] = useState<Unit[]>([]);
+  const [payments, setPayments] = useState<PaymentForBalance[]>([]);
   const [filter, setFilter] = useState<string>("all");
   const [delOpen, setDelOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
@@ -41,8 +43,13 @@ export default function BuildingDetail() {
     if (!id) return;
     const { data: b } = await supabase.from("buildings").select("*").eq("id", id).maybeSingle();
     setBuilding(b);
-    const { data: us } = await supabase.from("units").select("id,unit_number,floor,type,tenant_name,tenant_phone,rent_amount,rent_type,status,due_day,security_deposit,deposit_status").eq("building_id", id).order("floor").order("unit_number");
-    setUnits(us || []);
+    const { data: us } = await supabase.from("units").select("id,unit_number,floor,type,tenant_name,tenant_phone,rent_amount,rent_type,status,due_day,security_deposit,deposit_status,opening_balance,opening_balance_date,contract_start_date").eq("building_id", id).order("floor").order("unit_number");
+    setUnits((us || []) as any);
+    const ids = (us || []).map((u: any) => u.id);
+    if (ids.length) {
+      const { data: ps } = await supabase.from("payments").select("unit_id,amount,deleted_at").in("unit_id", ids).is("deleted_at", null);
+      setPayments((ps || []) as any);
+    } else setPayments([]);
   };
 
   useEffect(() => { load(); }, [id]);
@@ -135,7 +142,9 @@ export default function BuildingDetail() {
               </Button>
             </div>
           ) : (
-            visible.map((u, i) => (
+            visible.map((u, i) => {
+              const bal = u.tenant_name ? computeBalance(u as any, payments) : null;
+              return (
               <div key={u.id} className="relative animate-float-up" style={{ animationDelay: `${i * 0.03}s` }}>
                 <Link to={`/units/${u.id}`} className="block">
                   <div className="bg-card border border-sage-200/40 rounded-2xl p-4 flex items-center gap-3 shadow-soft hover:shadow-elev transition-all">
@@ -146,6 +155,9 @@ export default function BuildingDetail() {
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-sage-600 truncate">{u.tenant_name || `${t2(u.type as any)} ${u.unit_number}`}</p>
                       <p className="text-xs text-muted-foreground">{t2(u.type as any)} · {format(Number(u.rent_amount))}/{t2(u.rent_type as any)}</p>
+                      {bal && bal.outstanding > 0 && (
+                        <p className="text-[11px] font-bold text-burgundy mt-0.5">{t2("outstanding_balance")}: {format(bal.outstanding)}</p>
+                      )}
                     </div>
                     <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase ${STATUS_STYLES[u.status] || ""}`}>{t2(u.status as any)}</span>
                   </div>
@@ -159,7 +171,8 @@ export default function BuildingDetail() {
                   <Pencil className="h-3.5 w-3.5" />
                 </button>
               </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>

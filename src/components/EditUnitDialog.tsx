@@ -28,6 +28,7 @@ interface UnitInput {
   deposit_status?: string;
   contract_type?: string;
   contract_start_date?: string | null;
+  opening_balance?: number | null;
 }
 
 export function EditUnitDialog({
@@ -54,6 +55,7 @@ export function EditUnitDialog({
   const [depositStatus, setDepositStatus] = useState<string>("none");
   const [contractType, setContractType] = useState<string>("yearly");
   const [contractStart, setContractStart] = useState<string>("");
+  const [arrears, setArrears] = useState("0");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -72,6 +74,7 @@ export function EditUnitDialog({
     setDepositStatus(unit.deposit_status || "none");
     setContractType(unit.contract_type || "yearly");
     setContractStart(unit.contract_start_date || "");
+    setArrears(String((unit as any).opening_balance ?? 0));
   }, [unit]);
 
   if (!unit) return null;
@@ -98,6 +101,7 @@ export function EditUnitDialog({
       deposit_refunded_at: depositStatus === "refunded" ? new Date().toISOString().slice(0, 10) : null,
       contract_type: contractType,
       contract_start_date: contractStart || null,
+      opening_balance: parseFloat(arrears) || 0,
     }).eq("id", unit.id);
     setBusy(false);
     if (error) return toast.error(error.message);
@@ -214,6 +218,13 @@ export function EditUnitDialog({
               </div>
             </Field>
           </div>
+
+          <Field label={t2("arrears_amount")}>
+            <Input type="number" inputMode="decimal" min={0} step="0.001" value={arrears}
+              onChange={(e) => setArrears(e.target.value)}
+              className="rounded-xl border-sage-200 bg-card" />
+            <p className="text-[11px] text-muted-foreground mt-1">{t2("arrears_hint")}</p>
+          </Field>
 
           <div className="flex gap-2 pt-2">
             <Button variant="outline" className="flex-1 rounded-xl border-sage-200" onClick={() => onOpenChange(false)}>{t2("cancel")}</Button>
