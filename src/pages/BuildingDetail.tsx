@@ -112,10 +112,11 @@ export default function BuildingDetail() {
 
       <div className="px-5 -mt-4 relative z-10">
         {/* Stats card */}
-        <div className="bg-card rounded-2xl shadow-elev p-4 grid grid-cols-3 gap-2 mb-5 animate-float-up">
-          <Stat label={t("units")} value={units.length} />
+        <div className="bg-card rounded-2xl shadow-elev p-3 grid grid-cols-2 gap-2 mb-5 animate-float-up">
           <Stat label={t2("occupancy")} value={`${occupancy}%`} />
-          <Stat label={t2("monthly_income")} value={format(monthlyIncome)} small />
+          <Stat label={t2("vacancy")} value={`${vacancy}%`} />
+          <Stat label={t2("expected_month")} value={format(monthRents)} small />
+          <Stat label={t2("collected_total")} value={format(collectedMonth)} small />
         </div>
 
         {/* Expenses link */}
