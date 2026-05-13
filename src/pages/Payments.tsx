@@ -28,6 +28,7 @@ interface Row {
   building_name: string;
   tenant_name: string | null;
   unit_status: string;
+  period_start: string | null;
 }
 
 type Filter = "all" | "month" | "year";
