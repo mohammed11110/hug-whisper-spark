@@ -64,6 +64,7 @@ const dict: Record<Key, Partial<Record<Lang, string>>> = {
   last_payment: { ar: "آخر دفعة", en: "Last payment", ur: "آخری ادائیگی", zh: "最后付款", hi: "अंतिम भुगतान", bn: "শেষ পেমেন্ট", fr: "Dernier paiement", es: "Último pago", tr: "Son ödeme" },
   issue_receipt: { ar: "إصدار إيصال", en: "Issue receipt", ur: "رسید جاری کریں", zh: "开收据", hi: "रसीद जारी करें", bn: "রসিদ ইস্যু", fr: "Émettre reçu", es: "Emitir recibo", tr: "Makbuz oluştur" },
   register_payment: { ar: "تسجيل دفعة", en: "Register payment", ur: "ادائیگی درج کریں", zh: "登记付款", hi: "भुगतान दर्ज करें", bn: "পেমেন্ট নথিভুক্ত", fr: "Enregistrer paiement", es: "Registrar pago", tr: "Ödeme kaydet" },
+  rent_month: { ar: "شهر الإيجار", en: "Rent month", ur: "کرایہ کا مہینہ", zh: "租金月份", hi: "किराए का महीना", bn: "ভাড়ার মাস", fr: "Mois du loyer", es: "Mes de renta", tr: "Kira ayı" },
   water: { ar: "ماء", en: "Water", ur: "پانی", zh: "水", hi: "पानी", bn: "পানি", fr: "Eau", es: "Agua", tr: "Su" },
   electric: { ar: "كهرباء", en: "Electric", ur: "بجلی", zh: "电", hi: "बिजली", bn: "বিদ্যুৎ", fr: "Électricité", es: "Electricidad", tr: "Elektrik" },
   gas: { ar: "غاز", en: "Gas", ur: "گیس", zh: "燃气", hi: "गैस", bn: "গ্যাস", fr: "Gaz", es: "Gas", tr: "Gaz" },
