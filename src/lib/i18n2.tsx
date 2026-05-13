@@ -142,6 +142,11 @@ const dict: Record<Key, Partial<Record<Lang, string>>> = {
   collection_rate: { ar: "نسبة التحصيل", en: "Collection rate" },
   partial_payment: { ar: "دفع جزئي", en: "Partial payment" },
   quick_collect: { ar: "تحصيل سريع", en: "Quick collect" },
+  due_day_of_month: { ar: "اليوم {n} من كل شهر", en: "Day {n} of each month", ur: "ہر ماہ کا دن {n}", zh: "每月{n}日", hi: "हर माह का {n} दिन", bn: "প্রতি মাসের {n} তারিখ", fr: "Le {n} de chaque mois", es: "Día {n} de cada mes", tr: "Her ayın {n}. günü" },
+  next_due: { ar: "الاستحقاق القادم", en: "Next due", ur: "اگلی ادائیگی", zh: "下次到期", hi: "अगली देय", bn: "পরবর্তী দেয়", fr: "Prochaine échéance", es: "Próximo venc.", tr: "Sonraki vade" },
+  days_left: { ar: "متبقي {n} يوم", en: "{n} days left", ur: "{n} دن باقی", zh: "剩 {n} 天", hi: "{n} दिन बाकी", bn: "{n} দিন বাকি", fr: "{n} j restants", es: "{n} días", tr: "{n} gün kaldı" },
+  days_overdue: { ar: "متأخر {n} يوم", en: "{n} days overdue", ur: "{n} دن تاخیر", zh: "逾期 {n} 天", hi: "{n} दिन विलंब", bn: "{n} দিন বিলম্ব", fr: "{n} j de retard", es: "{n} días atraso", tr: "{n} gün gecikme" },
+  due_today: { ar: "مستحق اليوم", en: "Due today", ur: "آج واجب", zh: "今日到期", hi: "आज देय", bn: "আজ দেয়", fr: "Dû aujourd'hui", es: "Vence hoy", tr: "Bugün vade" },
 };
 
 export function useT2() {
