@@ -1,26 +1,43 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Mail, Lock, User as UserIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Logo } from "@/components/Logo";
 import { useI18n } from "@/lib/i18n";
+import { useT2 } from "@/lib/i18n2";
 import { toast } from "sonner";
+
+const ASCII_RE = /^[\x20-\x7E]*$/;
+const REMEMBER_KEY = "remembered_email";
 
 export default function Auth() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const { t } = useI18n();
+  const t2 = useT2();
   const [mode, setMode] = useState<"signin" | "signup">((params.get("mode") as any) || "signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [remember, setRemember] = useState(true);
+  const [pwError, setPwError] = useState(false);
 
+  useEffect(() => {
+    const saved = localStorage.getItem(REMEMBER_KEY);
+    if (saved) { setEmail(saved); setRemember(true); }
+  }, []);
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!ASCII_RE.test(password)) {
+      setPwError(true);
+      toast.error(t2("password_english_only"));
+      return;
+    }
     setBusy(true);
     try {
       if (mode === "signup") {
@@ -34,10 +51,12 @@ export default function Auth() {
         });
         if (error) throw error;
         toast.success(t("welcome") + ` ${name || ""}`.trim() + "!");
+        if (remember) localStorage.setItem(REMEMBER_KEY, email); else localStorage.removeItem(REMEMBER_KEY);
         navigate("/");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        if (remember) localStorage.setItem(REMEMBER_KEY, email); else localStorage.removeItem(REMEMBER_KEY);
         navigate("/");
       }
     } catch (err: any) {
@@ -91,16 +110,37 @@ export default function Auth() {
             <Label htmlFor="email" className="text-sage-600 font-semibold">{t("email")}</Label>
             <div className="relative">
               <Mail className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="ps-10 h-12 rounded-xl bg-card border-sage-200" />
+              <Input id="email" type="email" dir="ltr" lang="en" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="ps-10 h-12 rounded-xl bg-card border-sage-200" />
             </div>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="password" className="text-sage-600 font-semibold">{t("password")}</Label>
             <div className="relative">
               <Lock className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} className="ps-10 h-12 rounded-xl bg-card border-sage-200" />
+              <Input
+                id="password"
+                type="password"
+                dir="ltr"
+                lang="en"
+                autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                value={password}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (ASCII_RE.test(v)) { setPassword(v); setPwError(false); }
+                  else { setPwError(true); }
+                }}
+                required
+                minLength={6}
+                className={`ps-10 h-12 rounded-xl bg-card ${pwError ? "border-burgundy" : "border-sage-200"}`}
+              />
             </div>
+            {pwError && <p className="text-xs text-burgundy">{t2("password_english_only")}</p>}
           </div>
+
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <Checkbox checked={remember} onCheckedChange={(v) => setRemember(!!v)} />
+            <span className="text-sm text-sage-600 font-medium">{t2("remember_me")}</span>
+          </label>
 
           <Button type="submit" disabled={busy} className="w-full h-13 py-3.5 rounded-2xl bg-gradient-sage text-primary-foreground font-semibold shadow-glow">
             {busy ? t("loading") : mode === "signup" ? t("sign_up") : t("sign_in")}
