@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
 import { useAuth } from "@/lib/auth";
+import { useAppSettings } from "@/lib/appSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 
