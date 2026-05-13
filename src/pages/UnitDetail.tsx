@@ -200,7 +200,7 @@ function VacantState({ t2, onAdd }: any) {
   );
 }
 
-function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLeasePrint, reload }: any) {
+function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLeasePrint, onEnd, reload }: any) {
   const bal = computeBalance(unit, payments);
   const [editingArrears, setEditingArrears] = useState(false);
   const [arrearsVal, setArrearsVal] = useState<string>(String(unit.opening_balance ?? 0));
