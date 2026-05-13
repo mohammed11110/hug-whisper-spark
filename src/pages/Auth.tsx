@@ -1,16 +1,36 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Mail, Lock, User as UserIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Logo } from "@/components/Logo";
 import { useI18n } from "@/lib/i18n";
+import { useT2 } from "@/lib/i18n2";
 import { toast } from "sonner";
+
+const ASCII_RE = /^[\x20-\x7E]*$/;
+const REMEMBER_KEY = "remembered_email";
 
 export default function Auth() {
   const [params] = useSearchParams();
+  const navigate = useNavigate();
+  const { t } = useI18n();
+  const t2 = useT2();
+  const [mode, setMode] = useState<"signin" | "signup">((params.get("mode") as any) || "signin");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [remember, setRemember] = useState(true);
+  const [pwError, setPwError] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(REMEMBER_KEY);
+    if (saved) { setEmail(saved); setRemember(true); }
+  }, []);
   const navigate = useNavigate();
   const { t } = useI18n();
   const [mode, setMode] = useState<"signin" | "signup">((params.get("mode") as any) || "signin");
