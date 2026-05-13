@@ -12,6 +12,8 @@ import { buildLeaseHTML, downloadHTMLAsPDF, printHTML } from "@/lib/pdfDocs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { AddPaymentDialog } from "@/components/AddPaymentDialog";
+import { EndTenancyDialog } from "@/components/EndTenancyDialog";
+import { NewTenancyDialog } from "@/components/NewTenancyDialog";
 import { computeBalance, type PaymentForBalance } from "@/lib/balance";
 
 interface Unit {
@@ -48,6 +50,10 @@ export default function UnitDetail() {
   const [tab, setTab] = useState<Tab>("details");
   const [delOpen, setDelOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
+  const [endOpen, setEndOpen] = useState(false);
+  const [newTenantOpen, setNewTenantOpen] = useState(false);
+  const [activeTenancyId, setActiveTenancyId] = useState<string | null>(null);
+  const [priorArrears, setPriorArrears] = useState<{ count: number; total: number }>({ count: 0, total: 0 });
 
   const load = async () => {
     if (!id) return;
@@ -59,6 +65,11 @@ export default function UnitDetail() {
     }
     const { data: ps } = await supabase.from("payments").select("unit_id,amount,deleted_at").eq("unit_id", id).is("deleted_at", null);
     setPayments((ps || []) as any);
+    const { data: ts } = await supabase.from("tenancies").select("id,status,outstanding_at_end").eq("unit_id", id);
+    const active = (ts || []).find((t: any) => t.status === "active");
+    setActiveTenancyId(active?.id || null);
+    const ended = (ts || []).filter((t: any) => t.status === "ended" && Number(t.outstanding_at_end) > 0);
+    setPriorArrears({ count: ended.length, total: ended.reduce((s: number, t: any) => s + Number(t.outstanding_at_end), 0) });
   };
   useEffect(() => { load(); }, [id]);
 
@@ -147,7 +158,21 @@ export default function UnitDetail() {
       </div>
 
       <div className="px-5 py-5 space-y-4 animate-float-up" key={tab}>
-        {tab === "details" && <DetailsTab unit={unit} payments={payments} format={format} t2={t2} lang={lang} onPay={() => setPayOpen(true)} onLeasePDF={() => exportLease("download")} onLeasePrint={() => exportLease("print")} reload={load} />}
+        {priorArrears.count > 0 && (
+          <div className="rounded-2xl border border-burgundy/30 bg-burgundy/10 px-4 py-3 flex items-center justify-between">
+            <span className="text-xs font-semibold text-burgundy">⚠️ {t2("previous_tenant_arrears")}</span>
+            <span className="text-sm font-black text-burgundy">{format(priorArrears.total)}</span>
+          </div>
+        )}
+        {tab === "details" && (
+          unit.tenant_name ? (
+            <DetailsTab unit={unit} payments={payments} format={format} t2={t2} lang={lang}
+              onPay={() => setPayOpen(true)} onLeasePDF={() => exportLease("download")} onLeasePrint={() => exportLease("print")}
+              onEnd={() => setEndOpen(true)} reload={load} />
+          ) : (
+            <VacantState t2={t2} onAdd={() => setNewTenantOpen(true)} />
+          )
+        )}
         {tab === "maintenance" && <MaintenanceTab />}
         {tab === "utilities" && <UtilitiesTab unit={unit} reload={load} />}
         {tab === "legal" && <LegalTab unit={unit} reload={load} />}
@@ -156,11 +181,26 @@ export default function UnitDetail() {
 
       <ConfirmDeleteDialog open={delOpen} onOpenChange={setDelOpen} onConfirm={handleDelete} />
       <AddPaymentDialog open={payOpen} onOpenChange={setPayOpen} presetUnitId={unit.id} onSaved={load} />
+      <EndTenancyDialog open={endOpen} onOpenChange={setEndOpen} unit={unit} tenancyId={activeTenancyId} onDone={load} />
+      <NewTenancyDialog open={newTenantOpen} onOpenChange={setNewTenantOpen} unit={unit} onDone={load} />
     </div>
   );
 }
 
-function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLeasePrint, reload }: any) {
+function VacantState({ t2, onAdd }: any) {
+  return (
+    <div className="rounded-2xl border-2 border-dashed border-sage-300/60 bg-card px-6 py-10 text-center space-y-3">
+      <div className="text-4xl">🏠</div>
+      <h3 className="text-base font-black text-sage-600">{t2("vacant_unit")}</h3>
+      <p className="text-xs text-muted-foreground">{t2("vacant_unit_msg")}</p>
+      <Button onClick={onAdd} className="rounded-xl bg-gradient-sage text-primary-foreground h-11 mt-2">
+        <Plus className="h-4 w-4 me-1.5" />{t2("add_tenant")}
+      </Button>
+    </div>
+  );
+}
+
+function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLeasePrint, onEnd, reload }: any) {
   const bal = computeBalance(unit, payments);
   const [editingArrears, setEditingArrears] = useState(false);
   const [arrearsVal, setArrearsVal] = useState<string>(String(unit.opening_balance ?? 0));
@@ -260,6 +300,9 @@ function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLea
       </div>
       <Button variant="ghost" onClick={onLeasePrint} className="w-full rounded-xl text-sage-500 h-10 text-xs">
         {lang === "ar" ? "🖨️ طباعة العقد" : "🖨️ Print contract"}
+      </Button>
+      <Button variant="outline" onClick={onEnd} className="w-full rounded-xl border-burgundy/40 text-burgundy hover:bg-burgundy/10 h-11">
+        {t2("end_tenancy")}
       </Button>
     </>
   );

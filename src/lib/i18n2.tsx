@@ -27,7 +27,12 @@ type Key =
   | "due_day_of_month" | "next_due" | "days_left" | "days_overdue" | "due_today" | "select_month"
   | "remember_me" | "password_english_only"
   | "forgot_password" | "reset_password" | "send_reset_link" | "reset_email_sent"
-  | "new_password" | "confirm_password" | "passwords_dont_match" | "password_updated";
+  | "new_password" | "confirm_password" | "passwords_dont_match" | "password_updated"
+  | "end_tenancy" | "new_tenant" | "vacant_unit" | "vacant_unit_msg" | "add_tenant"
+  | "end_date" | "end_reason" | "deposit_outcome" | "deposit_full_refund" | "deposit_partial" | "deposit_kept"
+  | "refund_amount" | "outstanding_at_end" | "settle_debt" | "carry_debt"
+  | "previous_tenant_arrears" | "tenancy_ended_ok" | "tenancy_started_ok"
+  | "contract_start_date";
 
 const dict: Record<Key, Partial<Record<Lang, string>>> = {
   all: { ar: "الكل", en: "All", ur: "تمام", zh: "全部", hi: "सभी", bn: "সব", fr: "Tous", es: "Todos", tr: "Tümü" },
@@ -161,6 +166,25 @@ const dict: Record<Key, Partial<Record<Lang, string>>> = {
   confirm_password: { ar: "تأكيد كلمة المرور", en: "Confirm password", ur: "پاس ورڈ کی تصدیق", zh: "确认密码", hi: "पासवर्ड पुष्टि करें", bn: "পাসওয়ার্ড নিশ্চিত করুন", fr: "Confirmer le mot de passe", es: "Confirmar contraseña", tr: "Şifreyi onayla" },
   passwords_dont_match: { ar: "كلمتا المرور غير متطابقتين", en: "Passwords don't match", ur: "پاس ورڈز مماثل نہیں", zh: "密码不匹配", hi: "पासवर्ड मेल नहीं खाते", bn: "পাসওয়ার্ড মিলছে না", fr: "Les mots de passe ne correspondent pas", es: "Las contraseñas no coinciden", tr: "Şifreler eşleşmiyor" },
   password_updated: { ar: "تم تحديث كلمة المرور", en: "Password updated", ur: "پاس ورڈ اپ ڈیٹ ہو گیا", zh: "密码已更新", hi: "पासवर्ड अपडेट हो गया", bn: "পাসওয়ার্ড আপডেট হয়েছে", fr: "Mot de passe mis à jour", es: "Contraseña actualizada", tr: "Şifre güncellendi" },
+  end_tenancy: { ar: "إخلاء المستأجر", en: "End tenancy", ur: "کرایہ داری ختم کریں", zh: "结束租约", hi: "किरायेदारी समाप्त करें", bn: "ভাড়াটিয়া অপসারণ", fr: "Mettre fin au bail", es: "Finalizar arrendamiento", tr: "Kiracılığı bitir" },
+  new_tenant: { ar: "مستأجر جديد", en: "New tenant", ur: "نیا کرایہ دار", zh: "新租户", hi: "नया किरायेदार", bn: "নতুন ভাড়াটিয়া", fr: "Nouveau locataire", es: "Nuevo inquilino", tr: "Yeni kiracı" },
+  add_tenant: { ar: "إضافة مستأجر", en: "Add tenant", ur: "کرایہ دار شامل کریں", zh: "添加租户", hi: "किरायेदार जोड़ें", bn: "ভাড়াটিয়া যোগ করুন", fr: "Ajouter un locataire", es: "Añadir inquilino", tr: "Kiracı ekle" },
+  vacant_unit: { ar: "وحدة شاغرة", en: "Vacant unit", ur: "خالی یونٹ", zh: "空置单元", hi: "खाली इकाई", bn: "খালি ইউনিট", fr: "Logement vacant", es: "Unidad vacante", tr: "Boş daire" },
+  vacant_unit_msg: { ar: "لا يوجد مستأجر حالياً. يمكنك إضافة مستأجر جديد.", en: "No active tenant. You can add a new tenant.", ur: "کوئی فعال کرایہ دار نہیں", zh: "暂无租户", hi: "कोई किरायेदार नहीं", bn: "কোনো ভাড়াটিয়া নেই", fr: "Aucun locataire actif", es: "Sin inquilino activo", tr: "Aktif kiracı yok" },
+  end_date: { ar: "تاريخ الإخلاء", en: "End date", ur: "اختتامی تاریخ", zh: "结束日期", hi: "अंतिम तिथि", bn: "শেষ তারিখ", fr: "Date de fin", es: "Fecha de fin", tr: "Bitiş tarihi" },
+  end_reason: { ar: "سبب الإخلاء", en: "Reason", ur: "وجہ", zh: "原因", hi: "कारण", bn: "কারণ", fr: "Motif", es: "Motivo", tr: "Sebep" },
+  deposit_outcome: { ar: "مصير التأمين", en: "Deposit outcome", ur: "ضمانت کا فیصلہ", zh: "押金处理", hi: "जमा का निपटान", bn: "জামানতের ফলাফল", fr: "Caution", es: "Depósito", tr: "Depozito" },
+  deposit_full_refund: { ar: "مُعاد بالكامل", en: "Refund in full", ur: "مکمل واپسی", zh: "全额退还", hi: "पूर्ण वापसी", bn: "সম্পূর্ণ ফেরত", fr: "Remboursé intégralement", es: "Devolución total", tr: "Tamamen iade" },
+  deposit_partial: { ar: "مُحتجز جزئياً", en: "Partial refund", ur: "جزوی واپسی", zh: "部分退还", hi: "आंशिक वापसी", bn: "আংশিক ফেরত", fr: "Remboursement partiel", es: "Devolución parcial", tr: "Kısmi iade" },
+  deposit_kept: { ar: "مُحتجز بالكامل", en: "Kept in full", ur: "مکمل ضبط", zh: "全额扣留", hi: "पूरा रखा", bn: "সম্পূর্ণ আটক", fr: "Conservée en totalité", es: "Retenido completo", tr: "Tamamen tutuldu" },
+  refund_amount: { ar: "مبلغ الاسترداد", en: "Refund amount", ur: "واپسی کی رقم", zh: "退款金额", hi: "वापसी राशि", bn: "ফেরত পরিমাণ", fr: "Montant remboursé", es: "Importe devuelto", tr: "İade tutarı" },
+  outstanding_at_end: { ar: "الرصيد عند الإغلاق", en: "Closing balance", ur: "اختتامی بیلنس", zh: "结余", hi: "समापन शेष", bn: "চূড়ান্ত ব্যালেন্স", fr: "Solde de clôture", es: "Saldo de cierre", tr: "Kapanış bakiyesi" },
+  settle_debt: { ar: "تسوية الدين (لا متابعة)", en: "Settle debt (no follow-up)", ur: "قرض طے کریں", zh: "结清", hi: "ऋण निपटान", bn: "ঋণ নিষ্পত্তি", fr: "Solder la dette", es: "Liquidar deuda", tr: "Borcu kapat" },
+  carry_debt: { ar: "ترحيل الدين على المستأجر السابق", en: "Carry debt to previous tenant", ur: "قرض منتقل کریں", zh: "结转债务", hi: "ऋण अग्रेषित", bn: "বকেয়া বহন", fr: "Reporter la dette", es: "Trasladar deuda", tr: "Borcu devret" },
+  previous_tenant_arrears: { ar: "مستأجر سابق عليه مستحقات", en: "Previous tenant has dues", ur: "سابقہ کرایہ دار", zh: "前租户欠款", hi: "पिछले किरायेदार बकाया", bn: "পূর্ববর্তী ভাড়াটিয়া বকেয়া", fr: "Ancien locataire avec dette", es: "Inquilino anterior con deuda", tr: "Önceki kiracı borçlu" },
+  tenancy_ended_ok: { ar: "تم إنهاء العقد بنجاح", en: "Tenancy ended", ur: "ختم", zh: "已结束", hi: "समाप्त", bn: "শেষ", fr: "Bail terminé", es: "Arrendamiento finalizado", tr: "Sözleşme bitti" },
+  tenancy_started_ok: { ar: "تم تسجيل المستأجر الجديد", en: "New tenant added", ur: "نیا کرایہ دار شامل", zh: "新租户已添加", hi: "नया किरायेदार जोड़ा", bn: "নতুন ভাড়াটিয়া যোগ", fr: "Nouveau locataire ajouté", es: "Inquilino añadido", tr: "Yeni kiracı eklendi" },
+  contract_start_date: { ar: "بداية العقد", en: "Contract start", ur: "معاہدہ آغاز", zh: "合同开始", hi: "अनुबंध शुरू", bn: "চুক্তি শুরু", fr: "Début du bail", es: "Inicio de contrato", tr: "Sözleşme başlangıcı" },
 };
 
 export function useT2() {
