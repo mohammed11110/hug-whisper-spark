@@ -15,28 +15,19 @@ const METHODS = ["cash", "transfer", "cheque", "card"] as const;
 const AR_MONTHS = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
 const EN_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-function getMonthOptions(lang: string) {
-  const names = lang === "ar" ? AR_MONTHS : EN_MONTHS;
-  const opts: { label: string; value: string; start: string; end: string }[] = [];
-  const today = new Date();
-  for (let i = -3; i <= 3; i++) {
-    const d = new Date(today.getFullYear(), today.getMonth() + i, 1);
-    const y = d.getFullYear();
-    const m = d.getMonth();
-    const lastDay = new Date(y, m + 1, 0).getDate();
-    const start = `${y}-${String(m + 1).padStart(2, "0")}-01`;
-    const end = `${y}-${String(m + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-    const label = `${names[m]} ${y}`;
-    opts.push({ label, value: `${y}-${String(m + 1).padStart(2, "0")}`, start, end });
-  }
-  return opts;
+function monthRange(year: number, month1to12: number) {
+  const y = year, m = month1to12 - 1;
+  const lastDay = new Date(y, m + 1, 0).getDate();
+  const start = `${y}-${String(m + 1).padStart(2, "0")}-01`;
+  const end = `${y}-${String(m + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+  return { start, end };
 }
 
-function monthLabelFromDate(dateStr: string | null, lang: string) {
-  if (!dateStr) return "";
-  const d = new Date(dateStr);
-  const names = lang === "ar" ? AR_MONTHS : EN_MONTHS;
-  return `${names[d.getMonth()]} ${d.getFullYear()}`;
+function yearOptions() {
+  const cur = new Date().getFullYear();
+  const out: number[] = [];
+  for (let y = cur + 2; y >= 2020; y--) out.push(y);
+  return out;
 }
 
 interface Props {
