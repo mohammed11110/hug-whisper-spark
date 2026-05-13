@@ -17,7 +17,10 @@ type Key =
   | "sort" | "sort_newest" | "sort_oldest" | "sort_name_az" | "sort_name_za" | "sort_units_high" | "sort_units_low"
   | "payments" | "receipts" | "all_payments" | "receipt_number" | "payment_date" | "amount" | "no_payments_msg" | "total" | "this_month" | "filter_all" | "filter_month" | "filter_year" | "print_receipt" | "delete_payment"
   | "rent_month"
-  | "units_count" | "units_count_hint" | "edit_unit";
+  | "units_count" | "units_count_hint" | "edit_unit"
+  | "arrears" | "arrears_amount" | "arrears_hint" | "record_payment_now"
+  | "payment_summary" | "outstanding_balance" | "total_due" | "total_received"
+  | "current_period_rent" | "remaining_after_payment";
 
 const dict: Record<Key, Partial<Record<Lang, string>>> = {
   all: { ar: "الكل", en: "All", ur: "تمام", zh: "全部", hi: "सभी", bn: "সব", fr: "Tous", es: "Todos", tr: "Tümü" },
@@ -117,6 +120,16 @@ const dict: Record<Key, Partial<Record<Lang, string>>> = {
   units_count: { ar: "عدد الوحدات", en: "Number of units", ur: "یونٹس کی تعداد", zh: "单元数量", hi: "इकाइयों की संख्या", bn: "ইউনিট সংখ্যা", fr: "Nombre d'unités", es: "Número de unidades", tr: "Birim sayısı" },
   units_count_hint: { ar: "سيتم إنشاء وحدات شاغرة مرقّمة تلقائياً يمكن تعديلها لاحقاً", en: "Vacant numbered units will be auto-created; edit them later individually", ur: "خالی نمبر والے یونٹ خودکار بنائیں گے، بعد میں ترمیم کریں", zh: "将自动创建空置编号单元，稍后可单独编辑", hi: "स्वतः खाली क्रमांकित इकाइयाँ बनेंगी; बाद में अलग से संपादित करें", bn: "স্বয়ংক্রিয় খালি ইউনিট তৈরি হবে; পরে পৃথক সম্পাদনা করুন", fr: "Des unités vacantes numérotées seront créées; modifiez-les ensuite individuellement", es: "Se crearán unidades vacantes numeradas; edítalas después individualmente", tr: "Numaralı boş birimler oluşturulur; sonra tek tek düzenleyin" },
   edit_unit: { ar: "تعديل الوحدة", en: "Edit unit", ur: "یونٹ ترمیم", zh: "编辑单元", hi: "इकाई संपादित", bn: "ইউনিট সম্পাদনা", fr: "Modifier l'unité", es: "Editar unidad", tr: "Birimi düzenle" },
+  arrears: { ar: "متأخرات", en: "Arrears" },
+  arrears_amount: { ar: "مبلغ المتأخرات", en: "Arrears amount" },
+  arrears_hint: { ar: "إيجارات سابقة لم تُسدَّد عند تسجيل المستأجر", en: "Previous unpaid rent at registration time" },
+  record_payment_now: { ar: "تسجيل دفعة الآن", en: "Record a payment now" },
+  payment_summary: { ar: "ملخص الحساب", en: "Account summary" },
+  outstanding_balance: { ar: "الرصيد المستحق", en: "Outstanding balance" },
+  total_due: { ar: "إجمالي المستحق", en: "Total due" },
+  total_received: { ar: "إجمالي المستلم", en: "Total received" },
+  current_period_rent: { ar: "إيجار الفترة الحالية", en: "Current period rent" },
+  remaining_after_payment: { ar: "المتبقي بعد الدفع", en: "Remaining after payment" },
 };
 
 export function useT2() {
