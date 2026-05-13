@@ -69,9 +69,21 @@ export default function BuildingDetail() {
   };
 
   const visible = filter === "all" ? units : units.filter((u) => u.type === filter);
-  const occupied = units.filter((u) => u.tenant_name).length;
+  const occupied = units.filter((u) => u.status !== "vacant").length;
   const occupancy = units.length ? Math.round((occupied / units.length) * 100) : 0;
-  const monthlyIncome = units.filter((u) => u.rent_type === "monthly").reduce((s, u) => s + Number(u.rent_amount), 0);
+  const vacancy = units.length ? 100 - occupancy : 0;
+  const monthRents = units
+    .filter((u) => u.status !== "vacant")
+    .reduce((s, u) => {
+      const r = Number(u.rent_amount) || 0;
+      if (u.rent_type === "monthly") return s + r;
+      if (u.rent_type === "yearly") return s + r / 12;
+      if (u.rent_type === "daily") {
+        const days = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+        return s + r * days;
+      }
+      return s;
+    }, 0);
 
   if (!building) return <div className="mobile-shell flex items-center justify-center min-h-screen"><p className="text-sage-500">{t("loading")}</p></div>;
 
