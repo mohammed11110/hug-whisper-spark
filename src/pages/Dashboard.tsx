@@ -62,15 +62,15 @@ export default function Dashboard() {
         .filter((u: any) => u.status !== "paid")
         .reduce((s: number, u: any) => s + Number(u.rent_amount || 0), 0);
 
-      // Collected this month
+      // Collected this month — by rent month (period_start), fallback to payment_date for legacy
       const unitIds = (uRows || []).map((u: any) => u.id);
       let collected = 0;
       if (unitIds.length) {
-        const start = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
-        const end = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().slice(0, 10);
-        const { data: pays } = await supabase.from("payments").select("amount").in("unit_id", unitIds)
-          .is("deleted_at", null).gte("payment_date", start).lte("payment_date", end);
-        collected = (pays || []).reduce((s: number, p: any) => s + Number(p.amount), 0);
+        const monthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+        const { data: pays } = await supabase.from("payments").select("amount, payment_date, period_start").in("unit_id", unitIds).is("deleted_at", null);
+        collected = (pays || [])
+          .filter((p: any) => ((p.period_start || p.payment_date) || "").slice(0, 7) === monthKey)
+          .reduce((s: number, p: any) => s + Number(p.amount), 0);
       }
 
       setStats({ buildings, units, overdue, expiring, collected, pending });
