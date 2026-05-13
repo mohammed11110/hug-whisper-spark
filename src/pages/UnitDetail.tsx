@@ -451,13 +451,29 @@ function computeNextDue(dueDay: number, lastPaidDate: string | null): Date {
   return next;
 }
 
+function getDueForMonth(dueDay: number, year: number, month: number): Date {
+  const day = Math.max(1, Math.min(31, dueDay || 1));
+  const lastOfMonth = new Date(year, month + 1, 0).getDate();
+  return new Date(year, month, Math.min(day, lastOfMonth));
+}
+
 function DueDateRow({ unit, t2, lang }: any) {
-  const next = computeNextDue(unit.due_day, unit.last_paid_date);
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  const diff = Math.round((next.getTime() - today.getTime()) / 86400000);
+  const [ym, setYm] = useState<string>(`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`);
+  const [y, m] = ym.split("-").map(Number);
+  const target = getDueForMonth(unit.due_day, y, m - 1);
+  const diff = Math.round((target.getTime() - today.getTime()) / 86400000);
   const locale = lang === "ar" ? "ar" : lang === "fr" ? "fr" : lang === "es" ? "es" : lang === "tr" ? "tr" : "en";
-  const dateStr = next.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" });
+  const dateStr = target.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" });
   const dayLabel = (t2("due_day_of_month") as string).replace("{n}", String(unit.due_day));
+
+  // Build month options: 6 past + current + 12 future
+  const options: { value: string; label: string }[] = [];
+  for (let i = -6; i <= 12; i++) {
+    const d = new Date(today.getFullYear(), today.getMonth() + i, 1);
+    const v = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    options.push({ value: v, label: d.toLocaleDateString(locale, { month: "long", year: "numeric" }) });
+  }
 
   let badgeText: string; let badgeCls: string;
   if (diff < 0) {
@@ -475,13 +491,25 @@ function DueDateRow({ unit, t2, lang }: any) {
   }
 
   return (
-    <div className="py-2 border-b border-sage-200/30 space-y-1.5">
+    <div className="py-2 border-b border-sage-200/30 space-y-2">
       <div className="flex items-center gap-3">
         <Calendar className="h-4 w-4 text-sage-400" />
         <span className="text-xs text-muted-foreground flex-1">{t2("due_day")}</span>
         <span className="text-sm font-semibold text-sage-600 text-end">{dayLabel}</span>
       </div>
-      <div className="flex items-center gap-3 ps-7">
+      <div className="flex items-center gap-2 ps-7">
+        <span className="text-[11px] text-muted-foreground flex-1">{t2("select_month")}</span>
+        <select
+          value={ym}
+          onChange={(e) => setYm(e.target.value)}
+          className="h-8 rounded-lg border border-sage-200 bg-card text-xs px-2 text-sage-600 font-semibold focus:outline-none focus:ring-1 focus:ring-sage-400"
+        >
+          {options.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+      </div>
+      <div className="flex items-center gap-2 ps-7">
         <span className="text-[11px] text-muted-foreground flex-1">{t2("next_due")}</span>
         <span className="text-xs font-semibold text-sage-600">{dateStr}</span>
         <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${badgeCls}`}>{badgeText}</span>
