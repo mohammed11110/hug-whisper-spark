@@ -59,7 +59,7 @@ export default function Refund() {
               عند الموافقة، يتم الاسترداد إلى نفس وسيلة الدفع الأصلية خلال 5-10 أيام عمل عبر Paddle. قد تستغرق البنوك وقتاً إضافياً لإظهار المبلغ في كشف حسابك.
             </Section>
             <Section title="7. الإلغاء بدون استرداد">
-              يمكنك إلغاء اشتراكك في أي وقت من صفحة الإعدادات > الاشتراك. ستبقى الخدمة فعّالة حتى نهاية الفترة المدفوعة، ثم يتحول الحساب إلى الخطة المجانية تلقائياً.
+              يمكنك إلغاء اشتراكك في أي وقت من صفحة الإعدادات ← الاشتراك. ستبقى الخدمة فعّالة حتى نهاية الفترة المدفوعة، ثم يتحول الحساب إلى الخطة المجانية تلقائياً.
             </Section>
             <Section title="8. التواصل">
               لأي استفسار حول الاسترداد: <a href={`mailto:${SUPPORT_EMAIL}`} className="text-sage-500 underline">{SUPPORT_EMAIL}</a>
@@ -101,7 +101,7 @@ export default function Refund() {
               Once approved, the refund is issued to the original payment method within 5-10 business days via Paddle. Banks may take additional time to reflect the amount.
             </Section>
             <Section title="7. Cancellation Without Refund">
-              You can cancel your subscription anytime from Settings > Subscription. The service remains active until the end of the paid period, then the account reverts to the Free plan.
+              You can cancel your subscription anytime from Settings → Subscription. The service remains active until the end of the paid period, then the account reverts to the Free plan.
             </Section>
             <Section title="8. Contact">
               For refund inquiries: <a href={`mailto:${SUPPORT_EMAIL}`} className="text-sage-500 underline">{SUPPORT_EMAIL}</a>
