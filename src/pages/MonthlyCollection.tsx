@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Download, CheckCircle2, AlertCircle, Phone, Building2 } from "lucide-react";
+import { ArrowLeft, Download, CheckCircle2, AlertCircle, Phone, Building2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { useI18n } from "@/lib/i18n";
@@ -11,6 +12,7 @@ import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { exportToCSV } from "@/lib/exportCSV";
 import { AddPaymentDialog } from "@/components/AddPaymentDialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface UnitRow {
   id: string;
