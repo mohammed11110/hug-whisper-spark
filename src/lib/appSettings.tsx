@@ -23,6 +23,8 @@ export interface AppSettings {
   contractWarnDays: number;
   /** Business branding for receipts & contracts */
   brand: BusinessBrand;
+  /** Show the floating AI assistant button on the dashboard */
+  showAiFab: boolean;
 }
 
 const DEFAULTS: AppSettings = {
@@ -39,6 +41,7 @@ const DEFAULTS: AppSettings = {
   upcomingDays: 7,
   contractWarnDays: 30,
   brand: { name: "أملاكي · Amlaki", logo: null, phone: "", address: "" },
+  showAiFab: false,
 };
 
 const KEY = "amlaki.appSettings.v1";
