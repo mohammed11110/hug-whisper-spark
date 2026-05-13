@@ -34,6 +34,7 @@ export default function BuildingDetail() {
   const [building, setBuilding] = useState<Building | null>(null);
   const [units, setUnits] = useState<Unit[]>([]);
   const [payments, setPayments] = useState<PaymentForBalance[]>([]);
+  const [collectedMonth, setCollectedMonth] = useState(0);
   const [filter, setFilter] = useState<string>("all");
   const [delOpen, setDelOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
@@ -49,7 +50,12 @@ export default function BuildingDetail() {
     if (ids.length) {
       const { data: ps } = await supabase.from("payments").select("unit_id,amount,deleted_at").in("unit_id", ids).is("deleted_at", null);
       setPayments((ps || []) as any);
-    } else setPayments([]);
+      const today = new Date();
+      const start = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
+      const end = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().slice(0, 10);
+      const { data: pm } = await supabase.from("payments").select("amount").in("unit_id", ids).is("deleted_at", null).gte("payment_date", start).lte("payment_date", end);
+      setCollectedMonth((pm || []).reduce((s: number, p: any) => s + Number(p.amount), 0));
+    } else { setPayments([]); setCollectedMonth(0); }
   };
 
   useEffect(() => { load(); }, [id]);
@@ -63,9 +69,21 @@ export default function BuildingDetail() {
   };
 
   const visible = filter === "all" ? units : units.filter((u) => u.type === filter);
-  const occupied = units.filter((u) => u.tenant_name).length;
+  const occupied = units.filter((u) => u.status !== "vacant").length;
   const occupancy = units.length ? Math.round((occupied / units.length) * 100) : 0;
-  const monthlyIncome = units.filter((u) => u.rent_type === "monthly").reduce((s, u) => s + Number(u.rent_amount), 0);
+  const vacancy = units.length ? 100 - occupancy : 0;
+  const monthRents = units
+    .filter((u) => u.status !== "vacant")
+    .reduce((s, u) => {
+      const r = Number(u.rent_amount) || 0;
+      if (u.rent_type === "monthly") return s + r;
+      if (u.rent_type === "yearly") return s + r / 12;
+      if (u.rent_type === "daily") {
+        const days = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
+        return s + r * days;
+      }
+      return s;
+    }, 0);
 
   if (!building) return <div className="mobile-shell flex items-center justify-center min-h-screen"><p className="text-sage-500">{t("loading")}</p></div>;
 
@@ -94,10 +112,11 @@ export default function BuildingDetail() {
 
       <div className="px-5 -mt-4 relative z-10">
         {/* Stats card */}
-        <div className="bg-card rounded-2xl shadow-elev p-4 grid grid-cols-3 gap-2 mb-5 animate-float-up">
-          <Stat label={t("units")} value={units.length} />
+        <div className="bg-card rounded-2xl shadow-elev p-3 grid grid-cols-2 gap-2 mb-5 animate-float-up">
           <Stat label={t2("occupancy")} value={`${occupancy}%`} />
-          <Stat label={t2("monthly_income")} value={format(monthlyIncome)} small />
+          <Stat label={t2("vacancy")} value={`${vacancy}%`} />
+          <Stat label={t2("expected_month")} value={format(monthRents)} small />
+          <Stat label={t2("collected_total")} value={format(collectedMonth)} small />
         </div>
 
         {/* Expenses link */}
