@@ -31,16 +31,13 @@ export default function Auth() {
     const saved = localStorage.getItem(REMEMBER_KEY);
     if (saved) { setEmail(saved); setRemember(true); }
   }, []);
-  const navigate = useNavigate();
-  const { t } = useI18n();
-  const [mode, setMode] = useState<"signin" | "signup">((params.get("mode") as any) || "signin");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [busy, setBusy] = useState(false);
-
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!ASCII_RE.test(password)) {
+      setPwError(true);
+      toast.error(t2("password_english_only"));
+      return;
+    }
     setBusy(true);
     try {
       if (mode === "signup") {
@@ -54,10 +51,12 @@ export default function Auth() {
         });
         if (error) throw error;
         toast.success(t("welcome") + ` ${name || ""}`.trim() + "!");
+        if (remember) localStorage.setItem(REMEMBER_KEY, email); else localStorage.removeItem(REMEMBER_KEY);
         navigate("/");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        if (remember) localStorage.setItem(REMEMBER_KEY, email); else localStorage.removeItem(REMEMBER_KEY);
         navigate("/");
       }
     } catch (err: any) {
