@@ -63,6 +63,8 @@ export default function MonthlyCollection() {
   const [loading, setLoading] = useState(true);
   const [payOpen, setPayOpen] = useState(false);
   const [presetUnit, setPresetUnit] = useState<string | undefined>();
+  const [showPaymentsDialog, setShowPaymentsDialog] = useState(false);
+  const [dialogPayments, setDialogPayments] = useState<PaymentRow[]>([]);
 
   useEffect(() => {
     if (!user) return;
