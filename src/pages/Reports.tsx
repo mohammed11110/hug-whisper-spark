@@ -186,6 +186,20 @@ export default function Reports() {
           </Button>
         </div>
 
+        {/* Quick link to Monthly Collection */}
+        <Link to="/collection" className="block animate-float-up">
+          <div className="bg-gradient-sage text-primary-foreground rounded-2xl p-4 shadow-soft flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">▦</span>
+              <div>
+                <p className="text-sm font-black">{t2("monthly_collection")}</p>
+                <p className="text-[11px] opacity-90">{lang === "ar" ? "دافعون · متأخرون · إجماليات شهرية" : "Paid · Late · Monthly totals"}</p>
+              </div>
+            </div>
+            <span className="text-xl rtl:rotate-180">›</span>
+          </div>
+        </Link>
+
         {/* Range selector */}
         <div className="flex gap-2 animate-float-up" style={{ animationDelay: "0.05s" }}>
           {([6, 12, 24] as Range[]).map((r) => (
