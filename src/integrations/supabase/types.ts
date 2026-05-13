@@ -178,6 +178,7 @@ export type Database = {
           period_end: string | null
           period_start: string | null
           receipt_number: string | null
+          tenancy_id: string | null
           unit_id: string
         }
         Insert: {
@@ -192,6 +193,7 @@ export type Database = {
           period_end?: string | null
           period_start?: string | null
           receipt_number?: string | null
+          tenancy_id?: string | null
           unit_id: string
         }
         Update: {
@@ -206,6 +208,7 @@ export type Database = {
           period_end?: string | null
           period_start?: string | null
           receipt_number?: string | null
+          tenancy_id?: string | null
           unit_id?: string
         }
         Relationships: [
@@ -296,6 +299,99 @@ export type Database = {
           redeemed_at?: string | null
           redeemed_by?: string | null
           used_count?: number
+        }
+        Relationships: []
+      }
+      tenancies: {
+        Row: {
+          building_id: string
+          contract_end_date: string | null
+          contract_start_date: string | null
+          contract_type: string
+          created_at: string
+          deposit_refund_amount: number | null
+          deposit_refunded_at: string | null
+          deposit_status: string
+          due_day: number
+          ended_at: string | null
+          ended_reason: string | null
+          id: string
+          notes: string | null
+          opening_balance: number
+          opening_balance_date: string | null
+          outstanding_at_end: number | null
+          rent_amount: number
+          rent_type: string
+          security_deposit: number
+          status: string
+          tenant_email: string | null
+          tenant_id_image_url: string | null
+          tenant_id_number: string | null
+          tenant_id_type: string | null
+          tenant_name: string | null
+          tenant_phone: string | null
+          unit_id: string
+          updated_at: string
+        }
+        Insert: {
+          building_id: string
+          contract_end_date?: string | null
+          contract_start_date?: string | null
+          contract_type?: string
+          created_at?: string
+          deposit_refund_amount?: number | null
+          deposit_refunded_at?: string | null
+          deposit_status?: string
+          due_day?: number
+          ended_at?: string | null
+          ended_reason?: string | null
+          id?: string
+          notes?: string | null
+          opening_balance?: number
+          opening_balance_date?: string | null
+          outstanding_at_end?: number | null
+          rent_amount?: number
+          rent_type?: string
+          security_deposit?: number
+          status?: string
+          tenant_email?: string | null
+          tenant_id_image_url?: string | null
+          tenant_id_number?: string | null
+          tenant_id_type?: string | null
+          tenant_name?: string | null
+          tenant_phone?: string | null
+          unit_id: string
+          updated_at?: string
+        }
+        Update: {
+          building_id?: string
+          contract_end_date?: string | null
+          contract_start_date?: string | null
+          contract_type?: string
+          created_at?: string
+          deposit_refund_amount?: number | null
+          deposit_refunded_at?: string | null
+          deposit_status?: string
+          due_day?: number
+          ended_at?: string | null
+          ended_reason?: string | null
+          id?: string
+          notes?: string | null
+          opening_balance?: number
+          opening_balance_date?: string | null
+          outstanding_at_end?: number | null
+          rent_amount?: number
+          rent_type?: string
+          security_deposit?: number
+          status?: string
+          tenant_email?: string | null
+          tenant_id_image_url?: string | null
+          tenant_id_number?: string | null
+          tenant_id_type?: string | null
+          tenant_name?: string | null
+          tenant_phone?: string | null
+          unit_id?: string
+          updated_at?: string
         }
         Relationships: []
       }
