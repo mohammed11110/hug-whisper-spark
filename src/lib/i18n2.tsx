@@ -20,7 +20,10 @@ type Key =
   | "units_count" | "units_count_hint" | "edit_unit"
   | "arrears" | "arrears_amount" | "arrears_hint" | "record_payment_now"
   | "payment_summary" | "outstanding_balance" | "total_due" | "total_received"
-  | "current_period_rent" | "remaining_after_payment";
+  | "current_period_rent" | "remaining_after_payment"
+  | "monthly_collection" | "paid_tenants" | "late_tenants"
+  | "expected_total" | "collected_total" | "collection_rate"
+  | "partial_payment" | "quick_collect";
 
 const dict: Record<Key, Partial<Record<Lang, string>>> = {
   all: { ar: "الكل", en: "All", ur: "تمام", zh: "全部", hi: "सभी", bn: "সব", fr: "Tous", es: "Todos", tr: "Tümü" },
@@ -130,6 +133,14 @@ const dict: Record<Key, Partial<Record<Lang, string>>> = {
   total_received: { ar: "إجمالي المستلم", en: "Total received" },
   current_period_rent: { ar: "إيجار الفترة الحالية", en: "Current period rent" },
   remaining_after_payment: { ar: "المتبقي بعد الدفع", en: "Remaining after payment" },
+  monthly_collection: { ar: "التحصيل الشهري", en: "Monthly collection" },
+  paid_tenants: { ar: "الدافعون", en: "Paid tenants" },
+  late_tenants: { ar: "المتأخرون", en: "Late tenants" },
+  expected_total: { ar: "إجمالي المستحق", en: "Expected total" },
+  collected_total: { ar: "إجمالي المستلم", en: "Collected total" },
+  collection_rate: { ar: "نسبة التحصيل", en: "Collection rate" },
+  partial_payment: { ar: "دفع جزئي", en: "Partial payment" },
+  quick_collect: { ar: "تحصيل سريع", en: "Quick collect" },
 };
 
 export function useT2() {

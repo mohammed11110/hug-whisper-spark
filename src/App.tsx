@@ -29,6 +29,7 @@ import Install from "./pages/Install";
 import Pricing from "./pages/Pricing";
 import Assistant from "./pages/Assistant";
 import Admin from "./pages/Admin";
+import MonthlyCollection from "./pages/MonthlyCollection";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -65,6 +66,7 @@ const App = () => (
                     <Route path="/pricing" element={<RequireAuth><Pricing /></RequireAuth>} />
                     <Route path="/assistant" element={<RequireAuth><Assistant /></RequireAuth>} />
                     <Route path="/admin" element={<RequireAuth><Admin /></RequireAuth>} />
+                    <Route path="/collection" element={<RequireAuth><MonthlyCollection /></RequireAuth>} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </BrowserRouter>
