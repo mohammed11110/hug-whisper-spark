@@ -283,10 +283,10 @@ export default function MonthlyCollection() {
                   const unit = units.find((u) => u.id === p.unit_id);
                   const buildingName = unit ? (buildings[unit.building_id] || "") : "";
                   const period = p.period_start
-                    ? `${AR_MONTHS[new Date(p.period_start).getMonth()]} ${new Date(p.period_start).getFullYear()}`
+                    ? `${(lang === "ar" ? AR_MONTHS : EN_MONTHS)[new Date(p.period_start).getMonth()]} ${new Date(p.period_start).getFullYear()}`
                     : "";
                   return (
-                    <div key={`${p.unit_id}-${p.payment_date}`} className="bg-card border border-sage-200/40 rounded-xl p-3 flex items-center gap-3">
+                    <div key={`${p.unit_id}-${p.payment_date}-${p.amount}`} className="bg-card border border-sage-200/40 rounded-xl p-3 flex items-center gap-3">
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-sage-600 truncate">{unit?.tenant_name || "—"}</p>
                         <p className="text-[11px] text-muted-foreground truncate">{buildingName} · #{unit?.unit_number}</p>
