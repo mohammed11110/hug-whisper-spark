@@ -266,6 +266,45 @@ export default function MonthlyCollection() {
             setPayments((ps || []) as PaymentRow[]);
           }
         }} />
+
+      <Dialog open={showPaymentsDialog} onOpenChange={setShowPaymentsDialog}>
+        <DialogContent className="max-w-lg max-h-[80vh] p-0 gap-0">
+          <DialogHeader className="px-5 pt-5 pb-2">
+            <DialogTitle className="text-lg font-bold text-sage-600">
+              {t2("payments")} — {month.label}
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="px-5 pb-5 max-h-[60vh]">
+            {dialogPayments.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">{t2("no_payments")}</p>
+            ) : (
+              <div className="space-y-2">
+                {dialogPayments.map((p) => {
+                  const unit = units.find((u) => u.id === p.unit_id);
+                  const buildingName = unit ? (buildings[unit.building_id] || "") : "";
+                  const period = p.period_start
+                    ? `${AR_MONTHS[new Date(p.period_start).getMonth()]} ${new Date(p.period_start).getFullYear()}`
+                    : "";
+                  return (
+                    <div key={`${p.unit_id}-${p.payment_date}`} className="bg-card border border-sage-200/40 rounded-xl p-3 flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-sage-600 truncate">{unit?.tenant_name || "—"}</p>
+                        <p className="text-[11px] text-muted-foreground truncate">{buildingName} · #{unit?.unit_number}</p>
+                        {period && <p className="text-[10px] text-sage-500 mt-0.5">{t2("rent_month")}: {period}</p>}
+                      </div>
+                      <div className="text-end flex-shrink-0">
+                        <p className="text-sm font-black text-sage-600">{format(Number(p.amount))}</p>
+                        <p className="text-[10px] text-muted-foreground">{p.payment_date}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
       <BottomNav />
     </div>
   );
