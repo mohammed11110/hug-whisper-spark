@@ -14,11 +14,13 @@ import { toast } from "sonner";
 import { AddPaymentDialog } from "@/components/AddPaymentDialog";
 import { EndTenancyDialog } from "@/components/EndTenancyDialog";
 import { NewTenancyDialog } from "@/components/NewTenancyDialog";
+import { FileUpload } from "@/components/FileUpload";
 import { computeBalance, type PaymentForBalance } from "@/lib/balance";
 
 interface Unit {
   id: string; building_id: string; unit_number: string; floor: number; type: string;
   tenant_name: string | null; tenant_phone: string | null; tenant_id_number: string | null;
+  tenant_id_image_url: string | null;
   rent_amount: number; rent_type: string; due_day: number; status: string;
   contract_type: string; contract_start_date: string | null; contract_end_date: string | null;
   contract_file_url: string | null; last_paid_date: string | null;
@@ -176,7 +178,7 @@ export default function UnitDetail() {
         {tab === "maintenance" && <MaintenanceTab />}
         {tab === "utilities" && <UtilitiesTab unit={unit} reload={load} />}
         {tab === "legal" && <LegalTab unit={unit} reload={load} />}
-        {tab === "photos" && <PhotosTab />}
+        {tab === "photos" && <PhotosTab unit={unit} reload={load} />}
       </div>
 
       <ConfirmDeleteDialog open={delOpen} onOpenChange={setDelOpen} onConfirm={handleDelete} />
@@ -228,7 +230,33 @@ function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLea
         <Row icon={User} label={t2("tenant_name")} value={unit.tenant_name || "—"} />
         <Row icon={Phone} label={t2("tenant_phone")} value={unit.tenant_phone || "—"} />
         <Row icon={IdCard} label="ID" value={unit.tenant_id_number || "—"} />
-        <Row icon={FileText} label="Contract" value={unit.contract_file_url ? "✓" : "—"} />
+      </Card>
+      <Card>
+        <h3 className="text-sage-600 font-bold mb-3 text-sm">المستندات</h3>
+        <div className="space-y-3">
+          <FileUpload
+            bucket="contracts"
+            pathPrefix={`${unit.building_id}/${unit.id}`}
+            value={unit.contract_file_url}
+            onChange={async (v) => {
+              await supabase.from("units").update({ contract_file_url: v }).eq("id", unit.id);
+              reload?.();
+            }}
+            accept="application/pdf,image/*"
+            label="عقد الإيجار"
+          />
+          <FileUpload
+            bucket="tenant-ids"
+            pathPrefix={`${unit.building_id}/${unit.id}`}
+            value={unit.tenant_id_image_url}
+            onChange={async (v) => {
+              await supabase.from("units").update({ tenant_id_image_url: v }).eq("id", unit.id);
+              reload?.();
+            }}
+            accept="image/*,application/pdf"
+            label="صورة هوية المستأجر"
+          />
+        </div>
       </Card>
       <Card>
         <h3 className="text-sage-600 font-bold mb-3 text-sm">{t2("rent_amount")}</h3>
@@ -434,22 +462,58 @@ function LegalTab({ unit, reload }: any) {
   );
 }
 
-function PhotosTab() {
-  const t2 = useT2();
-  const rooms = ["Living room", "Kitchen", "Bedroom", "Bathroom"];
+function PhotosTab({ unit, reload }: any) {
+  const photos: string[] = Array.isArray(unit.handover_photos) ? unit.handover_photos : [];
+  const [signed, setSigned] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    (async () => {
+      const map: Record<string, string> = {};
+      for (const p of photos) {
+        const { data } = await supabase.storage.from("unit-photos").createSignedUrl(p, 3600);
+        if (data?.signedUrl) map[p] = data.signedUrl;
+      }
+      setSigned(map);
+    })();
+  }, [unit.handover_photos]);
+
+  const removePhoto = async (p: string) => {
+    await supabase.storage.from("unit-photos").remove([p]);
+    const next = photos.filter((x) => x !== p);
+    await supabase.from("units").update({ handover_photos: next }).eq("id", unit.id);
+    reload?.();
+  };
+
   return (
     <>
       <div className="grid grid-cols-2 gap-2.5">
-        {rooms.map((r) => (
-          <div key={r} className="aspect-square rounded-2xl border-2 border-dashed border-sage-200 bg-muted/40 flex flex-col items-center justify-center text-sage-400">
-            <Camera className="h-6 w-6 mb-1" />
-            <span className="text-[10px] font-semibold">{r}</span>
+        {photos.map((p) => (
+          <div key={p} className="relative aspect-square rounded-2xl overflow-hidden border border-sage-200/40 bg-muted/40">
+            {signed[p] ? <img src={signed[p]} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full grid place-items-center text-sage-400"><Camera className="h-5 w-5" /></div>}
+            <button onClick={() => removePhoto(p)} className="absolute top-1 end-1 h-7 w-7 rounded-full bg-burgundy text-primary-foreground grid place-items-center shadow-soft">
+              <X className="h-3.5 w-3.5" />
+            </button>
           </div>
         ))}
+        {photos.length === 0 && (
+          <div className="col-span-2 aspect-[2/1] rounded-2xl border-2 border-dashed border-sage-200 bg-muted/40 grid place-items-center text-sage-400">
+            <Camera className="h-6 w-6" />
+          </div>
+        )}
       </div>
-      <Button variant="outline" className="w-full rounded-xl border-sage-300 text-sage-600 h-12 font-semibold">
-        <Plus className="h-4 w-4 me-1.5" />{t2("add_photo")}
-      </Button>
+      <FileUpload
+        bucket="unit-photos"
+        pathPrefix={`${unit.building_id}/${unit.id}`}
+        value={null}
+        onChange={async (v) => {
+          if (!v) return;
+          const next = [...photos, v];
+          await supabase.from("units").update({ handover_photos: next }).eq("id", unit.id);
+          reload?.();
+        }}
+        accept="image/*"
+        label="إضافة صورة"
+      />
     </>
   );
 }
