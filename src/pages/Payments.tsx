@@ -198,6 +198,7 @@ export default function Payments() {
           <div class="row"><span>${t2("unit_number")}</span><b><span class="unit-pill">#${r.unit_number}</span></b></div>
           <div class="row"><span>${t2("occupancy_status") || t2("status")}</span><b style="color:${us.fg}">${us.label}</b></div>
           <div class="row"><span>${t2("tenant_name")}</span><b>${r.tenant_name || "—"}</b></div>
+          ${r.period_start ? `<div class="row"><span>${t2("rent_month")}</span><b>${monthLabel(r.period_start, lang)}</b></div>` : ""}
           <div class="total"><span>${t2("total")}</span><span>${format(r.amount)}</span></div>
           <div class="footer">— ${t2("issue_receipt") || "Receipt"} —</div>
         </div>
