@@ -149,6 +149,8 @@ const dict: Record<Key, Partial<Record<Lang, string>>> = {
   days_overdue: { ar: "متأخر {n} يوم", en: "{n} days overdue", ur: "{n} دن تاخیر", zh: "逾期 {n} 天", hi: "{n} दिन विलंब", bn: "{n} দিন বিলম্ব", fr: "{n} j de retard", es: "{n} días atraso", tr: "{n} gün gecikme" },
   due_today: { ar: "مستحق اليوم", en: "Due today", ur: "آج واجب", zh: "今日到期", hi: "आज देय", bn: "আজ দেয়", fr: "Dû aujourd'hui", es: "Vence hoy", tr: "Bugün vade" },
   select_month: { ar: "اختر الشهر", en: "Select month", ur: "ماہ منتخب کریں", zh: "选择月份", hi: "महीना चुनें", bn: "মাস নির্বাচন", fr: "Choisir le mois", es: "Elegir mes", tr: "Ay seç" },
+  remember_me: { ar: "تذكرني", en: "Remember me", ur: "مجھے یاد رکھیں", zh: "记住我", hi: "मुझे याद रखें", bn: "আমাকে মনে রাখো", fr: "Se souvenir de moi", es: "Recuérdame", tr: "Beni hatırla" },
+  password_english_only: { ar: "كلمة المرور بالأحرف الإنجليزية فقط", en: "Password must be in English only", ur: "پاس ورڈ صرف انگریزی میں", zh: "密码仅限英文", hi: "पासवर्ड केवल अंग्रेज़ी में", bn: "পাসওয়ার্ড শুধু ইংরেজিতে", fr: "Mot de passe en anglais uniquement", es: "Contraseña solo en inglés", tr: "Şifre yalnızca İngilizce" },
 };
 
 export function useT2() {
