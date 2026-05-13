@@ -42,6 +42,7 @@ interface Payment {
   unit_id: string;
   amount: number;
   payment_date: string;
+  period_start?: string | null;
 }
 interface Expense {
   id: string;
