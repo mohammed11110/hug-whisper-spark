@@ -46,11 +46,14 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
   const [receipt, setReceipt] = useState("");
   const [method, setMethod] = useState("cash");
   const [notes, setNotes] = useState("");
-  const [periodMonth, setPeriodMonth] = useState("");
-  const [periodStart, setPeriodStart] = useState("");
-  const [periodEnd, setPeriodEnd] = useState("");
+  const [periodYear, setPeriodYear] = useState<number>(() => new Date().getFullYear());
+  const [periodMonthNum, setPeriodMonthNum] = useState<number>(() => new Date().getMonth() + 1);
+  const [hasPeriod, setHasPeriod] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const { start: periodStart, end: periodEnd } = monthRange(periodYear, periodMonthNum);
+  const monthNames = lang === "ar" ? AR_MONTHS : EN_MONTHS;
 
   useEffect(() => {
     if (!open || !paymentId) return;
@@ -69,32 +72,14 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
       setReceipt(data.receipt_number ?? "");
       setMethod(data.payment_method ?? "cash");
       setNotes(data.notes ?? "");
-      const ps = data.period_start;
-      if (ps) {
-        const v = ps.slice(0, 7);
-        setPeriodMonth(v);
-        setPeriodStart(ps);
-        const y = Number(v.slice(0, 4));
-        const m = Number(v.slice(5, 7));
-        const lastDay = new Date(y, m, 0).getDate();
-        setPeriodEnd(`${v}-${String(lastDay).padStart(2, "0")}`);
-      } else {
-        setPeriodMonth("");
-        setPeriodStart("");
-        setPeriodEnd("");
+      const ref = data.period_start || data.payment_date;
+      if (ref) {
+        setPeriodYear(Number(ref.slice(0, 4)));
+        setPeriodMonthNum(Number(ref.slice(5, 7)));
       }
+      setHasPeriod(true);
     })();
   }, [open, paymentId]);
-
-  const onPickMonth = (val: string) => {
-    const moOpts = getMonthOptions(lang);
-    const opt = moOpts.find((o) => o.value === val);
-    if (opt) {
-      setPeriodMonth(opt.value);
-      setPeriodStart(opt.start);
-      setPeriodEnd(opt.end);
-    }
-  };
 
   const submit = async () => {
     if (!paymentId) return;
