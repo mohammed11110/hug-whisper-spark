@@ -1,79 +1,119 @@
+# خطة تفعيل نظام الدفع الحقيقي
 
-## الهدف
-معالجة جميع نقاط الأمان والبنية التحتية الناقصة في التطبيق على 4 مراحل متتابعة.
+## 1. اختيار مزود الدفع
 
----
+تشغيل `recommend_payment_provider` لتحديد المزود الأنسب. التطبيق SaaS رقمي (إدارة عقارات) → الترشيح المتوقع **Paddle** (Merchant of Record، يتولى الضرائب والامتثال تلقائياً، مناسب للسوق العالمي والعربي).
 
-## المرحلة 1: إصلاح ثغرات الأمان الحرجة 🔴
+البديل: **Stripe** إذا أراد المستخدم تحكم أكبر في الضرائب أو كان مستهدفاً لسوق محدد.
 
-### 1.1 حماية أكواد الترويج (الأخطر)
-- حذف سياسة `authenticated can read codes` من جدول `promo_codes` التي تسمح لأي مستخدم مسجّل بقراءة جميع الأكواد.
-- الإبقاء فقط على سياسة الأدمن للقراءة الكاملة.
-- التحقق من أن دالة `redeem_promo_code` (وهي `SECURITY DEFINER`) لا تزال تعمل للمستخدم العادي عند استبدال الكود — وهي تعمل لأنها تتجاوز RLS.
-
-### 1.2 إصلاح سياسة قراءة المباني (Buildings)
-- السياسة الحالية بها خطأ منطقي: `m.building_id = m.id` (تقارن العمود مع نفسه).
-- تصحيحها إلى: `m.building_id = buildings.id AND m.user_id = auth.uid()` لتسمح فعلياً للأعضاء المدعوين برؤية المبنى.
-
-### 1.3 إصلاح جدول الدعوات (Invitations)
-- إضافة سياسة SELECT للمالك (`is_building_owner`) ليرى الدعوات المُرسلة من مبناه.
-- إضافة سياسة SELECT للمدعو نفسه عبر مطابقة بريده الإلكتروني (`lower(email) = lower(auth.jwt()->>'email')`) ليرى دعواته الواردة.
+لا يحتاج المستخدم لإنشاء حساب مسبق — Lovable توفر التكامل المدمج.
 
 ---
 
-## المرحلة 2: إعداد التخزين 💾
+## 2. تفعيل البيئة
 
-### 2.1 إنشاء Buckets
-- `contracts` (خاص) — ملفات عقود الإيجار PDF.
-- `tenant-ids` (خاص) — صور هويات المستأجرين.
-- `unit-photos` (خاص) — صور تسليم/استلام الوحدات.
-- `branding` (عام) — شعارات المؤسسة.
-
-### 2.2 سياسات Storage
-- لكل bucket خاص: القراءة/الرفع/الحذف فقط لأعضاء المبنى المعني عبر استخراج `building_id` من مسار الملف (`{building_id}/{unit_id}/file.ext`) مع `has_building_access`.
-- bucket العام `branding`: قراءة عامة، كتابة فقط لمالك المبنى.
-
-### 2.3 مكوّن رفع موحّد
-- إنشاء `src/components/FileUpload.tsx` لرفع الملفات مع تقدّم الرفع، حد أقصى للحجم (10MB)، وفلترة نوع الملف.
-- تكامله في:
-  - `EditUnitDialog` لرفع `contract_file_url` و `tenant_id_image_url` و `handover_photos[]`.
-  - `NewTenancyDialog` و `Tenants` لرفع هوية المستأجر.
-  - `Settings` لرفع شعار العلامة التجارية.
+- استدعاء `enable_paddle_payments` (أو `enable_stripe_payments`).
+- بيئة Sandbox تُنشأ فوراً للاختبار بدون أموال حقيقية.
+- الانتقال للإنتاج يتطلب توثيق الحساب لاحقاً (Paddle: مراجعة المنتج / Stripe: مطالبة الحساب).
 
 ---
 
-## المرحلة 3: الدفعات الحقيقية 💳
+## 3. إنشاء المنتجات والخطط
 
-### 3.1 اختيار المزود
-- تشغيل `payments--recommend_payment_provider` لتحديد المناسب (التطبيق SaaS رقمي → غالباً Paddle).
-- المستخدم يؤكد، ثم تفعيل المزود (لا يحتاج المستخدم حساباً).
+عبر `batch_create_product` — 6 أسعار مطابقة لصفحة Pricing الحالية:
 
-### 3.2 إنشاء المنتجات
-- خطة Basic ($9 شهري / $90 سنوي)
-- خطة Pro ($29 شهري / $290 سنوي)
-- خطة Business ($79 شهري / $790 سنوي)
+| الخطة | شهري | سنوي |
+|---|---|---|
+| Basic | $9 | $90 |
+| Pro (موصى بها) | $29 | $290 |
+| Business | $79 | $790 |
 
-### 3.3 ربط Checkout بصفحة Pricing
-- استبدال `toast.info("سيتم تفعيل الدفع قريباً")` بإنشاء جلسة دفع حقيقية.
-- Edge function لاستقبال webhook الاشتراك وتحديث `profiles.subscription_plan`/`subscription_status`/`subscription_expires_at`.
-- إبقاء نظام Promo Codes كآلية إضافية للأدمن (لا حذف).
+الخطة Free تبقى افتراضية بدون منتج Paddle.
 
 ---
 
-## المرحلة 4: HIBP 🛡️
-- استدعاء `configure_auth` بـ `password_hibp_enabled: true` لتفعيل فحص كلمات المرور المسرّبة عند التسجيل وتغيير كلمة المرور.
+## 4. تعديلات قاعدة البيانات
+
+إضافة أعمدة على `profiles`:
+- `paddle_customer_id` (text, nullable) — لربط المستخدم بحساب Paddle
+- `paddle_subscription_id` (text, nullable) — للاشتراك النشط
+- `subscription_interval` (text) — `monthly` / `yearly`
+
+جدول جديد `invoices`:
+- `id`, `user_id`, `paddle_invoice_id`, `amount`, `currency`, `status`, `invoice_pdf_url`, `period_start`, `period_end`, `created_at`
+- RLS: المستخدم يقرأ فواتيره فقط، الأدمن يقرأ الكل
+
+جدول جديد `subscription_events` (لوغ webhook):
+- `id`, `user_id`, `event_type`, `payload jsonb`, `processed_at`
 
 ---
 
-## ترتيب التنفيذ والتحقق
-1. مايجريشن واحدة لكل ما في المرحلة 1 → اختبار: محاولة قراءة `promo_codes` بمستخدم عادي.
-2. مايجريشن للـ Buckets + سياسات → اختبار رفع ملف.
-3. مكوّن الرفع + دمجه في الحوارات → اختبار من واجهة `UnitDetail`.
-4. مزود الدفع → منتجات → checkout → webhook → اختبار في وضع Test.
-5. تفعيل HIBP.
+## 5. Edge Functions
+
+### `create-checkout`
+- يستقبل `plan_id` و `interval` من الواجهة
+- ينشئ Paddle Checkout Session مع `customer_email` و `custom_data.user_id`
+- يُرجع `checkout_url` لإعادة التوجيه
+
+### `paddle-webhook`
+- يستقبل أحداث Paddle (`subscription.created`, `subscription.updated`, `subscription.canceled`, `transaction.completed`, `transaction.paid`)
+- يتحقق من توقيع Webhook
+- يحدّث `profiles.subscription_plan`/`subscription_status`/`subscription_expires_at`/`paddle_subscription_id`
+- يُدرج فاتورة جديدة في `invoices` عند `transaction.paid`
+- يسجّل الحدث في `subscription_events`
+
+### `customer-portal`
+- يُرجع رابط Paddle Customer Portal للمستخدم لإدارة اشتراكه (إلغاء، تحديث بطاقة، تنزيل فواتير)
+
+---
+
+## 6. تعديلات الواجهة
+
+### `Pricing.tsx`
+- استبدال `toast.info("سيتم تفعيل الدفع قريباً")` باستدعاء `create-checkout` ثم `window.location.href = checkout_url`
+- الإبقاء على نظام Promo Codes كآلية إضافية
+
+### صفحة جديدة `Subscription.tsx` (أو قسم في Settings)
+- عرض الخطة الحالية، تاريخ التجديد، حالة الاشتراك
+- زر "إدارة الاشتراك" → `customer-portal`
+- قائمة الفواتير مع روابط تنزيل PDF
+- زر "إلغاء الاشتراك"
+
+### صفحة نتيجة `/subscription/success`
+- تأكيد نجاح الدفع، عرض الخطة الجديدة
+
+---
+
+## 7. الإشعارات والبريد
+
+- Paddle يرسل إيصالات الدفع وفواتير بشكل تلقائي للعميل (لا حاجة لإعداد).
+- اختياري: إشعار داخلي في `notifications` عند نجاح/فشل الدفع عبر `paddle-webhook`.
+
+---
+
+## 8. ترتيب التنفيذ
+
+1. `recommend_payment_provider` → تأكيد المستخدم
+2. `enable_paddle_payments`
+3. مايجريشن: أعمدة `profiles` الجديدة + جدولا `invoices` و `subscription_events`
+4. `batch_create_product` للخطط الست
+5. Edge Functions الثلاث
+6. تعديل `Pricing.tsx` + إنشاء `Subscription.tsx`
+7. اختبار في Sandbox: شراء، تجديد، إلغاء، فاتورة
+
+---
 
 ## ملاحظات تقنية
-- لا تعديل على `auth/storage/realtime` schemas.
-- جميع السياسات الجديدة تستخدم `has_building_access` / `is_building_owner` / `has_role` الموجودة (لا تكرار).
-- مسارات الملفات في Storage يجب أن تبدأ بـ `building_id` لتعمل سياسات RLS بشكل صحيح.
-- الاحتفاظ بنفس واجهة `redeem_promo_code` لعدم كسر التطبيق.
+
+- **التجديد التلقائي**: Paddle يتولاه تلقائياً عبر الاشتراك؛ Webhook يحدّث `subscription_expires_at` عند كل دورة.
+- **الفواتير**: Paddle يولّد PDF لكل دفعة، نخزّن الرابط في `invoices.invoice_pdf_url`.
+- **الأمان**: التحقق من توقيع Webhook إلزامي قبل أي تحديث على DB.
+- **التوافق مع Promo Codes**: عند تفعيل كود ترويجي، `paddle_subscription_id` يبقى NULL — الكود مسار منفصل لا يتعارض.
+- **تفضيل العملة**: Paddle يحوّل تلقائياً حسب موقع العميل.
+
+---
+
+## ما يتطلب قراراً منك الآن
+
+- تأكيد **Paddle** أم تفضّل **Stripe**؟
+- هل ترغب أن تكون صفحة إدارة الاشتراك صفحة مستقلة `/subscription` أم قسم داخل `/settings`؟
