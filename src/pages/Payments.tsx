@@ -53,16 +53,18 @@ const RECEIPT_TXT = {
   ar: {
     receipt_number: "رقم الإيصال", payment_date: "تاريخ الدفع", building_name: "المبنى",
     unit_number: "رقم الوحدة", status: "الحالة", tenant_name: "المستأجر",
-    rent_month: "شهر الإيجار", total: "الإجمالي", receipt: "إيصال استلام",
+    rent_month: "شهر الإيجار", amount_paid: "المبلغ المدفوع", receipt: "إيصال استلام",
     paid: "مدفوع", late: "متأخر", soon: "قريباً",
-    arrears_before: "المتأخرات قبل الدفع", remaining: "المتبقي من المتأخرات", settled: "مسدد بالكامل",
+    total_due: "إجمالي المستحق قبل الدفع", remaining_after: "المتبقي بعد الدفع", settled: "مسدد بالكامل",
+    summary: "ملخص الدفعة",
   },
   en: {
     receipt_number: "Receipt #", payment_date: "Payment date", building_name: "Building",
     unit_number: "Unit #", status: "Status", tenant_name: "Tenant",
-    rent_month: "Rent month", total: "Total", receipt: "Payment Receipt",
+    rent_month: "Rent month", amount_paid: "Amount paid", receipt: "Payment Receipt",
     paid: "Paid", late: "Late", soon: "Upcoming",
-    arrears_before: "Arrears before payment", remaining: "Remaining arrears", settled: "Fully settled",
+    total_due: "Total due before payment", remaining_after: "Remaining after payment", settled: "Fully settled",
+    summary: "Payment summary",
   },
 } as const;
 type RLang = keyof typeof RECEIPT_TXT;
@@ -232,10 +234,16 @@ export default function Payments() {
           
           <div class="row"><span>${L.tenant_name}</span><b>${r.tenant_name || "—"}</b></div>
           ${r.period_start ? `<div class="row"><span>${L.rent_month}</span><b>${monthLabel(r.period_start, lng)}</b></div>` : ""}
-          <div class="row"><span>${L.arrears_before}</span><b>${format(r.remaining + r.amount)}</b></div>
-          <div class="total"><span>${L.total}</span><span>${format(r.amount)}</span></div>
-          <div class="remaining" style="margin-top:10px;padding:12px 18px;border-radius:14px;display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:14px;${r.remaining > 0 ? 'background:#f8e6e6;color:#8a2a2a;border:1px solid #e8c2c2' : 'background:#e7f1de;color:#3a6b3a;border:1px solid #bcd4ad'}">
-            <span>${L.remaining}</span><span>${r.remaining > 0 ? format(r.remaining) : L.settled}</span>
+          
+          <div style="margin-top:18px;padding:16px 18px;background:#f6faf3;border:1px solid #cdd9c8;border-radius:14px">
+            <div style="font-size:11px;color:#7a8a78;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;font-weight:700">${L.summary}</div>
+            <div class="row"><span>${L.total_due}</span><b>${format(r.remaining + r.amount)}</b></div>
+            <div class="row" style="border-bottom:none"><span>${L.amount_paid}</span><b style="color:#3a6b3a;font-size:15px">− ${format(r.amount)}</b></div>
+          </div>
+
+          <div class="total"><span>${L.amount_paid}</span><span>${format(r.amount)}</span></div>
+          <div class="remaining" style="margin-top:10px;padding:14px 18px;border-radius:14px;display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:14px;${r.remaining > 0 ? 'background:#f8e6e6;color:#8a2a2a;border:1px solid #e8c2c2' : 'background:#e7f1de;color:#3a6b3a;border:1px solid #bcd4ad'}">
+            <span>${L.remaining_after}</span><span>${format(r.remaining)}${r.remaining === 0 ? ` · ${L.settled}` : ''}</span>
           </div>
           <div class="footer">— ${L.receipt} —</div>
         </div>
