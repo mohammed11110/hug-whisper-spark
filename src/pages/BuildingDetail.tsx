@@ -88,17 +88,36 @@ export default function BuildingDetail() {
     return diff;
   };
   const filteredByType = filter === "all" ? units : units.filter((u) => u.type === filter);
-  const visible = [...filteredByType].sort((a, b) => {
+  const q = search.trim().toLowerCase();
+  const filteredBySearch = !q ? filteredByType : filteredByType.filter((u) =>
+    (u.tenant_name || "").toLowerCase().includes(q) ||
+    (u.tenant_phone || "").toLowerCase().includes(q) ||
+    String(u.unit_number).toLowerCase().includes(q)
+  );
+  const visible = [...filteredBySearch].sort((a, b) => {
+    if (sortBy === "number") {
+      return numOf(a.unit_number) - numOf(b.unit_number) || String(a.unit_number).localeCompare(String(b.unit_number));
+    }
+    if (sortBy === "name") {
+      return (a.tenant_name || "zzz").localeCompare(b.tenant_name || "zzz");
+    }
+    if (sortBy === "vacant") {
+      const av = a.status === "vacant" ? 0 : 1;
+      const bv = b.status === "vacant" ? 0 : 1;
+      if (av !== bv) return av - bv;
+      return numOf(a.unit_number) - numOf(b.unit_number);
+    }
+    if (sortBy === "due") {
+      return dueDayDistance(a) - dueDayDistance(b);
+    }
+    // smart (default): occupied first, due nearest, then vacant
     const sr = statusRank(a.status) - statusRank(b.status);
     if (sr !== 0) return sr;
     if (a.status !== "vacant" && b.status !== "vacant") {
       const dd = dueDayDistance(a) - dueDayDistance(b);
       if (dd !== 0) return dd;
     }
-    const na = numOf(a.unit_number);
-    const nb = numOf(b.unit_number);
-    if (na !== nb) return na - nb;
-    return String(a.unit_number).localeCompare(String(b.unit_number));
+    return numOf(a.unit_number) - numOf(b.unit_number);
   });
   const occupied = units.filter((u) => u.status !== "vacant").length;
   const occupancy = units.length ? Math.round((occupied / units.length) * 100) : 0;
