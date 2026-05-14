@@ -38,6 +38,31 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
   const [unitPhotos, setUnitPhotos] = useState<string[]>([]);
   const [pendingPhoto, setPendingPhoto] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+
+  const extractFromId = async () => {
+    if (!idImageUrl) return;
+    setExtracting(true);
+    try {
+      const { data: signed, error: sErr } = await supabase.storage
+        .from("tenant-ids").createSignedUrl(idImageUrl, 300);
+      if (sErr || !signed?.signedUrl) throw new Error(sErr?.message || "signed url failed");
+      const { data, error } = await supabase.functions.invoke("extract-id", {
+        body: { imageUrl: signed.signedUrl },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      let filled = 0;
+      if (data?.name && !name.trim()) { setName(data.name); filled++; }
+      if (data?.id_number && !idNumber.trim()) { setIdNumber(data.id_number); filled++; }
+      if (data?.email && !email.trim()) { setEmail(data.email); filled++; }
+      toast.success(lang === "ar" ? `تم استخراج ${filled} حقول` : `Extracted ${filled} fields`);
+    } catch (e: any) {
+      toast.error(e.message || (lang === "ar" ? "فشل الاستخراج" : "Extraction failed"));
+    } finally {
+      setExtracting(false);
+    }
+  };
 
   useEffect(() => {
     if (!open || !unit) return;
