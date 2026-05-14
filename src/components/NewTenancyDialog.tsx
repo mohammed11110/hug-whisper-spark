@@ -4,10 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FileUpload } from "@/components/FileUpload";
 import { useT2 } from "@/lib/i18n2";
 import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { X, Image as ImageIcon } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -31,6 +33,10 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
   const [rentType, setRentType] = useState("monthly");
   const [dueDay, setDueDay] = useState("1");
   const [deposit, setDeposit] = useState("0");
+  const [idImageUrl, setIdImageUrl] = useState<string | null>(null);
+  const [contractFileUrl, setContractFileUrl] = useState<string | null>(null);
+  const [unitPhotos, setUnitPhotos] = useState<string[]>([]);
+  const [pendingPhoto, setPendingPhoto] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -42,8 +48,25 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
     setRentType(unit.rent_type || "monthly");
     setDueDay(String(unit.due_day || 1));
     setDeposit("0");
+    setIdImageUrl(null);
+    setContractFileUrl(null);
+    setUnitPhotos([]);
+    setPendingPhoto(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, unit?.id]);
+
+  // When a new unit photo finishes uploading, push to array and reset slot
+  useEffect(() => {
+    if (pendingPhoto) {
+      setUnitPhotos((prev) => [...prev, pendingPhoto]);
+      setPendingPhoto(null);
+    }
+  }, [pendingPhoto]);
+
+  const removePhoto = async (path: string) => {
+    await supabase.storage.from("unit-photos").remove([path]);
+    setUnitPhotos((prev) => prev.filter((p) => p !== path));
+  };
 
   const submit = async () => {
     if (!unit) return;
@@ -59,6 +82,7 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
       tenant_phone: phone.trim() || null,
       tenant_email: email.trim() || null,
       tenant_id_number: idNumber.trim() || null,
+      tenant_id_image_url: idImageUrl,
       contract_start_date: startDate,
       contract_end_date: endDate || null,
       contract_type: contractType,
@@ -71,7 +95,7 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
     });
     if (tErr) { setSaving(false); return toast.error(tErr.message); }
 
-    const { error: uErr } = await supabase.from("units").update({
+    const updatePayload: any = {
       tenant_name: name.trim(),
       tenant_phone: phone.trim() || null,
       tenant_email: email.trim() || null,
@@ -85,7 +109,15 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
       security_deposit: depositNum,
       deposit_status: depositNum > 0 ? "held" : "none",
       status: "soon",
-    }).eq("id", unit.id);
+    };
+    if (idImageUrl) updatePayload.tenant_id_image_url = idImageUrl;
+    if (contractFileUrl) updatePayload.contract_file_url = contractFileUrl;
+    if (unitPhotos.length > 0) {
+      const existing = Array.isArray(unit.handover_photos) ? unit.handover_photos : [];
+      updatePayload.handover_photos = [...existing, ...unitPhotos];
+    }
+
+    const { error: uErr } = await supabase.from("units").update(updatePayload).eq("id", unit.id);
     setSaving(false);
     if (uErr) return toast.error(uErr.message);
     toast.success(t2("tenancy_started_ok"));
@@ -94,6 +126,8 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
   };
 
   if (!unit) return null;
+
+  const pathPrefix = `${unit.building_id}/${unit.id}`;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -158,6 +192,64 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
             <div className="space-y-1.5">
               <Label className="text-xs text-sage-500">{lang === "ar" ? "تأمين" : "Deposit"}</Label>
               <Input type="number" inputMode="decimal" value={deposit} onChange={(e) => setDeposit(e.target.value)} className="rounded-xl border-sage-200 h-11" />
+            </div>
+          </div>
+
+          {/* Optional attachments */}
+          <div className="pt-2 border-t border-sage-200/50 space-y-3">
+            <p className="text-xs font-bold text-sage-600">
+              {lang === "ar" ? "المرفقات (اختياري)" : "Attachments (optional)"}
+            </p>
+
+            <FileUpload
+              bucket="tenant-ids"
+              pathPrefix={pathPrefix}
+              value={idImageUrl}
+              onChange={setIdImageUrl}
+              accept="image/*"
+              maxSizeMB={5}
+              label={lang === "ar" ? "صورة الهوية" : "ID image"}
+              isPrivate
+            />
+
+            <FileUpload
+              bucket="contracts"
+              pathPrefix={pathPrefix}
+              value={contractFileUrl}
+              onChange={setContractFileUrl}
+              accept="application/pdf,image/*"
+              maxSizeMB={15}
+              label={lang === "ar" ? "ملف العقد (PDF)" : "Contract file (PDF)"}
+              isPrivate
+            />
+
+            <div className="space-y-2">
+              <p className="text-xs font-bold text-sage-600">
+                {lang === "ar" ? "صور الوحدة" : "Unit photos"}
+              </p>
+              {unitPhotos.length > 0 && (
+                <div className="space-y-1.5">
+                  {unitPhotos.map((p) => (
+                    <div key={p} className="flex items-center gap-2 p-2 rounded-xl bg-sage-100/50 border border-sage-200/40">
+                      <ImageIcon className="h-4 w-4 text-sage-500" />
+                      <span className="flex-1 text-xs text-sage-600 truncate">{p.split("/").pop()}</span>
+                      <button type="button" onClick={() => removePhoto(p)} className="text-burgundy hover:opacity-70" aria-label="remove">
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <FileUpload
+                bucket="unit-photos"
+                pathPrefix={pathPrefix}
+                value={null}
+                onChange={(v) => v && setPendingPhoto(v)}
+                accept="image/*"
+                maxSizeMB={8}
+                label={lang === "ar" ? "إضافة صورة وحدة" : "Add unit photo"}
+                isPrivate
+              />
             </div>
           </div>
         </div>
