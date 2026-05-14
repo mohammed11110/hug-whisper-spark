@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency, CURRENCIES } from "@/lib/currency";
-import { useAppSettings, PAGE_SIZES_MM, type PageSize } from "@/lib/appSettings";
+import { useAppSettings, PAGE_SIZES_MM, type PageSize, formatReceipt } from "@/lib/appSettings";
 import { useAuth } from "@/lib/auth";
 import { useAdmin } from "@/lib/useAdmin";
 import { toast } from "sonner";
