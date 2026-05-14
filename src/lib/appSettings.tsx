@@ -66,6 +66,8 @@ interface Ctx {
   update: (patch: Partial<AppSettings>) => void;
   setStatusColor: (k: keyof AppSettings["statusColors"], c: StatusColor) => void;
   reset: () => void;
+  bumpReceiptNumber: () => void;
+  resetReceiptNumber: () => void;
 }
 
 const C = createContext<Ctx | null>(null);
@@ -86,6 +88,7 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
         margins: { ...DEFAULTS.margins, ...(legacy || {}), ...(v.margins || {}) },
         templates: { ...DEFAULTS.templates, ...(v.templates || {}) },
         brand: { ...DEFAULTS.brand, ...(v.brand || {}) },
+        receipt: { ...DEFAULTS.receipt, ...(v.receipt || {}) },
       };
     } catch { return DEFAULTS; }
   });
@@ -96,8 +99,12 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
   const setStatusColor: Ctx["setStatusColor"] = (k, c) =>
     setSettings((s) => ({ ...s, statusColors: { ...s.statusColors, [k]: c } }));
   const reset = () => setSettings(DEFAULTS);
+  const bumpReceiptNumber = () =>
+    setSettings((s) => ({ ...s, receipt: { ...s.receipt, nextNumber: (s.receipt.nextNumber || s.receipt.startNumber || 1) + 1 } }));
+  const resetReceiptNumber = () =>
+    setSettings((s) => ({ ...s, receipt: { ...s.receipt, nextNumber: s.receipt.startNumber || 1 } }));
 
-  return <C.Provider value={{ settings, update, setStatusColor, reset }}>{children}</C.Provider>;
+  return <C.Provider value={{ settings, update, setStatusColor, reset, bumpReceiptNumber, resetReceiptNumber }}>{children}</C.Provider>;
 }
 
 export const useAppSettings = () => {
