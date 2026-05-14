@@ -128,7 +128,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
           if (!amount) setAmount(String(u.rent_amount));
         }
       }
-      if (!receipt) setReceipt(`R-${Date.now()}`);
+      if (!receipt) setReceipt(formatReceipt(settings.receipt));
       const today = new Date();
       setPeriodYear(today.getFullYear());
       setPeriodMonthNum(today.getMonth() + 1);
