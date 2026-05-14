@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Trash2, Plus, Home, Pencil, Wallet } from "lucide-react";
+import { ArrowLeft, Trash2, Plus, Home, Pencil, Wallet, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { BotanicalDecor } from "@/components/BotanicalDecor";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
@@ -28,7 +29,7 @@ const STATUS_STYLES: Record<string, string> = {
 export default function BuildingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const t2 = useT2();
   const { format } = useCurrency();
   const [building, setBuilding] = useState<Building | null>(null);
@@ -36,6 +37,8 @@ export default function BuildingDetail() {
   const [payments, setPayments] = useState<PaymentForBalance[]>([]);
   const [collectedMonth, setCollectedMonth] = useState(0);
   const [filter, setFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<string>("smart");
+  const [search, setSearch] = useState("");
   const [delOpen, setDelOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [editUnit, setEditUnit] = useState<Unit | null>(null);
@@ -85,17 +88,36 @@ export default function BuildingDetail() {
     return diff;
   };
   const filteredByType = filter === "all" ? units : units.filter((u) => u.type === filter);
-  const visible = [...filteredByType].sort((a, b) => {
+  const q = search.trim().toLowerCase();
+  const filteredBySearch = !q ? filteredByType : filteredByType.filter((u) =>
+    (u.tenant_name || "").toLowerCase().includes(q) ||
+    (u.tenant_phone || "").toLowerCase().includes(q) ||
+    String(u.unit_number).toLowerCase().includes(q)
+  );
+  const visible = [...filteredBySearch].sort((a, b) => {
+    if (sortBy === "number") {
+      return numOf(a.unit_number) - numOf(b.unit_number) || String(a.unit_number).localeCompare(String(b.unit_number));
+    }
+    if (sortBy === "name") {
+      return (a.tenant_name || "zzz").localeCompare(b.tenant_name || "zzz");
+    }
+    if (sortBy === "vacant") {
+      const av = a.status === "vacant" ? 0 : 1;
+      const bv = b.status === "vacant" ? 0 : 1;
+      if (av !== bv) return av - bv;
+      return numOf(a.unit_number) - numOf(b.unit_number);
+    }
+    if (sortBy === "due") {
+      return dueDayDistance(a) - dueDayDistance(b);
+    }
+    // smart (default): occupied first, due nearest, then vacant
     const sr = statusRank(a.status) - statusRank(b.status);
     if (sr !== 0) return sr;
     if (a.status !== "vacant" && b.status !== "vacant") {
       const dd = dueDayDistance(a) - dueDayDistance(b);
       if (dd !== 0) return dd;
     }
-    const na = numOf(a.unit_number);
-    const nb = numOf(b.unit_number);
-    if (na !== nb) return na - nb;
-    return String(a.unit_number).localeCompare(String(b.unit_number));
+    return numOf(a.unit_number) - numOf(b.unit_number);
   });
   const occupied = units.filter((u) => u.status !== "vacant").length;
   const occupancy = units.length ? Math.round((occupied / units.length) * 100) : 0;
@@ -159,6 +181,30 @@ export default function BuildingDetail() {
           <span className="text-sage-400 rtl:rotate-180">›</span>
         </Link>
 
+
+        {/* Search + Sort */}
+        <div className="flex items-center gap-2 mb-3">
+          <div className="relative flex-1">
+            <Search className="absolute top-1/2 -translate-y-1/2 start-3 h-4 w-4 text-sage-400" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={lang === "ar" ? "ابحث باسم المستأجر أو رقم الشقة" : "Search tenant or unit"}
+              className="ps-10 rounded-xl border-sage-200 bg-card h-10"
+            />
+          </div>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="h-10 rounded-xl border border-sage-200 bg-card text-xs font-semibold text-sage-600 px-2"
+          >
+            <option value="smart">{lang === "ar" ? "الافتراضي" : "Default"}</option>
+            <option value="number">{lang === "ar" ? "رقم الشقة ↑" : "Unit # ↑"}</option>
+            <option value="name">{lang === "ar" ? "اسم المستأجر" : "Tenant name"}</option>
+            <option value="due">{lang === "ar" ? "الأقرب استحقاقاً" : "Nearest due"}</option>
+            <option value="vacant">{lang === "ar" ? "الشاغرة أولاً" : "Vacant first"}</option>
+          </select>
+        </div>
 
         {/* Filter chips */}
         <div className="flex items-center justify-between mb-3">
