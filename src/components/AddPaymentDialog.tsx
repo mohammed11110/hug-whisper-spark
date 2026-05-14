@@ -226,7 +226,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                                 onSelect={() => { onPickUnit(u.id); setUnitOpen(false); }}
                               >
                                 <Check className={`me-2 h-4 w-4 ${unitId === u.id ? "opacity-100" : "opacity-0"}`} />
-                                {u.building_name} · {u.unit_number}{u.tenant_name ? ` — ${u.tenant_name}` : ""}
+                                {u.building_name} · {u.unit_number}{u.tenant_name ? ` — ${u.tenant_name}` : ""}{u.arrears_note ? ` · ${u.arrears_note}` : ""}
                               </CommandItem>
                             );
                           })}
