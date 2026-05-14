@@ -56,6 +56,7 @@ const DEFAULTS: AppSettings = {
   contractWarnDays: 30,
   brand: { name: "أملاكي · Amlaki", logo: null, phone: "", address: "" },
   showAiFab: false,
+  receipt: { prefix: "R-", startNumber: 1, padding: 0, nextNumber: 1 },
 };
 
 const KEY = "amlaki.appSettings.v1";
