@@ -670,6 +670,25 @@ export default function Settings() {
         </div>
       </section>
 
+      {/* Logout */}
+      <section className="px-5 mt-6">
+        {user?.email && (
+          <p className="text-xs text-muted-foreground text-center mb-2 truncate">{user.email}</p>
+        )}
+        <Button
+          variant="outline"
+          className="w-full rounded-2xl border-burgundy/40 text-burgundy hover:bg-burgundy/10 h-12 font-bold"
+          onClick={async () => {
+            await signOut();
+            toast.success(lang === "ar" ? "تم تسجيل الخروج" : "Signed out");
+            navigate("/auth");
+          }}
+        >
+          <LogOut className="h-4 w-4 me-2" />
+          {lang === "ar" ? "تسجيل الخروج" : "Sign out"}
+        </Button>
+      </section>
+
       <BottomNav />
     </div>
   );
