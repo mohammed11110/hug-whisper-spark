@@ -1,30 +1,31 @@
-## الهدف
-إضافة 3 خانات اختيارية لرفع الملفات في نافذة "مستأجر جديد" (NewTenancyDialog):
-1. صورة الهوية (ID)
-2. صور الوحدة (متعددة)
-3. ملف العقد PDF
+# إصلاح ملاحظة "متبقي إيجار هذا الشهر"
 
-## التغييرات
+## المشكلة
+في بطاقة الوحدة بصفحة المبنى تظهر ملاحظة **"متبقي إيجار هذا الشهر"** للمستأجر فيجاكومار سبرامنيان رغم أن عقده يبدأ في 1/6/2026 (لم يبدأ بعد).
 
-### 1. `src/components/NewTenancyDialog.tsx`
-إضافة 3 حقول رفع ملفات اختيارية باستخدام `FileUpload` الموجود مسبقاً:
-- **صورة الهوية** → bucket: `tenant-ids` → يُحفظ في `tenancies.tenant_id_image_url` و `units.tenant_id_image_url`
-- **صور الوحدة** (متعددة) → bucket: `unit-photos` → تُضاف إلى `units.handover_photos` (jsonb array)
-- **ملف العقد PDF** → bucket: `contracts` → يُحفظ في `units.contract_file_url`
+السبب: حساب `monthRemaining` في `src/pages/BuildingDetail.tsx` (سطر 253) يعتمد فقط على وجود اسم مستأجر ونوع إيجار شهري ومبلغ > 0، ولا يأخذ بعين الاعتبار `contract_start_date` ولا حالة الوحدة `soon`.
 
-كل الحقول اختيارية — الحفظ يعمل بدونها كما هو الآن.
+## الإصلاح المقترح
+في `src/pages/BuildingDetail.tsx` داخل تعريف `monthRemaining`، إضافة شرطين:
 
-### 2. لا تغييرات في قاعدة البيانات
-الأعمدة موجودة بالفعل:
-- `tenancies.tenant_id_image_url` ✓
-- `units.tenant_id_image_url`, `units.contract_file_url`, `units.handover_photos` ✓
+1. وجود `contract_start_date` وأن يكون ≤ اليوم.
+2. حالة الوحدة ليست `soon` ولا `vacant` (أي العقد فعّال).
 
-الـ buckets موجودة: `tenant-ids`, `unit-photos`, `contracts` (كلها خاصة).
+```ts
+const contractStarted =
+  !!u.contract_start_date && new Date(u.contract_start_date) <= today;
+const isActive = u.status !== "soon" && u.status !== "vacant";
 
-### 3. ملاحظات تقنية
-- التحقق من سياسات RLS لـ storage على الـ buckets الثلاثة (إن لم تكن موجودة، سأضيف migration للسماح للمالك بالرفع/القراءة ضمن مجلد `{user_id}/...`).
-- ترتيب الحفظ: رفع الملفات أولاً → ثم insert في `tenancies` و update في `units` بمسارات الملفات.
-- عرض الحقول بشكل مدمج تحت قسم منفصل "المرفقات (اختياري)" في أسفل النموذج قبل أزرار الحفظ.
+const monthRemaining =
+  u.tenant_name && u.rent_type === "monthly" && monthRent > 0 && contractStarted && isActive
+    ? Math.max(0, monthRent - monthPaid)
+    : 0;
+```
 
-## النتيجة
-المستخدم يستطيع عند إضافة مستأجر جديد إرفاق هوية + صور وحدة + عقد PDF، أو تخطيها كلها والحفظ كالمعتاد.
+نفس المنطق `computeBalance` (الذي يحسب `outstanding_balance` المعروض فوق الملاحظة) يعتمد على عدد الفترات المنقضية منذ `contract_start_date`، فهو يُرجع 0 تلقائياً للعقود المستقبلية — لذا لا يحتاج تعديل.
+
+## ملاحظة جانبية
+صفحة `MonthlyCollection.tsx` تتعامل مع الأمر بشكل صحيح بالفعل (تُصفّي الوحدات حسب `contract_start_date <= month.end`)، لذا لا تحتاج تغييراً.
+
+## الملفات المعدّلة
+- `src/pages/BuildingDetail.tsx` — تعديل سطر واحد لشرط `monthRemaining`.
