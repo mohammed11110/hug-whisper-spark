@@ -15,6 +15,7 @@ import { useI18n } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
 import { useAppSettings, readFilters, writeFilters } from "@/lib/appSettings";
+import { computeBalance } from "@/lib/balance";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -29,6 +30,7 @@ interface Row {
   tenant_name: string | null;
   unit_status: string;
   period_start: string | null;
+  remaining: number;
 }
 
 type Filter = "all" | "month" | "year";
@@ -52,13 +54,13 @@ const RECEIPT_TXT = {
     receipt_number: "رقم الإيصال", payment_date: "تاريخ الدفع", building_name: "المبنى",
     unit_number: "رقم الوحدة", status: "الحالة", tenant_name: "المستأجر",
     rent_month: "شهر الإيجار", total: "الإجمالي", receipt: "إيصال استلام",
-    paid: "مدفوع", late: "متأخر", soon: "قريباً",
+    paid: "مدفوع", late: "متأخر", soon: "قريباً", remaining: "المتبقي بعد الدفع", settled: "مسدد بالكامل",
   },
   en: {
     receipt_number: "Receipt #", payment_date: "Payment date", building_name: "Building",
     unit_number: "Unit #", status: "Status", tenant_name: "Tenant",
     rent_month: "Rent month", total: "Total", receipt: "Payment Receipt",
-    paid: "Paid", late: "Late", soon: "Upcoming",
+    paid: "Paid", late: "Late", soon: "Upcoming", remaining: "Remaining balance", settled: "Fully settled",
   },
 } as const;
 type RLang = keyof typeof RECEIPT_TXT;
@@ -94,14 +96,23 @@ export default function Payments() {
       .limit(500);
     const unitIds = Array.from(new Set((pays || []).map((p: any) => p.unit_id)));
     const { data: units } = unitIds.length
-      ? await supabase.from("units").select("id, unit_number, tenant_name, status, building_id").in("id", unitIds)
+      ? await supabase.from("units").select("id, unit_number, tenant_name, status, building_id, rent_amount, rent_type, contract_start_date, opening_balance, opening_balance_date").in("id", unitIds)
       : { data: [] as any[] };
     const buildingIds = Array.from(new Set((units || []).map((u: any) => u.building_id)));
     const { data: builds } = buildingIds.length
       ? await supabase.from("buildings").select("id, name, name_en").in("id", buildingIds)
       : { data: [] as any[] };
+    // All non-deleted payments for involved units (used for outstanding balance)
+    const { data: allPays } = unitIds.length
+      ? await supabase.from("payments").select("unit_id, amount, deleted_at").in("unit_id", unitIds).is("deleted_at", null)
+      : { data: [] as any[] };
     const uMap = new Map((units || []).map((u: any) => [u.id, u]));
     const bMap = new Map((builds || []).map((b: any) => [b.id, b]));
+    const remainingMap = new Map<string, number>();
+    (units || []).forEach((u: any) => {
+      const { outstanding } = computeBalance(u, allPays || []);
+      remainingMap.set(u.id, outstanding);
+    });
     const mapped: Row[] = (pays || []).map((p: any) => {
       const u: any = uMap.get(p.unit_id);
       const b: any = u ? bMap.get(u.building_id) : null;
@@ -116,6 +127,7 @@ export default function Payments() {
         tenant_name: u?.tenant_name ?? null,
         building_name: b?.name || b?.name_en || "—",
         unit_status: u?.status ?? "soon",
+        remaining: remainingMap.get(p.unit_id) ?? 0,
       };
     });
     setRows(mapped);
@@ -219,6 +231,9 @@ export default function Payments() {
           <div class="row"><span>${L.tenant_name}</span><b>${r.tenant_name || "—"}</b></div>
           ${r.period_start ? `<div class="row"><span>${L.rent_month}</span><b>${monthLabel(r.period_start, lng)}</b></div>` : ""}
           <div class="total"><span>${L.total}</span><span>${format(r.amount)}</span></div>
+          <div class="remaining" style="margin-top:10px;padding:12px 18px;border-radius:14px;display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:14px;${r.remaining > 0 ? 'background:#f8e6e6;color:#8a2a2a;border:1px solid #e8c2c2' : 'background:#e7f1de;color:#3a6b3a;border:1px solid #bcd4ad'}">
+            <span>${L.remaining}</span><span>${r.remaining > 0 ? format(r.remaining) : L.settled}</span>
+          </div>
           <div class="footer">— ${L.receipt} —</div>
         </div>
       </body></html>`;
