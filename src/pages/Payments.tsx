@@ -29,6 +29,7 @@ interface Row {
   tenant_name: string | null;
   unit_status: string;
   period_start: string | null;
+  remaining: number;
 }
 
 type Filter = "all" | "month" | "year";
