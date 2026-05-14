@@ -61,6 +61,8 @@ const SETTINGS_LABELS: Record<string, { ar: string; en: string }> = {
 export default function Settings() {
   const { t, lang } = useI18n();
   const t2 = useT2();
+  const { signOut, user } = useAuth();
+  const navigate = useNavigate();
   const { currency, setCurrency, format } = useCurrency();
   const { settings, update, setStatusColor, reset } = useAppSettings();
   const L = (k: string) => SETTINGS_LABELS[k]?.[lang === "ar" ? "ar" : "en"] || SETTINGS_LABELS[k]?.en || k;
