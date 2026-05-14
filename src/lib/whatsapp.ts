@@ -13,9 +13,9 @@ export function fillTemplate(tpl: string, vars: Record<string, string | number>)
 
 export const DEFAULT_TEMPLATES = {
   reminder:
-    "السلام عليكم {tenant}،\nنذكركم بإيجار وحدة {unit} في {building} بقيمة {amount}.\nنشكر تعاونكم.",
+    "السلام عليكم {tenant}،\nنذكركم بإيجار وحدة {unit} في {building} بقيمة {amount}.\nالمتبقي عليكم: {remaining}.\nنشكر تعاونكم.",
   late:
-    "السلام عليكم {tenant}،\nنود تذكيركم بأن إيجار وحدة {unit} في {building} متأخر بقيمة {amount}.\nيرجى السداد في أقرب وقت.\nشكراً.",
+    "السلام عليكم {tenant}،\nنود تذكيركم بأن إيجار وحدة {unit} في {building} متأخر.\nالمبلغ المتبقي: {remaining}.\nيرجى السداد في أقرب وقت.\nشكراً.",
   receipt:
-    "السلام عليكم {tenant}،\nتم استلام دفعة بقيمة {amount} لوحدة {unit} في {building} بتاريخ {date}.\nشكراً لكم.",
+    "السلام عليكم {tenant}،\nتم استلام دفعة بقيمة {amount} لوحدة {unit} في {building} بتاريخ {date}.\nالمتبقي عليكم بعد هذه الدفعة: {remaining}.\nشكراً لكم.",
 };
