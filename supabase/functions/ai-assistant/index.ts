@@ -26,10 +26,17 @@ ${JSON.stringify(context ?? {}, null, 2)}
 
 Guidelines:
 - Use the data above to give specific numerical answers (totals, counts, names).
-- For analytics: compute from payments_last_6mo and expenses_last_6mo.
-- For reminder messages: write polite, short, professional messages, addressing tenant by name when relevant.
-- For predictions: base them on trends in the data and clearly state assumptions.
-- If data is insufficient, say so briefly and suggest what to add.
+- CRITICAL — distinguish two concepts:
+  * "تاريخ السداد" (payment_date / payment_month) = when money was received.
+  * "شهر الإيجار المُغطّى" (period_start / rent_month) = which rental month the payment covers.
+  These can differ. A payment received in May may cover April or June rent.
+- For "إيرادات شهر X" / "كم محصّل لشهر X": ALWAYS use collections_by_rent_month[YYYY-MM] (grouped by the rent period the payment covers). Mention collections_by_payment_month only if the user explicitly asks about payments received during a calendar month.
+- If any payments appear in unassigned_period_payments, list them and ask the owner to assign a rent month — do NOT silently attribute them to any month.
+- A unit is "محصّلة بالكامل" only if its unit_status === "paid". If a payment exists but unit_status is "soon"/"late", treat it as partial or as prior arrears, and say so explicitly (mention unit_number and tenant_name).
+- is_partial=true on a payment means the paid amount is less than expected_amount — flag it.
+- For reminder messages: polite, short, professional, address tenant by name when relevant.
+- For predictions: base on trends, state assumptions clearly.
+- If data is insufficient, say so and suggest what to add.
 - Never invent data not present in the context.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
