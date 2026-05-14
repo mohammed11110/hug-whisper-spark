@@ -242,6 +242,17 @@ export default function BuildingDetail() {
           ) : (
             visible.map((u, i) => {
               const bal = u.tenant_name ? computeBalance(u as any, payments) : null;
+              const today = new Date();
+              const monthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+              const monthPaid = u.tenant_name && u.rent_type === "monthly"
+                ? payments
+                    .filter((p: any) => p.unit_id === u.id && ((p.period_start || p.payment_date) || "").slice(0, 7) === monthKey)
+                    .reduce((s: number, p: any) => s + Number(p.amount || 0), 0)
+                : 0;
+              const monthRent = Number(u.rent_amount || 0);
+              const monthRemaining = u.tenant_name && u.rent_type === "monthly" && monthRent > 0
+                ? Math.max(0, monthRent - monthPaid)
+                : 0;
               return (
               <div key={u.id} className="relative animate-float-up" style={{ animationDelay: `${i * 0.03}s` }}>
                 <Link to={`/units/${u.id}`} className="block">
@@ -255,6 +266,11 @@ export default function BuildingDetail() {
                       <p className="text-xs text-muted-foreground">{u.status === "vacant" ? t2(u.type as any) : `${t2(u.type as any)} · ${format(Number(u.rent_amount))}/${t2(u.rent_type as any)}`}</p>
                       {bal && bal.outstanding > 0 && (
                         <p className="text-[11px] font-bold text-burgundy mt-0.5">{t2("outstanding_balance")}: {format(bal.outstanding)}</p>
+                      )}
+                      {monthRemaining > 0 && (
+                        <p className="text-[11px] font-bold text-destructive mt-0.5">
+                          {lang === "ar" ? `متبقي إيجار هذا الشهر: ${format(monthRemaining)}` : `Remaining this month: ${format(monthRemaining)}`}
+                        </p>
                       )}
                     </div>
                     <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase ${STATUS_STYLES[u.status] || ""}`}>{t2(u.status as any)}</span>
