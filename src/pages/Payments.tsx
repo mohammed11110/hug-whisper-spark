@@ -23,6 +23,7 @@ interface Row {
   id: string;
   unit_id: string;
   amount: number;
+  expected_amount: number | null;
   payment_date: string;
   receipt_number: string | null;
   unit_number: string;
@@ -94,7 +95,7 @@ export default function Payments() {
     setLoading(true);
     const { data: pays } = await supabase
       .from("payments")
-      .select("id, unit_id, amount, payment_date, receipt_number, period_start")
+      .select("id, unit_id, amount, expected_amount, payment_date, receipt_number, period_start")
       .is("deleted_at", null)
       .order("payment_date", { ascending: false })
       .limit(500);
@@ -124,6 +125,7 @@ export default function Payments() {
         id: p.id,
         unit_id: p.unit_id,
         amount: Number(p.amount),
+        expected_amount: p.expected_amount == null ? null : Number(p.expected_amount),
         payment_date: p.payment_date,
         receipt_number: p.receipt_number,
         period_start: p.period_start,
@@ -181,6 +183,8 @@ export default function Payments() {
   const buildReceiptHTML = (r: Row, lng: RLang) => {
     const L = RECEIPT_TXT[lng];
     const dir = lng === "ar" ? "rtl" : "ltr";
+    const receiptTotalDue = r.expected_amount && r.expected_amount > 0 ? r.expected_amount : r.remaining + r.amount;
+    const receiptRemaining = Math.max(0, receiptTotalDue - r.amount);
     const sc = settings.statusColors;
     const statusColors: Record<string, { bg: string; fg: string; label: string }> = {
       paid: { bg: sc.paid.bg, fg: sc.paid.fg, label: L.paid },
@@ -238,13 +242,13 @@ export default function Payments() {
           
           <div style="margin-top:18px;padding:16px 18px;background:#f6faf3;border:1px solid #cdd9c8;border-radius:14px">
             <div style="font-size:11px;color:#7a8a78;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;font-weight:700">${L.summary}</div>
-            <div class="row"><span>${L.total_due}</span><b>${format(r.remaining + r.amount)}</b></div>
+            <div class="row"><span>${L.total_due}</span><b>${format(receiptTotalDue)}</b></div>
             <div class="row" style="border-bottom:none"><span>${L.amount_paid}</span><b style="color:#3a6b3a;font-size:15px">− ${format(r.amount)}</b></div>
           </div>
 
           <div class="total"><span>${L.amount_paid}</span><span>${format(r.amount)}</span></div>
-          <div class="remaining" style="margin-top:10px;padding:14px 18px;border-radius:14px;display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:14px;${r.remaining > 0 ? 'background:#f8e6e6;color:#8a2a2a;border:1px solid #e8c2c2' : 'background:#e7f1de;color:#3a6b3a;border:1px solid #bcd4ad'}">
-            <span>${L.remaining_after}</span><span>${format(r.remaining)}${r.remaining === 0 ? ` · ${L.settled}` : ''}</span>
+          <div class="remaining" style="margin-top:10px;padding:14px 18px;border-radius:14px;display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:14px;${receiptRemaining > 0 ? 'background:#f8e6e6;color:#8a2a2a;border:1px solid #e8c2c2' : 'background:#e7f1de;color:#3a6b3a;border:1px solid #bcd4ad'}">
+            <span>${L.remaining_after}</span><span>${format(receiptRemaining)}${receiptRemaining === 0 ? ` · ${L.settled}` : ''}</span>
           </div>
           <div class="footer">— ${L.receipt} —</div>
         </div>
