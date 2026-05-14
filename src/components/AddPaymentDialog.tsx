@@ -87,13 +87,36 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         ? await supabase.from("buildings").select("id, name, name_en").in("id", ids)
         : { data: [] as any[] };
       const bMap = new Map((bs || []).map((b: any) => [b.id, b]));
-      const opts: UnitOpt[] = (us || []).map((u: any) => ({
-        id: u.id,
-        unit_number: u.unit_number,
-        tenant_name: u.tenant_name,
-        rent_amount: Number(u.rent_amount),
-        building_name: bMap.get(u.building_id)?.name || bMap.get(u.building_id)?.name_en || "—",
-      }));
+      const unitIds = (us || []).map((u: any) => u.id);
+      const { data: ts } = unitIds.length
+        ? await supabase.from("tenancies")
+            .select("unit_id, status, tenant_name, outstanding_at_end, ended_at")
+            .in("unit_id", unitIds)
+        : { data: [] as any[] };
+      const arrearsMap = new Map<string, { name: string; amount: number }>();
+      (ts || []).forEach((t: any) => {
+        if (t.status === "ended" && Number(t.outstanding_at_end) > 0) {
+          const cur = arrearsMap.get(t.unit_id);
+          const amt = Number(t.outstanding_at_end);
+          if (!cur || amt > cur.amount) arrearsMap.set(t.unit_id, { name: t.tenant_name || "—", amount: amt });
+        }
+      });
+      const opts: UnitOpt[] = (us || [])
+        .filter((u: any) => !!u.tenant_name || arrearsMap.has(u.id) || u.id === presetUnitId)
+        .map((u: any) => {
+          const ar = arrearsMap.get(u.id);
+          const isVacantWithArrears = !u.tenant_name && !!ar;
+          return {
+            id: u.id,
+            unit_number: u.unit_number,
+            tenant_name: u.tenant_name || (isVacantWithArrears ? ar!.name : null),
+            rent_amount: Number(u.rent_amount),
+            building_name: bMap.get(u.building_id)?.name || bMap.get(u.building_id)?.name_en || "—",
+            arrears_note: isVacantWithArrears
+              ? (lang === "ar" ? `متأخرات سابقة: ${ar!.amount}` : `Prior arrears: ${ar!.amount}`)
+              : null,
+          };
+        });
       setUnits(opts);
       if (presetUnitId) {
         setUnitId(presetUnitId);
