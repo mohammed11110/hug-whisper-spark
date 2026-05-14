@@ -236,6 +236,20 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
               label={lang === "ar" ? "صورة الهوية" : "ID image"}
               isPrivate
             />
+            {idImageUrl && (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={extracting}
+                onClick={extractFromId}
+                className="w-full h-10 rounded-xl border-sage-300 text-sage-700"
+              >
+                {extracting ? <Loader2 className="h-4 w-4 animate-spin me-2" /> : <Sparkles className="h-4 w-4 me-2" />}
+                {extracting
+                  ? (lang === "ar" ? "جاري الاستخراج..." : "Extracting...")
+                  : (lang === "ar" ? "استخراج البيانات تلقائياً" : "Auto-extract data")}
+              </Button>
+            )}
 
             <FileUpload
               bucket="contracts"
