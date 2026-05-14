@@ -29,7 +29,7 @@ const STATUS_STYLES: Record<string, string> = {
 export default function BuildingDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const t2 = useT2();
   const { format } = useCurrency();
   const [building, setBuilding] = useState<Building | null>(null);
