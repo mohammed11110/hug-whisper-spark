@@ -1,0 +1,1 @@
+ALTER TABLE public.units ADD COLUMN IF NOT EXISTS photo_labels jsonb NOT NULL DEFAULT '{}'::jsonb;
