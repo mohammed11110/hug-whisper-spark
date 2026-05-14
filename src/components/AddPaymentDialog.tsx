@@ -166,18 +166,53 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         <div className="space-y-3">
           <div className="space-y-1.5">
             <Label className="text-xs text-sage-500">{t2("unit_number")}</Label>
-            <Select value={unitId} onValueChange={onPickUnit} disabled={!!presetUnitId}>
-              <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11">
-                <SelectValue placeholder="—" />
-              </SelectTrigger>
-              <SelectContent className="max-h-72">
-                {units.map((u) => (
-                  <SelectItem key={u.id} value={u.id}>
-                    {u.building_name} · {u.unit_number}{u.tenant_name ? ` — ${u.tenant_name}` : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {(() => {
+              const selected = units.find((u) => u.id === unitId);
+              const label = selected
+                ? `${selected.building_name} · ${selected.unit_number}${selected.tenant_name ? ` — ${selected.tenant_name}` : ""}`
+                : "—";
+              return (
+                <Popover open={unitOpen} onOpenChange={setUnitOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      disabled={!!presetUnitId}
+                      className="flex h-11 w-full items-center justify-between rounded-xl border border-sage-200 bg-card px-3 text-sm disabled:opacity-50"
+                    >
+                      <span className={selected ? "" : "text-muted-foreground"}>{label}</span>
+                      <ChevronsUpDown className="h-4 w-4 opacity-50" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                    <Command
+                      filter={(value, search) =>
+                        value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0
+                      }
+                    >
+                      <CommandInput placeholder={lang === "ar" ? "ابحث..." : "Search..."} />
+                      <CommandList>
+                        <CommandEmpty>{lang === "ar" ? "لا توجد نتائج" : "No results"}</CommandEmpty>
+                        <CommandGroup>
+                          {units.map((u) => {
+                            const text = `${u.building_name} ${u.unit_number} ${u.tenant_name || ""}`;
+                            return (
+                              <CommandItem
+                                key={u.id}
+                                value={text}
+                                onSelect={() => { onPickUnit(u.id); setUnitOpen(false); }}
+                              >
+                                <Check className={`me-2 h-4 w-4 ${unitId === u.id ? "opacity-100" : "opacity-0"}`} />
+                                {u.building_name} · {u.unit_number}{u.tenant_name ? ` — ${u.tenant_name}` : ""}
+                              </CommandItem>
+                            );
+                          })}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              );
+            })()}
           </div>
           {/* Rent month */}
           <div className="space-y-1.5">
