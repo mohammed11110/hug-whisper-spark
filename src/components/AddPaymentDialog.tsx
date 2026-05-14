@@ -333,7 +333,22 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                 </SelectContent>
               </Select>
             </div>
+            {suggestion && !(suggestion.year === periodYear && suggestion.month === periodMonthNum) && (
+              <button
+                type="button"
+                onClick={applySuggestion}
+                className="w-full flex items-start gap-2 bg-sage-100/60 border border-sage-200 rounded-xl px-3 py-2 text-xs text-sage-600 text-start hover:bg-sage-100"
+              >
+                <Sparkles className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-sage-500" />
+                <span className="flex-1">
+                  <span className="font-semibold block">{lang === "ar" ? "اقتراح ذكي" : "Smart suggestion"}</span>
+                  <span className="opacity-80">{suggestion.reason}</span>
+                </span>
+                <span className="font-bold text-sage-600 flex-shrink-0">{lang === "ar" ? "تطبيق" : "Apply"}</span>
+              </button>
+            )}
           </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs text-sage-500">{lang === "ar" ? "المتوقع" : "Expected"}</Label>
