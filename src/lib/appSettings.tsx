@@ -11,6 +11,12 @@ export const PAGE_SIZES_MM: Record<PageSize, { w: number; h: number }> = {
 export interface Margins { top: number; right: number; bottom: number; left: number }
 export interface MessageTemplates { reminder: string; late: string; receipt: string }
 export interface BusinessBrand { name: string; logo: string | null; phone: string; address: string }
+export interface ReceiptNumbering {
+  prefix: string;
+  startNumber: number;
+  padding: number;
+  nextNumber: number;
+}
 export interface AppSettings {
   statusColors: { paid: StatusColor; late: StatusColor; soon: StatusColor };
   filterRetentionMin: number;
@@ -25,6 +31,14 @@ export interface AppSettings {
   brand: BusinessBrand;
   /** Show the floating AI assistant button on the dashboard */
   showAiFab: boolean;
+  /** Receipt numbering preferences */
+  receipt: ReceiptNumbering;
+}
+
+export function formatReceipt(r: ReceiptNumbering, n?: number): string {
+  const num = n ?? r.nextNumber ?? r.startNumber ?? 1;
+  const padded = r.padding > 0 ? String(num).padStart(r.padding, "0") : String(num);
+  return `${r.prefix || ""}${padded}`;
 }
 
 const DEFAULTS: AppSettings = {
