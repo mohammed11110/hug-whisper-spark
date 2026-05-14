@@ -35,6 +35,7 @@ import Refund from "./pages/Refund";
 import Assistant from "./pages/Assistant";
 import Admin from "./pages/Admin";
 import MonthlyCollection from "./pages/MonthlyCollection";
+import Unsubscribe from "./pages/Unsubscribe";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
