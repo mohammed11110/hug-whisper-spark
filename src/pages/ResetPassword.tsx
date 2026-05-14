@@ -20,6 +20,8 @@ export default function ResetPassword() {
   const [pw2, setPw2] = useState("");
   const [busy, setBusy] = useState(false);
   const [pwError, setPwError] = useState(false);
+  const [showPw, setShowPw] = useState(false);
+  const [showPw2, setShowPw2] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
