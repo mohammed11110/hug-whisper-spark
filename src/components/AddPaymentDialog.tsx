@@ -21,6 +21,7 @@ interface UnitOpt {
   building_name: string;
   rent_amount: number;
   tenant_name: string | null;
+  arrears_note?: string | null;
 }
 
 interface Props {
