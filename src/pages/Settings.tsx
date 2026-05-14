@@ -17,6 +17,7 @@ import { useCurrency, CURRENCIES } from "@/lib/currency";
 import { useAppSettings, PAGE_SIZES_MM, type PageSize, formatReceipt } from "@/lib/appSettings";
 import { useAuth } from "@/lib/auth";
 import { useAdmin } from "@/lib/useAdmin";
+import { DeleteAccountSection } from "@/components/DeleteAccountSection";
 import { toast } from "sonner";
 
 const RETENTIONS = [
@@ -552,6 +553,8 @@ export default function Settings() {
           ))}
         </div>
       </section>
+
+      <DeleteAccountSection />
 
       <BottomNav />
     </div>
