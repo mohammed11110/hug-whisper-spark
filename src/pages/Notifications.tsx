@@ -41,13 +41,19 @@ export default function Notifications() {
       if (!ids.length) { setItems([]); setLoading(false); return; }
       const bMap = new Map((bs || []).map((b: any) => [b.id, b.name || b.name_en || "—"]));
       const { data: us } = await supabase.from("units")
-        .select("id, unit_number, building_id, tenant_name, tenant_phone, rent_amount, status, due_day, contract_end_date")
+        .select("id, unit_number, building_id, tenant_name, tenant_phone, rent_amount, rent_type, status, due_day, contract_end_date, contract_start_date, opening_balance, opening_balance_date")
         .in("building_id", ids)
         .not("tenant_name", "is", null);
+
+      const unitIds = (us || []).map((u: any) => u.id);
+      const { data: pays } = unitIds.length
+        ? await supabase.from("payments").select("unit_id, amount, deleted_at").in("unit_id", unitIds).is("deleted_at", null)
+        : { data: [] as any[] };
 
       const today = new Date();
       const out: AlertItem[] = [];
       (us || []).forEach((u: any) => {
+        const { outstanding } = computeBalance(u, pays || []);
         const base = {
           unit_id: u.id,
           unit_number: u.unit_number,
@@ -55,6 +61,7 @@ export default function Notifications() {
           tenant_name: u.tenant_name,
           tenant_phone: u.tenant_phone,
           amount: Number(u.rent_amount),
+          remaining: outstanding,
         };
         if (u.status === "late") out.push({ ...base, kind: "late" });
         // upcoming: due_day within next N days
