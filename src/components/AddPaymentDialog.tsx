@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useT2 } from "@/lib/i18n2";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
+import { useAppSettings, formatReceipt } from "@/lib/appSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -62,6 +63,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const t2 = useT2();
   const { lang } = useI18n();
   const { format } = useCurrency();
+  const { settings, bumpReceiptNumber } = useAppSettings();
   const [units, setUnits] = useState<UnitOpt[]>([]);
   const [unitId, setUnitId] = useState(presetUnitId || "");
   const [expected, setExpected] = useState("");
@@ -126,7 +128,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
           if (!amount) setAmount(String(u.rent_amount));
         }
       }
-      if (!receipt) setReceipt(`R-${Date.now()}`);
+      if (!receipt) setReceipt(formatReceipt(settings.receipt));
       const today = new Date();
       setPeriodYear(today.getFullYear());
       setPeriodMonthNum(today.getMonth() + 1);
@@ -174,6 +176,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     setSaving(false);
     if (error) return toast.error(error.message);
     toast.success("✓");
+    bumpReceiptNumber();
     setAmount(""); setReceipt(""); setNotes(""); if (!presetUnitId) setUnitId("");
     onOpenChange(false);
     onSaved?.();

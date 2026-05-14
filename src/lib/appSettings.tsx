@@ -11,6 +11,12 @@ export const PAGE_SIZES_MM: Record<PageSize, { w: number; h: number }> = {
 export interface Margins { top: number; right: number; bottom: number; left: number }
 export interface MessageTemplates { reminder: string; late: string; receipt: string }
 export interface BusinessBrand { name: string; logo: string | null; phone: string; address: string }
+export interface ReceiptNumbering {
+  prefix: string;
+  startNumber: number;
+  padding: number;
+  nextNumber: number;
+}
 export interface AppSettings {
   statusColors: { paid: StatusColor; late: StatusColor; soon: StatusColor };
   filterRetentionMin: number;
@@ -25,6 +31,14 @@ export interface AppSettings {
   brand: BusinessBrand;
   /** Show the floating AI assistant button on the dashboard */
   showAiFab: boolean;
+  /** Receipt numbering preferences */
+  receipt: ReceiptNumbering;
+}
+
+export function formatReceipt(r: ReceiptNumbering, n?: number): string {
+  const num = n ?? r.nextNumber ?? r.startNumber ?? 1;
+  const padded = r.padding > 0 ? String(num).padStart(r.padding, "0") : String(num);
+  return `${r.prefix || ""}${padded}`;
 }
 
 const DEFAULTS: AppSettings = {
@@ -42,6 +56,7 @@ const DEFAULTS: AppSettings = {
   contractWarnDays: 30,
   brand: { name: "أملاكي · Amlaki", logo: null, phone: "", address: "" },
   showAiFab: false,
+  receipt: { prefix: "R-", startNumber: 1, padding: 0, nextNumber: 1 },
 };
 
 const KEY = "amlaki.appSettings.v1";
@@ -51,6 +66,8 @@ interface Ctx {
   update: (patch: Partial<AppSettings>) => void;
   setStatusColor: (k: keyof AppSettings["statusColors"], c: StatusColor) => void;
   reset: () => void;
+  bumpReceiptNumber: () => void;
+  resetReceiptNumber: () => void;
 }
 
 const C = createContext<Ctx | null>(null);
@@ -71,6 +88,7 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
         margins: { ...DEFAULTS.margins, ...(legacy || {}), ...(v.margins || {}) },
         templates: { ...DEFAULTS.templates, ...(v.templates || {}) },
         brand: { ...DEFAULTS.brand, ...(v.brand || {}) },
+        receipt: { ...DEFAULTS.receipt, ...(v.receipt || {}) },
       };
     } catch { return DEFAULTS; }
   });
@@ -81,8 +99,12 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
   const setStatusColor: Ctx["setStatusColor"] = (k, c) =>
     setSettings((s) => ({ ...s, statusColors: { ...s.statusColors, [k]: c } }));
   const reset = () => setSettings(DEFAULTS);
+  const bumpReceiptNumber = () =>
+    setSettings((s) => ({ ...s, receipt: { ...s.receipt, nextNumber: (s.receipt.nextNumber || s.receipt.startNumber || 1) + 1 } }));
+  const resetReceiptNumber = () =>
+    setSettings((s) => ({ ...s, receipt: { ...s.receipt, nextNumber: s.receipt.startNumber || 1 } }));
 
-  return <C.Provider value={{ settings, update, setStatusColor, reset }}>{children}</C.Provider>;
+  return <C.Provider value={{ settings, update, setStatusColor, reset, bumpReceiptNumber, resetReceiptNumber }}>{children}</C.Provider>;
 }
 
 export const useAppSettings = () => {

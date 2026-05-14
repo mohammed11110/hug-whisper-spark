@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency, CURRENCIES } from "@/lib/currency";
-import { useAppSettings, PAGE_SIZES_MM, type PageSize } from "@/lib/appSettings";
+import { useAppSettings, PAGE_SIZES_MM, type PageSize, formatReceipt } from "@/lib/appSettings";
 import { useAuth } from "@/lib/auth";
 import { useAdmin } from "@/lib/useAdmin";
 import { toast } from "sonner";
@@ -43,7 +43,7 @@ export default function Settings() {
   const { isAdmin } = useAdmin();
   const navigate = useNavigate();
   const { currency, setCurrency } = useCurrency();
-  const { settings, update, reset } = useAppSettings();
+  const { settings, update, reset, resetReceiptNumber } = useAppSettings();
   const { theme, setTheme } = useTheme();
   const [openCurr, setOpenCurr] = useState(false);
   const [openAdvanced, setOpenAdvanced] = useState(false);
@@ -263,6 +263,55 @@ export default function Settings() {
                   className="text-[11px] text-burgundy font-bold">×</button>
               )}
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* === Receipt numbering === */}
+      <section className="px-5 mt-6">
+        <div className="flex items-center gap-2 mb-2">
+          <Printer className="h-4 w-4 text-sage-600" />
+          <h2 className="font-bold text-sage-600 text-sm">
+            {tr(lang, "ترقيم الإيصالات", "Receipt numbering")}
+          </h2>
+        </div>
+        <div className="bg-card border border-sage-200/50 rounded-2xl p-4 shadow-soft space-y-3">
+          <p className="text-[10px] text-muted-foreground">
+            {tr(lang, "يُستخدم الرقم تلقائياً عند تسجيل دفعة جديدة، ويزداد بمقدار 1 بعد كل حفظ. يمكنك تعديله يدوياً وقت الإدخال.", "Used automatically on new payments and increments by 1 after each save. You can still edit it at entry time.")}
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            <label className="block space-y-1">
+              <span className="text-[11px] text-sage-500 font-semibold">{tr(lang, "بادئة", "Prefix")}</span>
+              <Input value={settings.receipt.prefix}
+                onChange={(e) => update({ receipt: { ...settings.receipt, prefix: e.target.value } })}
+                maxLength={10}
+                className="rounded-xl border-sage-200 bg-card h-10" />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-[11px] text-sage-500 font-semibold">{tr(lang, "رقم البداية", "Start number")}</span>
+              <Input type="number" min={0} value={settings.receipt.startNumber}
+                onChange={(e) => {
+                  const v = Math.max(0, Number(e.target.value) || 0);
+                  const keepNext = settings.receipt.nextNumber > settings.receipt.startNumber;
+                  update({ receipt: { ...settings.receipt, startNumber: v, nextNumber: keepNext ? settings.receipt.nextNumber : v } });
+                }}
+                className="rounded-xl border-sage-200 bg-card h-10" />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-[11px] text-sage-500 font-semibold">{tr(lang, "خانات", "Digits")}</span>
+              <Input type="number" min={0} max={8} value={settings.receipt.padding}
+                onChange={(e) => update({ receipt: { ...settings.receipt, padding: Math.max(0, Math.min(8, Number(e.target.value) || 0)) } })}
+                className="rounded-xl border-sage-200 bg-card h-10" />
+            </label>
+          </div>
+          <div className="flex items-center justify-between gap-2 bg-sage-50 rounded-xl px-3 py-2">
+            <div className="text-[11px] text-sage-600">
+              <div>{tr(lang, "الرقم التالي", "Next number")}: <b>{settings.receipt.nextNumber}</b></div>
+              <div className="opacity-80">{tr(lang, "معاينة", "Preview")}: <span className="font-mono font-bold">{formatReceipt(settings.receipt)}</span></div>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => { resetReceiptNumber(); saved(); }} className="rounded-lg h-8 text-xs">
+              <RotateCcw className="h-3 w-3 me-1" /> {tr(lang, "إعادة ضبط", "Reset")}
+            </Button>
           </div>
         </div>
       </section>
