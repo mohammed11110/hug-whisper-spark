@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, Sparkles } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { useT2 } from "@/lib/i18n2";
 import { useI18n } from "@/lib/i18n";
@@ -76,6 +76,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const [periodMonthNum, setPeriodMonthNum] = useState<number>(() => new Date().getMonth() + 1);
   const [saving, setSaving] = useState(false);
   const [unitOpen, setUnitOpen] = useState(false);
+  const [suggestion, setSuggestion] = useState<{ year: number; month: number; covers: number; reason: string } | null>(null);
 
   const { start: periodStart, end: periodEnd } = monthRange(periodYear, periodMonthNum);
   const monthNames = lang === "ar" ? AR_MONTHS : EN_MONTHS;
@@ -136,11 +137,81 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, presetUnitId]);
 
+  // Smart rent-month suggestion based on contract + prior payments + amount
+  useEffect(() => {
+    if (!open || !unitId) { setSuggestion(null); return; }
+    const amt = Number(amount) || 0;
+    if (amt <= 0) { setSuggestion(null); return; }
+    let cancelled = false;
+    (async () => {
+      const { data: tn } = await supabase
+        .from("tenancies")
+        .select("contract_start_date, rent_amount, rent_type, status")
+        .eq("unit_id", unitId)
+        .eq("status", "active")
+        .maybeSingle();
+      if (!tn || cancelled) { setSuggestion(null); return; }
+      const startStr = (tn as any).contract_start_date as string | null;
+      const rentAmt = Number((tn as any).rent_amount) || 0;
+      const rentType = (tn as any).rent_type as string;
+      if (!startStr || rentAmt <= 0) { setSuggestion(null); return; }
+
+      const { data: ps } = await supabase
+        .from("payments")
+        .select("amount, period_start")
+        .eq("unit_id", unitId)
+        .is("deleted_at", null);
+      const paidByMonth = new Map<string, number>();
+      (ps || []).forEach((p: any) => {
+        if (!p.period_start) return;
+        const k = String(p.period_start).slice(0, 7);
+        paidByMonth.set(k, (paidByMonth.get(k) || 0) + Number(p.amount));
+      });
+
+      const today = new Date();
+      const start = new Date(startStr);
+      const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+      const limit = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+      let firstUnpaid: { year: number; month: number } | null = null;
+      while (cursor <= limit) {
+        const y = cursor.getFullYear();
+        const m = cursor.getMonth() + 1;
+        const k = `${y}-${String(m).padStart(2, "0")}`;
+        const paid = paidByMonth.get(k) || 0;
+        if (rentType === "monthly" && paid + 0.01 < rentAmt) {
+          firstUnpaid = { year: y, month: m };
+          break;
+        }
+        if (rentType === "yearly" && m === start.getMonth() + 1 && paid + 0.01 < rentAmt) {
+          firstUnpaid = { year: y, month: m };
+          break;
+        }
+        cursor.setMonth(cursor.getMonth() + 1);
+      }
+      if (cancelled) return;
+      if (!firstUnpaid) { setSuggestion(null); return; }
+      const covers = rentType === "monthly" && rentAmt > 0 ? Math.max(1, Math.round(amt / rentAmt)) : 1;
+      const monthName = (lang === "ar" ? AR_MONTHS : EN_MONTHS)[firstUnpaid.month - 1];
+      const reason = lang === "ar"
+        ? `أول شهر غير مسدد بالكامل: ${monthName} ${firstUnpaid.year}${covers > 1 ? ` — المبلغ يغطي ${covers} أشهر تقريباً` : ""}`
+        : `First unpaid month: ${monthName} ${firstUnpaid.year}${covers > 1 ? ` — amount covers ~${covers} months` : ""}`;
+      setSuggestion({ year: firstUnpaid.year, month: firstUnpaid.month, covers, reason });
+    })();
+    return () => { cancelled = true; };
+  }, [open, unitId, amount, lang]);
+
+  const applySuggestion = () => {
+    if (!suggestion) return;
+    setPeriodYear(suggestion.year);
+    setPeriodMonthNum(suggestion.month);
+  };
+
   const onPickUnit = (id: string) => {
     setUnitId(id);
     const u = units.find((x) => x.id === id);
     if (u) { setAmount(String(u.rent_amount)); setExpected(String(u.rent_amount)); }
   };
+
 
   const remaining = Math.max(0, (Number(expected) || 0) - (Number(amount) || 0));
   const isPartial = Number(amount) > 0 && Number(expected) > 0 && Number(amount) < Number(expected);
@@ -262,7 +333,22 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                 </SelectContent>
               </Select>
             </div>
+            {suggestion && !(suggestion.year === periodYear && suggestion.month === periodMonthNum) && (
+              <button
+                type="button"
+                onClick={applySuggestion}
+                className="w-full flex items-start gap-2 bg-sage-100/60 border border-sage-200 rounded-xl px-3 py-2 text-xs text-sage-600 text-start hover:bg-sage-100"
+              >
+                <Sparkles className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-sage-500" />
+                <span className="flex-1">
+                  <span className="font-semibold block">{lang === "ar" ? "اقتراح ذكي" : "Smart suggestion"}</span>
+                  <span className="opacity-80">{suggestion.reason}</span>
+                </span>
+                <span className="font-bold text-sage-600 flex-shrink-0">{lang === "ar" ? "تطبيق" : "Apply"}</span>
+              </button>
+            )}
           </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs text-sage-500">{lang === "ar" ? "المتوقع" : "Expected"}</Label>
