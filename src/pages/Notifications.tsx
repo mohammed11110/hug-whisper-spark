@@ -166,8 +166,13 @@ export default function Notifications() {
                 <p className="text-xs text-muted-foreground truncate mt-0.5">
                   {it.building_name} · {it.unit_number}
                 </p>
-                <div className="flex items-center gap-3 mt-2 text-[11px] text-sage-500">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-[11px] text-sage-500">
                   <span>{format(it.amount)}</span>
+                  {it.remaining > 0 && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-burgundy/10 text-burgundy font-bold">
+                      {lang === "ar" ? "المتبقي" : "Remaining"}: {format(it.remaining)}
+                    </span>
+                  )}
                   {it.contract_end && <span>{lang === "ar" ? "ينتهي" : "ends"}: {it.contract_end}</span>}
                 </div>
                 {it.tenant_phone && (
