@@ -24,6 +24,7 @@ export default function Auth() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showPw, setShowPw] = useState(false);
   const [remember, setRemember] = useState(true);
   const [pwError, setPwError] = useState(false);
 
