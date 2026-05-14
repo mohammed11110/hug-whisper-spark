@@ -182,6 +182,30 @@ export default function BuildingDetail() {
         </Link>
 
 
+        {/* Search + Sort */}
+        <div className="flex items-center gap-2 mb-3">
+          <div className="relative flex-1">
+            <Search className="absolute top-1/2 -translate-y-1/2 start-3 h-4 w-4 text-sage-400" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={lang === "ar" ? "ابحث باسم المستأجر أو رقم الشقة" : "Search tenant or unit"}
+              className="ps-10 rounded-xl border-sage-200 bg-card h-10"
+            />
+          </div>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="h-10 rounded-xl border border-sage-200 bg-card text-xs font-semibold text-sage-600 px-2"
+          >
+            <option value="smart">{lang === "ar" ? "الافتراضي" : "Default"}</option>
+            <option value="number">{lang === "ar" ? "رقم الشقة ↑" : "Unit # ↑"}</option>
+            <option value="name">{lang === "ar" ? "اسم المستأجر" : "Tenant name"}</option>
+            <option value="due">{lang === "ar" ? "الأقرب استحقاقاً" : "Nearest due"}</option>
+            <option value="vacant">{lang === "ar" ? "الشاغرة أولاً" : "Vacant first"}</option>
+          </select>
+        </div>
+
         {/* Filter chips */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
