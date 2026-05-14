@@ -227,7 +227,7 @@ export default function Payments() {
             <div><span>${L.building_name}</span><b>${r.building_name}</b></div>
           </div>
           <div class="row"><span>${L.unit_number}</span><b><span class="unit-pill">#${r.unit_number}</span></b></div>
-          <div class="row"><span>${L.status}</span><b style="color:${us.fg}">${us.label}</b></div>
+          
           <div class="row"><span>${L.tenant_name}</span><b>${r.tenant_name || "—"}</b></div>
           ${r.period_start ? `<div class="row"><span>${L.rent_month}</span><b>${monthLabel(r.period_start, lng)}</b></div>` : ""}
           <div class="total"><span>${L.total}</span><span>${format(r.amount)}</span></div>
