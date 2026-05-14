@@ -207,6 +207,9 @@ export default function Tenants() {
                     )}
                     <span>{format(r.rent_amount)}/{lang === "ar" ? "شهر" : "mo"}</span>
                     <span>{lang === "ar" ? "إجمالي مدفوع" : "Total paid"}: <b className="text-sage-600">{format(r.total_paid)}</b></span>
+                    {r.outstanding > 0 && (
+                      <span className="text-burgundy font-bold">{lang === "ar" ? "الديون" : "Debt"}: {format(r.outstanding)}</span>
+                    )}
                     {r.contract_end_date && (
                       <span>{t2("contract_end")}: {r.contract_end_date}</span>
                     )}
