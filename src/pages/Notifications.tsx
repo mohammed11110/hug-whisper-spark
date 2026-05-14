@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth";
 import { useAppSettings } from "@/lib/appSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { openWhatsApp, fillTemplate } from "@/lib/whatsapp";
+import { computeBalance } from "@/lib/balance";
 
 interface AlertItem {
   kind: "late" | "upcoming" | "contract";
@@ -18,6 +19,7 @@ interface AlertItem {
   tenant_name: string;
   tenant_phone: string | null;
   amount: number;
+  remaining: number;
   due_in_days?: number;
   contract_end?: string;
 }
