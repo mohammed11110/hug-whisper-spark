@@ -35,6 +35,7 @@ import Refund from "./pages/Refund";
 import Assistant from "./pages/Assistant";
 import Admin from "./pages/Admin";
 import MonthlyCollection from "./pages/MonthlyCollection";
+import Unsubscribe from "./pages/Unsubscribe";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -77,6 +78,7 @@ const App = () => (
                     <Route path="/assistant" element={<RequireAuth><Assistant /></RequireAuth>} />
                     <Route path="/admin" element={<RequireAuth><Admin /></RequireAuth>} />
                     <Route path="/collection" element={<RequireAuth><MonthlyCollection /></RequireAuth>} />
+                    <Route path="/unsubscribe" element={<Unsubscribe />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </BrowserRouter>
