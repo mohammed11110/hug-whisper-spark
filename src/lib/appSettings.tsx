@@ -37,7 +37,9 @@ export interface AppSettings {
 
 export function formatReceipt(r: ReceiptNumbering, n?: number): string {
   const num = n ?? r.nextNumber ?? r.startNumber ?? 1;
-  const padded = r.padding > 0 ? String(num).padStart(r.padding, "0") : String(num);
+  const base = r.padding > 0 ? String(num).padStart(r.padding, "0") : String(num);
+  // Always prefix a leading zero before the numeric part (e.g. 1000 → 01000)
+  const padded = base.startsWith("0") ? base : `0${base}`;
   return `${r.prefix || ""}${padded}`;
 }
 
