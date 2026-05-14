@@ -188,6 +188,7 @@ export default function Payments() {
       soon: { bg: sc.soon.bg, fg: sc.soon.fg, label: L.soon },
     };
     const us = statusColors[r.unit_status] || statusColors.soon;
+    const showStatus = r.unit_status !== "soon";
     const brand = settings.brand;
     const brandHeader = brand.logo
       ? `<img src="${brand.logo}" style="height:46px;object-fit:contain"/>`
