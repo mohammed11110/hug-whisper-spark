@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useT2 } from "@/lib/i18n2";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
+import { useAppSettings, formatReceipt } from "@/lib/appSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { z } from "zod";
