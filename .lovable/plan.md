@@ -1,85 +1,30 @@
-# خطة: تصميم آيباد كامل لتطبيق أملاكي
-
 ## الهدف
-الاستفادة من شاشة الآيباد الكاملة بتخطيط جانبي (Sidebar + محتوى رئيسي) بدلاً من عرض الأيفون الضيق، مع الحفاظ على التصميم الحالي للأيفون كما هو.
+إضافة 3 خانات اختيارية لرفع الملفات في نافذة "مستأجر جديد" (NewTenancyDialog):
+1. صورة الهوية (ID)
+2. صور الوحدة (متعددة)
+3. ملف العقد PDF
 
-## المبدأ العام
+## التغييرات
 
-```
-الأيفون (< 768px)         الآيباد (≥ 768px)
-┌──────────────┐          ┌──────┬──────────────────┐
-│   TopBar     │          │      │     TopBar       │
-├──────────────┤          │ Side ├──────────────────┤
-│              │          │ bar  │                  │
-│   Content    │          │      │    Content       │
-│              │          │ Nav  │    (wider)       │
-├──────────────┤          │      │                  │
-│  BottomNav   │          │      │                  │
-└──────────────┘          └──────┴──────────────────┘
-```
+### 1. `src/components/NewTenancyDialog.tsx`
+إضافة 3 حقول رفع ملفات اختيارية باستخدام `FileUpload` الموجود مسبقاً:
+- **صورة الهوية** → bucket: `tenant-ids` → يُحفظ في `tenancies.tenant_id_image_url` و `units.tenant_id_image_url`
+- **صور الوحدة** (متعددة) → bucket: `unit-photos` → تُضاف إلى `units.handover_photos` (jsonb array)
+- **ملف العقد PDF** → bucket: `contracts` → يُحفظ في `units.contract_file_url`
 
-- نقطة التحول: `md` (768px) — يطابق iPad mini وأكبر
-- على الآيباد: إخفاء `BottomNav`، إظهار `Sidebar` قابل للطي
-- على الأيفون: لا تغيير (BottomNav كما هو)
+كل الحقول اختيارية — الحفظ يعمل بدونها كما هو الآن.
 
-## الخطوات
+### 2. لا تغييرات في قاعدة البيانات
+الأعمدة موجودة بالفعل:
+- `tenancies.tenant_id_image_url` ✓
+- `units.tenant_id_image_url`, `units.contract_file_url`, `units.handover_photos` ✓
 
-### 1. إنشاء `AppSidebar` جديد
-- ملف: `src/components/AppSidebar.tsx`
-- استخدام shadcn `Sidebar` مع `collapsible="icon"`
-- نفس روابط `BottomNav` الحالية + روابط إضافية (الإعدادات، النسخ الاحتياطي، الفريق، التقارير، المساعد الذكي)
-- تجميعها في مجموعات: الرئيسية، الإدارة، الأدوات
-- إبراز المسار النشط عبر `NavLink` + `useLocation`
-- دعم RTL/LTR (الشريط على اليمين في العربية)
+الـ buckets موجودة: `tenant-ids`, `unit-photos`, `contracts` (كلها خاصة).
 
-### 2. تعديل `App.tsx` لتغليف التطبيق بـ `SidebarProvider`
-- إضافة `SidebarProvider` حول التخطيط
-- عرض `AppSidebar` فقط على `md+` عبر `hidden md:block`
-- `SidebarTrigger` في `TopBar` يظهر فقط على `md+`
+### 3. ملاحظات تقنية
+- التحقق من سياسات RLS لـ storage على الـ buckets الثلاثة (إن لم تكن موجودة، سأضيف migration للسماح للمالك بالرفع/القراءة ضمن مجلد `{user_id}/...`).
+- ترتيب الحفظ: رفع الملفات أولاً → ثم insert في `tenancies` و update في `units` بمسارات الملفات.
+- عرض الحقول بشكل مدمج تحت قسم منفصل "المرفقات (اختياري)" في أسفل النموذج قبل أزرار الحفظ.
 
-### 3. تعديل `BottomNav.tsx`
-- إخفاء على `md+` عبر `md:hidden`
-- لا تغيير في السلوك على الأيفون
-
-### 4. تعديل `TopBar.tsx`
-- إضافة `SidebarTrigger` (يظهر `md:flex` فقط)
-- تعديل padding/الـ container للاستفادة من العرض الكامل على الآيباد
-
-### 5. تحسينات تخطيط الصفحات الرئيسية للآيباد
-الصفحات التي تستفيد فعلياً من العرض الواسع:
-
-- **Dashboard** — شبكة بطاقات: `grid-cols-1 md:grid-cols-2 lg:grid-cols-3`
-- **Buildings** — شبكة بطاقات المباني `md:grid-cols-2 lg:grid-cols-3`
-- **Tenants / Payments / MonthlyCollection** — جداول بعرض كامل + أعمدة إضافية مرئية على الآيباد
-- **BuildingDetail / UnitDetail** — تخطيط عمودين: تفاصيل + قائمة الوحدات/المدفوعات جنباً إلى جنب
-- **Reports** — رسوم بيانية أكبر، شبكة `md:grid-cols-2`
-- **Settings** — `md:grid-cols-2` لأقسام الإعدادات
-
-الصفحات الأخرى (Auth, ForgotPassword, Welcome, Pricing, Privacy, Terms…): تبقى بحاوية مركزة محدودة العرض (لا تحتاج تعديل).
-
-### 6. تعديل `capacitor.config.ts` و iOS settings
-- ضبط `Device Orientation` لدعم `Portrait + Landscape` على الآيباد
-- التأكد من `Requires Full Screen = false` للسماح بـ Split View
-- إضافة `Status bar` إعدادات مناسبة للآيباد
-
-### 7. اختبار responsive
-- التحقق من نقاط التحول 768px / 1024px / 1366px
-- التأكد من RTL يعمل بشكل صحيح (Sidebar على اليمين)
-- التحقق من عدم انكسار الـ Dialogs والـ Sheets
-
-## التفاصيل التقنية
-
-- مكتبة Sidebar: `@/components/ui/sidebar` (موجودة بالفعل)
-- نقطة التحول الأساسية: Tailwind `md:` (768px)
-- جميع الصفحات تستخدم `<TopBar />` و `<BottomNav />` حالياً، لذا التغيير مركزي
-- الحفاظ على جميع semantic tokens من `index.css` (لا ألوان مباشرة)
-- لا تغييرات على Backend / Database / Auth / business logic
-
-## ما لن يتغير
-- الأيفون: تجربة المستخدم تبقى 100% كما هي
-- Backend, RLS, edge functions, الترجمات، حسابات الإيجار
-- مكونات الـ Dialogs الحالية
-
-## الناتج النهائي
-- على iPhone: نفس التطبيق الحالي تماماً
-- على iPad (Portrait + Landscape): شريط جانبي + محتوى يستغل كامل الشاشة + شبكات أوسع + جداول أكثر معلومات
+## النتيجة
+المستخدم يستطيع عند إضافة مستأجر جديد إرفاق هوية + صور وحدة + عقد PDF، أو تخطيها كلها والحفظ كالمعتاد.
