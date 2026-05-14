@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Trash2, Plus, Home, Pencil, Wallet } from "lucide-react";
+import { ArrowLeft, Trash2, Plus, Home, Pencil, Wallet, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { BotanicalDecor } from "@/components/BotanicalDecor";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
