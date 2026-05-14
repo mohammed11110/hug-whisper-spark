@@ -78,6 +78,7 @@ const App = () => (
                     <Route path="/assistant" element={<RequireAuth><Assistant /></RequireAuth>} />
                     <Route path="/admin" element={<RequireAuth><Admin /></RequireAuth>} />
                     <Route path="/collection" element={<RequireAuth><MonthlyCollection /></RequireAuth>} />
+                    <Route path="/unsubscribe" element={<Unsubscribe />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </BrowserRouter>
