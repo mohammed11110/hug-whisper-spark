@@ -26,7 +26,7 @@ interface Unit {
   contract_file_url: string | null; last_paid_date: string | null;
   security_deposit: number;
   water_account: string | null; electric_account: string | null; gas_account: string | null; internet_account: string | null;
-  utilities: any; legal_case: any; handover_photos: any;
+  utilities: any; legal_case: any; handover_photos: any; photo_labels: any;
 }
 
 const TABS = ["details", "maintenance", "utilities", "legal", "photos"] as const;
