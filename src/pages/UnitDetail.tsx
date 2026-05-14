@@ -463,8 +463,27 @@ function LegalTab({ unit, reload }: any) {
 }
 
 function PhotosTab({ unit, reload }: any) {
+  const { lang } = useI18n();
+  const ar = lang === "ar";
   const photos: string[] = Array.isArray(unit.handover_photos) ? unit.handover_photos : [];
+  const labels: Record<string, string> = (unit.photo_labels && typeof unit.photo_labels === "object") ? unit.photo_labels : {};
   const [signed, setSigned] = useState<Record<string, string>>({});
+  const [classifying, setClassifying] = useState<Record<string, boolean>>({});
+
+  const labelText = (k?: string) => {
+    const map: Record<string, { ar: string; en: string }> = {
+      living: { ar: "صالة", en: "Living" },
+      bedroom: { ar: "غرفة نوم", en: "Bedroom" },
+      kitchen: { ar: "مطبخ", en: "Kitchen" },
+      bathroom: { ar: "حمّام", en: "Bathroom" },
+      entrance: { ar: "مدخل", en: "Entrance" },
+      exterior: { ar: "خارجي", en: "Exterior" },
+      balcony: { ar: "شرفة", en: "Balcony" },
+      other: { ar: "أخرى", en: "Other" },
+    };
+    if (!k) return null;
+    return map[k] ? (ar ? map[k].ar : map[k].en) : k;
+  };
 
   useEffect(() => {
     (async () => {
@@ -477,24 +496,72 @@ function PhotosTab({ unit, reload }: any) {
     })();
   }, [unit.handover_photos]);
 
+  const classifyOne = async (p: string, signedUrl?: string) => {
+    let url = signedUrl;
+    if (!url) {
+      const { data } = await supabase.storage.from("unit-photos").createSignedUrl(p, 3600);
+      url = data?.signedUrl;
+    }
+    if (!url) return;
+    setClassifying((c) => ({ ...c, [p]: true }));
+    try {
+      const resp = await supabase.functions.invoke("classify-photo", { body: { imageUrl: url } });
+      if (resp.error) throw resp.error;
+      const label = (resp.data as any)?.label || "other";
+      const next = { ...labels, [p]: label };
+      await supabase.from("units").update({ photo_labels: next }).eq("id", unit.id);
+      reload?.();
+    } catch (e: any) {
+      toast.error(e?.message || (ar ? "تعذّر التصنيف" : "Classify failed"));
+    } finally {
+      setClassifying((c) => ({ ...c, [p]: false }));
+    }
+  };
+
   const removePhoto = async (p: string) => {
     await supabase.storage.from("unit-photos").remove([p]);
     const next = photos.filter((x) => x !== p);
-    await supabase.from("units").update({ handover_photos: next }).eq("id", unit.id);
+    const nextLabels = { ...labels };
+    delete nextLabels[p];
+    await supabase.from("units").update({ handover_photos: next, photo_labels: nextLabels }).eq("id", unit.id);
     reload?.();
   };
 
   return (
     <>
       <div className="grid grid-cols-2 gap-2.5">
-        {photos.map((p) => (
-          <div key={p} className="relative aspect-square rounded-2xl overflow-hidden border border-sage-200/40 bg-muted/40">
-            {signed[p] ? <img src={signed[p]} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full grid place-items-center text-sage-400"><Camera className="h-5 w-5" /></div>}
-            <button onClick={() => removePhoto(p)} className="absolute top-1 end-1 h-7 w-7 rounded-full bg-burgundy text-primary-foreground grid place-items-center shadow-soft">
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        ))}
+        {photos.map((p) => {
+          const lbl = labels[p];
+          const isClassifying = classifying[p];
+          return (
+            <div key={p} className="relative aspect-square rounded-2xl overflow-hidden border border-sage-200/40 bg-muted/40">
+              {signed[p] ? <img src={signed[p]} alt={labelText(lbl) || ""} className="w-full h-full object-cover" /> : <div className="w-full h-full grid place-items-center text-sage-400"><Camera className="h-5 w-5" /></div>}
+              <button onClick={() => removePhoto(p)} className="absolute top-1 end-1 h-7 w-7 rounded-full bg-burgundy text-primary-foreground grid place-items-center shadow-soft">
+                <X className="h-3.5 w-3.5" />
+              </button>
+              {lbl ? (
+                <button
+                  onClick={() => classifyOne(p, signed[p])}
+                  disabled={isClassifying}
+                  title={ar ? "إعادة التصنيف" : "Reclassify"}
+                  className="absolute bottom-1 start-1 px-2 py-0.5 rounded-full bg-card/95 border border-sage-200/60 text-[10px] font-bold text-sage-600 flex items-center gap-1"
+                >
+                  {isClassifying ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Sparkles className="h-2.5 w-2.5 text-sage-500" />}
+                  {labelText(lbl)}
+                </button>
+              ) : (
+                <button
+                  onClick={() => classifyOne(p, signed[p])}
+                  disabled={isClassifying}
+                  className="absolute bottom-1 start-1 px-2 py-0.5 rounded-full bg-sage-500 text-primary-foreground text-[10px] font-bold flex items-center gap-1 shadow-soft"
+                >
+                  {isClassifying ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Sparkles className="h-2.5 w-2.5" />}
+                  {ar ? "تصنيف" : "Classify"}
+                </button>
+              )}
+            </div>
+          );
+        })}
         {photos.length === 0 && (
           <div className="col-span-2 aspect-[2/1] rounded-2xl border-2 border-dashed border-sage-200 bg-muted/40 grid place-items-center text-sage-400">
             <Camera className="h-6 w-6" />
@@ -510,9 +577,11 @@ function PhotosTab({ unit, reload }: any) {
           const next = [...photos, v];
           await supabase.from("units").update({ handover_photos: next }).eq("id", unit.id);
           reload?.();
+          // Auto-classify in background
+          classifyOne(v);
         }}
         accept="image/*"
-        label="إضافة صورة"
+        label={ar ? "إضافة صورة" : "Add photo"}
       />
     </>
   );
