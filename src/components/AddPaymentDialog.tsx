@@ -63,6 +63,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const t2 = useT2();
   const { lang } = useI18n();
   const { format } = useCurrency();
+  const { settings, bumpReceiptNumber } = useAppSettings();
   const [units, setUnits] = useState<UnitOpt[]>([]);
   const [unitId, setUnitId] = useState(presetUnitId || "");
   const [expected, setExpected] = useState("");
