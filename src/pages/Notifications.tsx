@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth";
 import { useAppSettings } from "@/lib/appSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { openWhatsApp, fillTemplate } from "@/lib/whatsapp";
+import { computeBalance } from "@/lib/balance";
 
 interface AlertItem {
   kind: "late" | "upcoming" | "contract";
@@ -18,6 +19,7 @@ interface AlertItem {
   tenant_name: string;
   tenant_phone: string | null;
   amount: number;
+  remaining: number;
   due_in_days?: number;
   contract_end?: string;
 }
@@ -39,13 +41,19 @@ export default function Notifications() {
       if (!ids.length) { setItems([]); setLoading(false); return; }
       const bMap = new Map((bs || []).map((b: any) => [b.id, b.name || b.name_en || "—"]));
       const { data: us } = await supabase.from("units")
-        .select("id, unit_number, building_id, tenant_name, tenant_phone, rent_amount, status, due_day, contract_end_date")
+        .select("id, unit_number, building_id, tenant_name, tenant_phone, rent_amount, rent_type, status, due_day, contract_end_date, contract_start_date, opening_balance, opening_balance_date")
         .in("building_id", ids)
         .not("tenant_name", "is", null);
+
+      const unitIds = (us || []).map((u: any) => u.id);
+      const { data: pays } = unitIds.length
+        ? await supabase.from("payments").select("unit_id, amount, deleted_at").in("unit_id", unitIds).is("deleted_at", null)
+        : { data: [] as any[] };
 
       const today = new Date();
       const out: AlertItem[] = [];
       (us || []).forEach((u: any) => {
+        const { outstanding } = computeBalance(u, pays || []);
         const base = {
           unit_id: u.id,
           unit_number: u.unit_number,
@@ -53,6 +61,7 @@ export default function Notifications() {
           tenant_name: u.tenant_name,
           tenant_phone: u.tenant_phone,
           amount: Number(u.rent_amount),
+          remaining: outstanding,
         };
         if (u.status === "late") out.push({ ...base, kind: "late" });
         // upcoming: due_day within next N days
@@ -92,6 +101,7 @@ export default function Notifications() {
       unit: it.unit_number,
       building: it.building_name,
       amount: format(it.amount),
+      remaining: format(it.remaining),
     });
     openWhatsApp(it.tenant_phone, msg);
   };
@@ -156,8 +166,13 @@ export default function Notifications() {
                 <p className="text-xs text-muted-foreground truncate mt-0.5">
                   {it.building_name} · {it.unit_number}
                 </p>
-                <div className="flex items-center gap-3 mt-2 text-[11px] text-sage-500">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-[11px] text-sage-500">
                   <span>{format(it.amount)}</span>
+                  {it.remaining > 0 && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-burgundy/10 text-burgundy font-bold">
+                      {lang === "ar" ? "المتبقي" : "Remaining"}: {format(it.remaining)}
+                    </span>
+                  )}
                   {it.contract_end && <span>{lang === "ar" ? "ينتهي" : "ends"}: {it.contract_end}</span>}
                 </div>
                 {it.tenant_phone && (

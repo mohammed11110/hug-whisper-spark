@@ -47,6 +47,22 @@ function monthLabel(dateStr: string | null, lang: string) {
   return `${names[d.getMonth()]} ${d.getFullYear()}`;
 }
 
+const RECEIPT_TXT = {
+  ar: {
+    receipt_number: "رقم الإيصال", payment_date: "تاريخ الدفع", building_name: "المبنى",
+    unit_number: "رقم الوحدة", status: "الحالة", tenant_name: "المستأجر",
+    rent_month: "شهر الإيجار", total: "الإجمالي", receipt: "إيصال استلام",
+    paid: "مدفوع", late: "متأخر", soon: "قريباً",
+  },
+  en: {
+    receipt_number: "Receipt #", payment_date: "Payment date", building_name: "Building",
+    unit_number: "Unit #", status: "Status", tenant_name: "Tenant",
+    rent_month: "Rent month", total: "Total", receipt: "Payment Receipt",
+    paid: "Paid", late: "Late", soon: "Upcoming",
+  },
+} as const;
+type RLang = keyof typeof RECEIPT_TXT;
+
 export default function Payments() {
   const { t, lang } = useI18n();
   const t2 = useT2();
@@ -62,6 +78,7 @@ export default function Payments() {
   const [pinForDel, setPinForDel] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [receiptLang, setReceiptLang] = useState<RLang>(lang === "en" ? "en" : "ar");
 
   useEffect(() => {
     writeFilters(LS_KEY, { search, filter, statusFilter }, settings.filterRetentionMin);
@@ -145,12 +162,14 @@ export default function Payments() {
     else setDelId(id);
   };
 
-  const buildReceiptHTML = (r: Row) => {
+  const buildReceiptHTML = (r: Row, lng: RLang) => {
+    const L = RECEIPT_TXT[lng];
+    const dir = lng === "ar" ? "rtl" : "ltr";
     const sc = settings.statusColors;
     const statusColors: Record<string, { bg: string; fg: string; label: string }> = {
-      paid: { bg: sc.paid.bg, fg: sc.paid.fg, label: t2("paid") },
-      late: { bg: sc.late.bg, fg: sc.late.fg, label: t2("late") },
-      soon: { bg: sc.soon.bg, fg: sc.soon.fg, label: t2("soon") },
+      paid: { bg: sc.paid.bg, fg: sc.paid.fg, label: L.paid },
+      late: { bg: sc.late.bg, fg: sc.late.fg, label: L.late },
+      soon: { bg: sc.soon.bg, fg: sc.soon.fg, label: L.soon },
     };
     const us = statusColors[r.unit_status] || statusColors.soon;
     const brand = settings.brand;
@@ -158,7 +177,7 @@ export default function Payments() {
       ? `<img src="${brand.logo}" style="height:46px;object-fit:contain"/>`
       : `<h1>${brand.name}</h1>`;
     const html = `
-      <html><head><title>${r.receipt_number || r.id}</title>
+      <html dir="${dir}"><head><meta charset="utf-8"/><title>${r.receipt_number || r.id}</title>
       <style>
         @page{size:${settings.pageSize};margin:${settings.margins.top}mm ${settings.margins.right}mm ${settings.margins.bottom}mm ${settings.margins.left}mm}
         *{box-sizing:border-box}
@@ -186,37 +205,37 @@ export default function Payments() {
           <div class="header">
             <div>
               ${brandHeader}
-              <p class="sub">${t2("receipt_number")} · ${r.receipt_number || "—"}</p>
+              <p class="sub">${L.receipt_number} · ${r.receipt_number || "—"}</p>
               ${brand.address || brand.phone ? `<p class="brand-meta">${brand.address || ""} ${brand.phone ? "· " + brand.phone : ""}</p>` : ""}
             </div>
             <span class="badge">${us.label}</span>
           </div>
           <div class="meta">
-            <div><span>${t2("payment_date")}</span><b>${r.payment_date}</b></div>
-            <div><span>${t2("building_name")}</span><b>${r.building_name}</b></div>
+            <div><span>${L.payment_date}</span><b>${r.payment_date}</b></div>
+            <div><span>${L.building_name}</span><b>${r.building_name}</b></div>
           </div>
-          <div class="row"><span>${t2("unit_number")}</span><b><span class="unit-pill">#${r.unit_number}</span></b></div>
-          <div class="row"><span>${t2("occupancy_status") || t2("status")}</span><b style="color:${us.fg}">${us.label}</b></div>
-          <div class="row"><span>${t2("tenant_name")}</span><b>${r.tenant_name || "—"}</b></div>
-          ${r.period_start ? `<div class="row"><span>${t2("rent_month")}</span><b>${monthLabel(r.period_start, lang)}</b></div>` : ""}
-          <div class="total"><span>${t2("total")}</span><span>${format(r.amount)}</span></div>
-          <div class="footer">— ${t2("issue_receipt") || "Receipt"} —</div>
+          <div class="row"><span>${L.unit_number}</span><b><span class="unit-pill">#${r.unit_number}</span></b></div>
+          <div class="row"><span>${L.status}</span><b style="color:${us.fg}">${us.label}</b></div>
+          <div class="row"><span>${L.tenant_name}</span><b>${r.tenant_name || "—"}</b></div>
+          ${r.period_start ? `<div class="row"><span>${L.rent_month}</span><b>${monthLabel(r.period_start, lng)}</b></div>` : ""}
+          <div class="total"><span>${L.total}</span><span>${format(r.amount)}</span></div>
+          <div class="footer">— ${L.receipt} —</div>
         </div>
       </body></html>`;
     return { us, html };
   };
 
-  const printReceipt = (r: Row) => {
+  const printReceipt = (r: Row, lng: RLang = receiptLang) => {
     const w = window.open("", "_blank", "width=600,height=800");
     if (!w) return;
-    const { html } = buildReceiptHTML(r);
+    const { html } = buildReceiptHTML(r, lng);
     w.document.write(html);
     w.document.close();
     setTimeout(() => w.print(), 300);
   };
 
-  const downloadReceiptPDF = async (r: Row) => {
-    const { html } = buildReceiptHTML(r);
+  const downloadReceiptPDF = async (r: Row, lng: RLang = receiptLang) => {
+    const { html } = buildReceiptHTML(r, lng);
     const container = document.createElement("div");
     container.style.position = "fixed";
     container.style.left = "-10000px";
@@ -270,6 +289,23 @@ export default function Payments() {
             ))}>
             <Download className="h-3.5 w-3.5 me-1" />CSV
           </Button>
+        </div>
+      </div>
+
+      {/* Receipt language toggle */}
+      <div className="px-5 mt-2 flex items-center gap-2">
+        <span className="text-[11px] text-muted-foreground">
+          {lang === "ar" ? "لغة الإيصال" : "Receipt language"}:
+        </span>
+        <div className="inline-flex rounded-lg overflow-hidden ring-1 ring-sage-300">
+          {(["ar", "en"] as RLang[]).map((l) => (
+            <button key={l} onClick={() => setReceiptLang(l)}
+              className={`px-2.5 py-1 text-[11px] font-bold transition-colors ${
+                receiptLang === l ? "bg-gradient-sage text-primary-foreground" : "bg-card text-sage-600 hover:bg-sage-100"
+              }`}>
+              {l === "ar" ? "عربي" : "English"}
+            </button>
+          ))}
         </div>
       </div>
 
