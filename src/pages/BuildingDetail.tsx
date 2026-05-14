@@ -69,7 +69,34 @@ export default function BuildingDetail() {
     navigate("/buildings");
   };
 
-  const visible = filter === "all" ? units : units.filter((u) => u.type === filter);
+  const numOf = (s: string) => {
+    const m = String(s || "").match(/\d+/);
+    return m ? parseInt(m[0], 10) : Number.MAX_SAFE_INTEGER;
+  };
+  const statusRank = (s: string) => (s === "vacant" ? 2 : 0);
+  const dueDayDistance = (u: Unit) => {
+    if (u.status === "vacant") return Number.MAX_SAFE_INTEGER;
+    const today = new Date();
+    const day = today.getDate();
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    const due = Math.min(Math.max(1, u.due_day || 1), lastDay);
+    let diff = due - day;
+    if (diff < 0) diff += lastDay;
+    return diff;
+  };
+  const filteredByType = filter === "all" ? units : units.filter((u) => u.type === filter);
+  const visible = [...filteredByType].sort((a, b) => {
+    const sr = statusRank(a.status) - statusRank(b.status);
+    if (sr !== 0) return sr;
+    if (a.status !== "vacant" && b.status !== "vacant") {
+      const dd = dueDayDistance(a) - dueDayDistance(b);
+      if (dd !== 0) return dd;
+    }
+    const na = numOf(a.unit_number);
+    const nb = numOf(b.unit_number);
+    if (na !== nb) return na - nb;
+    return String(a.unit_number).localeCompare(String(b.unit_number));
+  });
   const occupied = units.filter((u) => u.status !== "vacant").length;
   const occupancy = units.length ? Math.round((occupied / units.length) * 100) : 0;
   const vacancy = units.length ? 100 - occupancy : 0;
