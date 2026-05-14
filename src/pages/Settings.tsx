@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { ArrowRight, Palette, Clock, Coins, RotateCcw, Eye, Printer, ShieldAlert, MessageCircle, Bell, Database, Users, Image as ImageIcon, Smartphone, Globe, Moon, Sun, Monitor, Crown, Sparkles } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { ArrowRight, Palette, Clock, Coins, RotateCcw, Eye, Printer, ShieldAlert, MessageCircle, Bell, Database, Users, Image as ImageIcon, Smartphone, Globe, Moon, Sun, Monitor, Crown, Sparkles, LogOut } from "lucide-react";
 import { useTheme } from "@/lib/theme";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,6 +12,7 @@ import { useI18n } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
 import { useCurrency, CURRENCIES } from "@/lib/currency";
 import { useAppSettings, PAGE_SIZES_MM, type PageSize } from "@/lib/appSettings";
+import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 
 const RETENTIONS = [
