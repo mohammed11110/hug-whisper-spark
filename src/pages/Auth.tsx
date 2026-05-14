@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Mail, Lock, User as UserIcon } from "lucide-react";
+import { ArrowLeft, Mail, Lock, User as UserIcon, Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,7 @@ export default function Auth() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showPw, setShowPw] = useState(false);
   const [remember, setRemember] = useState(true);
   const [pwError, setPwError] = useState(false);
 
@@ -119,7 +120,7 @@ export default function Auth() {
               <Lock className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 id="password"
-                type="password"
+                type={showPw ? "text" : "password"}
                 dir="ltr"
                 lang="en"
                 autoComplete={mode === "signup" ? "new-password" : "current-password"}
@@ -131,8 +132,17 @@ export default function Auth() {
                 }}
                 required
                 minLength={6}
-                className={`ps-10 h-12 rounded-xl bg-card ${pwError ? "border-burgundy" : "border-sage-200"}`}
+                className={`ps-10 pe-10 h-12 rounded-xl bg-card ${pwError ? "border-burgundy" : "border-sage-200"}`}
               />
+              <button
+                type="button"
+                onClick={() => setShowPw((v) => !v)}
+                className="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-sage-600"
+                tabIndex={-1}
+                aria-label={showPw ? "Hide password" : "Show password"}
+              >
+                {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
             </div>
             {pwError && <p className="text-xs text-burgundy">{t2("password_english_only")}</p>}
           </div>

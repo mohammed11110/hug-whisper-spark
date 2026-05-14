@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Lock } from "lucide-react";
+import { Lock, Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,8 @@ export default function ResetPassword() {
   const [pw2, setPw2] = useState("");
   const [busy, setBusy] = useState(false);
   const [pwError, setPwError] = useState(false);
+  const [showPw, setShowPw] = useState(false);
+  const [showPw2, setShowPw2] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,14 +65,20 @@ export default function ResetPassword() {
             <Label htmlFor="pw" className="text-sage-600 font-semibold">{t2("new_password")}</Label>
             <div className="relative">
               <Lock className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input id="pw" type="password" dir="ltr" lang="en" autoComplete="new-password" value={pw} onChange={onChange(setPw)} required minLength={6} className={`ps-10 h-12 rounded-xl bg-card ${pwError ? "border-burgundy" : "border-sage-200"}`} />
+              <Input id="pw" type={showPw ? "text" : "password"} dir="ltr" lang="en" autoComplete="new-password" value={pw} onChange={onChange(setPw)} required minLength={6} className={`ps-10 pe-10 h-12 rounded-xl bg-card ${pwError ? "border-burgundy" : "border-sage-200"}`} />
+              <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-sage-600" tabIndex={-1} aria-label={showPw ? "Hide password" : "Show password"}>
+                {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
             </div>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="pw2" className="text-sage-600 font-semibold">{t2("confirm_password")}</Label>
             <div className="relative">
               <Lock className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input id="pw2" type="password" dir="ltr" lang="en" autoComplete="new-password" value={pw2} onChange={onChange(setPw2)} required minLength={6} className={`ps-10 h-12 rounded-xl bg-card ${pwError ? "border-burgundy" : "border-sage-200"}`} />
+              <Input id="pw2" type={showPw2 ? "text" : "password"} dir="ltr" lang="en" autoComplete="new-password" value={pw2} onChange={onChange(setPw2)} required minLength={6} className={`ps-10 pe-10 h-12 rounded-xl bg-card ${pwError ? "border-burgundy" : "border-sage-200"}`} />
+              <button type="button" onClick={() => setShowPw2((v) => !v)} className="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-sage-600" tabIndex={-1} aria-label={showPw2 ? "Hide password" : "Show password"}>
+                {showPw2 ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
             </div>
           </div>
           {pwError && <p className="text-xs text-burgundy">{t2("password_english_only")}</p>}
