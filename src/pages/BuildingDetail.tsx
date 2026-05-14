@@ -37,6 +37,8 @@ export default function BuildingDetail() {
   const [payments, setPayments] = useState<PaymentForBalance[]>([]);
   const [collectedMonth, setCollectedMonth] = useState(0);
   const [filter, setFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<string>("smart");
+  const [search, setSearch] = useState("");
   const [delOpen, setDelOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [editUnit, setEditUnit] = useState<Unit | null>(null);
