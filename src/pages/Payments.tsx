@@ -231,6 +231,9 @@ export default function Payments() {
           <div class="row"><span>${L.tenant_name}</span><b>${r.tenant_name || "—"}</b></div>
           ${r.period_start ? `<div class="row"><span>${L.rent_month}</span><b>${monthLabel(r.period_start, lng)}</b></div>` : ""}
           <div class="total"><span>${L.total}</span><span>${format(r.amount)}</span></div>
+          <div class="remaining" style="margin-top:10px;padding:12px 18px;border-radius:14px;display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:14px;${r.remaining > 0 ? 'background:#f8e6e6;color:#8a2a2a;border:1px solid #e8c2c2' : 'background:#e7f1de;color:#3a6b3a;border:1px solid #bcd4ad'}">
+            <span>${L.remaining}</span><span>${r.remaining > 0 ? format(r.remaining) : L.settled}</span>
+          </div>
           <div class="footer">— ${L.receipt} —</div>
         </div>
       </body></html>`;
