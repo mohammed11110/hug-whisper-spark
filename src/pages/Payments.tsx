@@ -54,13 +54,13 @@ const RECEIPT_TXT = {
     receipt_number: "رقم الإيصال", payment_date: "تاريخ الدفع", building_name: "المبنى",
     unit_number: "رقم الوحدة", status: "الحالة", tenant_name: "المستأجر",
     rent_month: "شهر الإيجار", total: "الإجمالي", receipt: "إيصال استلام",
-    paid: "مدفوع", late: "متأخر", soon: "قريباً",
+    paid: "مدفوع", late: "متأخر", soon: "قريباً", remaining: "المتبقي بعد الدفع", settled: "مسدد بالكامل",
   },
   en: {
     receipt_number: "Receipt #", payment_date: "Payment date", building_name: "Building",
     unit_number: "Unit #", status: "Status", tenant_name: "Tenant",
     rent_month: "Rent month", total: "Total", receipt: "Payment Receipt",
-    paid: "Paid", late: "Late", soon: "Upcoming",
+    paid: "Paid", late: "Late", soon: "Upcoming", remaining: "Remaining balance", settled: "Fully settled",
   },
 } as const;
 type RLang = keyof typeof RECEIPT_TXT;
