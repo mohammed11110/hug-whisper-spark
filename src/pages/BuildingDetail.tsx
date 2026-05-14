@@ -37,7 +37,12 @@ export default function BuildingDetail() {
   const [payments, setPayments] = useState<PaymentForBalance[]>([]);
   const [collectedMonth, setCollectedMonth] = useState(0);
   const [filter, setFilter] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<string>("smart");
+  const [sortBy, setSortBy] = useState<string>(() => {
+    try { return localStorage.getItem("amlaki.units.sortBy") || "smart"; } catch { return "smart"; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("amlaki.units.sortBy", sortBy); } catch {}
+  }, [sortBy]);
   const [search, setSearch] = useState("");
   const [delOpen, setDelOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
