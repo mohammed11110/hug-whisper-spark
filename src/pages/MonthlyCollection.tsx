@@ -213,7 +213,7 @@ export default function MonthlyCollection() {
                 building={buildings[r.unit.building_id] || ""}
                 phone={r.unit.tenant_phone}
                 primary={format(r.remaining)}
-                primaryLabel={t2("outstanding_balance")}
+                primaryLabel={lang === "ar" ? "متبقي إيجار هذا الشهر" : "Remaining this month"}
                 secondary={r.status === "partial" ? `${t2("partial_payment")}: ${format(r.paid)}` : undefined}
                 tone="danger"
                 action={
