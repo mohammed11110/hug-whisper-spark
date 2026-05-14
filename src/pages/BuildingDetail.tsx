@@ -250,7 +250,9 @@ export default function BuildingDetail() {
                     .reduce((s: number, p: any) => s + Number(p.amount || 0), 0)
                 : 0;
               const monthRent = Number(u.rent_amount || 0);
-              const monthRemaining = u.tenant_name && u.rent_type === "monthly" && monthRent > 0
+              const contractStarted = !!u.contract_start_date && new Date(u.contract_start_date) <= today;
+              const isActive = u.status !== "soon" && u.status !== "vacant";
+              const monthRemaining = u.tenant_name && u.rent_type === "monthly" && monthRent > 0 && contractStarted && isActive
                 ? Math.max(0, monthRent - monthPaid)
                 : 0;
               return (
