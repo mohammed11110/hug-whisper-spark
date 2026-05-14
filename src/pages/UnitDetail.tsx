@@ -26,7 +26,7 @@ interface Unit {
   contract_file_url: string | null; last_paid_date: string | null;
   security_deposit: number;
   water_account: string | null; electric_account: string | null; gas_account: string | null; internet_account: string | null;
-  utilities: any; legal_case: any; handover_photos: any; photo_labels: any;
+  utilities: any; legal_case: any; handover_photos: any; photo_labels: any; photo_kinds: any;
 }
 
 const TABS = ["details", "maintenance", "utilities", "legal", "photos"] as const;
@@ -467,8 +467,11 @@ function PhotosTab({ unit, reload }: any) {
   const ar = lang === "ar";
   const photos: string[] = Array.isArray(unit.handover_photos) ? unit.handover_photos : [];
   const labels: Record<string, string> = (unit.photo_labels && typeof unit.photo_labels === "object") ? unit.photo_labels : {};
+  const kinds: Record<string, string> = (unit.photo_kinds && typeof unit.photo_kinds === "object") ? unit.photo_kinds : {};
   const [signed, setSigned] = useState<Record<string, string>>({});
   const [classifying, setClassifying] = useState<Record<string, boolean>>({});
+  const [detecting, setDetecting] = useState(false);
+  const [report, setReport] = useState<any | null>(null);
 
   const labelText = (k?: string) => {
     const map: Record<string, { ar: string; en: string }> = {
@@ -518,26 +521,91 @@ function PhotosTab({ unit, reload }: any) {
     }
   };
 
+  const cycleKind = async (p: string) => {
+    const cur = kinds[p];
+    const nextVal = cur === "handover" ? "return" : cur === "return" ? "" : "handover";
+    const next = { ...kinds };
+    if (nextVal) next[p] = nextVal; else delete next[p];
+    await supabase.from("units").update({ photo_kinds: next }).eq("id", unit.id);
+    reload?.();
+  };
+
   const removePhoto = async (p: string) => {
     await supabase.storage.from("unit-photos").remove([p]);
     const next = photos.filter((x) => x !== p);
     const nextLabels = { ...labels };
     delete nextLabels[p];
-    await supabase.from("units").update({ handover_photos: next, photo_labels: nextLabels }).eq("id", unit.id);
+    const nextKinds = { ...kinds };
+    delete nextKinds[p];
+    await supabase.from("units").update({ handover_photos: next, photo_labels: nextLabels, photo_kinds: nextKinds }).eq("id", unit.id);
     reload?.();
   };
+
+  const handoverCount = photos.filter((p) => kinds[p] === "handover").length;
+  const returnCount = photos.filter((p) => kinds[p] === "return").length;
+
+  const detectDamage = async () => {
+    const handoverPaths = photos.filter((p) => kinds[p] === "handover");
+    const returnPaths = photos.filter((p) => kinds[p] === "return");
+    if (handoverPaths.length === 0 || returnPaths.length === 0) {
+      toast.error(ar ? "حدّد صور تسليم وصور استلام أولاً" : "Mark handover and return photos first");
+      return;
+    }
+    setDetecting(true);
+    setReport(null);
+    try {
+      const sign = async (paths: string[]) => {
+        const out: string[] = [];
+        for (const p of paths) {
+          const { data } = await supabase.storage.from("unit-photos").createSignedUrl(p, 3600);
+          if (data?.signedUrl) out.push(data.signedUrl);
+        }
+        return out;
+      };
+      const [handoverUrls, returnUrls] = await Promise.all([sign(handoverPaths), sign(returnPaths)]);
+      const resp = await supabase.functions.invoke("detect-damage", { body: { handoverUrls, returnUrls, lang } });
+      if (resp.error) throw resp.error;
+      setReport(resp.data);
+    } catch (e: any) {
+      toast.error(e?.message || (ar ? "تعذّر الفحص" : "Detection failed"));
+    } finally {
+      setDetecting(false);
+    }
+  };
+
+  const kindBadge = (k?: string) => {
+    if (k === "handover") return ar ? "تسليم" : "Handover";
+    if (k === "return") return ar ? "استلام" : "Return";
+    return ar ? "تحديد" : "Mark";
+  };
+  const kindClass = (k?: string) =>
+    k === "handover"
+      ? "bg-sage-500 text-primary-foreground"
+      : k === "return"
+      ? "bg-burgundy text-primary-foreground"
+      : "bg-card/95 border border-sage-200/60 text-sage-600";
+
+  const sevColor = (s: string) =>
+    s === "severe" ? "text-burgundy" : s === "moderate" ? "text-amber-600" : s === "minor" ? "text-sage-600" : "text-muted-foreground";
 
   return (
     <>
       <div className="grid grid-cols-2 gap-2.5">
         {photos.map((p) => {
           const lbl = labels[p];
+          const kd = kinds[p];
           const isClassifying = classifying[p];
           return (
             <div key={p} className="relative aspect-square rounded-2xl overflow-hidden border border-sage-200/40 bg-muted/40">
               {signed[p] ? <img src={signed[p]} alt={labelText(lbl) || ""} className="w-full h-full object-cover" /> : <div className="w-full h-full grid place-items-center text-sage-400"><Camera className="h-5 w-5" /></div>}
               <button onClick={() => removePhoto(p)} className="absolute top-1 end-1 h-7 w-7 rounded-full bg-burgundy text-primary-foreground grid place-items-center shadow-soft">
                 <X className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={() => cycleKind(p)}
+                className={`absolute top-1 start-1 px-2 py-0.5 rounded-full text-[10px] font-bold shadow-soft ${kindClass(kd)}`}
+              >
+                {kindBadge(kd)}
               </button>
               {lbl ? (
                 <button
@@ -568,6 +636,57 @@ function PhotosTab({ unit, reload }: any) {
           </div>
         )}
       </div>
+
+      {photos.length > 0 && (
+        <div className="mt-3 space-y-2">
+          <div className="text-[11px] text-muted-foreground text-center">
+            {ar
+              ? `حدّد كل صورة كـ "تسليم" أو "استلام" — الحالي: ${handoverCount} تسليم / ${returnCount} استلام`
+              : `Mark each photo as Handover or Return — current: ${handoverCount} handover / ${returnCount} return`}
+          </div>
+          <Button
+            onClick={detectDamage}
+            disabled={detecting || handoverCount === 0 || returnCount === 0}
+            className="w-full rounded-xl bg-gradient-sage text-primary-foreground h-11 font-semibold flex items-center gap-2"
+          >
+            {detecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {ar ? "اكتشاف الأضرار بالذكاء الاصطناعي" : "Detect damage with AI"}
+          </Button>
+        </div>
+      )}
+
+      {report && (
+        <div className="mt-3 rounded-2xl border border-sage-200/60 bg-card p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-bold text-sage-600 flex items-center gap-1">
+              <Sparkles className="h-3.5 w-3.5" />
+              {ar ? "تقرير الفحص" : "Damage report"}
+            </div>
+            <button onClick={() => setReport(null)} className="text-muted-foreground"><X className="h-4 w-4" /></button>
+          </div>
+          {report.summary && <p className="text-xs text-muted-foreground">{report.summary}</p>}
+          <div className={`text-xs font-semibold ${sevColor(report.overall_severity)}`}>
+            {ar ? "الخطورة الإجمالية: " : "Overall severity: "}
+            {report.overall_severity}
+          </div>
+          {Array.isArray(report.items) && report.items.length > 0 ? (
+            <ul className="space-y-1.5">
+              {report.items.map((it: any, i: number) => (
+                <li key={i} className="rounded-xl border border-sage-200/40 bg-muted/30 p-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-sage-600">{it.location}</span>
+                    <span className={`font-semibold ${sevColor(it.severity)}`}>{it.severity}</span>
+                  </div>
+                  <div className="text-muted-foreground mt-0.5">{it.description}</div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="text-xs text-sage-600 font-semibold">{ar ? "لا توجد أضرار ملحوظة" : "No notable damage"}</div>
+          )}
+        </div>
+      )}
+
       <FileUpload
         bucket="unit-photos"
         pathPrefix={`${unit.building_id}/${unit.id}`}
@@ -586,6 +705,7 @@ function PhotosTab({ unit, reload }: any) {
     </>
   );
 }
+
 
 function Card({ children, className = "" }: any) {
   return <div className={`bg-card border border-sage-200/40 rounded-2xl p-4 shadow-soft ${className}`}>{children}</div>;
