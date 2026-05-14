@@ -176,6 +176,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     setSaving(false);
     if (error) return toast.error(error.message);
     toast.success("✓");
+    bumpReceiptNumber();
     setAmount(""); setReceipt(""); setNotes(""); if (!presetUnitId) setUnitId("");
     onOpenChange(false);
     onSaved?.();
