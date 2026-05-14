@@ -37,6 +37,7 @@ import Admin from "./pages/Admin";
 import MonthlyCollection from "./pages/MonthlyCollection";
 import Unsubscribe from "./pages/Unsubscribe";
 import NotFound from "./pages/NotFound.tsx";
+import { AppShell } from "./components/AppShell";
 
 const queryClient = new QueryClient();
 
@@ -57,27 +58,29 @@ const App = () => (
                     <Route path="/auth" element={<Auth />} />
                     <Route path="/forgot-password" element={<ForgotPassword />} />
                     <Route path="/reset-password" element={<ResetPassword />} />
-                    <Route path="/" element={<RequireAuth><Dashboard /></RequireAuth>} />
-                    <Route path="/buildings" element={<RequireAuth><Buildings /></RequireAuth>} />
-                    <Route path="/buildings/:id" element={<RequireAuth><BuildingDetail /></RequireAuth>} />
-                    <Route path="/buildings/:id/expenses" element={<RequireAuth><BuildingExpenses /></RequireAuth>} />
-                    <Route path="/units/:id" element={<RequireAuth><UnitDetail /></RequireAuth>} />
-                    <Route path="/tenants" element={<RequireAuth><Tenants /></RequireAuth>} />
-                    <Route path="/payments" element={<RequireAuth><Payments /></RequireAuth>} />
-                    <Route path="/payments/trash" element={<RequireAuth><PaymentsTrash /></RequireAuth>} />
-                    <Route path="/settings" element={<RequireAuth><SettingsPage /></RequireAuth>} />
-                    <Route path="/reports" element={<RequireAuth><Reports /></RequireAuth>} />
-                    <Route path="/notifications" element={<RequireAuth><Notifications /></RequireAuth>} />
-                    <Route path="/backup" element={<RequireAuth><Backup /></RequireAuth>} />
-                    <Route path="/team" element={<RequireAuth><Team /></RequireAuth>} />
+                    <Route element={<AppShell />}>
+                      <Route path="/" element={<RequireAuth><Dashboard /></RequireAuth>} />
+                      <Route path="/buildings" element={<RequireAuth><Buildings /></RequireAuth>} />
+                      <Route path="/buildings/:id" element={<RequireAuth><BuildingDetail /></RequireAuth>} />
+                      <Route path="/buildings/:id/expenses" element={<RequireAuth><BuildingExpenses /></RequireAuth>} />
+                      <Route path="/units/:id" element={<RequireAuth><UnitDetail /></RequireAuth>} />
+                      <Route path="/tenants" element={<RequireAuth><Tenants /></RequireAuth>} />
+                      <Route path="/payments" element={<RequireAuth><Payments /></RequireAuth>} />
+                      <Route path="/payments/trash" element={<RequireAuth><PaymentsTrash /></RequireAuth>} />
+                      <Route path="/settings" element={<RequireAuth><SettingsPage /></RequireAuth>} />
+                      <Route path="/reports" element={<RequireAuth><Reports /></RequireAuth>} />
+                      <Route path="/notifications" element={<RequireAuth><Notifications /></RequireAuth>} />
+                      <Route path="/backup" element={<RequireAuth><Backup /></RequireAuth>} />
+                      <Route path="/team" element={<RequireAuth><Team /></RequireAuth>} />
+                      <Route path="/pricing" element={<RequireAuth><Pricing /></RequireAuth>} />
+                      <Route path="/assistant" element={<RequireAuth><Assistant /></RequireAuth>} />
+                      <Route path="/admin" element={<RequireAuth><Admin /></RequireAuth>} />
+                      <Route path="/collection" element={<RequireAuth><MonthlyCollection /></RequireAuth>} />
+                    </Route>
                     <Route path="/install" element={<Install />} />
                     <Route path="/terms" element={<Terms />} />
                     <Route path="/privacy" element={<Privacy />} />
                     <Route path="/refund" element={<Refund />} />
-                    <Route path="/pricing" element={<RequireAuth><Pricing /></RequireAuth>} />
-                    <Route path="/assistant" element={<RequireAuth><Assistant /></RequireAuth>} />
-                    <Route path="/admin" element={<RequireAuth><Admin /></RequireAuth>} />
-                    <Route path="/collection" element={<RequireAuth><MonthlyCollection /></RequireAuth>} />
                     <Route path="/unsubscribe" element={<Unsubscribe />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
