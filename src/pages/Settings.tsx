@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { ArrowRight, Palette, Clock, Coins, RotateCcw, Eye, Printer, ShieldAlert, MessageCircle, Bell, Database, Users, Image as ImageIcon, Smartphone, Globe, Moon, Sun, Monitor, Crown, Sparkles } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { ArrowRight, Palette, Clock, Coins, RotateCcw, Eye, Printer, ShieldAlert, MessageCircle, Bell, Database, Users, Image as ImageIcon, Smartphone, Globe, Moon, Sun, Monitor, Crown, Sparkles, LogOut } from "lucide-react";
 import { useTheme } from "@/lib/theme";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,6 +12,7 @@ import { useI18n } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
 import { useCurrency, CURRENCIES } from "@/lib/currency";
 import { useAppSettings, PAGE_SIZES_MM, type PageSize } from "@/lib/appSettings";
+import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 
 const RETENTIONS = [
@@ -60,6 +61,8 @@ const SETTINGS_LABELS: Record<string, { ar: string; en: string }> = {
 export default function Settings() {
   const { t, lang } = useI18n();
   const t2 = useT2();
+  const { signOut, user } = useAuth();
+  const navigate = useNavigate();
   const { currency, setCurrency, format } = useCurrency();
   const { settings, update, setStatusColor, reset } = useAppSettings();
   const L = (k: string) => SETTINGS_LABELS[k]?.[lang === "ar" ? "ar" : "en"] || SETTINGS_LABELS[k]?.en || k;
@@ -665,6 +668,25 @@ export default function Settings() {
             </Link>
           ))}
         </div>
+      </section>
+
+      {/* Logout */}
+      <section className="px-5 mt-6">
+        {user?.email && (
+          <p className="text-xs text-muted-foreground text-center mb-2 truncate">{user.email}</p>
+        )}
+        <Button
+          variant="outline"
+          className="w-full rounded-2xl border-burgundy/40 text-burgundy hover:bg-burgundy/10 h-12 font-bold"
+          onClick={async () => {
+            await signOut();
+            toast.success(lang === "ar" ? "تم تسجيل الخروج" : "Signed out");
+            navigate("/auth");
+          }}
+        >
+          <LogOut className="h-4 w-4 me-2" />
+          {lang === "ar" ? "تسجيل الخروج" : "Sign out"}
+        </Button>
       </section>
 
       <BottomNav />
