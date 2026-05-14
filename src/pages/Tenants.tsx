@@ -11,6 +11,8 @@ import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useAppSettings } from "@/lib/appSettings";
 import { openWhatsApp, fillTemplate } from "@/lib/whatsapp";
+import { computeBalance, type PaymentForBalance } from "@/lib/balance";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 
 interface TenantRow {
@@ -25,6 +27,7 @@ interface TenantRow {
   last_paid_date: string | null;
   contract_end_date: string | null;
   total_paid: number;
+  outstanding: number;
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -41,6 +44,10 @@ export default function Tenants() {
   const { settings } = useAppSettings();
   const [rows, setRows] = useState<TenantRow[]>([]);
   const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<"name" | "debt_desc" | "building_unit">(() => {
+    try { return (localStorage.getItem("amlaki.tenants.sortBy") as any) || "name"; } catch { return "name"; }
+  });
+  useEffect(() => { try { localStorage.setItem("amlaki.tenants.sortBy", sortBy); } catch {} }, [sortBy]);
   const [loading, setLoading] = useState(true);
   const [collecting, setCollecting] = useState<string | null>(null);
 
@@ -83,44 +90,61 @@ export default function Tenants() {
       if (!ids.length) { setRows([]); setLoading(false); return; }
       const bMap = new Map((bs || []).map((b: any) => [b.id, b.name || b.name_en || "—"]));
       const { data: us } = await supabase.from("units")
-        .select("id, unit_number, building_id, tenant_name, tenant_phone, rent_amount, status, last_paid_date, contract_end_date")
+        .select("id, unit_number, building_id, tenant_name, tenant_phone, rent_amount, rent_type, status, last_paid_date, contract_end_date, contract_start_date, opening_balance, opening_balance_date")
         .in("building_id", ids)
         .not("tenant_name", "is", null);
       const unitIds = (us || []).map((u: any) => u.id);
       const { data: ps } = unitIds.length
-        ? await supabase.from("payments").select("unit_id, amount").in("unit_id", unitIds)
+        ? await supabase.from("payments").select("unit_id, amount, deleted_at").in("unit_id", unitIds).is("deleted_at", null)
         : { data: [] as any[] };
       const totals = new Map<string, number>();
       (ps || []).forEach((p: any) => totals.set(p.unit_id, (totals.get(p.unit_id) || 0) + Number(p.amount)));
-      const mapped: TenantRow[] = (us || []).map((u: any) => ({
-        unit_id: u.id,
-        unit_number: u.unit_number,
-        building_id: u.building_id,
-        building_name: bMap.get(u.building_id) as string,
-        tenant_name: u.tenant_name,
-        tenant_phone: u.tenant_phone,
-        rent_amount: Number(u.rent_amount),
-        status: u.status,
-        last_paid_date: u.last_paid_date,
-        contract_end_date: u.contract_end_date,
-        total_paid: totals.get(u.id) || 0,
-      }));
-      mapped.sort((a, b) => a.tenant_name.localeCompare(b.tenant_name));
+      const mapped: TenantRow[] = (us || []).map((u: any) => {
+        const bal = computeBalance(u as any, (ps || []) as PaymentForBalance[]);
+        return {
+          unit_id: u.id,
+          unit_number: u.unit_number,
+          building_id: u.building_id,
+          building_name: bMap.get(u.building_id) as string,
+          tenant_name: u.tenant_name,
+          tenant_phone: u.tenant_phone,
+          rent_amount: Number(u.rent_amount),
+          status: u.status,
+          last_paid_date: u.last_paid_date,
+          contract_end_date: u.contract_end_date,
+          total_paid: totals.get(u.id) || 0,
+          outstanding: bal.outstanding,
+        };
+      });
       setRows(mapped);
       setLoading(false);
     })();
   }, [user]);
 
+  const numOf = (s: string) => { const m = String(s || "").match(/\d+/); return m ? parseInt(m[0], 10) : Number.MAX_SAFE_INTEGER; };
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((r) =>
+    const base = !q ? rows : rows.filter((r) =>
       r.tenant_name.toLowerCase().includes(q) ||
       r.tenant_phone?.toLowerCase().includes(q) ||
       r.building_name.toLowerCase().includes(q) ||
       r.unit_number.toLowerCase().includes(q)
     );
-  }, [rows, search]);
+    const sorted = [...base];
+    if (sortBy === "debt_desc") {
+      sorted.sort((a, b) => b.outstanding - a.outstanding || a.tenant_name.localeCompare(b.tenant_name));
+    } else if (sortBy === "building_unit") {
+      sorted.sort((a, b) =>
+        a.building_name.localeCompare(b.building_name) ||
+        numOf(a.unit_number) - numOf(b.unit_number) ||
+        a.unit_number.localeCompare(b.unit_number)
+      );
+    } else {
+      sorted.sort((a, b) => a.tenant_name.localeCompare(b.tenant_name));
+    }
+    return sorted;
+  }, [rows, search, sortBy]);
 
   return (
     <div className="mobile-shell pb-24">
@@ -130,12 +154,22 @@ export default function Tenants() {
         <p className="text-xs text-muted-foreground mt-0.5">{filtered.length} {t("tenants")}</p>
       </div>
 
-      <div className="px-5 mt-4">
-        <div className="relative">
+      <div className="px-5 mt-4 flex gap-2">
+        <div className="relative flex-1">
           <Search className="absolute top-1/2 -translate-y-1/2 start-3 h-4 w-4 text-sage-400" />
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("search")}
             className="ps-10 rounded-xl border-sage-200 bg-card h-11" />
         </div>
+        <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
+          <SelectTrigger className="w-[140px] rounded-xl border-sage-200 bg-card h-11 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="name">{lang === "ar" ? "الاسم" : "Name"}</SelectItem>
+            <SelectItem value="debt_desc">{lang === "ar" ? "الأكثر ديوناً" : "Most debt"}</SelectItem>
+            <SelectItem value="building_unit">{lang === "ar" ? "المبنى/الوحدة" : "Building/Unit"}</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="px-5 mt-4 space-y-2.5">
@@ -173,6 +207,9 @@ export default function Tenants() {
                     )}
                     <span>{format(r.rent_amount)}/{lang === "ar" ? "شهر" : "mo"}</span>
                     <span>{lang === "ar" ? "إجمالي مدفوع" : "Total paid"}: <b className="text-sage-600">{format(r.total_paid)}</b></span>
+                    {r.outstanding > 0 && (
+                      <span className="text-burgundy font-bold">{lang === "ar" ? "الديون" : "Debt"}: {format(r.outstanding)}</span>
+                    )}
                     {r.contract_end_date && (
                       <span>{t2("contract_end")}: {r.contract_end_date}</span>
                     )}
