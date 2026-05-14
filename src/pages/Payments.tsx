@@ -188,6 +188,7 @@ export default function Payments() {
       soon: { bg: sc.soon.bg, fg: sc.soon.fg, label: L.soon },
     };
     const us = statusColors[r.unit_status] || statusColors.soon;
+    const showStatus = r.unit_status !== "soon";
     const brand = settings.brand;
     const brandHeader = brand.logo
       ? `<img src="${brand.logo}" style="height:46px;object-fit:contain"/>`
@@ -217,14 +218,14 @@ export default function Payments() {
         .unit-pill{display:inline-block;padding:4px 10px;border-radius:8px;background:#5a7359;color:#fff;font-weight:800;font-size:13px;margin-inline-end:6px}
       </style></head><body>
         <div class="card" id="receipt-card">
-          <div class="watermark">${us.label}</div>
+          ${showStatus ? `<div class="watermark">${us.label}</div>` : ""}
           <div class="header">
             <div>
               ${brandHeader}
               <p class="sub">${L.receipt_number} · ${r.receipt_number || "—"}</p>
               ${brand.address || brand.phone ? `<p class="brand-meta">${brand.address || ""} ${brand.phone ? "· " + brand.phone : ""}</p>` : ""}
             </div>
-            <span class="badge">${us.label}</span>
+            ${showStatus ? `<span class="badge">${us.label}</span>` : ""}
           </div>
           <div class="meta">
             <div><span>${L.payment_date}</span><b>${r.payment_date}</b></div>
