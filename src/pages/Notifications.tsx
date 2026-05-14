@@ -101,6 +101,7 @@ export default function Notifications() {
       unit: it.unit_number,
       building: it.building_name,
       amount: format(it.amount),
+      remaining: format(it.remaining),
     });
     openWhatsApp(it.tenant_phone, msg);
   };
