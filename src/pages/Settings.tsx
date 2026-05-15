@@ -18,6 +18,7 @@ import { useAppSettings, PAGE_SIZES_MM, type PageSize, formatReceipt } from "@/l
 import { useAuth } from "@/lib/auth";
 import { useAdmin } from "@/lib/useAdmin";
 import { DeleteAccountSection } from "@/components/DeleteAccountSection";
+import { BusinessWhatsAppSection } from "@/components/BusinessWhatsAppSection";
 import { toast } from "sonner";
 
 const RETENTIONS = [
@@ -112,6 +113,8 @@ export default function Settings() {
           </button>
         </div>
       </section>
+
+      <BusinessWhatsAppSection />
 
       {/* === Preferences === */}
       <section className="px-5 mt-6">
