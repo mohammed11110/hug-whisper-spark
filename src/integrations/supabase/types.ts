@@ -310,6 +310,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          business_whatsapp: string | null
           canceled_at: string | null
           country_code: string | null
           created_at: string
@@ -325,8 +326,13 @@ export type Database = {
           subscription_status: string
           trial_ends_at: string | null
           updated_at: string
+          whatsapp_code_expires_at: string | null
+          whatsapp_verification_attempts: number
+          whatsapp_verification_code: string | null
+          whatsapp_verified_at: string | null
         }
         Insert: {
+          business_whatsapp?: string | null
           canceled_at?: string | null
           country_code?: string | null
           created_at?: string
@@ -342,8 +348,13 @@ export type Database = {
           subscription_status?: string
           trial_ends_at?: string | null
           updated_at?: string
+          whatsapp_code_expires_at?: string | null
+          whatsapp_verification_attempts?: number
+          whatsapp_verification_code?: string | null
+          whatsapp_verified_at?: string | null
         }
         Update: {
+          business_whatsapp?: string | null
           canceled_at?: string | null
           country_code?: string | null
           created_at?: string
@@ -359,6 +370,10 @@ export type Database = {
           subscription_status?: string
           trial_ends_at?: string | null
           updated_at?: string
+          whatsapp_code_expires_at?: string | null
+          whatsapp_verification_attempts?: number
+          whatsapp_verification_code?: string | null
+          whatsapp_verified_at?: string | null
         }
         Relationships: []
       }
