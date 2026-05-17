@@ -243,21 +243,47 @@ export function buildReportHTML(d: ReportData): string {
   const buildingCards = d.buildings.map((b, i) => {
     const occ = b.units ? Math.round((b.rented / b.units) * 100) : 0;
     const net = b.income - b.expenses;
+    const avgRent = b.rented ? b.expectedMonthly / b.rented : 0;
+    const expectedTotal = b.expectedMonthly * d.rangeMonths;
+    const collection = expectedTotal > 0 ? Math.min(999, Math.round((b.income / expectedTotal) * 100)) : 0;
+    const margin = b.income > 0 ? Math.round((net / b.income) * 100) : 0;
+    const occColor = occ >= 80 ? "#5f7e65" : occ >= 50 ? "#a89456" : "#a85d5d";
     return `
     <div class="b-card">
       <div class="b-head">
         <div class="b-idx">${String(i + 1).padStart(2, "0")}</div>
-        <div class="b-title">${escapeHTML(b.name)}</div>
-        <div class="b-occ">${occ}% <span>الإشغال · Occupancy</span></div>
+        <div class="b-title-wrap">
+          <div class="b-title">${escapeHTML(b.name)}</div>
+          <div class="b-sub">${b.units} وحدة · ${b.units} units &nbsp;·&nbsp; ${b.rented} مؤجرة · rented &nbsp;·&nbsp; ${b.vacant} شاغرة · vacant</div>
+        </div>
+        <div class="b-occ" style="color:${occColor}">${occ}%<span>الإشغال · Occupancy</span></div>
       </div>
-      <div class="b-grid">
-        <div class="b-cell"><span>الوحدات · Units</span><b>${b.units}</b></div>
-        <div class="b-cell"><span>مؤجرة · Rented</span><b>${b.rented}</b></div>
-        <div class="b-cell"><span>شاغرة · Vacant</span><b>${b.vacant}</b></div>
-        <div class="b-cell"><span>متوقع شهرياً · Expected/mo</span><b>${fmt(b.expectedMonthly)}</b></div>
-        <div class="b-cell"><span>التحصيل · Income</span><b class="pos">${fmt(b.income)}</b></div>
-        <div class="b-cell"><span>المصروفات · Expenses</span><b class="neg">${fmt(b.expenses)}</b></div>
-        <div class="b-cell wide"><span>الصافي · Net</span><b class="${net >= 0 ? "pos" : "neg"}">${fmt(net)}</b></div>
+
+      <div class="b-section">
+        <div class="b-section-title">حالة الوحدات · Unit status</div>
+        <div class="b-bar"><div class="b-bar-fill" style="width:${occ}%;background:linear-gradient(90deg,#7a9a7e,#3d4d3f)"></div></div>
+        <div class="b-bar-legend">
+          <span><i style="background:#3d4d3f"></i>${b.rented} مؤجرة · Rented</span>
+          <span><i style="background:#d5ddc9"></i>${b.vacant} شاغرة · Vacant</span>
+        </div>
+      </div>
+
+      <div class="b-section">
+        <div class="b-section-title">الملخص المالي · Financial summary (${d.rangeMonths} أشهر · months)</div>
+        <table class="b-table">
+          <tr><td>متوقع شهرياً · Expected monthly</td><td class="num">${fmt(b.expectedMonthly)}</td></tr>
+          <tr><td>متوسط الإيجار · Average rent</td><td class="num">${fmt(avgRent)}</td></tr>
+          <tr><td>إجمالي متوقع · Expected total</td><td class="num">${fmt(expectedTotal)}</td></tr>
+          <tr><td>إجمالي التحصيل · Total income</td><td class="num pos">${fmt(b.income)}</td></tr>
+          <tr><td>إجمالي المصروفات · Total expenses</td><td class="num neg">${fmt(b.expenses)}</td></tr>
+          <tr><td>نسبة التحصيل · Collection rate</td><td class="num">${collection}%</td></tr>
+          <tr><td>هامش الربح · Profit margin</td><td class="num">${margin}%</td></tr>
+        </table>
+      </div>
+
+      <div class="b-net">
+        <span>الصافي · Net result</span>
+        <b class="${net >= 0 ? "pos-light" : "neg-light"}">${fmt(net)}</b>
       </div>
     </div>`;
   }).join("");
@@ -290,17 +316,32 @@ export function buildReportHTML(d: ReportData): string {
   td.num{text-align:end;font-variant-numeric:tabular-nums;font-weight:700}
   .pos{color:#3d4d3f}
   .neg{color:#a85d5d}
-  .b-card{background:#fff;border:1px solid rgba(95,126,101,.14);border-radius:18px;padding:16px 18px;margin-bottom:12px;page-break-inside:avoid}
-  .b-head{display:flex;align-items:center;gap:14px;border-bottom:1px dashed rgba(95,126,101,.18);padding-bottom:10px;margin-bottom:12px}
-  .b-idx{height:32px;min-width:32px;border-radius:10px;background:linear-gradient(135deg,#7a9a7e,#3d4d3f);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px}
-  .b-title{flex:1;font-weight:900;font-size:15px;color:#3d4d3f}
-  .b-occ{font-size:13px;font-weight:900;color:#5f7e65}
-  .b-occ span{display:block;font-size:9px;color:#7a8e9a;font-weight:500;letter-spacing:.02em;margin-top:2px}
-  .b-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-  .b-cell{background:#faf6ee;border:1px solid rgba(95,126,101,.08);border-radius:10px;padding:8px 10px}
-  .b-cell.wide{grid-column:span 3;background:linear-gradient(135deg,#eef3ea,#dcebd2);border-color:rgba(95,126,101,.2)}
-  .b-cell span{display:block;font-size:9.5px;color:#7a8e9a;letter-spacing:.02em;margin-bottom:3px}
-  .b-cell b{display:block;font-size:13px;font-weight:900;color:#3d4d3f;letter-spacing:-.01em}
+  .b-card{background:#fff;border:1px solid rgba(95,126,101,.14);border-radius:18px;padding:18px 20px;margin-bottom:14px;page-break-inside:avoid;box-shadow:0 2px 8px rgba(95,126,101,.04)}
+  .b-head{display:flex;align-items:center;gap:14px;border-bottom:1px dashed rgba(95,126,101,.18);padding-bottom:12px;margin-bottom:14px}
+  .b-idx{height:36px;min-width:36px;border-radius:11px;background:linear-gradient(135deg,#7a9a7e,#3d4d3f);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;letter-spacing:.04em}
+  .b-title-wrap{flex:1;min-width:0}
+  .b-title{font-weight:900;font-size:16px;color:#3d4d3f;letter-spacing:-.01em;margin-bottom:3px}
+  .b-sub{font-size:10.5px;color:#7a8e9a;letter-spacing:.01em}
+  .b-occ{font-size:18px;font-weight:900;text-align:end;line-height:1}
+  .b-occ span{display:block;font-size:9px;color:#7a8e9a;font-weight:600;letter-spacing:.04em;margin-top:4px;text-transform:uppercase}
+  .b-section{margin-top:12px}
+  .b-section-title{font-size:10px;font-weight:800;color:#5f7e65;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid rgba(95,126,101,.1)}
+  .b-bar{height:8px;background:#eef3ea;border-radius:99px;overflow:hidden;margin-bottom:8px}
+  .b-bar-fill{height:100%;border-radius:99px;transition:width .3s}
+  .b-bar-legend{display:flex;gap:14px;font-size:10.5px;color:#5a6a5c;font-weight:600}
+  .b-bar-legend i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-inline-end:5px;vertical-align:middle}
+  .b-table{width:100%;border-collapse:collapse;font-size:11.5px}
+  .b-table td{padding:6px 8px;border-bottom:1px dashed rgba(95,126,101,.12);color:#5a6a5c}
+  .b-table td:first-child{font-weight:600}
+  .b-table tr:last-child td{border-bottom:0}
+  .b-table td.num{text-align:end;font-variant-numeric:tabular-nums;font-weight:800;color:#3d4d3f}
+  .b-table td.num.pos{color:#3d4d3f}
+  .b-table td.num.neg{color:#a85d5d}
+  .b-net{margin-top:14px;padding:12px 16px;background:linear-gradient(135deg,#eef3ea,#dcebd2);border-radius:12px;border:1px solid rgba(95,126,101,.2);display:flex;justify-content:space-between;align-items:center}
+  .b-net span{font-size:11px;font-weight:700;color:#5a6a5c;letter-spacing:.04em;text-transform:uppercase}
+  .b-net b{font-size:17px;font-weight:900;letter-spacing:-.01em}
+  .b-net b.pos-light{color:#3d4d3f}
+  .b-net b.neg-light{color:#a85d5d}
   .grand{margin-top:22px;background:linear-gradient(135deg,#3d4d3f,#2c3a2e);color:#faf6ee;border-radius:20px;padding:22px 26px;page-break-inside:avoid}
   .grand-title{font-size:13px;font-weight:700;letter-spacing:.06em;opacity:.85;margin-bottom:14px;text-transform:uppercase}
   .grand-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
