@@ -7,9 +7,11 @@ import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
-import { Building2, Users, AlertCircle, TrendingUp, CheckCircle2, Home, Download } from "lucide-react";
+import { Building2, Users, AlertCircle, TrendingUp, CheckCircle2, Home, Download, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { exportToCSV } from "@/lib/exportCSV";
+import { buildReportHTML, downloadHTMLAsPDF, type ReportData } from "@/lib/pdfDocs";
+import { useAppSettings } from "@/lib/appSettings";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -57,6 +59,7 @@ export default function Reports() {
   const t2 = useT2();
   const { format, currency } = useCurrency();
   const { user } = useAuth();
+  const { settings } = useAppSettings();
   const [range, setRange] = useState<Range>(6);
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
@@ -172,6 +175,57 @@ export default function Reports() {
       .slice(0, 5);
   }, [buildings, units, payments]);
 
+  const buildingBreakdown = useMemo(() => {
+    const unitToB = new Map(units.map((u) => [u.id, u.building_id]));
+    return buildings.map((b) => {
+      const bUnits = units.filter((u) => u.building_id === b.id);
+      const rentedB = bUnits.filter((u) => u.status !== "vacant").length;
+      const vacantB = bUnits.filter((u) => u.status === "vacant").length;
+      const expectedMonthlyB = bUnits.filter((u) => u.status !== "vacant")
+        .reduce((s, u) => s + (Number(u.rent_amount) || 0), 0);
+      const incomeB = payments
+        .filter((p) => unitToB.get(p.unit_id) === b.id)
+        .reduce((s, p) => s + (Number(p.amount) || 0), 0);
+      const expensesB = expenses
+        .filter((e) => e.building_id === b.id)
+        .reduce((s, e) => s + (Number(e.amount) || 0), 0);
+      return { name: b.name, units: bUnits.length, rented: rentedB, vacant: vacantB, expectedMonthly: expectedMonthlyB, income: incomeB, expenses: expensesB };
+    });
+  }, [buildings, units, payments, expenses]);
+
+  const handleDownloadPDF = async () => {
+    const data: ReportData = {
+      brand: {
+        name: settings.brand.name || "أملاكي · Amlaki",
+        logo: settings.brand.logo,
+        phone: settings.brand.phone || "",
+        address: settings.brand.address || "",
+      },
+      currency: String(currency),
+      rangeMonths: range,
+      generatedAt: new Date().toLocaleDateString(lang === "ar" ? "ar" : "en-GB"),
+      totals: {
+        income: totalIncome,
+        expenses: totalExpenses,
+        net: totalNet,
+        buildings: buildings.length,
+        units: totalUnits,
+        rented,
+        vacant,
+        late,
+        occupancy,
+        collectionRate,
+      },
+      monthly: months.map((m) => ({ label: m.label, income: m.income, expenses: m.expenses, net: m.net })),
+      buildings: buildingBreakdown,
+    };
+    await downloadHTMLAsPDF(
+      buildReportHTML(data),
+      `amlaki-report-${new Date().toISOString().slice(0, 10)}.pdf`,
+      { pageSize: settings.pageSize, margins: settings.margins }
+    );
+  };
+
   return (
     <div className="mobile-shell pb-24">
       <TopBar />
@@ -181,11 +235,16 @@ export default function Reports() {
             <h1 className="text-2xl font-black text-sage-600 tracking-tight">{t("reports")}</h1>
             <p className="text-sm text-muted-foreground">{lang === "ar" ? "نظرة شاملة على الأداء" : "Performance overview"}</p>
           </div>
-          <Button size="sm" variant="outline" className="rounded-xl border-sage-300 text-sage-600"
-            onClick={() => exportToCSV(`reports-${new Date().toISOString().slice(0,10)}`,
-              months.map((m) => ({ month: m.label, income: m.income, expenses: m.expenses, net: m.net, prev_year: m.prev })))}>
-            <Download className="h-3.5 w-3.5 me-1" />CSV
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" className="rounded-xl border-sage-300 text-sage-600"
+              onClick={() => exportToCSV(`reports-${new Date().toISOString().slice(0,10)}`,
+                months.map((m) => ({ month: m.label, income: m.income, expenses: m.expenses, net: m.net, prev_year: m.prev })))}>
+              <Download className="h-3.5 w-3.5 me-1" />CSV
+            </Button>
+            <Button size="sm" className="rounded-xl bg-gradient-sage text-primary-foreground" onClick={handleDownloadPDF}>
+              <FileText className="h-3.5 w-3.5 me-1" />PDF
+            </Button>
+          </div>
         </div>
 
         {/* Quick link to Monthly Collection */}

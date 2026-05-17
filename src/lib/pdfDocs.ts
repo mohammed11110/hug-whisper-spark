@@ -180,6 +180,197 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
   }
 }
 
+// ============================================================
+// Bilingual branded REPORT (per-building + grand totals)
+// ============================================================
+
+export interface ReportBuildingRow {
+  name: string;
+  units: number;
+  rented: number;
+  vacant: number;
+  expectedMonthly: number;
+  income: number;
+  expenses: number;
+}
+
+export interface ReportData {
+  brand: BrandInfo;
+  currency: string;
+  rangeMonths: number;
+  generatedAt: string;
+  totals: {
+    income: number;
+    expenses: number;
+    net: number;
+    buildings: number;
+    units: number;
+    rented: number;
+    vacant: number;
+    late: number;
+    occupancy: number;
+    collectionRate: number;
+  };
+  monthly: { label: string; income: number; expenses: number; net: number }[];
+  buildings: ReportBuildingRow[];
+}
+
+const AMLAKI_LOGO_SVG = `<svg width="44" height="44" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <defs><linearGradient id="lk" x1="0" y1="0" x2="64" y2="64">
+    <stop offset="0%" stop-color="#7a9a7e"/><stop offset="100%" stop-color="#3d4d3f"/>
+  </linearGradient></defs>
+  <circle cx="22" cy="22" r="13" stroke="url(#lk)" stroke-width="4" fill="none"/>
+  <circle cx="22" cy="22" r="4" fill="url(#lk)"/>
+  <path d="M31 31 L52 52" stroke="url(#lk)" stroke-width="4" stroke-linecap="round"/>
+  <path d="M44 44 L50 38" stroke="url(#lk)" stroke-width="4" stroke-linecap="round"/>
+  <path d="M48 48 L54 42" stroke="url(#lk)" stroke-width="4" stroke-linecap="round"/>
+</svg>`;
+
+export function buildReportHTML(d: ReportData): string {
+  const fmt = (n: number) => `${Math.round(n).toLocaleString()} ${d.currency}`;
+  const logoHTML = d.brand.logo
+    ? `<img src="${d.brand.logo}" style="height:48px;object-fit:contain"/>`
+    : AMLAKI_LOGO_SVG;
+
+  const monthlyRows = d.monthly.map((m) => `
+    <tr>
+      <td>${m.label}</td>
+      <td class="num">${fmt(m.income)}</td>
+      <td class="num">${fmt(m.expenses)}</td>
+      <td class="num ${m.net >= 0 ? "pos" : "neg"}">${fmt(m.net)}</td>
+    </tr>`).join("");
+
+  const buildingCards = d.buildings.map((b, i) => {
+    const occ = b.units ? Math.round((b.rented / b.units) * 100) : 0;
+    const net = b.income - b.expenses;
+    return `
+    <div class="b-card">
+      <div class="b-head">
+        <div class="b-idx">${String(i + 1).padStart(2, "0")}</div>
+        <div class="b-title">${escapeHTML(b.name)}</div>
+        <div class="b-occ">${occ}% <span>الإشغال · Occupancy</span></div>
+      </div>
+      <div class="b-grid">
+        <div class="b-cell"><span>الوحدات · Units</span><b>${b.units}</b></div>
+        <div class="b-cell"><span>مؤجرة · Rented</span><b>${b.rented}</b></div>
+        <div class="b-cell"><span>شاغرة · Vacant</span><b>${b.vacant}</b></div>
+        <div class="b-cell"><span>متوقع شهرياً · Expected/mo</span><b>${fmt(b.expectedMonthly)}</b></div>
+        <div class="b-cell"><span>التحصيل · Income</span><b class="pos">${fmt(b.income)}</b></div>
+        <div class="b-cell"><span>المصروفات · Expenses</span><b class="neg">${fmt(b.expenses)}</b></div>
+        <div class="b-cell wide"><span>الصافي · Net</span><b class="${net >= 0 ? "pos" : "neg"}">${fmt(net)}</b></div>
+      </div>
+    </div>`;
+  }).join("");
+
+  return `<html dir="rtl" lang="ar"><head><meta charset="utf-8"/><title>تقرير · Report</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:"Noto Kufi Arabic","Outfit",system-ui,sans-serif;color:#2c3a2e;background:#faf6ee;margin:0;padding:24px}
+  .doc{max-width:820px;margin:auto;background:#ffffff;border:1px solid rgba(95,126,101,.18);border-radius:22px;padding:32px;box-shadow:0 8px 24px rgba(95,126,101,.08)}
+  .head{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid rgba(95,126,101,.15);padding-bottom:18px;margin-bottom:22px}
+  .brand-wrap{display:flex;align-items:center;gap:12px}
+  .brand-name{font-weight:900;font-size:20px;color:#3d4d3f;letter-spacing:-.01em}
+  .brand-tag{font-size:11px;color:#7a8e9a;margin-top:2px;letter-spacing:.02em}
+  .title-block{text-align:left;direction:ltr}
+  h1{margin:0;font-size:24px;color:#3d4d3f;letter-spacing:-.02em;font-weight:900}
+  .h-sub{font-size:11px;color:#7a8e9a;margin-top:4px}
+  .section-title{display:flex;align-items:center;gap:10px;margin:26px 0 12px;font-size:14px;font-weight:800;color:#3d4d3f;letter-spacing:.02em}
+  .section-title::before{content:"";width:4px;height:18px;background:linear-gradient(135deg,#7a9a7e,#3d4d3f);border-radius:2px}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:6px}
+  .kpi{background:#faf6ee;border:1px solid rgba(95,126,101,.12);border-radius:14px;padding:12px 14px}
+  .kpi span{display:block;font-size:10.5px;color:#7a8e9a;letter-spacing:.02em;line-height:1.4;margin-bottom:6px}
+  .kpi b{display:block;font-size:15px;font-weight:900;color:#3d4d3f;letter-spacing:-.01em}
+  .kpi.gold{background:linear-gradient(135deg,#fdf6e6,#f7ecd2);border-color:rgba(168,148,86,.3)}
+  .kpi.gold b{color:#7d6b3a}
+  table{width:100%;border-collapse:collapse;font-size:12px;background:#fff;border-radius:14px;overflow:hidden;border:1px solid rgba(95,126,101,.12)}
+  thead{background:linear-gradient(135deg,#5f7e65,#3d4d3f);color:#fff}
+  th,td{padding:9px 12px;text-align:start;border-bottom:1px solid rgba(95,126,101,.08)}
+  th{font-weight:700;font-size:11px;letter-spacing:.04em;text-transform:uppercase}
+  tbody tr:nth-child(even){background:#faf6ee}
+  td.num{text-align:end;font-variant-numeric:tabular-nums;font-weight:700}
+  .pos{color:#3d4d3f}
+  .neg{color:#a85d5d}
+  .b-card{background:#fff;border:1px solid rgba(95,126,101,.14);border-radius:18px;padding:16px 18px;margin-bottom:12px;page-break-inside:avoid}
+  .b-head{display:flex;align-items:center;gap:14px;border-bottom:1px dashed rgba(95,126,101,.18);padding-bottom:10px;margin-bottom:12px}
+  .b-idx{height:32px;min-width:32px;border-radius:10px;background:linear-gradient(135deg,#7a9a7e,#3d4d3f);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px}
+  .b-title{flex:1;font-weight:900;font-size:15px;color:#3d4d3f}
+  .b-occ{font-size:13px;font-weight:900;color:#5f7e65}
+  .b-occ span{display:block;font-size:9px;color:#7a8e9a;font-weight:500;letter-spacing:.02em;margin-top:2px}
+  .b-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .b-cell{background:#faf6ee;border:1px solid rgba(95,126,101,.08);border-radius:10px;padding:8px 10px}
+  .b-cell.wide{grid-column:span 3;background:linear-gradient(135deg,#eef3ea,#dcebd2);border-color:rgba(95,126,101,.2)}
+  .b-cell span{display:block;font-size:9.5px;color:#7a8e9a;letter-spacing:.02em;margin-bottom:3px}
+  .b-cell b{display:block;font-size:13px;font-weight:900;color:#3d4d3f;letter-spacing:-.01em}
+  .grand{margin-top:22px;background:linear-gradient(135deg,#3d4d3f,#2c3a2e);color:#faf6ee;border-radius:20px;padding:22px 26px;page-break-inside:avoid}
+  .grand-title{font-size:13px;font-weight:700;letter-spacing:.06em;opacity:.85;margin-bottom:14px;text-transform:uppercase}
+  .grand-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .grand-cell{border:1px solid rgba(250,246,238,.15);border-radius:12px;padding:12px 14px;background:rgba(250,246,238,.04)}
+  .grand-cell span{display:block;font-size:10.5px;opacity:.75;margin-bottom:6px;letter-spacing:.02em}
+  .grand-cell b{display:block;font-size:17px;font-weight:900;letter-spacing:-.01em}
+  .grand-cell.net{background:linear-gradient(135deg,#a89456,#7d6b3a);border-color:#a89456}
+  .footer{margin-top:22px;text-align:center;font-size:10.5px;color:#7a8e9a;letter-spacing:.04em;border-top:1px dashed rgba(95,126,101,.2);padding-top:14px}
+</style></head><body>
+<div class="doc" id="doc-root">
+  <div class="head">
+    <div class="brand-wrap">
+      ${logoHTML}
+      <div>
+        <div class="brand-name">${escapeHTML(d.brand.name)}</div>
+        <div class="brand-tag">إدارة عقاراتك بذكاء · Manage smartly</div>
+      </div>
+    </div>
+    <div class="title-block">
+      <h1>Performance Report · تقرير الأداء</h1>
+      <div class="h-sub">${d.rangeMonths} months · ${d.rangeMonths} أشهر &nbsp;·&nbsp; ${d.generatedAt}</div>
+    </div>
+  </div>
+
+  <div class="section-title">ملخص تنفيذي · Executive summary</div>
+  <div class="kpis">
+    <div class="kpi"><span>إجمالي التحصيل · Total income</span><b>${fmt(d.totals.income)}</b></div>
+    <div class="kpi"><span>إجمالي المصروفات · Total expenses</span><b>${fmt(d.totals.expenses)}</b></div>
+    <div class="kpi gold"><span>الصافي · Net profit</span><b>${fmt(d.totals.net)}</b></div>
+    <div class="kpi"><span>نسبة التحصيل · Collection rate</span><b>${d.totals.collectionRate}%</b></div>
+    <div class="kpi"><span>المباني · Buildings</span><b>${d.totals.buildings}</b></div>
+    <div class="kpi"><span>الوحدات · Units</span><b>${d.totals.units}</b></div>
+    <div class="kpi"><span>نسبة الإشغال · Occupancy</span><b>${d.totals.occupancy}%</b></div>
+    <div class="kpi"><span>المتأخرات · Late</span><b>${d.totals.late}</b></div>
+  </div>
+
+  <div class="section-title">الأداء الشهري · Monthly performance</div>
+  <table>
+    <thead><tr>
+      <th>الشهر · Month</th>
+      <th style="text-align:end">الدخل · Income</th>
+      <th style="text-align:end">المصروفات · Expenses</th>
+      <th style="text-align:end">الصافي · Net</th>
+    </tr></thead>
+    <tbody>${monthlyRows || `<tr><td colspan="4" style="text-align:center;color:#7a8e9a;padding:18px">— لا توجد بيانات · No data —</td></tr>`}</tbody>
+  </table>
+
+  <div class="section-title">تفاصيل المباني · Buildings breakdown</div>
+  ${buildingCards || `<div style="background:#faf6ee;border:1px dashed rgba(95,126,101,.25);border-radius:14px;padding:24px;text-align:center;color:#7a8e9a;font-size:12px">لا توجد مبانٍ · No buildings</div>`}
+
+  <div class="grand">
+    <div class="grand-title">الإجمالي العام · Grand totals</div>
+    <div class="grand-grid">
+      <div class="grand-cell"><span>إجمالي التحصيل · Income</span><b>${fmt(d.totals.income)}</b></div>
+      <div class="grand-cell"><span>إجمالي المصروفات · Expenses</span><b>${fmt(d.totals.expenses)}</b></div>
+      <div class="grand-cell net"><span>الصافي النهائي · Net profit</span><b>${fmt(d.totals.net)}</b></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    ${escapeHTML(d.brand.name)} ${d.brand.phone ? "· " + escapeHTML(d.brand.phone) : ""} ${d.brand.address ? "· " + escapeHTML(d.brand.address) : ""}
+    <br/>تم الإنشاء بواسطة أملاكي · Generated by Amlaki
+  </div>
+</div></body></html>`;
+}
+
+function escapeHTML(s: string): string {
+  return String(s || "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+}
+
 export function printHTML(html: string) {
   const w = window.open("", "_blank", "width=900,height=1100");
   if (!w) return;
