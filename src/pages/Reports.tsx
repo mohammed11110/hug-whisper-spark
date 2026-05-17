@@ -235,11 +235,16 @@ export default function Reports() {
             <h1 className="text-2xl font-black text-sage-600 tracking-tight">{t("reports")}</h1>
             <p className="text-sm text-muted-foreground">{lang === "ar" ? "نظرة شاملة على الأداء" : "Performance overview"}</p>
           </div>
-          <Button size="sm" variant="outline" className="rounded-xl border-sage-300 text-sage-600"
-            onClick={() => exportToCSV(`reports-${new Date().toISOString().slice(0,10)}`,
-              months.map((m) => ({ month: m.label, income: m.income, expenses: m.expenses, net: m.net, prev_year: m.prev })))}>
-            <Download className="h-3.5 w-3.5 me-1" />CSV
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" className="rounded-xl border-sage-300 text-sage-600"
+              onClick={() => exportToCSV(`reports-${new Date().toISOString().slice(0,10)}`,
+                months.map((m) => ({ month: m.label, income: m.income, expenses: m.expenses, net: m.net, prev_year: m.prev })))}>
+              <Download className="h-3.5 w-3.5 me-1" />CSV
+            </Button>
+            <Button size="sm" className="rounded-xl bg-gradient-sage text-primary-foreground" onClick={handleDownloadPDF}>
+              <FileText className="h-3.5 w-3.5 me-1" />PDF
+            </Button>
+          </div>
         </div>
 
         {/* Quick link to Monthly Collection */}
