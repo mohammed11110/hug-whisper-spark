@@ -59,6 +59,7 @@ export default function Reports() {
   const t2 = useT2();
   const { format, currency } = useCurrency();
   const { user } = useAuth();
+  const { settings } = useAppSettings();
   const [range, setRange] = useState<Range>(6);
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
