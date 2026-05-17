@@ -48,6 +48,7 @@ export default {
           400: "hsl(var(--sage-400))",
           500: "hsl(var(--sage-500))",
           600: "hsl(var(--sage-600))",
+          700: "hsl(var(--sage-700))",
         },
         gold: "hsl(var(--gold))",
         terracotta: "hsl(var(--terracotta))",
@@ -74,6 +75,7 @@ export default {
         soft: "var(--shadow-soft)",
         elev: "var(--shadow-elev)",
         glow: "var(--shadow-glow)",
+        gold: "var(--shadow-gold)",
       },
       borderRadius: {
         lg: "var(--radius)",
