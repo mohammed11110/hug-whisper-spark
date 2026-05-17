@@ -316,17 +316,32 @@ export function buildReportHTML(d: ReportData): string {
   td.num{text-align:end;font-variant-numeric:tabular-nums;font-weight:700}
   .pos{color:#3d4d3f}
   .neg{color:#a85d5d}
-  .b-card{background:#fff;border:1px solid rgba(95,126,101,.14);border-radius:18px;padding:16px 18px;margin-bottom:12px;page-break-inside:avoid}
-  .b-head{display:flex;align-items:center;gap:14px;border-bottom:1px dashed rgba(95,126,101,.18);padding-bottom:10px;margin-bottom:12px}
-  .b-idx{height:32px;min-width:32px;border-radius:10px;background:linear-gradient(135deg,#7a9a7e,#3d4d3f);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px}
-  .b-title{flex:1;font-weight:900;font-size:15px;color:#3d4d3f}
-  .b-occ{font-size:13px;font-weight:900;color:#5f7e65}
-  .b-occ span{display:block;font-size:9px;color:#7a8e9a;font-weight:500;letter-spacing:.02em;margin-top:2px}
-  .b-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-  .b-cell{background:#faf6ee;border:1px solid rgba(95,126,101,.08);border-radius:10px;padding:8px 10px}
-  .b-cell.wide{grid-column:span 3;background:linear-gradient(135deg,#eef3ea,#dcebd2);border-color:rgba(95,126,101,.2)}
-  .b-cell span{display:block;font-size:9.5px;color:#7a8e9a;letter-spacing:.02em;margin-bottom:3px}
-  .b-cell b{display:block;font-size:13px;font-weight:900;color:#3d4d3f;letter-spacing:-.01em}
+  .b-card{background:#fff;border:1px solid rgba(95,126,101,.14);border-radius:18px;padding:18px 20px;margin-bottom:14px;page-break-inside:avoid;box-shadow:0 2px 8px rgba(95,126,101,.04)}
+  .b-head{display:flex;align-items:center;gap:14px;border-bottom:1px dashed rgba(95,126,101,.18);padding-bottom:12px;margin-bottom:14px}
+  .b-idx{height:36px;min-width:36px;border-radius:11px;background:linear-gradient(135deg,#7a9a7e,#3d4d3f);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;letter-spacing:.04em}
+  .b-title-wrap{flex:1;min-width:0}
+  .b-title{font-weight:900;font-size:16px;color:#3d4d3f;letter-spacing:-.01em;margin-bottom:3px}
+  .b-sub{font-size:10.5px;color:#7a8e9a;letter-spacing:.01em}
+  .b-occ{font-size:18px;font-weight:900;text-align:end;line-height:1}
+  .b-occ span{display:block;font-size:9px;color:#7a8e9a;font-weight:600;letter-spacing:.04em;margin-top:4px;text-transform:uppercase}
+  .b-section{margin-top:12px}
+  .b-section-title{font-size:10px;font-weight:800;color:#5f7e65;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid rgba(95,126,101,.1)}
+  .b-bar{height:8px;background:#eef3ea;border-radius:99px;overflow:hidden;margin-bottom:8px}
+  .b-bar-fill{height:100%;border-radius:99px;transition:width .3s}
+  .b-bar-legend{display:flex;gap:14px;font-size:10.5px;color:#5a6a5c;font-weight:600}
+  .b-bar-legend i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-inline-end:5px;vertical-align:middle}
+  .b-table{width:100%;border-collapse:collapse;font-size:11.5px}
+  .b-table td{padding:6px 8px;border-bottom:1px dashed rgba(95,126,101,.12);color:#5a6a5c}
+  .b-table td:first-child{font-weight:600}
+  .b-table tr:last-child td{border-bottom:0}
+  .b-table td.num{text-align:end;font-variant-numeric:tabular-nums;font-weight:800;color:#3d4d3f}
+  .b-table td.num.pos{color:#3d4d3f}
+  .b-table td.num.neg{color:#a85d5d}
+  .b-net{margin-top:14px;padding:12px 16px;background:linear-gradient(135deg,#eef3ea,#dcebd2);border-radius:12px;border:1px solid rgba(95,126,101,.2);display:flex;justify-content:space-between;align-items:center}
+  .b-net span{font-size:11px;font-weight:700;color:#5a6a5c;letter-spacing:.04em;text-transform:uppercase}
+  .b-net b{font-size:17px;font-weight:900;letter-spacing:-.01em}
+  .b-net b.pos-light{color:#3d4d3f}
+  .b-net b.neg-light{color:#a85d5d}
   .grand{margin-top:22px;background:linear-gradient(135deg,#3d4d3f,#2c3a2e);color:#faf6ee;border-radius:20px;padding:22px 26px;page-break-inside:avoid}
   .grand-title{font-size:13px;font-weight:700;letter-spacing:.06em;opacity:.85;margin-bottom:14px;text-transform:uppercase}
   .grand-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
