@@ -243,21 +243,47 @@ export function buildReportHTML(d: ReportData): string {
   const buildingCards = d.buildings.map((b, i) => {
     const occ = b.units ? Math.round((b.rented / b.units) * 100) : 0;
     const net = b.income - b.expenses;
+    const avgRent = b.rented ? b.expectedMonthly / b.rented : 0;
+    const expectedTotal = b.expectedMonthly * d.rangeMonths;
+    const collection = expectedTotal > 0 ? Math.min(999, Math.round((b.income / expectedTotal) * 100)) : 0;
+    const margin = b.income > 0 ? Math.round((net / b.income) * 100) : 0;
+    const occColor = occ >= 80 ? "#5f7e65" : occ >= 50 ? "#a89456" : "#a85d5d";
     return `
     <div class="b-card">
       <div class="b-head">
         <div class="b-idx">${String(i + 1).padStart(2, "0")}</div>
-        <div class="b-title">${escapeHTML(b.name)}</div>
-        <div class="b-occ">${occ}% <span>الإشغال · Occupancy</span></div>
+        <div class="b-title-wrap">
+          <div class="b-title">${escapeHTML(b.name)}</div>
+          <div class="b-sub">${b.units} وحدة · ${b.units} units &nbsp;·&nbsp; ${b.rented} مؤجرة · rented &nbsp;·&nbsp; ${b.vacant} شاغرة · vacant</div>
+        </div>
+        <div class="b-occ" style="color:${occColor}">${occ}%<span>الإشغال · Occupancy</span></div>
       </div>
-      <div class="b-grid">
-        <div class="b-cell"><span>الوحدات · Units</span><b>${b.units}</b></div>
-        <div class="b-cell"><span>مؤجرة · Rented</span><b>${b.rented}</b></div>
-        <div class="b-cell"><span>شاغرة · Vacant</span><b>${b.vacant}</b></div>
-        <div class="b-cell"><span>متوقع شهرياً · Expected/mo</span><b>${fmt(b.expectedMonthly)}</b></div>
-        <div class="b-cell"><span>التحصيل · Income</span><b class="pos">${fmt(b.income)}</b></div>
-        <div class="b-cell"><span>المصروفات · Expenses</span><b class="neg">${fmt(b.expenses)}</b></div>
-        <div class="b-cell wide"><span>الصافي · Net</span><b class="${net >= 0 ? "pos" : "neg"}">${fmt(net)}</b></div>
+
+      <div class="b-section">
+        <div class="b-section-title">حالة الوحدات · Unit status</div>
+        <div class="b-bar"><div class="b-bar-fill" style="width:${occ}%;background:linear-gradient(90deg,#7a9a7e,#3d4d3f)"></div></div>
+        <div class="b-bar-legend">
+          <span><i style="background:#3d4d3f"></i>${b.rented} مؤجرة · Rented</span>
+          <span><i style="background:#d5ddc9"></i>${b.vacant} شاغرة · Vacant</span>
+        </div>
+      </div>
+
+      <div class="b-section">
+        <div class="b-section-title">الملخص المالي · Financial summary (${d.rangeMonths} أشهر · months)</div>
+        <table class="b-table">
+          <tr><td>متوقع شهرياً · Expected monthly</td><td class="num">${fmt(b.expectedMonthly)}</td></tr>
+          <tr><td>متوسط الإيجار · Average rent</td><td class="num">${fmt(avgRent)}</td></tr>
+          <tr><td>إجمالي متوقع · Expected total</td><td class="num">${fmt(expectedTotal)}</td></tr>
+          <tr><td>إجمالي التحصيل · Total income</td><td class="num pos">${fmt(b.income)}</td></tr>
+          <tr><td>إجمالي المصروفات · Total expenses</td><td class="num neg">${fmt(b.expenses)}</td></tr>
+          <tr><td>نسبة التحصيل · Collection rate</td><td class="num">${collection}%</td></tr>
+          <tr><td>هامش الربح · Profit margin</td><td class="num">${margin}%</td></tr>
+        </table>
+      </div>
+
+      <div class="b-net">
+        <span>الصافي · Net result</span>
+        <b class="${net >= 0 ? "pos-light" : "neg-light"}">${fmt(net)}</b>
       </div>
     </div>`;
   }).join("");
