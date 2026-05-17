@@ -175,6 +175,57 @@ export default function Reports() {
       .slice(0, 5);
   }, [buildings, units, payments]);
 
+  const buildingBreakdown = useMemo(() => {
+    const unitToB = new Map(units.map((u) => [u.id, u.building_id]));
+    return buildings.map((b) => {
+      const bUnits = units.filter((u) => u.building_id === b.id);
+      const rentedB = bUnits.filter((u) => u.status !== "vacant").length;
+      const vacantB = bUnits.filter((u) => u.status === "vacant").length;
+      const expectedMonthlyB = bUnits.filter((u) => u.status !== "vacant")
+        .reduce((s, u) => s + (Number(u.rent_amount) || 0), 0);
+      const incomeB = payments
+        .filter((p) => unitToB.get(p.unit_id) === b.id)
+        .reduce((s, p) => s + (Number(p.amount) || 0), 0);
+      const expensesB = expenses
+        .filter((e) => e.building_id === b.id)
+        .reduce((s, e) => s + (Number(e.amount) || 0), 0);
+      return { name: b.name, units: bUnits.length, rented: rentedB, vacant: vacantB, expectedMonthly: expectedMonthlyB, income: incomeB, expenses: expensesB };
+    });
+  }, [buildings, units, payments, expenses]);
+
+  const handleDownloadPDF = async () => {
+    const data: ReportData = {
+      brand: {
+        name: settings.brand.name || "أملاكي · Amlaki",
+        logo: settings.brand.logo,
+        phone: settings.brand.phone || "",
+        address: settings.brand.address || "",
+      },
+      currency,
+      rangeMonths: range,
+      generatedAt: new Date().toLocaleDateString(lang === "ar" ? "ar" : "en-GB"),
+      totals: {
+        income: totalIncome,
+        expenses: totalExpenses,
+        net: totalNet,
+        buildings: buildings.length,
+        units: totalUnits,
+        rented,
+        vacant,
+        late,
+        occupancy,
+        collectionRate,
+      },
+      monthly: months.map((m) => ({ label: m.label, income: m.income, expenses: m.expenses, net: m.net })),
+      buildings: buildingBreakdown,
+    };
+    await downloadHTMLAsPDF(
+      buildReportHTML(data),
+      `amlaki-report-${new Date().toISOString().slice(0, 10)}.pdf`,
+      { pageSize: settings.pageSize, margins: settings.margins }
+    );
+  };
+
   return (
     <div className="mobile-shell pb-24">
       <TopBar />
