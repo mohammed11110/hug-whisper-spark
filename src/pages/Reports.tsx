@@ -201,7 +201,7 @@ export default function Reports() {
         phone: settings.brand.phone || "",
         address: settings.brand.address || "",
       },
-      currency,
+      currency: String(currency),
       rangeMonths: range,
       generatedAt: new Date().toLocaleDateString(lang === "ar" ? "ar" : "en-GB"),
       totals: {
