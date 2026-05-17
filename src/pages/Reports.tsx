@@ -7,9 +7,11 @@ import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
-import { Building2, Users, AlertCircle, TrendingUp, CheckCircle2, Home, Download } from "lucide-react";
+import { Building2, Users, AlertCircle, TrendingUp, CheckCircle2, Home, Download, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { exportToCSV } from "@/lib/exportCSV";
+import { buildReportHTML, downloadHTMLAsPDF, type ReportData } from "@/lib/pdfDocs";
+import { useAppSettings } from "@/lib/appSettings";
 import {
   ResponsiveContainer,
   AreaChart,
