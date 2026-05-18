@@ -147,6 +147,9 @@ const pageShell = (title: string, body: string, options?: { rtl?: boolean }) => 
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>${escapeHtml(title)}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Cairo:wght@400;600;700;800&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
     <style>
       :root {
         color-scheme: light;
@@ -162,9 +165,15 @@ const pageShell = (title: string, body: string, options?: { rtl?: boolean }) => 
       * { box-sizing: border-box; }
       html, body { margin: 0; padding: 0; background: #eef2eb; }
       body {
-        font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+        font-family: ${options?.rtl ? `"Noto Naskh Arabic", "Cairo", "Segoe UI", Tahoma, Arial, sans-serif` : `"Inter", "Segoe UI", Tahoma, Arial, sans-serif`};
         color: var(--ink);
         padding: 24px;
+        font-feature-settings: "kern", "liga", "calt";
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+      }
+      :lang(ar), [lang="ar"], [dir="rtl"] {
+        font-family: "Noto Naskh Arabic", "Cairo", "Segoe UI", Tahoma, Arial, sans-serif;
       }
       .page {
         width: 794px;
