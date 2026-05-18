@@ -14,6 +14,7 @@ import { useCurrency } from "@/lib/currency";
 import { useAppSettings, formatReceipt } from "@/lib/appSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { buildReceiptHTML, downloadHTMLAsPDF } from "@/lib/pdfDocs";
 import { z } from "zod";
 
 interface UnitOpt {
@@ -248,6 +249,28 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     if (error) return toast.error(error.message);
     toast.success("✓");
     bumpReceiptNumber();
+    // Auto-generate branded PDF receipt
+    try {
+      const u = units.find((x) => x.id === unitId);
+      const monthLabel = `${(lang === "ar" ? AR_MONTHS : EN_MONTHS)[periodMonthNum - 1]} ${periodYear}`;
+      const html = buildReceiptHTML({
+        brand: settings.brand,
+        receiptNumber: receipt.trim() || formatReceipt(settings.receipt),
+        paymentDate: date,
+        amount: Number(amount),
+        expectedAmount: Number(expected) || null,
+        method: methodLabel(method, lang),
+        periodLabel: monthLabel,
+        building: u?.building_name || "—",
+        unitNumber: u?.unit_number || "—",
+        tenantName: u?.tenant_name || "—",
+        notes: notes.trim() || null,
+        currency: format(0).replace(/[\d.,\s]/g, "").trim() || "",
+      });
+      await downloadHTMLAsPDF(html, `receipt-${(receipt.trim() || formatReceipt(settings.receipt))}.pdf`, settings);
+    } catch (e: any) {
+      console.warn("receipt PDF failed", e);
+    }
     setAmount(""); setReceipt(""); setNotes(""); if (!presetUnitId) setUnitId("");
     onOpenChange(false);
     onSaved?.();
