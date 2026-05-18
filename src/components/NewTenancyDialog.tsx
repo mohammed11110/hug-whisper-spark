@@ -9,6 +9,7 @@ import { useT2 } from "@/lib/i18n2";
 import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
 import { X, Image as ImageIcon, Sparkles, Loader2 } from "lucide-react";
 
 interface Props {
@@ -39,6 +40,7 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
   const [pendingPhoto, setPendingPhoto] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [extracting, setExtracting] = useState(false);
+  const guard = useUnsavedGuard({ open, onOpenChange });
 
   const extractFromId = async () => {
     if (!idImageUrl) return;
@@ -146,6 +148,7 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
     setSaving(false);
     if (uErr) return toast.error(uErr.message);
     toast.success(t2("tenancy_started_ok"));
+    guard.markSaved();
     onOpenChange(false);
     onDone();
   };
@@ -155,12 +158,12 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
   const pathPrefix = `${unit.building_id}/${unit.id}`;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={guard.handleOpenChange}>
       <DialogContent className="rounded-2xl max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-sage-600">{t2("new_tenant")} — {unit.unit_number}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3">
+        <div className="space-y-3" {...guard.formProps}>
           <div className="space-y-1.5">
             <Label className="text-xs text-sage-500">{t2("tenant_name")} *</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} className="rounded-xl border-sage-200 h-11" />
@@ -293,9 +296,10 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
           </div>
         </div>
         <DialogFooter className="gap-2 sm:gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl">{t2("cancel")}</Button>
-          <Button onClick={submit} disabled={saving} className="rounded-xl bg-gradient-sage text-primary-foreground">{t2("save")}</Button>
+          <Button data-guard-ignore variant="outline" onClick={() => guard.handleOpenChange(false)} className="rounded-xl">{t2("cancel")}</Button>
+          <Button data-guard-ignore onClick={submit} disabled={saving} className="rounded-xl bg-gradient-sage text-primary-foreground">{t2("save")}</Button>
         </DialogFooter>
+        {guard.ConfirmDiscardUI}
       </DialogContent>
     </Dialog>
   );

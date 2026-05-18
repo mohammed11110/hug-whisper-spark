@@ -9,6 +9,7 @@ import { useT2 } from "@/lib/i18n2";
 import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
 import { logActivity } from "@/lib/activityLogger";
+import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
 import { toast } from "sonner";
 import { Camera, X, Loader2 } from "lucide-react";
 
@@ -31,6 +32,7 @@ export function AddMaintenanceDialog({ open, onOpenChange, onCreated }: { open: 
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const guard = useUnsavedGuard({ open, onOpenChange });
 
   useEffect(() => {
     if (!open) return;
@@ -95,16 +97,17 @@ export function AddMaintenanceDialog({ open, onOpenChange, onCreated }: { open: 
     });
     setTitle(""); setDescription(""); setVendor(""); setCost(""); setPriority("normal"); setUnitId(""); setPhotos([]);
     onCreated?.();
+    guard.markSaved();
     onOpenChange(false);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={guard.handleOpenChange}>
       <DialogContent className="rounded-2xl max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-sage-600">{t2("new_request")}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3 mt-2">
+        <div className="space-y-3 mt-2" {...guard.formProps}>
           <div className="space-y-1.5">
             <Label className="text-xs text-sage-500">{t2("building_name")}</Label>
             <Select value={buildingId} onValueChange={(v) => { setBuildingId(v); setUnitId(""); }}>
@@ -173,10 +176,11 @@ export function AddMaintenanceDialog({ open, onOpenChange, onCreated }: { open: 
             )}
           </div>
           <div className="flex gap-2 pt-2">
-            <Button variant="outline" className="flex-1 rounded-xl" onClick={() => onOpenChange(false)}>{t2("cancel")}</Button>
-            <Button onClick={submit} disabled={busy || !buildingId || !title.trim()} className="flex-1 rounded-xl bg-gradient-sage text-primary-foreground">{t2("save")}</Button>
+            <Button data-guard-ignore variant="outline" className="flex-1 rounded-xl" onClick={() => guard.handleOpenChange(false)}>{t2("cancel")}</Button>
+            <Button data-guard-ignore onClick={submit} disabled={busy || !buildingId || !title.trim()} className="flex-1 rounded-xl bg-gradient-sage text-primary-foreground">{t2("save")}</Button>
           </div>
         </div>
+        {guard.ConfirmDiscardUI}
       </DialogContent>
     </Dialog>
   );

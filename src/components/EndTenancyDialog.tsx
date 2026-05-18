@@ -11,6 +11,7 @@ import { useCurrency } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
 import { computeBalance } from "@/lib/balance";
 import { toast } from "sonner";
+import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
 
 interface Props {
   open: boolean;
@@ -33,6 +34,7 @@ export function EndTenancyDialog({ open, onOpenChange, unit, tenancyId, onDone }
   const [notes, setNotes] = useState("");
   const [outstanding, setOutstanding] = useState(0);
   const [saving, setSaving] = useState(false);
+  const guard = useUnsavedGuard({ open, onOpenChange });
 
   useEffect(() => {
     if (!open || !unit) return;
@@ -96,6 +98,7 @@ export function EndTenancyDialog({ open, onOpenChange, unit, tenancyId, onDone }
     setSaving(false);
     if (uErr) return toast.error(uErr.message);
     toast.success(t2("tenancy_ended_ok"));
+    guard.markSaved();
     onOpenChange(false);
     onDone();
   };
@@ -103,12 +106,12 @@ export function EndTenancyDialog({ open, onOpenChange, unit, tenancyId, onDone }
   if (!unit) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={guard.handleOpenChange}>
       <DialogContent className="rounded-2xl max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-burgundy">{t2("end_tenancy")} — {unit.tenant_name}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3">
+        <div className="space-y-3" {...guard.formProps}>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs text-sage-500">{t2("end_date")}</Label>
@@ -178,11 +181,12 @@ export function EndTenancyDialog({ open, onOpenChange, unit, tenancyId, onDone }
           </div>
         </div>
         <DialogFooter className="gap-2 sm:gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl">{t2("cancel")}</Button>
-          <Button onClick={submit} disabled={saving} className="rounded-xl bg-burgundy hover:bg-burgundy/90 text-primary-foreground">
+          <Button data-guard-ignore variant="outline" onClick={() => guard.handleOpenChange(false)} className="rounded-xl">{t2("cancel")}</Button>
+          <Button data-guard-ignore onClick={submit} disabled={saving} className="rounded-xl bg-burgundy hover:bg-burgundy/90 text-primary-foreground">
             {t2("end_tenancy")}
           </Button>
         </DialogFooter>
+        {guard.ConfirmDiscardUI}
       </DialogContent>
     </Dialog>
   );

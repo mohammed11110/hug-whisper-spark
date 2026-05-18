@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { useT2 } from "@/lib/i18n2";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
 
 const UNIT_TYPES = ["apartment", "shop", "room", "villa"] as const;
 const RENT_TYPES = ["monthly", "daily", "yearly"] as const;
@@ -57,6 +58,7 @@ export function EditUnitDialog({
   const [contractStart, setContractStart] = useState<string>("");
   const [arrears, setArrears] = useState("0");
   const [busy, setBusy] = useState(false);
+  const guard = useUnsavedGuard({ open, onOpenChange });
 
   useEffect(() => {
     if (!unit) return;
@@ -107,16 +109,17 @@ export function EditUnitDialog({
     if (error) return toast.error(error.message);
     toast.success("✓");
     onSaved?.();
+    guard.markSaved();
     onOpenChange(false);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={guard.handleOpenChange}>
       <DialogContent className="max-w-[400px] rounded-3xl border-sage-200 bg-background max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-sage-600 text-xl font-black">{t2("edit_unit")}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3 mt-2">
+        <div className="space-y-3 mt-2" {...guard.formProps}>
           <div className="grid grid-cols-2 gap-3">
             <Field label={t2("unit_number")}>
               <Input value={unitNumber} onChange={(e) => setUnitNumber(e.target.value)} className="rounded-xl border-sage-200 bg-card" />
@@ -227,10 +230,11 @@ export function EditUnitDialog({
           </Field>
 
           <div className="flex gap-2 pt-2">
-            <Button variant="outline" className="flex-1 rounded-xl border-sage-200" onClick={() => onOpenChange(false)}>{t2("cancel")}</Button>
-            <Button onClick={submit} disabled={busy || !unitNumber.trim()} className="flex-1 rounded-xl bg-gradient-sage text-primary-foreground font-semibold">{t2("save")}</Button>
+            <Button data-guard-ignore variant="outline" className="flex-1 rounded-xl border-sage-200" onClick={() => guard.handleOpenChange(false)}>{t2("cancel")}</Button>
+            <Button data-guard-ignore onClick={submit} disabled={busy || !unitNumber.trim()} className="flex-1 rounded-xl bg-gradient-sage text-primary-foreground font-semibold">{t2("save")}</Button>
           </div>
         </div>
+        {guard.ConfirmDiscardUI}
       </DialogContent>
     </Dialog>
   );

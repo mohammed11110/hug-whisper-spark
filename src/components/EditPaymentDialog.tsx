@@ -9,6 +9,7 @@ import { useI18n } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
 
 const METHODS = ["cash", "transfer", "cheque", "card"] as const;
 
@@ -51,6 +52,7 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
   const [hasPeriod, setHasPeriod] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const guard = useUnsavedGuard({ open, onOpenChange });
 
   const { start: periodStart, end: periodEnd } = monthRange(periodYear, periodMonthNum);
   const monthNames = lang === "ar" ? AR_MONTHS : EN_MONTHS;
@@ -99,6 +101,7 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
     setSaving(false);
     if (error) return toast.error(error.message);
     toast.success("✓");
+    guard.markSaved();
     onOpenChange(false);
     onSaved?.();
   };
@@ -106,7 +109,7 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
   const years = yearOptions();
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={guard.handleOpenChange}>
       <DialogContent className="rounded-2xl max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-sage-600">{lang === "ar" ? "تعديل الدفعة" : "Edit payment"}</DialogTitle>
@@ -114,7 +117,7 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
         {loading ? (
           <p className="text-center text-sage-500 py-8">…</p>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-3" {...guard.formProps}>
             <div className="space-y-1.5">
               <Label className="text-xs text-sage-500">{t2("rent_month")}</Label>
               <div className="grid grid-cols-2 gap-2">
@@ -172,9 +175,10 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
           </div>
         )}
         <DialogFooter className="gap-2 sm:gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl">{t2("cancel")}</Button>
-          <Button onClick={submit} disabled={saving || loading} className="rounded-xl bg-gradient-sage text-primary-foreground">{t2("save")}</Button>
+          <Button data-guard-ignore variant="outline" onClick={() => guard.handleOpenChange(false)} className="rounded-xl">{t2("cancel")}</Button>
+          <Button data-guard-ignore onClick={submit} disabled={saving || loading} className="rounded-xl bg-gradient-sage text-primary-foreground">{t2("save")}</Button>
         </DialogFooter>
+        {guard.ConfirmDiscardUI}
       </DialogContent>
     </Dialog>
   );

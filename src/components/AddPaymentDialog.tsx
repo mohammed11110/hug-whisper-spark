@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { buildReceiptHTML, downloadHTMLAsPDF } from "@/lib/pdfDocs";
 import { logActivity } from "@/lib/activityLogger";
+import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
 import { z } from "zod";
 
 interface UnitOpt {
@@ -78,6 +79,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const [periodMonthNum, setPeriodMonthNum] = useState<number>(() => new Date().getMonth() + 1);
   const [saving, setSaving] = useState(false);
   const [unitOpen, setUnitOpen] = useState(false);
+  const guard = useUnsavedGuard({ open, onOpenChange });
   const [unpaidMonths, setUnpaidMonths] = useState<{ year: number; month: number; remaining: number }[]>([]);
   const [showAllMonths, setShowAllMonths] = useState(false);
   const [allPaid, setAllPaid] = useState(false);
@@ -298,6 +300,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
       console.warn("receipt PDF failed", e);
     }
     setAmount(""); setReceipt(""); setNotes(""); if (!presetUnitId) setUnitId("");
+    guard.markSaved();
     onOpenChange(false);
     onSaved?.();
   };
@@ -305,12 +308,12 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const years = yearOptions();
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={guard.handleOpenChange}>
       <DialogContent className="rounded-2xl max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-sage-600">{t2("register_payment")}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3">
+        <div className="space-y-3" {...guard.formProps}>
           <div className="space-y-1.5">
             <Label className="text-xs text-sage-500">{t2("unit_number")}</Label>
             {(() => {
@@ -467,9 +470,10 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
           </div>
         </div>
         <DialogFooter className="gap-2 sm:gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl">{t2("cancel")}</Button>
-          <Button onClick={submit} disabled={saving} className="rounded-xl bg-gradient-sage text-primary-foreground">{t2("save")}</Button>
+          <Button data-guard-ignore variant="outline" onClick={() => guard.handleOpenChange(false)} className="rounded-xl">{t2("cancel")}</Button>
+          <Button data-guard-ignore onClick={submit} disabled={saving} className="rounded-xl bg-gradient-sage text-primary-foreground">{t2("save")}</Button>
         </DialogFooter>
+        {guard.ConfirmDiscardUI}
       </DialogContent>
     </Dialog>
   );
