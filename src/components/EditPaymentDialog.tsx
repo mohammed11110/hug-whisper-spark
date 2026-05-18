@@ -101,6 +101,7 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
     setSaving(false);
     if (error) return toast.error(error.message);
     toast.success("✓");
+    guard.markSaved();
     onOpenChange(false);
     onSaved?.();
   };
