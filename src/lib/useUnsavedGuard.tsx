@@ -14,52 +14,80 @@ import { useI18n } from "@/lib/i18n";
 /**
  * Guards a dialog against accidental loss of unsaved changes.
  *
- * Usage:
- *   const { handleOpenChange, ConfirmDiscardUI, markSaved } = useUnsavedGuard({
- *     open, onOpenChange, dirty,
- *   });
- *   <Dialog open={open} onOpenChange={handleOpenChange}>...
- *   {ConfirmDiscardUI}
+ * Drop-in usage:
+ *   const guard = useUnsavedGuard({ open, onOpenChange });
+ *   <Dialog open={open} onOpenChange={guard.handleOpenChange}>
+ *     <DialogContent>
+ *       <div {...guard.formProps}>...form fields...</div>
+ *       <Button onClick={async () => { await save(); guard.markSaved(); onOpenChange(false); }} />
+ *     </DialogContent>
+ *   </Dialog>
+ *   {guard.ConfirmDiscardUI}
  *
- * Call markSaved() right after a successful save so closing won't re-prompt.
+ * Dirty is auto-detected from input/change/click-on-button events within
+ * `formProps`. Call `markSaved()` right before closing on a successful save.
  */
 export function useUnsavedGuard(opts: {
   open: boolean;
   onOpenChange: (next: boolean) => void;
-  dirty: boolean;
 }) {
-  const { open, onOpenChange, dirty } = opts;
+  const { open, onOpenChange } = opts;
   const { lang } = useI18n();
   const ar = lang === "ar";
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const dirtyRef = useRef(false);
   const justSavedRef = useRef(false);
+
+  // Reset dirty state every time the dialog opens fresh.
+  useEffect(() => {
+    if (open) {
+      dirtyRef.current = false;
+      justSavedRef.current = false;
+    }
+  }, [open]);
 
   // Warn on browser tab close / refresh while dirty.
   useEffect(() => {
-    if (!open || !dirty) return;
+    if (!open) return;
     const handler = (e: BeforeUnloadEvent) => {
+      if (!dirtyRef.current) return;
       e.preventDefault();
       e.returnValue = "";
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
-  }, [open, dirty]);
+  }, [open]);
+
+  const markDirty = useCallback(() => {
+    dirtyRef.current = true;
+  }, []);
+
+  const markSaved = useCallback(() => {
+    dirtyRef.current = false;
+    justSavedRef.current = true;
+  }, []);
 
   const handleOpenChange = useCallback(
     (next: boolean) => {
-      if (!next && dirty && !justSavedRef.current) {
+      if (!next && dirtyRef.current && !justSavedRef.current) {
         setConfirmOpen(true);
         return;
       }
-      justSavedRef.current = false;
       onOpenChange(next);
     },
-    [dirty, onOpenChange]
+    [onOpenChange]
   );
 
-  const markSaved = useCallback(() => {
-    justSavedRef.current = true;
-  }, []);
+  // Auto-detect dirty: any typed input or pill/toggle click inside the form.
+  const formProps = {
+    onInput: markDirty,
+    onChange: markDirty,
+    onClick: (e: React.MouseEvent<HTMLDivElement>) => {
+      const target = e.target as HTMLElement;
+      // Buttons used as toggles/pills inside the form mark dirty too.
+      if (target.closest("button[type='button']")) markDirty();
+    },
+  };
 
   const ConfirmDiscardUI = (
     <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
@@ -82,6 +110,7 @@ export function useUnsavedGuard(opts: {
             className="rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground"
             onClick={() => {
               setConfirmOpen(false);
+              dirtyRef.current = false;
               justSavedRef.current = true;
               onOpenChange(false);
             }}
@@ -93,5 +122,5 @@ export function useUnsavedGuard(opts: {
     </AlertDialog>
   );
 
-  return { handleOpenChange, ConfirmDiscardUI, markSaved };
+  return { handleOpenChange, formProps, markSaved, markDirty, ConfirmDiscardUI };
 }
