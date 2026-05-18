@@ -343,40 +343,66 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
               );
             })()}
           </div>
-          {/* Rent month */}
+          {/* Rent month — unpaid only by default */}
           <div className="space-y-1.5">
-            <Label className="text-xs text-sage-500">{t2("rent_month")}</Label>
-            <div className="grid grid-cols-2 gap-2">
-              <Select value={String(periodMonthNum)} onValueChange={(v) => setPeriodMonthNum(Number(v))}>
-                <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11"><SelectValue /></SelectTrigger>
-                <SelectContent className="max-h-72">
-                  {monthNames.map((n, i) => (
-                    <SelectItem key={i} value={String(i + 1)}>{n}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={String(periodYear)} onValueChange={(v) => setPeriodYear(Number(v))}>
-                <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11"><SelectValue /></SelectTrigger>
-                <SelectContent className="max-h-72">
-                  {years.map((y) => (
-                    <SelectItem key={y} value={String(y)}>{y}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-sage-500">{t2("rent_month")}</Label>
+              {unitId && unpaidMonths.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllMonths((s) => !s)}
+                  className="text-[11px] text-sage-500 hover:text-sage-600 font-semibold"
+                >
+                  {showAllMonths
+                    ? (lang === "ar" ? "غير المدفوعة فقط" : "Unpaid only")
+                    : (lang === "ar" ? "عرض كل الأشهر" : "Show all months")}
+                </button>
+              )}
             </div>
-            {suggestion && !(suggestion.year === periodYear && suggestion.month === periodMonthNum) && (
-              <button
-                type="button"
-                onClick={applySuggestion}
-                className="w-full flex items-start gap-2 bg-sage-100/60 border border-sage-200 rounded-xl px-3 py-2 text-xs text-sage-600 text-start hover:bg-sage-100"
+            {unitId && allPaid && !showAllMonths ? (
+              <div className="rounded-xl border border-dashed border-sage-200 bg-sage-100/40 px-3 py-3 text-xs text-sage-600 flex items-center justify-between">
+                <span className="font-semibold">{lang === "ar" ? "كل الأشهر مدفوعة ✓" : "All months paid ✓"}</span>
+                <button type="button" onClick={() => setShowAllMonths(true)} className="font-bold text-sage-500 hover:underline">
+                  {lang === "ar" ? "اختيار شهر آخر" : "Pick another month"}
+                </button>
+              </div>
+            ) : unitId && !showAllMonths && unpaidMonths.length > 0 ? (
+              <Select
+                value={`${periodYear}-${periodMonthNum}`}
+                onValueChange={(v) => {
+                  const [y, m] = v.split("-").map(Number);
+                  setPeriodYear(y);
+                  setPeriodMonthNum(m);
+                }}
               >
-                <Sparkles className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-sage-500" />
-                <span className="flex-1">
-                  <span className="font-semibold block">{lang === "ar" ? "اقتراح ذكي" : "Smart suggestion"}</span>
-                  <span className="opacity-80">{suggestion.reason}</span>
-                </span>
-                <span className="font-bold text-sage-600 flex-shrink-0">{lang === "ar" ? "تطبيق" : "Apply"}</span>
-              </button>
+                <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11"><SelectValue /></SelectTrigger>
+                <SelectContent className="max-h-72">
+                  {unpaidMonths.map((u) => (
+                    <SelectItem key={`${u.year}-${u.month}`} value={`${u.year}-${u.month}`}>
+                      {monthNames[u.month - 1]} {u.year} · {format(u.remaining)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <Select value={String(periodMonthNum)} onValueChange={(v) => setPeriodMonthNum(Number(v))}>
+                  <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11"><SelectValue /></SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    {monthNames.map((n, i) => (
+                      <SelectItem key={i} value={String(i + 1)}>{n}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={String(periodYear)} onValueChange={(v) => setPeriodYear(Number(v))}>
+                  <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11"><SelectValue /></SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    {years.map((y) => (
+                      <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             )}
           </div>
 
