@@ -596,6 +596,67 @@ export function printHTML(html: string) {
   }
 }
 
+const TRANSPARENT_PX =
+  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+
+async function urlToDataUrl(url: string): Promise<string> {
+  if (!url || url.startsWith("data:")) return url || TRANSPARENT_PX;
+  try {
+    const res = await fetch(url, { mode: "cors", credentials: "omit", cache: "force-cache" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(String(reader.result || TRANSPARENT_PX));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(blob);
+    });
+  } catch (e) {
+    console.warn("[pdf] image inline failed:", url, e);
+    return TRANSPARENT_PX;
+  }
+}
+
+async function inlineImages(root: HTMLElement) {
+  const imgs = Array.from(root.querySelectorAll("img")) as HTMLImageElement[];
+  await Promise.all(
+    imgs.map(async (img) => {
+      const src = img.getAttribute("src") || "";
+      if (!src || src.startsWith("data:")) return;
+      const dataUrl = await urlToDataUrl(src);
+      img.setAttribute("src", dataUrl);
+      img.setAttribute("crossorigin", "anonymous");
+      await new Promise<void>((resolve) => {
+        if (img.complete && img.naturalWidth > 0) return resolve();
+        img.onload = () => resolve();
+        img.onerror = () => resolve();
+      });
+    })
+  );
+}
+
+function isCanvasBlank(canvas: HTMLCanvasElement): boolean {
+  try {
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return false;
+    const w = canvas.width, h = canvas.height;
+    if (!w || !h) return true;
+    const stepX = Math.max(1, Math.floor(w / 50));
+    const stepY = Math.max(1, Math.floor(h / 50));
+    const data = ctx.getImageData(0, 0, w, h).data;
+    for (let y = 0; y < h; y += stepY) {
+      for (let x = 0; x < w; x += stepX) {
+        const i = (y * w + x) * 4;
+        const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
+        if (a !== 0 && !(r > 245 && g > 245 && b > 245)) return false;
+      }
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function downloadHTMLAsPDF(html: string, filename: string, settings?: PdfSettings) {
   const pageSize = settings?.pageSize || DEFAULT_PAGE_SIZE;
   const margins = settings?.margins || DEFAULT_MARGINS;
@@ -612,36 +673,41 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
 
   try {
     const target = (container.querySelector(".page") as HTMLElement) || container;
-    // Ensure web fonts (incl. Arabic) are fully loaded so glyphs render connected
+    // Inline images as data URLs so foreignObjectRendering / CORS never produce a blank canvas
+    await inlineImages(target);
     try {
       if ((document as any).fonts?.ready) await (document as any).fonts.ready;
       await new Promise((r) => setTimeout(r, 250));
     } catch { /* noop */ }
-    // Detect Arabic content — use foreignObjectRendering to preserve native
-    // browser text shaping (connected Arabic letters). Falls back to default
-    // rendering if foreignObject fails (e.g. CORS-tainted images).
+
     const hasArabic = /[\u0600-\u06FF]/.test(target.innerText || "");
+
+    const renderOnce = (useForeignObject: boolean, allowTaint: boolean) =>
+      html2canvas(target, {
+        scale: 2,
+        useCORS: true,
+        allowTaint,
+        backgroundColor: "#ffffff",
+        logging: false,
+        foreignObjectRendering: useForeignObject,
+        windowWidth: target.scrollWidth || 794,
+        windowHeight: target.scrollHeight || target.offsetHeight || 1123,
+      });
+
     let canvas: HTMLCanvasElement;
     try {
-      canvas = await html2canvas(target, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: false,
-        backgroundColor: "#ffffff",
-        logging: false,
-        foreignObjectRendering: hasArabic,
-        windowWidth: target.scrollWidth || 794,
-        windowHeight: target.scrollHeight || target.offsetHeight || 1123,
-      });
-    } catch {
-      canvas = await html2canvas(target, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-        logging: false,
-        windowWidth: target.scrollWidth || 794,
-        windowHeight: target.scrollHeight || target.offsetHeight || 1123,
-      });
+      canvas = await renderOnce(hasArabic, false);
+      if (isCanvasBlank(canvas)) {
+        console.warn("[pdf] first render blank — retrying without foreignObjectRendering");
+        canvas = await renderOnce(false, true);
+      }
+    } catch (e) {
+      console.warn("[pdf] primary render failed, falling back", e);
+      canvas = await renderOnce(false, true);
+    }
+
+    if (isCanvasBlank(canvas)) {
+      throw new Error("PDF render produced a blank page");
     }
 
     const pdf = new jsPDF({ unit: "mm", format: pageSize.toLowerCase() as "a4" | "a5" | "letter" });
