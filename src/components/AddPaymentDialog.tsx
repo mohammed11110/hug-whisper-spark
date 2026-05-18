@@ -156,11 +156,12 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         .eq("status", "active")
         .maybeSingle();
       if (cancelled) return;
-      if (!tn) { setUnpaidMonths([]); setAllPaid(false); return; }
+      if (!tn) { setUnpaidMonths([]); setAllPaid(false); setActiveRent(0); return; }
       const startStr = (tn as any).contract_start_date as string | null;
       const endStr = (tn as any).contract_end_date as string | null;
       const rentAmt = Number((tn as any).rent_amount) || 0;
       const rentType = (tn as any).rent_type as string;
+      setActiveRent(rentAmt);
       if (!startStr || rentAmt <= 0) { setUnpaidMonths([]); setAllPaid(false); return; }
 
       const { data: ps } = await supabase
