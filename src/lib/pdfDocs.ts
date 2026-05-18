@@ -24,6 +24,10 @@ export interface ReceiptData {
   tenantName?: string | null;
   notes?: string | null;
   currency?: string | null;
+  lang?: "ar" | "en";
+  unpaidMonths?: Array<{ label: string; remaining: number }>;
+  unpaidTotal?: number | null;
+  unpaidUpToLabel?: string | null;
 }
 
 export interface Lease {
