@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { buildReceiptHTML, downloadHTMLAsPDF } from "@/lib/pdfDocs";
 import { logActivity } from "@/lib/activityLogger";
+import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
 import { z } from "zod";
 
 interface UnitOpt {
