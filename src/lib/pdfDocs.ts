@@ -607,6 +607,11 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
 
   try {
     const target = (container.querySelector(".page") as HTMLElement) || container;
+    // Ensure web fonts (incl. Arabic) are fully loaded so glyphs render connected
+    try {
+      if ((document as any).fonts?.ready) await (document as any).fonts.ready;
+      await new Promise((r) => setTimeout(r, 250));
+    } catch { /* noop */ }
     const canvas = await html2canvas(target, {
       scale: 2,
       useCORS: true,
