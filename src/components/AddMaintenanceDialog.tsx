@@ -140,6 +140,28 @@ export function AddMaintenanceDialog({ open, onOpenChange, onCreated }: { open: 
               <Input type="number" inputMode="decimal" value={cost} onChange={(e) => setCost(e.target.value)} className="rounded-xl border-sage-200 bg-card h-11" />
             </div>
           </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-sage-500">{isAr ? "صور المشكلة" : "Photos"}</Label>
+            <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => uploadPhotos(e.target.files)} />
+            <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
+              className="w-full h-11 rounded-xl border-2 border-dashed border-sage-300/60 bg-sage-100/30 text-sage-600 text-xs font-semibold flex items-center justify-center gap-2 hover:bg-sage-100/60 disabled:opacity-60">
+              {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+              {uploading ? (isAr ? "جاري الرفع..." : "Uploading...") : (isAr ? "إضافة صور" : "Add photos")}
+            </button>
+            {photos.length > 0 && (
+              <div className="grid grid-cols-4 gap-2 mt-2">
+                {photos.map((url) => (
+                  <div key={url} className="relative aspect-square rounded-lg overflow-hidden border border-sage-200">
+                    <img src={url} alt="" className="w-full h-full object-cover" />
+                    <button type="button" onClick={() => removePhoto(url)}
+                      className="absolute top-0.5 end-0.5 h-5 w-5 rounded-full bg-burgundy text-white flex items-center justify-center">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           <div className="flex gap-2 pt-2">
             <Button variant="outline" className="flex-1 rounded-xl" onClick={() => onOpenChange(false)}>{t2("cancel")}</Button>
             <Button onClick={submit} disabled={busy || !buildingId || !title.trim()} className="flex-1 rounded-xl bg-gradient-sage text-primary-foreground">{t2("save")}</Button>
