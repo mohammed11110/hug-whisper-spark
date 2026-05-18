@@ -97,6 +97,7 @@ export function AddMaintenanceDialog({ open, onOpenChange, onCreated }: { open: 
     });
     setTitle(""); setDescription(""); setVendor(""); setCost(""); setPriority("normal"); setUnitId(""); setPhotos([]);
     onCreated?.();
+    guard.markSaved();
     onOpenChange(false);
   };
 
