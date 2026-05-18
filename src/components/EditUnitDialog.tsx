@@ -58,6 +58,7 @@ export function EditUnitDialog({
   const [contractStart, setContractStart] = useState<string>("");
   const [arrears, setArrears] = useState("0");
   const [busy, setBusy] = useState(false);
+  const guard = useUnsavedGuard({ open, onOpenChange });
 
   useEffect(() => {
     if (!unit) return;
