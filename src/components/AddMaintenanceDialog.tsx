@@ -32,6 +32,7 @@ export function AddMaintenanceDialog({ open, onOpenChange, onCreated }: { open: 
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const guard = useUnsavedGuard({ open, onOpenChange });
 
   useEffect(() => {
     if (!open) return;
