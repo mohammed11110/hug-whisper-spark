@@ -83,6 +83,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const [unpaidMonths, setUnpaidMonths] = useState<{ year: number; month: number; remaining: number }[]>([]);
   const [showAllMonths, setShowAllMonths] = useState(false);
   const [allPaid, setAllPaid] = useState(false);
+  const [activeRent, setActiveRent] = useState<number>(0);
 
   const { start: periodStart, end: periodEnd } = monthRange(periodYear, periodMonthNum);
   const monthNames = lang === "ar" ? AR_MONTHS : EN_MONTHS;
@@ -155,11 +156,12 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         .eq("status", "active")
         .maybeSingle();
       if (cancelled) return;
-      if (!tn) { setUnpaidMonths([]); setAllPaid(false); return; }
+      if (!tn) { setUnpaidMonths([]); setAllPaid(false); setActiveRent(0); return; }
       const startStr = (tn as any).contract_start_date as string | null;
       const endStr = (tn as any).contract_end_date as string | null;
       const rentAmt = Number((tn as any).rent_amount) || 0;
       const rentType = (tn as any).rent_type as string;
+      setActiveRent(rentAmt);
       if (!startStr || rentAmt <= 0) { setUnpaidMonths([]); setAllPaid(false); return; }
 
       const { data: ps } = await supabase
@@ -213,6 +215,18 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const remaining = Math.max(0, (Number(expected) || 0) - (Number(amount) || 0));
   const isPartial = Number(amount) > 0 && Number(expected) > 0 && Number(amount) < Number(expected);
 
+  // Detect "final installment of a partially-paid month"
+  const currentMonthEntry = unpaidMonths.find((m) => m.year === periodYear && m.month === periodMonthNum);
+  const hasPriorPartial = !!currentMonthEntry && activeRent > 0 && currentMonthEntry.remaining + 0.01 < activeRent;
+  const settlesMonth = !!currentMonthEntry && Number(amount) + 0.01 >= currentMonthEntry.remaining;
+  const isFinalSettlement = hasPriorPartial && settlesMonth;
+  const monthLabelForNote = `${monthNames[periodMonthNum - 1]} ${periodYear}`;
+  const settlementNote = isFinalSettlement
+    ? (lang === "ar"
+        ? `تم سداد الجزء الأخير من المبلغ المتبقي عن شهر ${monthLabelForNote}.`
+        : `Final installment of the outstanding balance for ${monthLabelForNote} has been settled.`)
+    : null;
+
   const submit = async () => {
     const parsed = schema.safeParse({
       unit_id: unitId,
@@ -225,6 +239,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     }
     setSaving(true);
     const { data: activeT } = await supabase.from("tenancies").select("id").eq("unit_id", unitId).eq("status", "active").maybeSingle();
+    const mergedNotes = [settlementNote, notes.trim()].filter(Boolean).join(" — ") || null;
     const { error } = await supabase.from("payments").insert({
       unit_id: unitId,
       tenancy_id: (activeT as any)?.id || null,
@@ -233,7 +248,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
       payment_date: date,
       receipt_number: receipt.trim() || null,
       payment_method: method,
-      notes: notes.trim() || null,
+      notes: mergedNotes,
       period_start: periodStart || null,
       period_end: periodEnd || null,
     });
@@ -288,12 +303,13 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         building: u?.building_name || "—",
         unitNumber: u?.unit_number || "—",
         tenantName: u?.tenant_name || "—",
-        notes: notes.trim() || null,
+        notes: mergedNotes,
         currency: format(0).replace(/[\d.,\s]/g, "").trim() || "",
         lang: lang === "ar" ? "ar" : "en",
         unpaidMonths: upTo,
         unpaidTotal,
         unpaidUpToLabel: monthLabel,
+        settlementNote,
       });
       await downloadHTMLAsPDF(html, `receipt-${(receipt.trim() || formatReceipt(settings.receipt))}.pdf`, settings);
     } catch (e: any) {
@@ -394,6 +410,11 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                   const [y, m] = v.split("-").map(Number);
                   setPeriodYear(y);
                   setPeriodMonthNum(m);
+                  const entry = unpaidMonths.find((u) => u.year === y && u.month === m);
+                  if (entry) {
+                    if (activeRent > 0) setExpected(String(activeRent));
+                    setAmount(String(entry.remaining));
+                  }
                 }}
               >
                 <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11"><SelectValue /></SelectTrigger>

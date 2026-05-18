@@ -28,6 +28,7 @@ export interface ReceiptData {
   unpaidMonths?: Array<{ label: string; remaining: number }>;
   unpaidTotal?: number | null;
   unpaidUpToLabel?: string | null;
+  settlementNote?: string | null;
 }
 
 export interface Lease {
@@ -366,7 +367,8 @@ export function buildReceiptHTML(data: ReceiptData): string {
         <div class="card"><div class="label">${L("المبلغ المدفوع", "Amount paid")}</div><div class="value amount-positive">${escapeHtml(formatMoney(data.amount, data.currency))}</div></div>
         <div class="card"><div class="label">${L("فترة الإيجار", "Rent period")}</div><div class="value">${escapeHtml(data.periodLabel || "—")}</div></div>
       </div>
-      ${data.expectedAmount ? `<div class="note">${L("المتوقع", "Expected")}: <strong>${escapeHtml(formatMoney(data.expectedAmount, data.currency))}</strong>${partial ? ` — <span class="pill">${L("دفعة جزئية", "Partial payment")}</span>` : ""}</div>` : ""}
+      ${data.settlementNote ? `<div class="note" style="background:#eef5ec;border-color:#cfe0ce;color:#2c5a36;"><strong>${L("ملاحظة", "Note")}:</strong> ${escapeHtml(data.settlementNote)}</div>` : ""}
+      ${!data.settlementNote && data.expectedAmount ? `<div class="note">${L("المتوقع", "Expected")}: <strong>${escapeHtml(formatMoney(data.expectedAmount, data.currency))}</strong>${partial ? ` — <span class="pill">${L("دفعة جزئية", "Partial payment")}</span>` : ""}</div>` : ""}
       ${unpaidRows ? `
         <div class="section-title">${L("الأشهر المتبقية على المستأجر", "Remaining unpaid months")}</div>
         <table>
@@ -374,7 +376,7 @@ export function buildReceiptHTML(data: ReceiptData): string {
           <tbody>${unpaidRows}</tbody>
         </table>
         ${data.unpaidTotal != null ? `<div class="note"><strong>${L("إجمالي المتبقي", "Total outstanding")}${data.unpaidUpToLabel ? ` ${L("حتى", "through")} ${escapeHtml(data.unpaidUpToLabel)}` : ""}:</strong> <span class="amount-negative">${escapeHtml(formatMoney(data.unpaidTotal, data.currency))}</span></div>` : ""}
-      ` : (data.unpaidTotal != null ? `<div class="note"><strong>${L("إجمالي المتبقي", "Total outstanding")}${data.unpaidUpToLabel ? ` ${L("حتى", "through")} ${escapeHtml(data.unpaidUpToLabel)}` : ""}:</strong> <span class="amount-positive">${escapeHtml(formatMoney(data.unpaidTotal, data.currency))}</span></div>` : "")}
+      ` : (data.unpaidTotal != null && !data.settlementNote ? `<div class="note"><strong>${L("إجمالي المتبقي", "Total outstanding")}${data.unpaidUpToLabel ? ` ${L("حتى", "through")} ${escapeHtml(data.unpaidUpToLabel)}` : ""}:</strong> <span class="amount-positive">${escapeHtml(formatMoney(data.unpaidTotal, data.currency))}</span></div>` : "")}
       ${data.notes ? `<div class="section-title">${L("ملاحظات", "Notes")}</div><div class="card"><div class="value">${escapeHtml(data.notes)}</div></div>` : ""}
     </div>
     <div class="footer">
