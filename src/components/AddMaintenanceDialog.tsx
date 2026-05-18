@@ -43,8 +43,30 @@ export function AddMaintenanceDialog({ open, onOpenChange, onCreated }: { open: 
 
   const filteredUnits = buildingId ? units.filter((u) => u.building_id === buildingId) : [];
 
+  const uploadPhotos = async (files: FileList | null) => {
+    if (!files || !files.length) return;
+    setUploading(true);
+    const { data: ud } = await supabase.auth.getUser();
+    const uid = ud.user?.id;
+    if (!uid) { setUploading(false); return; }
+    const urls: string[] = [];
+    for (const file of Array.from(files)) {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${uid}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error } = await supabase.storage.from("maintenance-photos").upload(path, file, { upsert: false });
+      if (error) { toast.error(error.message); continue; }
+      const { data } = supabase.storage.from("maintenance-photos").getPublicUrl(path);
+      urls.push(data.publicUrl);
+    }
+    setPhotos((p) => [...p, ...urls]);
+    setUploading(false);
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const removePhoto = (url: string) => setPhotos((p) => p.filter((x) => x !== url));
+
   const submit = async () => {
-    if (!buildingId || !title.trim()) return toast.error("…");
+    if (!buildingId || !title.trim()) return toast.error(isAr ? "أكمل البيانات المطلوبة" : "Complete required fields");
     setBusy(true);
     const u = units.find((x) => x.id === unitId);
     const { error } = await (supabase as any).from("maintenance_requests").insert({
@@ -56,11 +78,12 @@ export function AddMaintenanceDialog({ open, onOpenChange, onCreated }: { open: 
       priority,
       vendor: vendor.trim() || null,
       cost: cost ? Number(cost) : null,
+      photos,
     });
     setBusy(false);
     if (error) return toast.error(error.message);
-    toast.success("✓");
-    setTitle(""); setDescription(""); setVendor(""); setCost(""); setPriority("normal"); setUnitId("");
+    toast.success(isAr ? "تم حفظ الطلب" : "Request saved");
+    setTitle(""); setDescription(""); setVendor(""); setCost(""); setPriority("normal"); setUnitId(""); setPhotos([]);
     onCreated?.();
     onOpenChange(false);
   };
