@@ -37,7 +37,11 @@ type Key =
   | "maintenance_requests" | "new_request" | "request_title" | "request_description"
   | "priority" | "priority_low" | "priority_normal" | "priority_high" | "priority_urgent"
   | "status_open" | "status_in_progress" | "status_done" | "status_cancelled"
-  | "no_maintenance" | "no_maintenance_msg" | "cost" | "vendor";
+  | "no_maintenance" | "no_maintenance_msg" | "cost" | "vendor"
+  | "recent_activity" | "view_all" | "no_activity" | "no_activity_msg" | "activity_log"
+  | "act_created" | "act_updated" | "act_deleted" | "act_restored" | "act_paid" | "act_ended"
+  | "ent_building" | "ent_unit" | "ent_tenant" | "ent_payment" | "ent_expense" | "ent_maintenance" | "ent_settings"
+  | "filter_action" | "filter_entity";
 
 const dict: Record<Key, Partial<Record<Lang, string>>> = {
   all: { ar: "الكل", en: "All", ur: "تمام", zh: "全部", hi: "सभी", bn: "সব", fr: "Tous", es: "Todos", tr: "Tümü" },
