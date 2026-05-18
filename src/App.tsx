@@ -36,6 +36,7 @@ import Assistant from "./pages/Assistant";
 import Admin from "./pages/Admin";
 import MonthlyCollection from "./pages/MonthlyCollection";
 import Maintenance from "./pages/Maintenance";
+import Activity from "./pages/Activity";
 import Unsubscribe from "./pages/Unsubscribe";
 import NotFound from "./pages/NotFound.tsx";
 import { AppShell } from "./components/AppShell";
