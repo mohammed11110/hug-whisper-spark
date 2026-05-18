@@ -34,6 +34,7 @@ type Key =
   | "previous_tenant_arrears" | "tenancy_ended_ok" | "tenancy_started_ok"
   | "contract_start_date" | "vacancy" | "expected_month"
   | "landlord_name" | "landlord_name_hint" | "tenant_statement" | "download_receipt"
+  | "landlord_name_en" | "tenant_name_en"
   | "maintenance_requests" | "new_request" | "request_title" | "request_description"
   | "priority" | "priority_low" | "priority_normal" | "priority_high" | "priority_urgent"
   | "status_open" | "status_in_progress" | "status_done" | "status_cancelled"
