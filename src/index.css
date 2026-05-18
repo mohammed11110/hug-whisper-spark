@@ -204,6 +204,25 @@
   }
 }
 
+/* Outside @layer to maximize cascade priority — Arabic must always shape properly */
+html[dir="rtl"] *,
+html[lang="ar"] *,
+[dir="rtl"],
+[dir="rtl"] *,
+[lang="ar"],
+[lang="ar"] * {
+  letter-spacing: 0 !important;
+  word-spacing: normal !important;
+  font-feature-settings: normal !important;
+  font-variant-ligatures: normal !important;
+  text-rendering: optimizeLegibility !important;
+  -webkit-font-feature-settings: normal !important;
+}
+html[dir="rtl"] body,
+html[lang="ar"] body {
+  font-family: 'Noto Kufi Arabic', 'Tajawal', 'Cairo', system-ui, sans-serif !important;
+}
+
 @layer components {
   .glass {
     background: hsl(42 50% 97% / 0.75);
