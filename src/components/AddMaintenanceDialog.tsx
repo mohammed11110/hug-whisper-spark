@@ -15,6 +15,8 @@ const PRIORITIES = ["low", "normal", "high", "urgent"] as const;
 
 export function AddMaintenanceDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (o: boolean) => void; onCreated?: () => void }) {
   const t2 = useT2();
+  const { lang } = useI18n();
+  const isAr = lang === "ar";
   const [buildings, setBuildings] = useState<{ id: string; name: string }[]>([]);
   const [units, setUnits] = useState<{ id: string; unit_number: string; building_id: string; tenant_name: string | null }[]>([]);
   const [buildingId, setBuildingId] = useState("");
@@ -24,7 +26,10 @@ export function AddMaintenanceDialog({ open, onOpenChange, onCreated }: { open: 
   const [priority, setPriority] = useState<typeof PRIORITIES[number]>("normal");
   const [vendor, setVendor] = useState("");
   const [cost, setCost] = useState("");
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) return;
