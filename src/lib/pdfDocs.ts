@@ -175,7 +175,7 @@ const pageShell = (title: string, body: string, options?: { rtl?: boolean }) => 
       * { box-sizing: border-box; }
       html, body { margin: 0; padding: 0; background: #eef2eb; }
       body {
-        font-family: ${options?.rtl ? `"Tajawal", "Noto Naskh Arabic", "Cairo", "Amiri", "Segoe UI", Tahoma, Arial, sans-serif` : `"Inter", "Segoe UI", Tahoma, Arial, sans-serif`};
+        font-family: ${options?.rtl ? `"Noto Kufi Arabic", "Noto Naskh Arabic", "Segoe UI", Tahoma, Arial, sans-serif` : `"Outfit", "Inter", "Segoe UI", Tahoma, Arial, sans-serif`};
         color: var(--ink);
         padding: 24px;
         font-feature-settings: "kern", "liga", "calt", "init", "medi", "fina", "isol";
@@ -184,7 +184,7 @@ const pageShell = (title: string, body: string, options?: { rtl?: boolean }) => 
         unicode-bidi: ${options?.rtl ? "plaintext" : "normal"};
       }
       :lang(ar), [lang="ar"], [dir="rtl"], [dir="rtl"] * {
-        font-family: "Tajawal", "Noto Naskh Arabic", "Cairo", "Amiri", "Segoe UI", Tahoma, Arial, sans-serif;
+        font-family: "Noto Kufi Arabic", "Noto Naskh Arabic", "Segoe UI", Tahoma, Arial, sans-serif;
         font-feature-settings: "kern", "liga", "calt", "init", "medi", "fina", "isol";
       }
       [dir="rtl"] .value, [dir="rtl"] .label, [dir="rtl"] td, [dir="rtl"] th, [dir="rtl"] p, [dir="rtl"] div {
