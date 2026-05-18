@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/auth";
 import { useAppSettings } from "@/lib/appSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
+import { RecentActivityCard } from "@/components/dashboard/RecentActivityCard";
 
 interface Stats {
   buildings: number;
