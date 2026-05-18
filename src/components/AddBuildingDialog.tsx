@@ -58,6 +58,15 @@ export function AddBuildingDialog({ open, onOpenChange, onCreated }: { open: boo
       const { error: uErr } = await supabase.from("units").insert(rows);
       if (uErr) toast.error(uErr.message);
     }
+    await logActivity({
+      entityType: "building",
+      action: "created",
+      entityId: created.id,
+      entityLabel: name.trim(),
+      buildingId: created.id,
+      descriptionAr: `تمت إضافة مبنى جديد: ${name.trim()}${n > 0 ? ` (${n} وحدة)` : ""}`,
+      descriptionEn: `New building added: ${nameEn.trim() || name.trim()}${n > 0 ? ` (${n} units)` : ""}`,
+    });
     setBusy(false);
     toast.success("✓");
     setName(""); setNameEn(""); setLandlordName(""); setFloors("1"); setUnitsCount("0"); setCity(""); setAddress(""); setType("tower");
