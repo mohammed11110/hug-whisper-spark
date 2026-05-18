@@ -9,6 +9,7 @@ import { useT2 } from "@/lib/i18n2";
 import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { logActivity } from "@/lib/activityLogger";
 import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
 import { X, Image as ImageIcon, Sparkles, Loader2 } from "lucide-react";
 
@@ -147,6 +148,16 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
     const { error: uErr } = await supabase.from("units").update(updatePayload).eq("id", unit.id);
     setSaving(false);
     if (uErr) return toast.error(uErr.message);
+    logActivity({
+      entityType: "tenant",
+      action: "created",
+      entityId: unit.id,
+      entityLabel: name.trim(),
+      buildingId: unit.building_id,
+      descriptionAr: `تسجيل عقد إيجار جديد للمستأجر ${name.trim()} — وحدة ${unit.unit_number}`,
+      descriptionEn: `New lease registered for ${name.trim()} — unit ${unit.unit_number}`,
+      changes: { rent_amount: rentNum, contract_type: contractType, start: startDate, end: endDate || null },
+    });
     toast.success(t2("tenancy_started_ok"));
     guard.markSaved();
     onOpenChange(false);

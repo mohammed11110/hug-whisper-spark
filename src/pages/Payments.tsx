@@ -18,6 +18,7 @@ import { useAppSettings, readFilters, writeFilters } from "@/lib/appSettings";
 import { computeBalance } from "@/lib/balance";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { logActivity } from "@/lib/activityLogger";
 
 interface Row {
   id: string;
@@ -167,9 +168,23 @@ export default function Payments() {
 
   const handleDelete = async () => {
     if (!delId) return;
+    const target = rows.find((r) => r.id === delId);
     // soft delete → goes to recycle bin
     const { error } = await supabase.from("payments").update({ deleted_at: new Date().toISOString() }).eq("id", delId);
     if (error) return toast.error(error.message);
+    if (target) {
+      const { data: u } = await supabase.from("units").select("building_id").eq("id", target.unit_id).maybeSingle();
+      logActivity({
+        entityType: "payment",
+        action: "deleted",
+        entityId: delId,
+        entityLabel: target.receipt_number || target.tenant_name || target.unit_number,
+        buildingId: (u as any)?.building_id ?? null,
+        descriptionAr: `حذف إيصال استلام بقيمة ${target.amount} — ${target.tenant_name || target.unit_number}`,
+        descriptionEn: `Receipt deleted (amount ${target.amount}) — ${target.tenant_name || target.unit_number}`,
+        changes: { amount: target.amount, receipt_number: target.receipt_number },
+      });
+    }
     toast.success(lang === "ar" ? "نُقلت إلى السلة (30 يوم للاسترجاع)" : "Moved to bin (30-day restore)");
     setDelId(null);
     load();

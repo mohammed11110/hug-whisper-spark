@@ -11,6 +11,7 @@ import { useAppSettings } from "@/lib/appSettings";
 import { buildLeaseHTML, downloadHTMLAsPDF, printHTML, buildTenantStatementHTML, type StatementRow } from "@/lib/pdfDocs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { logActivity } from "@/lib/activityLogger";
 import { AddPaymentDialog } from "@/components/AddPaymentDialog";
 import { EndTenancyDialog } from "@/components/EndTenancyDialog";
 import { NewTenancyDialog } from "@/components/NewTenancyDialog";
@@ -79,6 +80,15 @@ export default function UnitDetail() {
     if (!unit) return;
     const { error } = await supabase.from("units").delete().eq("id", unit.id);
     if (error) return toast.error(error.message);
+    logActivity({
+      entityType: "unit",
+      action: "deleted",
+      entityId: unit.id,
+      entityLabel: unit.unit_number,
+      buildingId: unit.building_id,
+      descriptionAr: `حذف الوحدة ${unit.unit_number}${unit.tenant_name ? ` — كان مستأجرها ${unit.tenant_name}` : ""}`,
+      descriptionEn: `Unit ${unit.unit_number} deleted`,
+    });
     toast.success("✓");
     navigate(`/buildings/${unit.building_id}`);
   };
@@ -307,6 +317,16 @@ function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLea
     }).eq("id", unit.id);
     setSavingArrears(false);
     if (error) return toast.error(error.message);
+    logActivity({
+      entityType: "unit",
+      action: "updated",
+      entityId: unit.id,
+      entityLabel: unit.unit_number,
+      buildingId: unit.building_id,
+      descriptionAr: `تعديل المتأخرات الافتتاحية — وحدة ${unit.unit_number}`,
+      descriptionEn: `Opening arrears updated — unit ${unit.unit_number}`,
+      changes: { opening_balance: val },
+    });
     toast.success("✓");
     setEditingArrears(false);
     reload?.();
@@ -329,6 +349,15 @@ function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLea
             value={unit.contract_file_url}
             onChange={async (v) => {
               await supabase.from("units").update({ contract_file_url: v }).eq("id", unit.id);
+              logActivity({
+                entityType: "unit",
+                action: "updated",
+                entityId: unit.id,
+                entityLabel: unit.unit_number,
+                buildingId: unit.building_id,
+                descriptionAr: `تحديث ملف عقد الإيجار — وحدة ${unit.unit_number}`,
+                descriptionEn: `Lease contract file updated — unit ${unit.unit_number}`,
+              });
               reload?.();
             }}
             accept="application/pdf,image/*"
@@ -340,6 +369,15 @@ function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLea
             value={unit.tenant_id_image_url}
             onChange={async (v) => {
               await supabase.from("units").update({ tenant_id_image_url: v }).eq("id", unit.id);
+              logActivity({
+                entityType: "tenant",
+                action: "updated",
+                entityId: unit.id,
+                entityLabel: unit.tenant_name || unit.unit_number,
+                buildingId: unit.building_id,
+                descriptionAr: `تحديث صورة هوية المستأجر — وحدة ${unit.unit_number}`,
+                descriptionEn: `Tenant ID image updated — unit ${unit.unit_number}`,
+              });
               reload?.();
             }}
             accept="image/*,application/pdf"
