@@ -337,25 +337,40 @@ const brandBlock = (brand: BrandInfo, title: string, subtitle?: string | null, m
 `;
 
 export function buildReceiptHTML(data: ReceiptData): string {
+  const rtl = data.lang === "ar";
   const partial = data.expectedAmount && data.amount < data.expectedAmount;
+  const L = (ar: string, en: string) => (rtl ? ar : en);
+  const unpaidRows = (data.unpaidMonths || [])
+    .map(
+      (m) => `<tr><td>${escapeHtml(m.label)}</td><td>${escapeHtml(formatMoney(m.remaining, data.currency))}</td></tr>`
+    )
+    .join("");
   const body = `
     ${brandBlock(
       data.brand,
-      "Receipt / سند قبض",
+      rtl ? "سند قبض" : "Receipt",
       data.brand.name,
       `<div>${escapeHtml(data.receiptNumber)}</div><div>${formatDate(data.paymentDate)}</div>`
     )}
     <div class="content">
       <div class="grid">
-        <div class="card"><div class="label">Building / المبنى</div><div class="value">${escapeHtml(data.building || "—")}</div></div>
-        <div class="card"><div class="label">Unit / الوحدة</div><div class="value">${escapeHtml(data.unitNumber || "—")}</div></div>
-        <div class="card"><div class="label">Tenant / المستأجر</div><div class="value">${escapeHtml(data.tenantName || "—")}</div></div>
-        <div class="card"><div class="label">Method / طريقة الدفع</div><div class="value">${escapeHtml(data.method || "—")}</div></div>
-        <div class="card"><div class="label">Amount / المبلغ</div><div class="value amount-positive">${escapeHtml(formatMoney(data.amount, data.currency))}</div></div>
-        <div class="card"><div class="label">Rent period / فترة الإيجار</div><div class="value">${escapeHtml(data.periodLabel || "—")}</div></div>
+        <div class="card"><div class="label">${L("المبنى", "Building")}</div><div class="value">${escapeHtml(data.building || "—")}</div></div>
+        <div class="card"><div class="label">${L("الوحدة", "Unit")}</div><div class="value">${escapeHtml(data.unitNumber || "—")}</div></div>
+        <div class="card"><div class="label">${L("المستأجر", "Tenant")}</div><div class="value">${escapeHtml(data.tenantName || "—")}</div></div>
+        <div class="card"><div class="label">${L("طريقة الدفع", "Method")}</div><div class="value">${escapeHtml(data.method || "—")}</div></div>
+        <div class="card"><div class="label">${L("المبلغ المدفوع", "Amount paid")}</div><div class="value amount-positive">${escapeHtml(formatMoney(data.amount, data.currency))}</div></div>
+        <div class="card"><div class="label">${L("فترة الإيجار", "Rent period")}</div><div class="value">${escapeHtml(data.periodLabel || "—")}</div></div>
       </div>
-      ${data.expectedAmount ? `<div class="note">Expected / المتوقع: <strong>${escapeHtml(formatMoney(data.expectedAmount, data.currency))}</strong>${partial ? ` — <span class="pill">Partial payment / دفعة جزئية</span>` : ""}</div>` : ""}
-      ${data.notes ? `<div class="section-title">Notes / ملاحظات</div><div class="card"><div class="value">${escapeHtml(data.notes)}</div></div>` : ""}
+      ${data.expectedAmount ? `<div class="note">${L("المتوقع", "Expected")}: <strong>${escapeHtml(formatMoney(data.expectedAmount, data.currency))}</strong>${partial ? ` — <span class="pill">${L("دفعة جزئية", "Partial payment")}</span>` : ""}</div>` : ""}
+      ${unpaidRows ? `
+        <div class="section-title">${L("الأشهر المتبقية على المستأجر", "Remaining unpaid months")}</div>
+        <table>
+          <thead><tr><th>${L("الشهر", "Month")}</th><th>${L("المبلغ المتبقي", "Remaining amount")}</th></tr></thead>
+          <tbody>${unpaidRows}</tbody>
+        </table>
+        ${data.unpaidTotal != null ? `<div class="note"><strong>${L("إجمالي المتبقي", "Total outstanding")}${data.unpaidUpToLabel ? ` ${L("حتى", "through")} ${escapeHtml(data.unpaidUpToLabel)}` : ""}:</strong> <span class="amount-negative">${escapeHtml(formatMoney(data.unpaidTotal, data.currency))}</span></div>` : ""}
+      ` : (data.unpaidTotal != null ? `<div class="note"><strong>${L("إجمالي المتبقي", "Total outstanding")}${data.unpaidUpToLabel ? ` ${L("حتى", "through")} ${escapeHtml(data.unpaidUpToLabel)}` : ""}:</strong> <span class="amount-positive">${escapeHtml(formatMoney(data.unpaidTotal, data.currency))}</span></div>` : "")}
+      ${data.notes ? `<div class="section-title">${L("ملاحظات", "Notes")}</div><div class="card"><div class="value">${escapeHtml(data.notes)}</div></div>` : ""}
     </div>
     <div class="footer">
       <div>${escapeHtml(data.brand.phone || "")}</div>
@@ -363,7 +378,7 @@ export function buildReceiptHTML(data: ReceiptData): string {
     </div>
   `;
 
-  return pageShell("Receipt", body);
+  return pageShell(rtl ? "سند قبض" : "Receipt", body, { rtl });
 }
 
 export function buildLeaseHTML(data: Lease): string {
