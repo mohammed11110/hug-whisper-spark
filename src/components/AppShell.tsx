@@ -1,6 +1,7 @@
 import { Outlet } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { ActivityNotifier } from "@/components/ActivityNotifier";
 
 /**
  * Layout shell: on iPad/desktop (md+) shows a collapsible sidebar next to the
