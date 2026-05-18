@@ -46,6 +46,7 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
   const [type, setType] = useState<typeof UNIT_TYPES[number]>("apartment");
   const [occupied, setOccupied] = useState(false);
   const [tenantName, setTenantName] = useState("");
+  const [tenantNameEn, setTenantNameEn] = useState("");
   const [tenantPhone, setTenantPhone] = useState("");
   const [tenantEmail, setTenantEmail] = useState("");
   const [rentAmount, setRentAmount] = useState<string>("0");
@@ -67,7 +68,7 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
 
   const reset = () => {
     setUnitNumber(""); setFloor("1"); setType("apartment"); setOccupied(false);
-    setTenantName(""); setTenantPhone(""); setTenantEmail(""); setRentAmount("0"); setRentType("monthly");
+    setTenantName(""); setTenantNameEn(""); setTenantPhone(""); setTenantEmail(""); setRentAmount("0"); setRentType("monthly");
     setContractType("yearly"); setContractStart(""); setDueDay("1");
     setArrears("0"); setRecordPay(false); setPayAmount("0"); setPayMethod("cash");
   };
@@ -89,6 +90,7 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
       floor: Math.max(1, parseInt(floor) || 1),
       type,
       tenant_name: occupied ? tenantName.trim() : null,
+      tenant_name_en: occupied ? (tenantNameEn.trim() || null) : null,
       tenant_phone: occupied ? tenantPhone.trim() : null,
       tenant_email: occupied ? tenantEmail.trim() || null : null,
       rent_amount: occupied ? rentN : 0,
@@ -193,7 +195,10 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
           {occupied && (
             <>
               <Field label={`${t2("tenant_name")} *`}>
-                <Input value={tenantName} onChange={(e) => setTenantName(e.target.value)} className="rounded-xl border-sage-200 bg-card" />
+                <Input value={tenantName} onChange={(e) => setTenantName(e.target.value)} dir="rtl" className="rounded-xl border-sage-200 bg-card" />
+              </Field>
+              <Field label={t2("tenant_name_en")}>
+                <Input value={tenantNameEn} onChange={(e) => setTenantNameEn(e.target.value)} dir="ltr" placeholder="Optional" className="rounded-xl border-sage-200 bg-card" />
               </Field>
               <Field label={`${t2("tenant_phone")} *`}>
                 <Input value={tenantPhone} onChange={(e) => setTenantPhone(e.target.value)} className="rounded-xl border-sage-200 bg-card" />

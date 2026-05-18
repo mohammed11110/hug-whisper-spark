@@ -19,6 +19,7 @@ export function AddBuildingDialog({ open, onOpenChange, onCreated }: { open: boo
   const [name, setName] = useState("");
   const [nameEn, setNameEn] = useState("");
   const [landlordName, setLandlordName] = useState("");
+  const [landlordNameEn, setLandlordNameEn] = useState("");
   const [type, setType] = useState<typeof TYPES[number]>("tower");
   const [floors, setFloors] = useState<string>("1");
   const [unitsCount, setUnitsCount] = useState<string>("0");
@@ -34,6 +35,7 @@ export function AddBuildingDialog({ open, onOpenChange, onCreated }: { open: boo
       name: name.trim(),
       name_en: nameEn.trim() || null,
       landlord_name: landlordName.trim() || null,
+      landlord_name_en: landlordNameEn.trim() || null,
       type,
       floors: Math.max(1, parseInt(floors) || 1),
       city: city.trim() || null,
@@ -69,7 +71,7 @@ export function AddBuildingDialog({ open, onOpenChange, onCreated }: { open: boo
     });
     setBusy(false);
     toast.success("✓");
-    setName(""); setNameEn(""); setLandlordName(""); setFloors("1"); setUnitsCount("0"); setCity(""); setAddress(""); setType("tower");
+    setName(""); setNameEn(""); setLandlordName(""); setLandlordNameEn(""); setFloors("1"); setUnitsCount("0"); setCity(""); setAddress(""); setType("tower");
     onCreated?.();
     onOpenChange(false);
   };
@@ -87,9 +89,14 @@ export function AddBuildingDialog({ open, onOpenChange, onCreated }: { open: boo
           <Field label={t2("building_name_en")}>
             <Input value={nameEn} onChange={(e) => setNameEn(e.target.value)} className="rounded-xl border-sage-200 bg-card" />
           </Field>
-          <Field label={t2("landlord_name")}>
-            <Input value={landlordName} onChange={(e) => setLandlordName(e.target.value)} placeholder={t2("landlord_name_hint")} className="rounded-xl border-sage-200 bg-card" />
-          </Field>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label={t2("landlord_name")}>
+              <Input value={landlordName} onChange={(e) => setLandlordName(e.target.value)} dir="rtl" placeholder={t2("landlord_name_hint")} className="rounded-xl border-sage-200 bg-card" />
+            </Field>
+            <Field label={t2("landlord_name_en")}>
+              <Input value={landlordNameEn} onChange={(e) => setLandlordNameEn(e.target.value)} dir="ltr" placeholder="Optional" className="rounded-xl border-sage-200 bg-card" />
+            </Field>
+          </div>
           <Field label={t2("building_type")}>
             <div className="flex flex-wrap gap-1.5">
               {TYPES.map((tp) => (
