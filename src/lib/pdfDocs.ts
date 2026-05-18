@@ -783,16 +783,33 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
   container.style.width = "794px";
   container.style.background = "#ffffff";
   container.style.zIndex = "-1";
-  container.innerHTML = html;
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  const headNodes = Array.from(doc.head.childNodes);
+  const bodyNodes = Array.from(doc.body.childNodes);
+
+  headNodes.forEach((node) => {
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+    const el = node as HTMLElement;
+    if (el.tagName === "TITLE") return;
+    container.appendChild(el.cloneNode(true));
+  });
+
+  const mount = document.createElement("div");
+  mount.setAttribute("dir", doc.documentElement.getAttribute("dir") || "ltr");
+  mount.setAttribute("lang", doc.documentElement.getAttribute("lang") || "en");
+  mount.style.width = "794px";
+  mount.style.background = "#ffffff";
+  bodyNodes.forEach((node) => mount.appendChild(node.cloneNode(true)));
+  container.appendChild(mount);
   document.body.appendChild(container);
 
   try {
-    const target = (container.querySelector(".page") as HTMLElement) || container;
+    const target = (mount.querySelector(".page") as HTMLElement) || mount;
     // Inline images as data URLs so foreignObjectRendering / CORS never produce a blank canvas
     await inlineImages(target);
     await waitForWebFonts(target);
 
-    const hasArabic = /[\u0600-\u06FF]/.test(target.innerText || "");
+    const hasArabic = /[\u0600-\u06FF]/.test(target.innerText || target.textContent || "");
 
     const renderOnce = (useForeignObject: boolean, allowTaint: boolean) =>
       html2canvas(target, {
@@ -811,14 +828,14 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
       // For Arabic we MUST use foreignObjectRendering — html2canvas's
       // fallback renderer cannot shape/join Arabic letters and produces
       // disconnected glyphs. Do not fall back for Arabic.
-      canvas = await renderOnce(hasArabic, hasArabic ? true : false);
+      canvas = await renderOnce(true, true);
       if (!hasArabic && isCanvasBlank(canvas)) {
         console.warn("[pdf] first render blank — retrying without foreignObjectRendering");
         canvas = await renderOnce(false, true);
       }
     } catch (e) {
       console.warn("[pdf] primary render failed, falling back", e);
-      canvas = await renderOnce(hasArabic, true);
+      canvas = await renderOnce(hasArabic ? true : false, true);
     }
 
     if (isCanvasBlank(canvas)) {
