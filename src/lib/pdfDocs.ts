@@ -2,6 +2,85 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import type { AppSettings, BusinessBrand, Margins, PageSize } from "@/lib/appSettings";
 
+// ---- Embedded fonts (loaded once, cached as data URLs) ----
+// Loading fonts as data URLs guarantees they are available the instant
+// html2canvas snapshots the iframe via foreignObjectRendering — which is
+// required for correct Arabic letter shaping (joining).
+const FONT_FILES = {
+  notoKufiRegular: "/fonts/NotoKufiArabic-Regular.ttf",
+  notoKufiMedium:  "/fonts/NotoKufiArabic-Medium.ttf",
+  notoKufiBold:    "/fonts/NotoKufiArabic-Bold.ttf",
+  outfitRegular:   "/fonts/Outfit-Regular.ttf",
+  outfitMedium:    "/fonts/Outfit-Medium.ttf",
+  outfitBold:      "/fonts/Outfit-Bold.ttf",
+} as const;
+
+type FontKey = keyof typeof FONT_FILES;
+let fontDataUrlCache: Partial<Record<FontKey, string>> | null = null;
+
+async function fetchFontAsDataUrl(path: string): Promise<string> {
+  const res = await fetch(path, { cache: "force-cache" });
+  if (!res.ok) throw new Error(`Failed to fetch font ${path}`);
+  const buf = await res.arrayBuffer();
+  // base64 encode
+  let binary = "";
+  const bytes = new Uint8Array(buf);
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunk)) as any);
+  }
+  return `data:font/ttf;base64,${btoa(binary)}`;
+}
+
+async function getFontDataUrls(): Promise<Record<FontKey, string>> {
+  if (fontDataUrlCache && Object.keys(fontDataUrlCache).length === Object.keys(FONT_FILES).length) {
+    return fontDataUrlCache as Record<FontKey, string>;
+  }
+  const entries = await Promise.all(
+    (Object.entries(FONT_FILES) as [FontKey, string][]).map(async ([k, p]) => {
+      try { return [k, await fetchFontAsDataUrl(p)] as const; }
+      catch { return [k, ""] as const; }
+    })
+  );
+  fontDataUrlCache = Object.fromEntries(entries) as Record<FontKey, string>;
+  return fontDataUrlCache as Record<FontKey, string>;
+}
+
+function buildFontFaceCss(urls: Record<FontKey, string>): string {
+  const face = (family: string, weight: string, url: string) =>
+    url ? `@font-face{font-family:'${family}';src:url('${url}') format('truetype');font-weight:${weight};font-style:normal;font-display:block;}` : "";
+  return [
+    face("Outfit", "400", urls.outfitRegular),
+    face("Outfit", "500", urls.outfitMedium),
+    face("Outfit", "700 900", urls.outfitBold),
+    face("Noto Kufi Arabic", "400", urls.notoKufiRegular),
+    face("Noto Kufi Arabic", "500", urls.notoKufiMedium),
+    face("Noto Kufi Arabic", "700 900", urls.notoKufiBold),
+  ].join("\n");
+}
+
+async function registerFontsInDocument(doc: Document, urls: Record<FontKey, string>) {
+  const anyDoc = doc as any;
+  if (!anyDoc.fonts || typeof FontFace === "undefined") return;
+  const defs: Array<[string, string, string]> = [
+    ["Noto Kufi Arabic", "400", urls.notoKufiRegular],
+    ["Noto Kufi Arabic", "500", urls.notoKufiMedium],
+    ["Noto Kufi Arabic", "700", urls.notoKufiBold],
+    ["Outfit", "400", urls.outfitRegular],
+    ["Outfit", "500", urls.outfitMedium],
+    ["Outfit", "700", urls.outfitBold],
+  ];
+  await Promise.all(defs.map(async ([family, weight, url]) => {
+    if (!url) return;
+    try {
+      const ff = new (doc.defaultView as any).FontFace(family, `url(${url}) format('truetype')`, { weight, style: "normal", display: "block" });
+      const loaded = await ff.load();
+      anyDoc.fonts.add(loaded);
+    } catch { /* noop */ }
+  }));
+  try { await anyDoc.fonts.ready; } catch { /* noop */ }
+}
+
 export interface BrandInfo {
   name: string;
   logo: string | null;
