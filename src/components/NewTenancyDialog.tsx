@@ -148,6 +148,7 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
     setSaving(false);
     if (uErr) return toast.error(uErr.message);
     toast.success(t2("tenancy_started_ok"));
+    guard.markSaved();
     onOpenChange(false);
     onDone();
   };
@@ -157,12 +158,12 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
   const pathPrefix = `${unit.building_id}/${unit.id}`;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={guard.handleOpenChange}>
       <DialogContent className="rounded-2xl max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-sage-600">{t2("new_tenant")} — {unit.unit_number}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3">
+        <div className="space-y-3" {...guard.formProps}>
           <div className="space-y-1.5">
             <Label className="text-xs text-sage-500">{t2("tenant_name")} *</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} className="rounded-xl border-sage-200 h-11" />
