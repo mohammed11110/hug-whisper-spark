@@ -362,41 +362,58 @@ export function buildReceiptHTML(data: ReceiptData): string {
       (m) => `<tr><td>${escapeHtml(m.label)}</td><td>${escapeHtml(formatMoney(m.remaining, data.currency))}</td></tr>`
     )
     .join("");
+  const amountStr = formatMoney(data.amount, data.currency);
+  const dateStr = formatDate(data.paymentDate, rtl);
+  const intro = L(
+    `استلمنا من السيد/ة <strong>${escapeHtml(data.tenantName || "—")}</strong> مبلغاً وقدره <strong>${escapeHtml(amountStr)}</strong> وذلك بدل إيجار الوحدة رقم <strong>${escapeHtml(data.unitNumber || "—")}</strong> بمبنى <strong>${escapeHtml(data.building || "—")}</strong> عن فترة <strong>${escapeHtml(data.periodLabel || "—")}</strong> بتاريخ <strong>${escapeHtml(dateStr)}</strong>.`,
+    `Received from <strong>${escapeHtml(data.tenantName || "—")}</strong> the sum of <strong>${escapeHtml(amountStr)}</strong> as rent for unit <strong>${escapeHtml(data.unitNumber || "—")}</strong> at <strong>${escapeHtml(data.building || "—")}</strong>, for the period <strong>${escapeHtml(data.periodLabel || "—")}</strong>, on <strong>${escapeHtml(dateStr)}</strong>.`
+  );
   const body = `
     ${brandBlock(
       data.brand,
-      rtl ? "سند قبض" : "Receipt",
+      L("سند استلام إيجار", "Rent Receipt"),
       data.brand.name,
-      `<div>${escapeHtml(data.receiptNumber)}</div><div>${formatDate(data.paymentDate)}</div>`
+      `<div>${L("رقم السند", "Receipt no.")}: ${escapeHtml(data.receiptNumber)}</div><div>${L("التاريخ", "Date")}: ${escapeHtml(dateStr)}</div>`
     )}
     <div class="content">
+      <p style="font-size:13px; line-height:2; margin-bottom:18px; color:var(--ink);">${intro}</p>
       <div class="grid">
         <div class="card"><div class="label">${L("المبنى", "Building")}</div><div class="value">${escapeHtml(data.building || "—")}</div></div>
-        <div class="card"><div class="label">${L("الوحدة", "Unit")}</div><div class="value">${escapeHtml(data.unitNumber || "—")}</div></div>
-        <div class="card"><div class="label">${L("المستأجر", "Tenant")}</div><div class="value">${escapeHtml(data.tenantName || "—")}</div></div>
-        <div class="card"><div class="label">${L("طريقة الدفع", "Method")}</div><div class="value">${escapeHtml(data.method || "—")}</div></div>
-        <div class="card"><div class="label">${L("المبلغ المدفوع", "Amount paid")}</div><div class="value amount-positive">${escapeHtml(formatMoney(data.amount, data.currency))}</div></div>
-        <div class="card"><div class="label">${L("فترة الإيجار", "Rent period")}</div><div class="value">${escapeHtml(data.periodLabel || "—")}</div></div>
+        <div class="card"><div class="label">${L("رقم الوحدة", "Unit")}</div><div class="value">${escapeHtml(data.unitNumber || "—")}</div></div>
+        <div class="card"><div class="label">${L("اسم المستأجر", "Tenant")}</div><div class="value">${escapeHtml(data.tenantName || "—")}</div></div>
+        <div class="card"><div class="label">${L("طريقة السداد", "Method")}</div><div class="value">${escapeHtml(data.method || "—")}</div></div>
+        <div class="card"><div class="label">${L("المبلغ المستلم", "Amount paid")}</div><div class="value amount-positive">${escapeHtml(amountStr)}</div></div>
+        <div class="card"><div class="label">${L("عن فترة الإيجار", "Rent period")}</div><div class="value">${escapeHtml(data.periodLabel || "—")}</div></div>
       </div>
-      ${data.settlementNote ? `<div class="note" style="background:#eef5ec;border-color:#cfe0ce;color:#2c5a36;"><strong>${L("ملاحظة", "Note")}:</strong> ${escapeHtml(data.settlementNote)}</div>` : ""}
-      ${!data.settlementNote && data.expectedAmount ? `<div class="note">${L("المتوقع", "Expected")}: <strong>${escapeHtml(formatMoney(data.expectedAmount, data.currency))}</strong>${partial ? ` — <span class="pill">${L("دفعة جزئية", "Partial payment")}</span>` : ""}</div>` : ""}
+      ${data.settlementNote ? `<div class="note" style="background:#eef5ec;border-color:#cfe0ce;color:#2c5a36;"><strong>${L("إشعار سداد", "Settlement notice")}:</strong> ${escapeHtml(data.settlementNote)}</div>` : ""}
+      ${!data.settlementNote && data.expectedAmount ? `<div class="note">${L("الإيجار المتوقع للفترة", "Expected rent")}: <strong>${escapeHtml(formatMoney(data.expectedAmount, data.currency))}</strong>${partial ? ` — <span class="pill">${L("دفعة جزئية", "Partial payment")}</span>` : ""}</div>` : ""}
       ${unpaidRows ? `
-        <div class="section-title">${L("الأشهر المتبقية على المستأجر", "Remaining unpaid months")}</div>
+        <div class="section-title">${L("الأشهر غير المسدّدة على المستأجر", "Remaining unpaid months")}</div>
         <table>
           <thead><tr><th>${L("الشهر", "Month")}</th><th>${L("المبلغ المتبقي", "Remaining amount")}</th></tr></thead>
           <tbody>${unpaidRows}</tbody>
         </table>
-        ${data.unpaidTotal != null ? `<div class="note"><strong>${L("إجمالي المتبقي", "Total outstanding")}${data.unpaidUpToLabel ? ` ${L("حتى", "through")} ${escapeHtml(data.unpaidUpToLabel)}` : ""}:</strong> <span class="amount-negative">${escapeHtml(formatMoney(data.unpaidTotal, data.currency))}</span></div>` : ""}
-      ` : (data.unpaidTotal != null && !data.settlementNote ? `<div class="note"><strong>${L("إجمالي المتبقي", "Total outstanding")}${data.unpaidUpToLabel ? ` ${L("حتى", "through")} ${escapeHtml(data.unpaidUpToLabel)}` : ""}:</strong> <span class="amount-positive">${escapeHtml(formatMoney(data.unpaidTotal, data.currency))}</span></div>` : "")}
+        ${data.unpaidTotal != null ? `<div class="note"><strong>${L("إجمالي المتأخرات", "Total outstanding")}${data.unpaidUpToLabel ? ` ${L("حتى نهاية", "through")} ${escapeHtml(data.unpaidUpToLabel)}` : ""}:</strong> <span class="amount-negative">${escapeHtml(formatMoney(data.unpaidTotal, data.currency))}</span></div>` : ""}
+      ` : (data.unpaidTotal != null && !data.settlementNote ? `<div class="note"><strong>${L("إجمالي المتأخرات", "Total outstanding")}${data.unpaidUpToLabel ? ` ${L("حتى نهاية", "through")} ${escapeHtml(data.unpaidUpToLabel)}` : ""}:</strong> <span class="amount-positive">${escapeHtml(formatMoney(data.unpaidTotal, data.currency))}</span></div>` : "")}
       ${data.notes ? `<div class="section-title">${L("ملاحظات", "Notes")}</div><div class="card"><div class="value">${escapeHtml(data.notes)}</div></div>` : ""}
+
+      <div style="margin-top:32px; display:flex; justify-content:space-between; gap:24px;">
+        <div style="flex:1;">
+          <div style="border-top:1px dashed var(--line); padding-top:8px; text-align:center; color:var(--muted); font-size:12px;">${L("توقيع المستلم", "Recipient signature")}</div>
+        </div>
+        <div style="flex:1;">
+          <div style="border-top:1px dashed var(--line); padding-top:8px; text-align:center; color:var(--muted); font-size:12px;">${L("ختم المؤسسة", "Company stamp")}</div>
+        </div>
+      </div>
     </div>
     <div class="footer">
       <div>${escapeHtml(data.brand.phone || "")}</div>
       <div>${escapeHtml(data.brand.address || "")}</div>
+      <div style="margin-top:6px; font-style:italic;">${L("يُعدّ هذا السند إثباتاً لاستلام المبلغ المذكور أعلاه.", "This receipt confirms the amount received above.")}</div>
     </div>
   `;
 
-  return pageShell(rtl ? "سند قبض" : "Receipt", body, { rtl });
+  return pageShell(L("سند استلام إيجار", "Rent Receipt"), body, { rtl });
 }
 
 export function buildLeaseHTML(data: Lease): string {
