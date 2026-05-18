@@ -102,12 +102,12 @@ export function AddMaintenanceDialog({ open, onOpenChange, onCreated }: { open: 
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={guard.handleOpenChange}>
       <DialogContent className="rounded-2xl max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-sage-600">{t2("new_request")}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3 mt-2">
+        <div className="space-y-3 mt-2" {...guard.formProps}>
           <div className="space-y-1.5">
             <Label className="text-xs text-sage-500">{t2("building_name")}</Label>
             <Select value={buildingId} onValueChange={(v) => { setBuildingId(v); setUnitId(""); }}>
