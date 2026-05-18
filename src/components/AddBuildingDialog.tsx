@@ -17,6 +17,7 @@ export function AddBuildingDialog({ open, onOpenChange, onCreated }: { open: boo
   const { user } = useAuth();
   const [name, setName] = useState("");
   const [nameEn, setNameEn] = useState("");
+  const [landlordName, setLandlordName] = useState("");
   const [type, setType] = useState<typeof TYPES[number]>("tower");
   const [floors, setFloors] = useState<string>("1");
   const [unitsCount, setUnitsCount] = useState<string>("0");
@@ -31,11 +32,12 @@ export function AddBuildingDialog({ open, onOpenChange, onCreated }: { open: boo
       user_id: user.id,
       name: name.trim(),
       name_en: nameEn.trim() || null,
+      landlord_name: landlordName.trim() || null,
       type,
       floors: Math.max(1, parseInt(floors) || 1),
       city: city.trim() || null,
       address: address.trim() || null,
-    }).select("id").single();
+    } as any).select("id").single();
     if (error || !created) {
       setBusy(false);
       return toast.error(error?.message || "");
@@ -57,7 +59,7 @@ export function AddBuildingDialog({ open, onOpenChange, onCreated }: { open: boo
     }
     setBusy(false);
     toast.success("✓");
-    setName(""); setNameEn(""); setFloors("1"); setUnitsCount("0"); setCity(""); setAddress(""); setType("tower");
+    setName(""); setNameEn(""); setLandlordName(""); setFloors("1"); setUnitsCount("0"); setCity(""); setAddress(""); setType("tower");
     onCreated?.();
     onOpenChange(false);
   };
@@ -74,6 +76,9 @@ export function AddBuildingDialog({ open, onOpenChange, onCreated }: { open: boo
           </Field>
           <Field label={t2("building_name_en")}>
             <Input value={nameEn} onChange={(e) => setNameEn(e.target.value)} className="rounded-xl border-sage-200 bg-card" />
+          </Field>
+          <Field label={t2("landlord_name")}>
+            <Input value={landlordName} onChange={(e) => setLandlordName(e.target.value)} placeholder={t2("landlord_name_hint")} className="rounded-xl border-sage-200 bg-card" />
           </Field>
           <Field label={t2("building_type")}>
             <div className="flex flex-wrap gap-1.5">

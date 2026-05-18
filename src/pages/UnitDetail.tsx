@@ -8,7 +8,7 @@ import { useI18n } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
 import { useAppSettings } from "@/lib/appSettings";
-import { buildLeaseHTML, downloadHTMLAsPDF, printHTML } from "@/lib/pdfDocs";
+import { buildLeaseHTML, downloadHTMLAsPDF, printHTML, buildTenantStatementHTML, type StatementRow } from "@/lib/pdfDocs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { AddPaymentDialog } from "@/components/AddPaymentDialog";
@@ -114,6 +114,94 @@ export default function UnitDetail() {
     }
   };
 
+  const exportStatement = async () => {
+    if (!unit) return;
+    // Build statement timeline: opening balance + monthly charges from contract start + actual payments
+    const { data: ps } = await supabase
+      .from("payments")
+      .select("amount, payment_date, period_start, receipt_number, notes")
+      .eq("unit_id", unit.id)
+      .is("deleted_at", null)
+      .order("payment_date", { ascending: true });
+
+    type Entry = { date: string; description: string; charge: number; payment: number; sortKey: string };
+    const entries: Entry[] = [];
+    const opening = Number((unit as any).opening_balance || 0);
+    const openingDate = (unit as any).opening_balance_date || (unit as any).contract_start_date || new Date().toISOString().slice(0, 10);
+    if (opening > 0) {
+      entries.push({
+        date: openingDate,
+        description: lang === "ar" ? "رصيد افتتاحي (متأخرات سابقة)" : "Opening balance (prior arrears)",
+        charge: opening,
+        payment: 0,
+        sortKey: openingDate + "0",
+      });
+    }
+    // Monthly rent charges
+    const rent = Number(unit.rent_amount) || 0;
+    const startStr = (unit as any).contract_start_date;
+    if (rent > 0 && startStr && unit.rent_type === "monthly") {
+      const start = new Date(startStr);
+      const now = new Date();
+      const cursor = new Date(start.getFullYear(), start.getMonth(), Math.min(start.getDate(), 28));
+      while (cursor <= now) {
+        const d = cursor.toISOString().slice(0, 10);
+        const monthLbl = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`;
+        entries.push({
+          date: d,
+          description: (lang === "ar" ? "إيجار شهر " : "Rent ") + monthLbl,
+          charge: rent,
+          payment: 0,
+          sortKey: d + "1",
+        });
+        cursor.setMonth(cursor.getMonth() + 1);
+      }
+    }
+    (ps || []).forEach((p: any) => {
+      entries.push({
+        date: p.payment_date,
+        description: (lang === "ar" ? "دفعة" : "Payment") + (p.receipt_number ? ` #${p.receipt_number}` : "") + (p.notes ? ` — ${p.notes}` : ""),
+        charge: 0,
+        payment: Number(p.amount),
+        sortKey: p.payment_date + "2",
+      });
+    });
+    entries.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+    let bal = 0;
+    const rows: StatementRow[] = entries.map((e) => {
+      bal += e.charge - e.payment;
+      return { date: e.date, description: e.description, charge: e.charge, payment: e.payment, balance: bal };
+    });
+    const totalCharges = entries.reduce((s, e) => s + e.charge, 0);
+    const totalPaid = entries.reduce((s, e) => s + e.payment, 0);
+
+    const html = buildTenantStatementHTML({
+      brand: settings.brand,
+      currency: currency.symbol,
+      generatedAt: new Date().toISOString().slice(0, 10),
+      tenantName: unit.tenant_name || "—",
+      tenantPhone: unit.tenant_phone,
+      building: buildingName || "—",
+      unitNumber: unit.unit_number,
+      contractStart: (unit as any).contract_start_date,
+      contractEnd: unit.contract_end_date,
+      rentAmount: rent,
+      rentType: t2(unit.rent_type as any),
+      rows,
+      totals: {
+        totalCharges,
+        totalPaid,
+        outstanding: Math.max(0, totalCharges - totalPaid),
+        openingBalance: opening,
+        securityDeposit: Number((unit as any).security_deposit || 0),
+      },
+    });
+    try {
+      await downloadHTMLAsPDF(html, `statement-${unit.unit_number}-${(unit.tenant_name || "tenant").replace(/\s+/g, "_")}.pdf`, settings);
+      toast.success("PDF ✓");
+    } catch (e: any) { toast.error(e.message || "PDF error"); }
+  };
+
   if (!unit) return <div className="mobile-shell flex items-center justify-center min-h-screen"><p className="text-sage-500">{t("loading")}</p></div>;
 
   return (
@@ -170,6 +258,7 @@ export default function UnitDetail() {
           unit.tenant_name ? (
             <DetailsTab unit={unit} payments={payments} format={format} t2={t2} lang={lang}
               onPay={() => setPayOpen(true)} onLeasePDF={() => exportLease("download")} onLeasePrint={() => exportLease("print")}
+              onStatement={exportStatement}
               onEnd={() => setEndOpen(true)} reload={load} />
           ) : (
             <VacantState t2={t2} onAdd={() => setNewTenantOpen(true)} />
@@ -202,7 +291,7 @@ function VacantState({ t2, onAdd }: any) {
   );
 }
 
-function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLeasePrint, onEnd, reload }: any) {
+function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLeasePrint, onStatement, onEnd, reload }: any) {
   const bal = computeBalance(unit, payments);
   const [editingArrears, setEditingArrears] = useState(false);
   const [arrearsVal, setArrearsVal] = useState<string>(String(unit.opening_balance ?? 0));
@@ -326,6 +415,9 @@ function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLea
           <Plus className="h-4 w-4 me-1.5" />{t2("register_payment")}
         </Button>
       </div>
+      <Button variant="outline" onClick={onStatement} className="w-full rounded-xl border-sage-300 text-sage-600 h-11 font-semibold">
+        <Receipt className="h-4 w-4 me-1.5" />{t2("tenant_statement")} PDF
+      </Button>
       <Button variant="ghost" onClick={onLeasePrint} className="w-full rounded-xl text-sage-500 h-10 text-xs">
         {lang === "ar" ? "🖨️ طباعة العقد" : "🖨️ Print contract"}
       </Button>

@@ -32,7 +32,12 @@ type Key =
   | "end_date" | "end_reason" | "deposit_outcome" | "deposit_full_refund" | "deposit_partial" | "deposit_kept"
   | "refund_amount" | "outstanding_at_end" | "settle_debt" | "carry_debt"
   | "previous_tenant_arrears" | "tenancy_ended_ok" | "tenancy_started_ok"
-  | "contract_start_date" | "vacancy" | "expected_month";
+  | "contract_start_date" | "vacancy" | "expected_month"
+  | "landlord_name" | "landlord_name_hint" | "tenant_statement" | "download_receipt"
+  | "maintenance_requests" | "new_request" | "request_title" | "request_description"
+  | "priority" | "priority_low" | "priority_normal" | "priority_high" | "priority_urgent"
+  | "status_open" | "status_in_progress" | "status_done" | "status_cancelled"
+  | "no_maintenance" | "no_maintenance_msg" | "cost" | "vendor";
 
 const dict: Record<Key, Partial<Record<Lang, string>>> = {
   all: { ar: "الكل", en: "All", ur: "تمام", zh: "全部", hi: "सभी", bn: "সব", fr: "Tous", es: "Todos", tr: "Tümü" },
@@ -187,6 +192,27 @@ const dict: Record<Key, Partial<Record<Lang, string>>> = {
   contract_start_date: { ar: "بداية العقد", en: "Contract start", ur: "معاہدہ آغاز", zh: "合同开始", hi: "अनुबंध शुरू", bn: "চুক্তি শুরু", fr: "Début du bail", es: "Inicio de contrato", tr: "Sözleşme başlangıcı" },
   vacancy: { ar: "الشواغر", en: "Vacancy", ur: "خالی", zh: "空置率", hi: "रिक्ति", bn: "শূন্যতা", fr: "Vacance", es: "Vacancia", tr: "Boşluk" },
   expected_month: { ar: "إيجارات الشهر", en: "Month rents", ur: "ماہ کا کرایہ", zh: "本月租金", hi: "माह का किराया", bn: "মাসের ভাড়া", fr: "Loyers du mois", es: "Rentas del mes", tr: "Ay kirası" },
+  landlord_name: { ar: "اسم المؤجِّر", en: "Landlord name", ur: "مالک کا نام", zh: "房东姓名", hi: "मकान मालिक का नाम", bn: "মালিকের নাম", fr: "Nom du bailleur", es: "Nombre del arrendador", tr: "Mal sahibi adı" },
+  landlord_name_hint: { ar: "اختياري — يظهر على الإيصالات والعقود", en: "Optional — appears on receipts and contracts", ur: "اختیاری", zh: "可选 — 显示在收据和合同上", hi: "वैकल्पिक", bn: "ঐচ্ছিক", fr: "Facultatif", es: "Opcional", tr: "İsteğe bağlı" },
+  tenant_statement: { ar: "كشف حساب المستأجر", en: "Tenant statement", ur: "کرایہ دار کا حساب", zh: "租户对账单", hi: "किरायेदार विवरण", bn: "ভাড়াটিয়ার হিসাব", fr: "Relevé du locataire", es: "Estado del inquilino", tr: "Kiracı ekstresi" },
+  download_receipt: { ar: "تنزيل الإيصال", en: "Download receipt", ur: "رسید ڈاؤن لوڈ", zh: "下载收据", hi: "रसीद डाउनलोड", bn: "রসিদ ডাউনলোড", fr: "Télécharger le reçu", es: "Descargar recibo", tr: "Makbuzu indir" },
+  maintenance_requests: { ar: "طلبات الصيانة", en: "Maintenance requests", ur: "دیکھ بھال کی درخواستیں", zh: "维护请求", hi: "रखरखाव अनुरोध", bn: "রক্ষণাবেক্ষণ অনুরোধ", fr: "Demandes de maintenance", es: "Solicitudes de mantenimiento", tr: "Bakım talepleri" },
+  new_request: { ar: "طلب جديد", en: "New request", ur: "نئی درخواست", zh: "新请求", hi: "नया अनुरोध", bn: "নতুন অনুরোধ", fr: "Nouvelle demande", es: "Nueva solicitud", tr: "Yeni talep" },
+  request_title: { ar: "عنوان الطلب", en: "Request title", ur: "عنوان", zh: "标题", hi: "शीर्षक", bn: "শিরোনাম", fr: "Titre", es: "Título", tr: "Başlık" },
+  request_description: { ar: "تفاصيل الطلب", en: "Description", ur: "تفصیل", zh: "描述", hi: "विवरण", bn: "বিবরণ", fr: "Description", es: "Descripción", tr: "Açıklama" },
+  priority: { ar: "الأولوية", en: "Priority", ur: "ترجیح", zh: "优先级", hi: "प्राथमिकता", bn: "অগ্রাধিকার", fr: "Priorité", es: "Prioridad", tr: "Öncelik" },
+  priority_low: { ar: "منخفضة", en: "Low", ur: "کم", zh: "低", hi: "कम", bn: "কম", fr: "Faible", es: "Baja", tr: "Düşük" },
+  priority_normal: { ar: "عادية", en: "Normal", ur: "عام", zh: "正常", hi: "सामान्य", bn: "স্বাভাবিক", fr: "Normale", es: "Normal", tr: "Normal" },
+  priority_high: { ar: "عالية", en: "High", ur: "زیادہ", zh: "高", hi: "उच्च", bn: "বেশি", fr: "Haute", es: "Alta", tr: "Yüksek" },
+  priority_urgent: { ar: "عاجلة", en: "Urgent", ur: "فوری", zh: "紧急", hi: "तत्काल", bn: "জরুরি", fr: "Urgente", es: "Urgente", tr: "Acil" },
+  status_open: { ar: "مفتوح", en: "Open", ur: "کھلا", zh: "未处理", hi: "खुला", bn: "খোলা", fr: "Ouvert", es: "Abierto", tr: "Açık" },
+  status_in_progress: { ar: "قيد التنفيذ", en: "In progress", ur: "جاری", zh: "进行中", hi: "प्रगति पर", bn: "চলমান", fr: "En cours", es: "En curso", tr: "Devam ediyor" },
+  status_done: { ar: "مكتمل", en: "Done", ur: "مکمل", zh: "已完成", hi: "पूर्ण", bn: "সম্পন্ন", fr: "Terminé", es: "Hecho", tr: "Tamam" },
+  status_cancelled: { ar: "ملغي", en: "Cancelled", ur: "منسوخ", zh: "已取消", hi: "रद्द", bn: "বাতিল", fr: "Annulé", es: "Cancelado", tr: "İptal" },
+  no_maintenance: { ar: "لا توجد طلبات صيانة", en: "No maintenance requests", ur: "کوئی درخواست نہیں", zh: "暂无请求", hi: "कोई अनुरोध नहीं", bn: "কোনো অনুরোধ নেই", fr: "Aucune demande", es: "Sin solicitudes", tr: "Talep yok" },
+  no_maintenance_msg: { ar: "أضف أول طلب صيانة لتتبع الأعطال والإصلاحات", en: "Add your first maintenance request to track issues and repairs", ur: "پہلی درخواست شامل کریں", zh: "添加第一个请求", hi: "पहला अनुरोध जोड़ें", bn: "প্রথম অনুরোধ যোগ করুন", fr: "Ajoutez la première demande", es: "Agrega la primera solicitud", tr: "İlk talebi ekleyin" },
+  cost: { ar: "التكلفة", en: "Cost", ur: "لاگت", zh: "费用", hi: "लागत", bn: "খরচ", fr: "Coût", es: "Costo", tr: "Maliyet" },
+  vendor: { ar: "المُورِّد", en: "Vendor", ur: "وینڈر", zh: "供应商", hi: "विक्रेता", bn: "ভেন্ডর", fr: "Fournisseur", es: "Proveedor", tr: "Tedarikçi" },
 };
 
 export function useT2() {

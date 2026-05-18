@@ -1,72 +1,71 @@
-# خطة: مواءمة كاملة لهوية "أملاكي" البصرية
 
-## الهدف
-ضبط كل شاشة ومكوّن ليعكس وعد العلامة: **"إدارة عقاراتك بذكاء وأناقة"** — راقٍ، دافئ، واثق، حديث بجذور عربية.
+## الخطة
 
-## 1) حفظ دليل الهوية في ذاكرة المشروع
-- `mem://index.md` — قواعد جوهرية (اللون، الخط، النبرة) تُطبّق تلقائياً في كل تعديل لاحق.
-- `mem://brand/identity.md` — الدليل الكامل (الاسم، الشخصية، الوعد، نبرة الصوت).
-- `mem://brand/voice.md` — أمثلة على النبرة (راقٍ بلا تكلّف، واثق بتواضع، مختصر وكامل).
+### 0) اسم المؤجر لكل حساب (إعداد مشترك)
+- إضافة حقل `landlord_name` (اختياري) في إعدادات العلامة التجارية `AppSettings.brand` (يظهر في الإيصالات والكشوف والعقود وتذكيرات الواتساب).
+- إضافة حقل اختياري على مستوى كل **بناية** (`landlord_name`) لدعم حالات تعدد المؤجرين: عمود جديد في جدول `buildings` + تعديل `AddBuildingDialog` و `BuildingDetail`.
+- منطق العرض: إن وُجد اسم مؤجر للبناية يُستخدم، وإلا يُستخدم اسم المؤجر العام من الإعدادات.
 
-## 2) نظام التصميم (Design Tokens)
-الأساس الحالي ممتاز (Sage + Cream + Gold) ويناسب الهوية. التعديلات:
-- تثبيت **Outfit** للإنجليزية و**Noto Kufi Arabic** للعربية كخطوط رسمية (مُطبّق).
-- توحيد سلّم العناوين: H1 ثقيل (font-black, tracking-tight) — H2 شبه ثقيل — body بـ leading-relaxed.
-- توحيد نصف القطر: `rounded-2xl` للبطاقات الكبيرة، `rounded-xl` للأزرار، `rounded-full` للأيقونات الدائرية.
-- توحيد الظلال: `shadow-soft` للبطاقات، `shadow-elev` للعناصر المرفوعة، `shadow-glow` للأزرار الرئيسية فقط.
-- لمسة ذهبية (`--gold`) مقتصدة كأكسنت للحالات المميزة (موثّق، VIP، Pro) — ليست لون أساسي.
+### 1) تذكيرات تلقائية + إيصال PDF بعد كل دفعة
+**أ. إيصال PDF فوري بعد إضافة دفعة**
+- إضافة `buildReceiptHTML()` في `src/lib/pdfDocs.ts` (ثنائي اللغة، بألوان الهوية، شعار أملاكي، اسم المؤجر، رقم الإيصال من `formatReceipt`).
+- بعد نجاح `AddPaymentDialog` يظهر زر "تنزيل الإيصال" + خيار مشاركة عبر واتساب للمستأجر.
+- زر "إعادة طباعة الإيصال" في صفحة `Payments` و `UnitDetail` لكل دفعة سابقة.
 
-## 3) المراجعة الشاملة شاشة بشاشة
-لكل شاشة: فحص الألوان (semantic tokens فقط)، الخطوط، التباعد، النبرة، الأيقونات.
+**ب. التذكيرات التلقائية**
+- جدول جديد `reminder_schedules` (يخزّن وقت آخر إرسال لكل وحدة/مستأجر ونوع التذكير: قبل الاستحقاق / متأخر).
+- Edge Function جديدة `send-rent-reminders` تعمل يومياً عبر pg_cron:
+  - تحسب الوحدات التي يستحق إيجارها خلال `upcomingDays` (من الإعدادات).
+  - تحسب الوحدات المتأخرة.
+  - تُنشئ روابط واتساب جاهزة (wa.me) باستخدام القوالب الحالية `templates.reminder` / `templates.late`.
+  - تسجّل في `reminder_schedules` لتفادي التكرار.
+- صفحة "التذكيرات" تعرض القائمة اليومية مع زر "إرسال" واحد لكل سطر.
 
-### شاشات الدخول والترحيب
-- **Welcome** — جيدة؛ تأكيد وعد العلامة تحت `tagline` ("إدارة عقاراتك بذكاء وأناقة").
-- **Auth** (Signin/Signup) — توحيد الأزرار والحقول مع نظام التصميم، إزالة أي ألوان مباشرة.
-- **ForgotPassword / ResetPassword** — نفس المعالجة.
+### 2) كشف حساب لكل مستأجر + دفعات جزئية
+**أ. الدفعات الجزئية**
+- جدول `payments` فيه `expected_amount` و `amount` بالفعل ➜ نضيف منطق "الرصيد المتبقي" في `src/lib/balance.ts`.
+- `AddPaymentDialog`: إظهار المبلغ المتوقع و"المتبقي" تلقائياً، السماح بدفع جزئي مع تنبيه واضح.
+- شارة "دفع جزئي" في قوائم الدفعات.
 
-### الشاشات الأساسية
-- **Dashboard** — تحية دافئة، KPIs ببطاقات راقية، تدرّج sage في الترويسة.
-- **Buildings / BuildingDetail / Tenants / UnitDetail** — توحيد رؤوس الصفحات والـ empty states بنبرة دافئة عربية.
-- **Payments / MonthlyCollection / PaymentsTrash** — جداول/قوائم بإيقاع بصري متّسق.
-- **Reports / Notifications / Assistant** — استخدام الذهبي للعناصر الذكية (AI) باعتدال.
+**ب. كشف حساب المستأجر (Tenant Statement)**
+- دالة `buildTenantStatementHTML()` في `pdfDocs.ts` تعرض:
+  - بيانات المستأجر + الوحدة + اسم المؤجر + فترة العقد.
+  - جدول زمني: مستحقات شهرية، مدفوعات، رصيد متراكم.
+  - الرصيد الافتتاحي + التأمين + المتأخرات النهائية.
+- زر "كشف حساب PDF" في `UnitDetail` و صفحة `Tenants`.
+- تصدير CSV مقابل.
 
-### الإعدادات والإدارة
-- **Settings / Team / Backup / Admin** — توحيد بطاقات الأقسام، عناوين موجزة، وصف مكمّل بنبرة العلامة.
-- **BusinessWhatsAppSection** — شارات الحالة بألوان semantic (verified=sage، pending=gold، none=muted).
+### 3) طلبات الصيانة
+**أ. قاعدة البيانات** (migration)
+- جدول `maintenance_requests`:
+  - `building_id`, `unit_id`, `tenant_name`, `title`, `description`, `priority` (low/normal/high/urgent), `status` (open/in_progress/done/cancelled), `photos jsonb`, `cost`, `vendor`, `created_at`, `resolved_at`.
+- RLS: نفس نمط `expenses` (owner + members).
+- ربط اختياري بإنشاء `expense` تلقائي عند الإغلاق بتكلفة.
 
-### الصفحات العامة
-- **Pricing / Privacy / Terms / Refund / Install / Unsubscribe** — تايبوغرافي تحريري، تباعد سخي.
+**ب. الواجهة**
+- صفحة جديدة `/maintenance` (قائمة + فلترة حسب الحالة/الأولوية/البناية).
+- زر إضافة طلب (مع رفع صور إلى bucket جديد `maintenance-photos`).
+- صفحة تفاصيل الطلب (timeline + تحديث الحالة + إضافة تكلفة).
+- إدخال في `BottomNav` و `AppSidebar`.
+- شارة على لوحة التحكم تعرض عدد الطلبات المفتوحة.
 
-### مكونات مشتركة
-- **TopBar / AppSidebar / BottomNav / SettingsPanel / GlobalSearch / OnboardingTour** — توحيد الأيقونات والمسافات والنبرة.
-- **كل ui/* shadcn** — تبقى كما هي (مبنية على tokens أصلاً).
+---
 
-## 4) النبرة والنصوص (Microcopy)
-- الترحيب: "أهلاً بك في أملاكي" بدل "مرحبا".
-- الأزرار: أفعال واضحة موجزة ("أضف عقاراً" بدل "إضافة جديدة").
-- الحالات الفارغة: جملة دافئة + إجراء واحد واضح.
-- رسائل النجاح/الخطأ (toasts): قصيرة، مهذّبة، بدون علامات تعجّب زائدة.
+### التفاصيل التقنية
+- ملفات جديدة: `supabase/functions/send-rent-reminders/index.ts`, `src/pages/Maintenance.tsx`, `src/pages/MaintenanceDetail.tsx`, `src/components/AddMaintenanceDialog.tsx`, `src/components/ReceiptActions.tsx`.
+- migrations:
+  1. `ALTER TABLE buildings ADD COLUMN landlord_name text;`
+  2. CREATE TABLE `reminder_schedules` + RLS + pg_cron job.
+  3. CREATE TABLE `maintenance_requests` + RLS + bucket `maintenance-photos`.
+- تحديث `pdfDocs.ts`: `buildReceiptHTML`, `buildTenantStatementHTML` (ثنائيي اللغة بألوان الهوية).
+- تحديث `AppSettings.brand` بإضافة `landlordName`.
+- تحديث `i18n.tsx` بالمفاتيح الجديدة (AR/EN).
 
-## 5) العناصر البصرية الدقيقة
-- **Logo** — يبقى (مفتاح sage متدرّج، رمز جيد للملكية).
-- **BotanicalDecor** — استخدامه باعتدال في الشاشات البطلة فقط (Welcome، Empty states كبيرة).
-- **Animations** — `animate-float-up` و`animate-scale-in` للدخول، بدون مبالغة.
+### الترتيب الموصى به للتنفيذ
+1. اسم المؤجر (الأساس لباقي المخرجات).
+2. إيصال PDF + كشف حساب المستأجر (تأثير فوري).
+3. الدفعات الجزئية.
+4. التذكيرات التلقائية.
+5. طلبات الصيانة.
 
-## 6) التحقق
-- جولة بصرية على المسارات الأساسية: `/`, `/auth`, `/buildings`, `/tenants`, `/payments`, `/settings`, `/pricing`.
-- التأكد من الوضع الليلي (الـ tokens الداكنة سليمة).
-- التأكد من RTL/LTR على شاشة ضيقة (mobile-shell 430px) وعريضة.
-
-## التفاصيل التقنية
-- لا تغييرات في قاعدة البيانات أو edge functions.
-- العمل في الواجهة فقط: `src/pages/*`, `src/components/*`, نصوص `src/lib/i18n*`.
-- استخدام `bg-sage-*`, `text-sage-*`, `bg-gradient-sage`, `shadow-elev` بدلاً من أي ألوان مباشرة.
-- لا إضافة مكتبات.
-
-## النطاق المُستبعَد
-- لا تغيير في المنطق التجاري (CRUD، حسابات، صلاحيات).
-- لا تغيير في تدفق المصادقة أو WhatsApp verification.
-- لا تغيير في الشعار أو الأيقونة (مناسبان للهوية).
-
-## النتيجة المتوقّعة
-تطبيق متماسك بصرياً ولفظياً، يعكس "الرقي بلا تكلّف، الدفء بمهنية" في كل تفصيلة، مع حفظ الدليل في الذاكرة ليُطبَّق على كل تعديل لاحق تلقائياً.
+هل أبدأ بالتنفيذ بهذا الترتيب؟

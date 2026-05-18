@@ -233,6 +233,13 @@ export default function Settings() {
               onChange={(e) => update({ brand: { ...settings.brand, name: e.target.value } })}
               className="rounded-xl border-sage-200 bg-card h-10" />
           </label>
+          <label className="block space-y-1">
+            <span className="text-[11px] text-sage-500 font-semibold">{tr(lang, "اسم المؤجِّر (يظهر على الإيصالات)", "Landlord name (shown on receipts)")}</span>
+            <Input value={settings.brand.landlordName || ""}
+              onChange={(e) => update({ brand: { ...settings.brand, landlordName: e.target.value } })}
+              placeholder={tr(lang, "اختياري", "Optional")}
+              className="rounded-xl border-sage-200 bg-card h-10" />
+          </label>
           <div className="grid grid-cols-2 gap-2">
             <label className="block space-y-1">
               <span className="text-[11px] text-sage-500 font-semibold">{tr(lang, "هاتف", "Phone")}</span>
