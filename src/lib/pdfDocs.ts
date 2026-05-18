@@ -159,8 +159,43 @@ const pageShell = (title: string, body: string, options?: { rtl?: boolean }) => 
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>${escapeHtml(title)}</title>
-    <!-- Fonts intentionally not loaded from external CDN to avoid CORS-tainting html2canvas. The container inherits fonts already loaded by the app document (Noto Kufi Arabic + Outfit). -->
     <style>
+      @font-face {
+        font-family: 'Outfit';
+        src: url('${window.location.origin}/fonts/Outfit-Regular.ttf') format('truetype');
+        font-weight: 400;
+        font-style: normal;
+      }
+      @font-face {
+        font-family: 'Outfit';
+        src: url('${window.location.origin}/fonts/Outfit-Medium.ttf') format('truetype');
+        font-weight: 500;
+        font-style: normal;
+      }
+      @font-face {
+        font-family: 'Outfit';
+        src: url('${window.location.origin}/fonts/Outfit-Bold.ttf') format('truetype');
+        font-weight: 700 900;
+        font-style: normal;
+      }
+      @font-face {
+        font-family: 'Noto Kufi Arabic';
+        src: url('${window.location.origin}/fonts/NotoKufiArabic-Regular.ttf') format('truetype');
+        font-weight: 400;
+        font-style: normal;
+      }
+      @font-face {
+        font-family: 'Noto Kufi Arabic';
+        src: url('${window.location.origin}/fonts/NotoKufiArabic-Medium.ttf') format('truetype');
+        font-weight: 500;
+        font-style: normal;
+      }
+      @font-face {
+        font-family: 'Noto Kufi Arabic';
+        src: url('${window.location.origin}/fonts/NotoKufiArabic-Bold.ttf') format('truetype');
+        font-weight: 700 900;
+        font-style: normal;
+      }
       :root {
         color-scheme: light;
         --ink: #223127;
@@ -844,7 +879,7 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
 
     let canvas: HTMLCanvasElement;
     try {
-      canvas = await renderOnce(true, false);
+      canvas = await renderOnce(hasArabic, false);
       if (isCanvasBlank(canvas)) {
         console.warn("[pdf] first render blank — retrying without foreignObjectRendering");
         canvas = await renderOnce(false, false);
