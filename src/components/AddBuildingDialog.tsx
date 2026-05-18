@@ -89,9 +89,14 @@ export function AddBuildingDialog({ open, onOpenChange, onCreated }: { open: boo
           <Field label={t2("building_name_en")}>
             <Input value={nameEn} onChange={(e) => setNameEn(e.target.value)} className="rounded-xl border-sage-200 bg-card" />
           </Field>
-          <Field label={t2("landlord_name")}>
-            <Input value={landlordName} onChange={(e) => setLandlordName(e.target.value)} placeholder={t2("landlord_name_hint")} className="rounded-xl border-sage-200 bg-card" />
-          </Field>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label={t2("landlord_name")}>
+              <Input value={landlordName} onChange={(e) => setLandlordName(e.target.value)} dir="rtl" placeholder={t2("landlord_name_hint")} className="rounded-xl border-sage-200 bg-card" />
+            </Field>
+            <Field label={t2("landlord_name_en")}>
+              <Input value={landlordNameEn} onChange={(e) => setLandlordNameEn(e.target.value)} dir="ltr" placeholder="Optional" className="rounded-xl border-sage-200 bg-card" />
+            </Field>
+          </div>
           <Field label={t2("building_type")}>
             <div className="flex flex-wrap gap-1.5">
               {TYPES.map((tp) => (
