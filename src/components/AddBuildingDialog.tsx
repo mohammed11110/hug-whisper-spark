@@ -131,7 +131,7 @@ export function AddBuildingDialog({ open, onOpenChange, onCreated }: { open: boo
             <Input value={address} onChange={(e) => setAddress(e.target.value)} className="rounded-xl border-sage-200 bg-card" />
           </Field>
           <div className="flex gap-2 pt-2">
-            <Button data-guard-ignore variant="outline" className="flex-1 rounded-xl border-sage-200" onClick={() => { guard.markSaved(); onOpenChange(false); }}>{t2("cancel")}</Button>
+            <Button data-guard-ignore variant="outline" className="flex-1 rounded-xl border-sage-200" onClick={() => guard.handleOpenChange(false)}>{t2("cancel")}</Button>
             <Button data-guard-ignore onClick={submit} disabled={busy || !name.trim()} className="flex-1 rounded-xl bg-gradient-sage text-primary-foreground font-semibold">{t2("save")}</Button>
           </div>
         </div>
