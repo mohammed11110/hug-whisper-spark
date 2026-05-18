@@ -752,11 +752,11 @@ async function waitForWebFonts(root: HTMLElement) {
     // Force-load key Arabic + Latin faces so html2canvas's foreignObject
     // snapshot has them available for proper shaping.
     const faces = [
-      '700 16px "Tajawal"',
-      '500 16px "Tajawal"',
-      '700 16px "Noto Naskh Arabic"',
-      '500 16px "Cairo"',
-      '700 16px "Inter"',
+      '700 16px "Noto Kufi Arabic"',
+      '500 16px "Noto Kufi Arabic"',
+      '400 16px "Noto Kufi Arabic"',
+      '700 16px "Outfit"',
+      '500 16px "Outfit"',
     ];
     if ((document as any).fonts?.load) {
       const sample = "أبجد هوز Aa1";
