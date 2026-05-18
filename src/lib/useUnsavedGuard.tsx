@@ -79,7 +79,7 @@ export function useUnsavedGuard(opts: {
             {ar ? "متابعة التعديل" : "Keep editing"}
           </AlertDialogCancel>
           <AlertDialogAction
-            className="rounded-xl bg-burgundy-500 hover:bg-burgundy-600 text-white"
+            className="rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground"
             onClick={() => {
               setConfirmOpen(false);
               justSavedRef.current = true;
