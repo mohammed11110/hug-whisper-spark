@@ -420,3 +420,250 @@ export function printHTML(html: string) {
   w.document.close();
   setTimeout(() => w.print(), 350);
 }
+
+// ============================================================
+// Bilingual branded RECEIPT
+// ============================================================
+
+export interface ReceiptData {
+  brand: BrandInfo;
+  receiptNumber: string;
+  paymentDate: string;
+  amount: number;
+  expectedAmount?: number | null;
+  method: string;
+  periodLabel?: string | null;
+  building: string;
+  unitNumber: string;
+  tenantName: string;
+  notes?: string | null;
+  currency: string;
+}
+
+export function buildReceiptHTML(d: ReceiptData): string {
+  const fmt = (n: number) => `${Math.round(n).toLocaleString()} ${d.currency}`;
+  const expected = Number(d.expectedAmount) || 0;
+  const remaining = expected > 0 ? Math.max(0, expected - d.amount) : 0;
+  const isPartial = remaining > 0;
+  const logoHTML = d.brand.logo
+    ? `<img src="${d.brand.logo}" style="height:48px;object-fit:contain"/>`
+    : AMLAKI_LOGO_SVG;
+  return `<html dir="rtl" lang="ar"><head><meta charset="utf-8"/><title>إيصال · Receipt ${escapeHTML(d.receiptNumber)}</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:"Noto Kufi Arabic","Outfit",system-ui,sans-serif;color:#2c3a2e;background:#faf6ee;margin:0;padding:24px}
+  .doc{max-width:640px;margin:auto;background:#fff;border:1px solid rgba(95,126,101,.2);border-radius:22px;padding:30px;box-shadow:0 8px 24px rgba(95,126,101,.08)}
+  .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid rgba(95,126,101,.15);padding-bottom:16px;margin-bottom:20px}
+  .brand-wrap{display:flex;align-items:center;gap:12px}
+  .brand-name{font-weight:900;font-size:18px;color:#3d4d3f;letter-spacing:-.01em}
+  .brand-meta{font-size:10.5px;color:#7a8e9a;margin-top:3px;line-height:1.5}
+  .title-block{text-align:end}
+  h1{margin:0;font-size:22px;color:#3d4d3f;letter-spacing:-.02em;font-weight:900}
+  .h-sub{font-size:11px;color:#7a8e9a;margin-top:4px;letter-spacing:.04em;text-transform:uppercase}
+  .num-pill{display:inline-block;margin-top:8px;background:linear-gradient(135deg,#5f7e65,#3d4d3f);color:#fff;padding:5px 14px;border-radius:99px;font-family:"Outfit",monospace;font-weight:800;font-size:13px;letter-spacing:.05em}
+  .amount-card{background:linear-gradient(135deg,#eef3ea,#dcebd2);border-radius:18px;padding:22px;text-align:center;margin:18px 0;border:1px solid rgba(95,126,101,.2)}
+  .amount-label{font-size:11px;color:#5a6a5c;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
+  .amount-value{font-size:34px;font-weight:900;color:#3d4d3f;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .partial-tag{display:inline-block;margin-top:8px;background:#f5e3cf;color:#8a5a2a;font-size:10.5px;font-weight:800;padding:4px 12px;border-radius:99px;letter-spacing:.04em}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+  .info{background:#faf6ee;border:1px solid rgba(95,126,101,.12);border-radius:14px;padding:12px 14px}
+  .info h3{margin:0 0 8px;font-size:10px;color:#5f7e65;letter-spacing:.08em;text-transform:uppercase;font-weight:800}
+  .row{display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px dashed rgba(95,126,101,.15)}
+  .row:last-child{border-bottom:0}
+  .row span{color:#7a8e9a}
+  .row b{color:#3d4d3f;font-weight:700}
+  .notes{margin-top:10px;padding:11px 14px;background:#fff7e6;border:1px dashed rgba(168,148,86,.4);border-radius:12px;font-size:11.5px;color:#5a6a5c;line-height:1.6}
+  .signs{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:30px}
+  .sign{border-top:1.5px solid #5f7e65;padding-top:6px;font-size:10.5px;color:#5f7e65;text-align:center;font-weight:800;letter-spacing:.04em}
+  .footer{margin-top:20px;text-align:center;font-size:10px;color:#7a8e9a;letter-spacing:.04em;border-top:1px dashed rgba(95,126,101,.2);padding-top:12px}
+</style></head><body>
+<div class="doc" id="doc-root">
+  <div class="head">
+    <div class="brand-wrap">
+      ${logoHTML}
+      <div>
+        <div class="brand-name">${escapeHTML(d.brand.landlordName || d.brand.name)}</div>
+        <div class="brand-meta">${escapeHTML(d.brand.phone || "")}${d.brand.phone && d.brand.address ? " · " : ""}${escapeHTML(d.brand.address || "")}</div>
+      </div>
+    </div>
+    <div class="title-block">
+      <h1>إيصال استلام<br/><span style="font-size:14px;color:#7a8e9a;font-weight:700">Payment Receipt</span></h1>
+      <div class="num-pill">#${escapeHTML(d.receiptNumber)}</div>
+    </div>
+  </div>
+
+  <div class="amount-card">
+    <div class="amount-label">المبلغ المستلم · Amount received</div>
+    <div class="amount-value">${fmt(d.amount)}</div>
+    ${isPartial ? `<div class="partial-tag">دفع جزئي · Partial payment — متبقي · Remaining ${fmt(remaining)}</div>` : ""}
+  </div>
+
+  <div class="grid2">
+    <div class="info">
+      <h3>بيانات الدفع · Payment</h3>
+      <div class="row"><span>التاريخ · Date</span><b>${escapeHTML(d.paymentDate)}</b></div>
+      <div class="row"><span>طريقة الدفع · Method</span><b>${escapeHTML(d.method)}</b></div>
+      ${d.periodLabel ? `<div class="row"><span>عن شهر · For month</span><b>${escapeHTML(d.periodLabel)}</b></div>` : ""}
+      ${expected > 0 ? `<div class="row"><span>المتوقع · Expected</span><b>${fmt(expected)}</b></div>` : ""}
+    </div>
+    <div class="info">
+      <h3>العقار والمستأجر · Property</h3>
+      <div class="row"><span>المبنى · Building</span><b>${escapeHTML(d.building)}</b></div>
+      <div class="row"><span>الوحدة · Unit</span><b>#${escapeHTML(d.unitNumber)}</b></div>
+      <div class="row"><span>المستأجر · Tenant</span><b>${escapeHTML(d.tenantName || "—")}</b></div>
+    </div>
+  </div>
+
+  ${d.notes ? `<div class="notes"><b>ملاحظات · Notes:</b> ${escapeHTML(d.notes)}</div>` : ""}
+
+  <div class="signs">
+    <div class="sign">توقيع المؤجر · Lessor signature</div>
+    <div class="sign">توقيع المستأجر · Lessee signature</div>
+  </div>
+
+  <div class="footer">
+    شكراً لسدادك في موعده · Thank you for your timely payment
+    <br/>${escapeHTML(d.brand.name)} · تم الإنشاء بواسطة أملاكي · Generated by Amlaki
+  </div>
+</div></body></html>`;
+}
+
+// ============================================================
+// Bilingual branded TENANT STATEMENT (account statement)
+// ============================================================
+
+export interface StatementRow {
+  date: string;
+  description: string;
+  charge: number;
+  payment: number;
+  balance: number;
+}
+
+export interface TenantStatementData {
+  brand: BrandInfo;
+  currency: string;
+  generatedAt: string;
+  tenantName: string;
+  tenantPhone?: string | null;
+  building: string;
+  unitNumber: string;
+  contractStart?: string | null;
+  contractEnd?: string | null;
+  rentAmount: number;
+  rentType: string;
+  rows: StatementRow[];
+  totals: {
+    totalCharges: number;
+    totalPaid: number;
+    outstanding: number;
+    openingBalance: number;
+    securityDeposit: number;
+  };
+}
+
+export function buildTenantStatementHTML(d: TenantStatementData): string {
+  const fmt = (n: number) => `${Math.round(n).toLocaleString()} ${d.currency}`;
+  const logoHTML = d.brand.logo
+    ? `<img src="${d.brand.logo}" style="height:48px;object-fit:contain"/>`
+    : AMLAKI_LOGO_SVG;
+  const rows = d.rows.map((r) => `
+    <tr>
+      <td>${escapeHTML(r.date)}</td>
+      <td>${escapeHTML(r.description)}</td>
+      <td class="num">${r.charge > 0 ? fmt(r.charge) : "—"}</td>
+      <td class="num pos">${r.payment > 0 ? fmt(r.payment) : "—"}</td>
+      <td class="num ${r.balance > 0 ? "neg" : ""}">${fmt(r.balance)}</td>
+    </tr>`).join("");
+
+  return `<html dir="rtl" lang="ar"><head><meta charset="utf-8"/><title>كشف حساب · Statement</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:"Noto Kufi Arabic","Outfit",system-ui,sans-serif;color:#2c3a2e;background:#faf6ee;margin:0;padding:24px}
+  .doc{max-width:820px;margin:auto;background:#fff;border:1px solid rgba(95,126,101,.2);border-radius:22px;padding:30px;box-shadow:0 8px 24px rgba(95,126,101,.08)}
+  .head{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid rgba(95,126,101,.15);padding-bottom:18px;margin-bottom:22px}
+  .brand-wrap{display:flex;align-items:center;gap:12px}
+  .brand-name{font-weight:900;font-size:18px;color:#3d4d3f;letter-spacing:-.01em}
+  .brand-meta{font-size:10.5px;color:#7a8e9a;margin-top:3px}
+  h1{margin:0;font-size:22px;color:#3d4d3f;letter-spacing:-.02em;font-weight:900;text-align:end}
+  .h-sub{font-size:11px;color:#7a8e9a;margin-top:4px;text-align:end}
+  .section-title{display:flex;align-items:center;gap:10px;margin:22px 0 10px;font-size:13px;font-weight:800;color:#3d4d3f;letter-spacing:.02em}
+  .section-title::before{content:"";width:4px;height:16px;background:linear-gradient(135deg,#7a9a7e,#3d4d3f);border-radius:2px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .info{background:#faf6ee;border:1px solid rgba(95,126,101,.12);border-radius:14px;padding:14px 16px}
+  .info h3{margin:0 0 8px;font-size:10px;color:#5f7e65;letter-spacing:.08em;text-transform:uppercase;font-weight:800}
+  .row{display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-bottom:1px dashed rgba(95,126,101,.15)}
+  .row:last-child{border-bottom:0}
+  .row span{color:#7a8e9a}
+  .row b{color:#3d4d3f;font-weight:700}
+  table{width:100%;border-collapse:collapse;font-size:11.5px;background:#fff;border-radius:14px;overflow:hidden;border:1px solid rgba(95,126,101,.12);margin-top:8px}
+  thead{background:linear-gradient(135deg,#5f7e65,#3d4d3f);color:#fff}
+  th,td{padding:9px 11px;text-align:start;border-bottom:1px solid rgba(95,126,101,.08)}
+  th{font-weight:700;font-size:10.5px;letter-spacing:.04em;text-transform:uppercase}
+  tbody tr:nth-child(even){background:#faf6ee}
+  td.num{text-align:end;font-variant-numeric:tabular-nums;font-weight:700}
+  .pos{color:#3d4d3f}
+  .neg{color:#a85d5d}
+  .totals{margin-top:18px;background:linear-gradient(135deg,#3d4d3f,#2c3a2e);color:#faf6ee;border-radius:18px;padding:20px 24px;display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .totals .cell{border:1px solid rgba(250,246,238,.15);border-radius:12px;padding:11px 13px;background:rgba(250,246,238,.04)}
+  .totals span{display:block;font-size:10px;opacity:.75;margin-bottom:5px;letter-spacing:.04em;text-transform:uppercase}
+  .totals b{display:block;font-size:16px;font-weight:900;letter-spacing:-.01em}
+  .totals .cell.net{background:linear-gradient(135deg,#a89456,#7d6b3a);border-color:#a89456}
+  .footer{margin-top:20px;text-align:center;font-size:10px;color:#7a8e9a;letter-spacing:.04em;border-top:1px dashed rgba(95,126,101,.2);padding-top:12px}
+</style></head><body>
+<div class="doc" id="doc-root">
+  <div class="head">
+    <div class="brand-wrap">
+      ${logoHTML}
+      <div>
+        <div class="brand-name">${escapeHTML(d.brand.landlordName || d.brand.name)}</div>
+        <div class="brand-meta">${escapeHTML(d.brand.phone || "")}${d.brand.phone && d.brand.address ? " · " : ""}${escapeHTML(d.brand.address || "")}</div>
+      </div>
+    </div>
+    <div>
+      <h1>كشف حساب المستأجر<br/><span style="font-size:13px;color:#7a8e9a;font-weight:700">Tenant Statement</span></h1>
+      <div class="h-sub">${escapeHTML(d.generatedAt)}</div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="info">
+      <h3>المستأجر · Tenant</h3>
+      <div class="row"><span>الاسم · Name</span><b>${escapeHTML(d.tenantName || "—")}</b></div>
+      ${d.tenantPhone ? `<div class="row"><span>الهاتف · Phone</span><b>${escapeHTML(d.tenantPhone)}</b></div>` : ""}
+      <div class="row"><span>المبنى · Building</span><b>${escapeHTML(d.building)}</b></div>
+      <div class="row"><span>الوحدة · Unit</span><b>#${escapeHTML(d.unitNumber)}</b></div>
+    </div>
+    <div class="info">
+      <h3>تفاصيل العقد · Lease</h3>
+      <div class="row"><span>قيمة الإيجار · Rent</span><b>${fmt(d.rentAmount)} / ${escapeHTML(d.rentType)}</b></div>
+      <div class="row"><span>بداية العقد · Start</span><b>${escapeHTML(d.contractStart || "—")}</b></div>
+      <div class="row"><span>نهاية العقد · End</span><b>${escapeHTML(d.contractEnd || "—")}</b></div>
+      <div class="row"><span>التأمين · Deposit</span><b>${fmt(d.totals.securityDeposit)}</b></div>
+    </div>
+  </div>
+
+  <div class="section-title">حركة الحساب · Account activity</div>
+  <table>
+    <thead><tr>
+      <th>التاريخ · Date</th>
+      <th>البيان · Description</th>
+      <th style="text-align:end">مستحق · Charge</th>
+      <th style="text-align:end">مدفوع · Paid</th>
+      <th style="text-align:end">الرصيد · Balance</th>
+    </tr></thead>
+    <tbody>${rows || `<tr><td colspan="5" style="text-align:center;color:#7a8e9a;padding:18px">— لا توجد حركات · No entries —</td></tr>`}</tbody>
+  </table>
+
+  <div class="totals">
+    <div class="cell"><span>إجمالي المستحق · Total charges</span><b>${fmt(d.totals.totalCharges)}</b></div>
+    <div class="cell"><span>إجمالي المدفوع · Total paid</span><b>${fmt(d.totals.totalPaid)}</b></div>
+    <div class="cell net"><span>الرصيد المستحق · Outstanding</span><b>${fmt(d.totals.outstanding)}</b></div>
+  </div>
+
+  <div class="footer">
+    ${escapeHTML(d.brand.name)} ${d.brand.phone ? "· " + escapeHTML(d.brand.phone) : ""}
+    <br/>تم الإنشاء بواسطة أملاكي · Generated by Amlaki
+  </div>
+</div></body></html>`;
+}
