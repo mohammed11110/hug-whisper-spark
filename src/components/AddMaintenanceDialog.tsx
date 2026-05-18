@@ -176,10 +176,11 @@ export function AddMaintenanceDialog({ open, onOpenChange, onCreated }: { open: 
             )}
           </div>
           <div className="flex gap-2 pt-2">
-            <Button variant="outline" className="flex-1 rounded-xl" onClick={() => onOpenChange(false)}>{t2("cancel")}</Button>
-            <Button onClick={submit} disabled={busy || !buildingId || !title.trim()} className="flex-1 rounded-xl bg-gradient-sage text-primary-foreground">{t2("save")}</Button>
+            <Button data-guard-ignore variant="outline" className="flex-1 rounded-xl" onClick={() => guard.handleOpenChange(false)}>{t2("cancel")}</Button>
+            <Button data-guard-ignore onClick={submit} disabled={busy || !buildingId || !title.trim()} className="flex-1 rounded-xl bg-gradient-sage text-primary-foreground">{t2("save")}</Button>
           </div>
         </div>
+        {guard.ConfirmDiscardUI}
       </DialogContent>
     </Dialog>
   );
