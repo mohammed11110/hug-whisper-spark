@@ -78,7 +78,9 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const [periodMonthNum, setPeriodMonthNum] = useState<number>(() => new Date().getMonth() + 1);
   const [saving, setSaving] = useState(false);
   const [unitOpen, setUnitOpen] = useState(false);
-  const [suggestion, setSuggestion] = useState<{ year: number; month: number; covers: number; reason: string } | null>(null);
+  const [unpaidMonths, setUnpaidMonths] = useState<{ year: number; month: number; remaining: number }[]>([]);
+  const [showAllMonths, setShowAllMonths] = useState(false);
+  const [allPaid, setAllPaid] = useState(false);
 
   const { start: periodStart, end: periodEnd } = monthRange(periodYear, periodMonthNum);
   const monthNames = lang === "ar" ? AR_MONTHS : EN_MONTHS;
