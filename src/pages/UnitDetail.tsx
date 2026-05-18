@@ -317,6 +317,16 @@ function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLea
     }).eq("id", unit.id);
     setSavingArrears(false);
     if (error) return toast.error(error.message);
+    logActivity({
+      entityType: "unit",
+      action: "updated",
+      entityId: unit.id,
+      entityLabel: unit.unit_number,
+      buildingId: unit.building_id,
+      descriptionAr: `تعديل المتأخرات الافتتاحية — وحدة ${unit.unit_number}`,
+      descriptionEn: `Opening arrears updated — unit ${unit.unit_number}`,
+      changes: { opening_balance: val },
+    });
     toast.success("✓");
     setEditingArrears(false);
     reload?.();
@@ -339,6 +349,15 @@ function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLea
             value={unit.contract_file_url}
             onChange={async (v) => {
               await supabase.from("units").update({ contract_file_url: v }).eq("id", unit.id);
+              logActivity({
+                entityType: "unit",
+                action: "updated",
+                entityId: unit.id,
+                entityLabel: unit.unit_number,
+                buildingId: unit.building_id,
+                descriptionAr: `تحديث ملف عقد الإيجار — وحدة ${unit.unit_number}`,
+                descriptionEn: `Lease contract file updated — unit ${unit.unit_number}`,
+              });
               reload?.();
             }}
             accept="application/pdf,image/*"
@@ -350,6 +369,15 @@ function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLea
             value={unit.tenant_id_image_url}
             onChange={async (v) => {
               await supabase.from("units").update({ tenant_id_image_url: v }).eq("id", unit.id);
+              logActivity({
+                entityType: "tenant",
+                action: "updated",
+                entityId: unit.id,
+                entityLabel: unit.tenant_name || unit.unit_number,
+                buildingId: unit.building_id,
+                descriptionAr: `تحديث صورة هوية المستأجر — وحدة ${unit.unit_number}`,
+                descriptionEn: `Tenant ID image updated — unit ${unit.unit_number}`,
+              });
               reload?.();
             }}
             accept="image/*,application/pdf"
@@ -357,6 +385,7 @@ function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLea
           />
         </div>
       </Card>
+      <Card>
       <Card>
         <h3 className="text-sage-600 font-bold mb-3 text-sm">{t2("rent_amount")}</h3>
         <Row icon={Wallet} label={t2("rent_amount")} value={`${format(Number(unit.rent_amount))} / ${t2(unit.rent_type)}`} />
