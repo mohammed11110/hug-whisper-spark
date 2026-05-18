@@ -68,7 +68,7 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
 
   const reset = () => {
     setUnitNumber(""); setFloor("1"); setType("apartment"); setOccupied(false);
-    setTenantName(""); setTenantPhone(""); setTenantEmail(""); setRentAmount("0"); setRentType("monthly");
+    setTenantName(""); setTenantNameEn(""); setTenantPhone(""); setTenantEmail(""); setRentAmount("0"); setRentType("monthly");
     setContractType("yearly"); setContractStart(""); setDueDay("1");
     setArrears("0"); setRecordPay(false); setPayAmount("0"); setPayMethod("cash");
   };
