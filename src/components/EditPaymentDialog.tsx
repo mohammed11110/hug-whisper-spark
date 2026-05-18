@@ -175,9 +175,10 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
           </div>
         )}
         <DialogFooter className="gap-2 sm:gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl">{t2("cancel")}</Button>
-          <Button onClick={submit} disabled={saving || loading} className="rounded-xl bg-gradient-sage text-primary-foreground">{t2("save")}</Button>
+          <Button data-guard-ignore variant="outline" onClick={() => guard.handleOpenChange(false)} className="rounded-xl">{t2("cancel")}</Button>
+          <Button data-guard-ignore onClick={submit} disabled={saving || loading} className="rounded-xl bg-gradient-sage text-primary-foreground">{t2("save")}</Button>
         </DialogFooter>
+        {guard.ConfirmDiscardUI}
       </DialogContent>
     </Dialog>
   );
