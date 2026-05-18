@@ -159,9 +159,7 @@ const pageShell = (title: string, body: string, options?: { rtl?: boolean }) => 
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>${escapeHtml(title)}</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Cairo:wght@400;600;700;800&family=Tajawal:wght@400;500;700;800&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+    <!-- Fonts intentionally not loaded from external CDN to avoid CORS-tainting html2canvas. The container inherits fonts already loaded by the app document (Noto Kufi Arabic + Outfit). -->
     <style>
       :root {
         color-scheme: light;
@@ -177,7 +175,7 @@ const pageShell = (title: string, body: string, options?: { rtl?: boolean }) => 
       * { box-sizing: border-box; }
       html, body { margin: 0; padding: 0; background: #eef2eb; }
       body {
-        font-family: ${options?.rtl ? `"Tajawal", "Noto Naskh Arabic", "Cairo", "Amiri", "Segoe UI", Tahoma, Arial, sans-serif` : `"Inter", "Segoe UI", Tahoma, Arial, sans-serif`};
+        font-family: ${options?.rtl ? `"Noto Kufi Arabic", "Noto Naskh Arabic", "Segoe UI", Tahoma, Arial, sans-serif` : `"Outfit", "Inter", "Segoe UI", Tahoma, Arial, sans-serif`};
         color: var(--ink);
         padding: 24px;
         font-feature-settings: "kern", "liga", "calt", "init", "medi", "fina", "isol";
@@ -186,7 +184,7 @@ const pageShell = (title: string, body: string, options?: { rtl?: boolean }) => 
         unicode-bidi: ${options?.rtl ? "plaintext" : "normal"};
       }
       :lang(ar), [lang="ar"], [dir="rtl"], [dir="rtl"] * {
-        font-family: "Tajawal", "Noto Naskh Arabic", "Cairo", "Amiri", "Segoe UI", Tahoma, Arial, sans-serif;
+        font-family: "Noto Kufi Arabic", "Noto Naskh Arabic", "Segoe UI", Tahoma, Arial, sans-serif;
         font-feature-settings: "kern", "liga", "calt", "init", "medi", "fina", "isol";
       }
       [dir="rtl"] .value, [dir="rtl"] .label, [dir="rtl"] td, [dir="rtl"] th, [dir="rtl"] p, [dir="rtl"] div {
@@ -754,11 +752,11 @@ async function waitForWebFonts(root: HTMLElement) {
     // Force-load key Arabic + Latin faces so html2canvas's foreignObject
     // snapshot has them available for proper shaping.
     const faces = [
-      '700 16px "Tajawal"',
-      '500 16px "Tajawal"',
-      '700 16px "Noto Naskh Arabic"',
-      '500 16px "Cairo"',
-      '700 16px "Inter"',
+      '700 16px "Noto Kufi Arabic"',
+      '500 16px "Noto Kufi Arabic"',
+      '400 16px "Noto Kufi Arabic"',
+      '700 16px "Outfit"',
+      '500 16px "Outfit"',
     ];
     if ((document as any).fonts?.load) {
       const sample = "أبجد هوز Aa1";
@@ -791,6 +789,12 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
     if (node.nodeType !== Node.ELEMENT_NODE) return;
     const el = node as HTMLElement;
     if (el.tagName === "TITLE") return;
+    // Skip any external stylesheet/font link — they taint the canvas via CORS
+    // and html2canvas's foreignObjectRendering will silently fail.
+    if (el.tagName === "LINK") {
+      const href = el.getAttribute("href") || "";
+      if (/^https?:\/\//i.test(href)) return;
+    }
     container.appendChild(el.cloneNode(true));
   });
 
@@ -839,7 +843,7 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
     }
 
     if (isCanvasBlank(canvas)) {
-      throw new Error("PDF render produced a blank page");
+      throw new Error("تعذّر إنشاء الـ PDF: الصفحة الناتجة فارغة. حاول مرة أخرى.");
     }
 
     const pdf = new jsPDF({ unit: "mm", format: pageSize.toLowerCase() as "a4" | "a5" | "letter" });
@@ -847,7 +851,12 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
     const pageH = pdf.internal.pageSize.getHeight();
     const printableW = pageW - margins.left - margins.right;
     const printableH = pageH - margins.top - margins.bottom;
-    const imgData = canvas.toDataURL("image/png");
+    let imgData: string;
+    try {
+      imgData = canvas.toDataURL("image/png");
+    } catch (err) {
+      throw new Error("تعذّر إنشاء الـ PDF بسبب قيود أمان المتصفح (CORS). أعد المحاولة.");
+    }
 
     const imgW = printableW;
     const imgH = (canvas.height * printableW) / canvas.width;
