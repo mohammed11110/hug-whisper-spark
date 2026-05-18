@@ -12,6 +12,7 @@ import { PinDialog } from "@/components/PinDialog";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { logActivity } from "@/lib/activityLogger";
 
 interface Row {
   id: string;
@@ -78,17 +79,39 @@ export default function PaymentsTrash() {
   }, []);
 
   const restore = async (id: string) => {
+    const target = rows.find((r) => r.id === id);
     const { error } = await supabase.from("payments").update({ deleted_at: null }).eq("id", id);
     if (error) return toast.error(error.message);
+    if (target) {
+      logActivity({
+        entityType: "payment",
+        action: "restored",
+        entityId: id,
+        entityLabel: target.receipt_number || target.tenant_name || target.unit_number,
+        descriptionAr: `استرجاع إيصال استلام بقيمة ${target.amount} — ${target.tenant_name || target.unit_number}`,
+        descriptionEn: `Receipt restored (amount ${target.amount}) — ${target.tenant_name || target.unit_number}`,
+      });
+    }
     toast.success(lang === "ar" ? "تم الاسترجاع" : "Restored");
     load();
   };
 
   const purge = async () => {
     if (!pendingPurge) return;
+    const target = rows.find((r) => r.id === pendingPurge);
     const { error } = await supabase.from("payments").delete().eq("id", pendingPurge);
     setPendingPurge(null);
     if (error) return toast.error(error.message);
+    if (target) {
+      logActivity({
+        entityType: "payment",
+        action: "deleted",
+        entityId: target.id,
+        entityLabel: target.receipt_number || target.tenant_name || target.unit_number,
+        descriptionAr: `حذف نهائي لإيصال بقيمة ${target.amount} — ${target.tenant_name || target.unit_number}`,
+        descriptionEn: `Receipt permanently deleted (amount ${target.amount})`,
+      });
+    }
     toast.success(lang === "ar" ? "تم الحذف نهائياً" : "Permanently deleted");
     load();
   };
