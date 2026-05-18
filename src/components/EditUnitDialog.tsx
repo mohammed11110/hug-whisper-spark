@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { useT2 } from "@/lib/i18n2";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { logActivity } from "@/lib/activityLogger";
 import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
 
 const UNIT_TYPES = ["apartment", "shop", "room", "villa"] as const;
@@ -107,6 +108,23 @@ export function EditUnitDialog({
     }).eq("id", unit.id);
     setBusy(false);
     if (error) return toast.error(error.message);
+    const tenantChanged =
+      (unit.tenant_name || "") !== tenantName.trim() ||
+      (unit.tenant_phone || "") !== tenantPhone.trim() ||
+      (unit.tenant_email || "") !== tenantEmail.trim();
+    logActivity({
+      entityType: tenantChanged ? "tenant" : "unit",
+      action: "updated",
+      entityId: unit.id,
+      entityLabel: tenantName.trim() || unitNumber.trim(),
+      buildingId: (unit as any).building_id ?? null,
+      descriptionAr: tenantChanged
+        ? `تعديل بيانات المستأجر ${tenantName.trim() || "—"} — وحدة ${unitNumber.trim()}`
+        : `تعديل بيانات الوحدة ${unitNumber.trim()}`,
+      descriptionEn: tenantChanged
+        ? `Tenant details updated for ${tenantName.trim() || "—"} — unit ${unitNumber.trim()}`
+        : `Unit ${unitNumber.trim()} updated`,
+    });
     toast.success("✓");
     onSaved?.();
     guard.markSaved();

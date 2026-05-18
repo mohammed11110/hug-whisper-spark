@@ -11,6 +11,7 @@ import { useCurrency } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
 import { computeBalance } from "@/lib/balance";
 import { toast } from "sonner";
+import { logActivity } from "@/lib/activityLogger";
 import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
 
 interface Props {
@@ -97,6 +98,16 @@ export function EndTenancyDialog({ open, onOpenChange, unit, tenancyId, onDone }
     }).eq("id", unit.id);
     setSaving(false);
     if (uErr) return toast.error(uErr.message);
+    logActivity({
+      entityType: "tenant",
+      action: "ended",
+      entityId: unit.id,
+      entityLabel: unit.tenant_name || "",
+      buildingId: unit.building_id,
+      descriptionAr: `إنهاء عقد المستأجر ${unit.tenant_name || ""} — وحدة ${unit.unit_number}`,
+      descriptionEn: `Tenancy ended for ${unit.tenant_name || ""} — unit ${unit.unit_number}`,
+      changes: { reason, ended_at: endDate, outstanding: finalOutstanding, deposit_refund: refundNum },
+    });
     toast.success(t2("tenancy_ended_ok"));
     guard.markSaved();
     onOpenChange(false);

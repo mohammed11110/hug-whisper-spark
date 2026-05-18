@@ -11,6 +11,7 @@ import { useAppSettings } from "@/lib/appSettings";
 import { buildLeaseHTML, downloadHTMLAsPDF, printHTML, buildTenantStatementHTML, type StatementRow } from "@/lib/pdfDocs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { logActivity } from "@/lib/activityLogger";
 import { AddPaymentDialog } from "@/components/AddPaymentDialog";
 import { EndTenancyDialog } from "@/components/EndTenancyDialog";
 import { NewTenancyDialog } from "@/components/NewTenancyDialog";
@@ -79,6 +80,15 @@ export default function UnitDetail() {
     if (!unit) return;
     const { error } = await supabase.from("units").delete().eq("id", unit.id);
     if (error) return toast.error(error.message);
+    logActivity({
+      entityType: "unit",
+      action: "deleted",
+      entityId: unit.id,
+      entityLabel: unit.unit_number,
+      buildingId: unit.building_id,
+      descriptionAr: `حذف الوحدة ${unit.unit_number}${unit.tenant_name ? ` — كان مستأجرها ${unit.tenant_name}` : ""}`,
+      descriptionEn: `Unit ${unit.unit_number} deleted`,
+    });
     toast.success("✓");
     navigate(`/buildings/${unit.building_id}`);
   };
