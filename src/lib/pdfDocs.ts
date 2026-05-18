@@ -159,9 +159,7 @@ const pageShell = (title: string, body: string, options?: { rtl?: boolean }) => 
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>${escapeHtml(title)}</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Cairo:wght@400;600;700;800&family=Tajawal:wght@400;500;700;800&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+    <!-- Fonts intentionally not loaded from external CDN to avoid CORS-tainting html2canvas. The container inherits fonts already loaded by the app document (Noto Kufi Arabic + Outfit). -->
     <style>
       :root {
         color-scheme: light;

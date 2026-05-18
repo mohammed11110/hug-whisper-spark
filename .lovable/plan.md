@@ -1,42 +1,35 @@
-## المشكلة
+# إصلاح مشكلة تحميل عقد الإيجار (PDF)
 
-سجل النشاطات الأخيرة لا يلتقط عمليات مهمة مثل تسجيل عقد جديد، تعديل بيانات الوحدة/المستأجر، وحذف/استرجاع إيصال الاستلام. السبب أن دالة `logActivity` مستدعاة فقط في 5 أماكن (إضافة مبنى، إضافة وحدة، إضافة دفعة، صيانة، مصاريف)، بينما باقي عمليات الكتابة على قاعدة البيانات لا تسجّل أي نشاط.
+## السبب الجذري
+زر "تحميل العقد" يستخدم `downloadHTMLAsPDF` في `src/lib/pdfDocs.ts` الذي يعتمد على `html2canvas` مع `foreignObjectRendering: true` لدعم تشكيل الأحرف العربية. هذه الطريقة تفشل لأن:
 
-## الإصلاح
+1. قالب الـ PDF (`pageShell`) يحمّل خطوط Google Fonts من `fonts.googleapis.com` كـ `<link rel="stylesheet">` من نطاق خارجي.
+2. عند التقاط اللقطة عبر `foreignObject`، يصبح الـ canvas **tainted** بسبب CORS، فيُلقي `toDataURL` خطأ أو ينتج صفحة بيضاء.
+3. الكود الحالي يمنع الـ fallback عندما يكون النص عربيًا (حتى لا تنكسر الأحرف)، فيصل إلى `throw new Error("PDF render produced a blank page")` وتظهر رسالة الخطأ التي يراها المستخدم.
+4. الطباعة تعمل لأنها لا تمر بـ html2canvas — تستخدم نافذة طباعة المتصفح مباشرة.
 
-إضافة استدعاءات `logActivity` في جميع نقاط التعديل المفقودة، مع نصوص عربية/إنجليزية واضحة وربطها بـ `building_id` و `entity_id` و `entity_label` لتظهر مباشرة في بطاقة "آخر النشاطات" وصفحة `/activity` عبر الـ realtime channel الموجود.
+## الإصلاحات
 
-### النقاط التي ستُضاف فيها سجلات النشاط
+### 1. `src/lib/pdfDocs.ts` — `pageShell`
+- إزالة وسوم `<link>` إلى `fonts.googleapis.com` و`fonts.gstatic.com`.
+- إضافة `@font-face` داخل `<style>` تستخدم نفس الخطوط المحلية المُحمّلة أصلًا في التطبيق (Noto Kufi Arabic للعربي وOutfit للاتيني) عبر مسار بيانات base64، أو الاكتفاء بأسماء الخطوط التي حُمّلت بالفعل في المستند الأم — حيث أن الـ container يُلحَق بـ `document.body` فيرث الخطوط المُسجَّلة في `document.fonts`.
+- تحديث `font-family` ليبدأ بـ `"Noto Kufi Arabic"` (الموجود في النظام) بدل `Tajawal` الذي يأتي حصراً من Google.
 
-| الملف | العملية | الإجراء (action) | الكيان (entity) |
-|---|---|---|---|
-| `src/components/NewTenancyDialog.tsx` | تسجيل عقد إيجار جديد | `created` | `tenant` |
-| `src/components/EndTenancyDialog.tsx` | إنهاء عقد إيجار | `ended` | `tenant` |
-| `src/components/EditUnitDialog.tsx` | تعديل بيانات الوحدة/المستأجر | `updated` | `unit` |
-| `src/pages/UnitDetail.tsx` — `saveArrears` | تعديل المتأخرات الافتتاحية | `updated` | `unit` |
-| `src/pages/UnitDetail.tsx` — رفع/تغيير عقد PDF | تحديث ملف العقد | `updated` | `unit` |
-| `src/pages/UnitDetail.tsx` — رفع/تغيير صورة هوية المستأجر | تحديث الهوية | `updated` | `tenant` |
-| `src/pages/UnitDetail.tsx` — حذف الوحدة | حذف وحدة | `deleted` | `unit` |
-| `src/pages/UnitDetail.tsx` — تحديث الخدمات (utilities) والحالة القانونية | تحديث | `updated` | `unit` |
-| `src/pages/Payments.tsx` — حذف إيصال (soft delete) | حذف إيصال الاستلام | `deleted` | `payment` |
-| `src/pages/PaymentsTrash.tsx` — استرجاع إيصال | استرجاع | `restored` | `payment` |
-| `src/pages/PaymentsTrash.tsx` — حذف نهائي | حذف نهائي | `deleted` | `payment` |
+### 2. `downloadHTMLAsPDF`
+- تحديث `waitForWebFonts` لتنتظر الخطوط المحلية (`Noto Kufi Arabic`, `Outfit`) بدل Tajawal/Cairo.
+- إضافة محاولة احتياطية صامتة: إذا فشل `foreignObjectRendering: true` أو نتج canvas مشوّه، إعادة المحاولة بعد إزالة أي `<link>` خارجي من الـ container (حماية من قوالب قديمة).
+- تحسين رسالة الخطأ لتشمل السبب الفعلي (CORS / blank / canvas tainted) لتسهيل التشخيص لاحقاً.
 
-### نصوص الأوصاف (أمثلة)
+### 3. تنظيف عام
+- إزالة الإشارات المتبقية لخطوط Google داخل قوالب الإيصال والكشف لضمان نفس السلوك في كل ملفات PDF.
 
-- تسجيل عقد: `descriptionAr: "تسجيل عقد إيجار جديد للمستأجر {name} — وحدة {unit_number}"`
-- تعديل مستأجر: `descriptionAr: "تعديل بيانات المستأجر {name} — وحدة {unit_number}"`
-- حذف إيصال: `descriptionAr: "حذف إيصال استلام بقيمة {amount} — {tenant}"`
-- استرجاع إيصال: `descriptionAr: "استرجاع إيصال استلام بقيمة {amount}"`
-- إنهاء عقد: `descriptionAr: "إنهاء عقد المستأجر {name}"`
+## نطاق التغيير
+- ملف واحد فقط: `src/lib/pdfDocs.ts`.
+- لا تغييرات على قاعدة البيانات أو واجهة الاستخدام.
+- المنطق الوظيفي (محتوى العقد، الترقيم، الترتيب) يبقى كما هو.
 
-### ملاحظات تقنية
-
-- `logActivity` لا تكسر العملية الأصلية (تبتلع الأخطاء)، فقط نستدعيها بعد نجاح العملية (`if (!error)`).
-- نمرّر `buildingId` دائمًا حتى يستفيد منه الـ RLS ويتمكن أعضاء المبنى من رؤية النشاط.
-- لا حاجة لأي تغيير في قاعدة البيانات أو الـ RLS؛ جدول `activity_log` والـ realtime subscription موجودان ويعملان.
-- لا تعديل على بطاقة "آخر النشاطات" نفسها؛ ستظهر التحديثات تلقائيًا بمجرد إدراج الصف.
-
-## النتيجة
-
-كل العمليات الحساسة (عقود، تعديلات، حذف إيصالات) ستظهر فورًا في "آخر النشاطات" على لوحة التحكم وفي صفحة سجل النشاط الكامل.
+## التحقق
+- اختبار تحميل عقد بمستأجر عربي → ملف PDF صفحة واحدة بأحرف عربية متصلة.
+- اختبار التحميل بمستأجر بأسماء لاتينية → بدون انحدار.
+- اختبار طباعة العقد → يبقى يعمل.
+- اختبار كشف حساب المستأجر وسند الإيصال → يحمّلان بدون خطأ.
