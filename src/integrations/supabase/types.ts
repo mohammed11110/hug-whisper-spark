@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_log: {
+        Row: {
+          action: string
+          building_id: string | null
+          changes: Json | null
+          created_at: string
+          description_ar: string | null
+          description_en: string | null
+          entity_id: string | null
+          entity_label: string | null
+          entity_type: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          building_id?: string | null
+          changes?: Json | null
+          created_at?: string
+          description_ar?: string | null
+          description_en?: string | null
+          entity_id?: string | null
+          entity_label?: string | null
+          entity_type: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          building_id?: string | null
+          changes?: Json | null
+          created_at?: string
+          description_ar?: string | null
+          description_en?: string | null
+          entity_id?: string | null
+          entity_label?: string | null
+          entity_type?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       building_members: {
         Row: {
           building_id: string
