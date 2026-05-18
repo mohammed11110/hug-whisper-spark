@@ -81,12 +81,12 @@ export function AddBuildingDialog({ open, onOpenChange, onCreated }: { open: boo
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={guard.handleOpenChange}>
       <DialogContent className="max-w-[400px] rounded-3xl border-sage-200 bg-background">
         <DialogHeader>
           <DialogTitle className="text-sage-600 text-xl font-black">{t("add_building")}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3 mt-2">
+        <div className="space-y-3 mt-2" {...guard.formProps}>
           <Field label={t2("building_name")}>
             <Input value={name} onChange={(e) => setName(e.target.value)} className="rounded-xl border-sage-200 bg-card" />
           </Field>
