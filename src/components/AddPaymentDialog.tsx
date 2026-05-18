@@ -261,6 +261,20 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     try {
       const u = units.find((x) => x.id === unitId);
       const monthLabel = `${(lang === "ar" ? AR_MONTHS : EN_MONTHS)[periodMonthNum - 1]} ${periodYear}`;
+      // Remaining unpaid months up to and including the selected month
+      // (subtract the amount just paid from the chosen month's remaining)
+      const upTo = unpaidMonths
+        .filter((m) => m.year < periodYear || (m.year === periodYear && m.month <= periodMonthNum))
+        .map((m) => {
+          const isCurrent = m.year === periodYear && m.month === periodMonthNum;
+          const remaining = isCurrent ? Math.max(0, m.remaining - Number(amount)) : m.remaining;
+          return {
+            label: `${(lang === "ar" ? AR_MONTHS : EN_MONTHS)[m.month - 1]} ${m.year}`,
+            remaining,
+          };
+        })
+        .filter((m) => m.remaining > 0.009);
+      const unpaidTotal = upTo.reduce((s, m) => s + m.remaining, 0);
       const html = buildReceiptHTML({
         brand: settings.brand,
         receiptNumber: receipt.trim() || formatReceipt(settings.receipt),
@@ -274,6 +288,10 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         tenantName: u?.tenant_name || "—",
         notes: notes.trim() || null,
         currency: format(0).replace(/[\d.,\s]/g, "").trim() || "",
+        lang: lang === "ar" ? "ar" : "en",
+        unpaidMonths: upTo,
+        unpaidTotal,
+        unpaidUpToLabel: monthLabel,
       });
       await downloadHTMLAsPDF(html, `receipt-${(receipt.trim() || formatReceipt(settings.receipt))}.pdf`, settings);
     } catch (e: any) {
