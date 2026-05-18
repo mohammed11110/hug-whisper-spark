@@ -15,6 +15,7 @@ interface Req {
   title: string; description: string | null;
   priority: string; status: string;
   tenant_name: string | null; cost: number | null; vendor: string | null;
+  photos: string[] | null;
   created_at: string;
   building_name?: string; unit_number?: string;
 }
@@ -127,6 +128,15 @@ export default function Maintenance() {
               <div className="flex justify-between text-[11px] text-sage-600 bg-sage-100/40 rounded-lg px-3 py-1.5">
                 {r.vendor && <span>{t2("vendor")}: <b>{r.vendor}</b></span>}
                 {r.cost ? <span>{t2("cost")}: <b>{format(Number(r.cost))}</b></span> : null}
+              </div>
+            )}
+            {r.photos && r.photos.length > 0 && (
+              <div className="grid grid-cols-4 gap-1.5">
+                {r.photos.map((url, i) => (
+                  <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="aspect-square rounded-lg overflow-hidden border border-sage-200 block">
+                    <img src={url} alt="" loading="lazy" className="w-full h-full object-cover" />
+                  </a>
+                ))}
               </div>
             )}
             <div className="flex gap-1.5">

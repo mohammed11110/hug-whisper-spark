@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,13 +6,17 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useT2 } from "@/lib/i18n2";
+import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Camera, X, Loader2 } from "lucide-react";
 
 const PRIORITIES = ["low", "normal", "high", "urgent"] as const;
 
 export function AddMaintenanceDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (o: boolean) => void; onCreated?: () => void }) {
   const t2 = useT2();
+  const { lang } = useI18n();
+  const isAr = lang === "ar";
   const [buildings, setBuildings] = useState<{ id: string; name: string }[]>([]);
   const [units, setUnits] = useState<{ id: string; unit_number: string; building_id: string; tenant_name: string | null }[]>([]);
   const [buildingId, setBuildingId] = useState("");
@@ -22,7 +26,10 @@ export function AddMaintenanceDialog({ open, onOpenChange, onCreated }: { open: 
   const [priority, setPriority] = useState<typeof PRIORITIES[number]>("normal");
   const [vendor, setVendor] = useState("");
   const [cost, setCost] = useState("");
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -36,8 +43,30 @@ export function AddMaintenanceDialog({ open, onOpenChange, onCreated }: { open: 
 
   const filteredUnits = buildingId ? units.filter((u) => u.building_id === buildingId) : [];
 
+  const uploadPhotos = async (files: FileList | null) => {
+    if (!files || !files.length) return;
+    setUploading(true);
+    const { data: ud } = await supabase.auth.getUser();
+    const uid = ud.user?.id;
+    if (!uid) { setUploading(false); return; }
+    const urls: string[] = [];
+    for (const file of Array.from(files)) {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${uid}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error } = await supabase.storage.from("maintenance-photos").upload(path, file, { upsert: false });
+      if (error) { toast.error(error.message); continue; }
+      const { data } = supabase.storage.from("maintenance-photos").getPublicUrl(path);
+      urls.push(data.publicUrl);
+    }
+    setPhotos((p) => [...p, ...urls]);
+    setUploading(false);
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const removePhoto = (url: string) => setPhotos((p) => p.filter((x) => x !== url));
+
   const submit = async () => {
-    if (!buildingId || !title.trim()) return toast.error("…");
+    if (!buildingId || !title.trim()) return toast.error(isAr ? "أكمل البيانات المطلوبة" : "Complete required fields");
     setBusy(true);
     const u = units.find((x) => x.id === unitId);
     const { error } = await (supabase as any).from("maintenance_requests").insert({
@@ -49,11 +78,12 @@ export function AddMaintenanceDialog({ open, onOpenChange, onCreated }: { open: 
       priority,
       vendor: vendor.trim() || null,
       cost: cost ? Number(cost) : null,
+      photos,
     });
     setBusy(false);
     if (error) return toast.error(error.message);
-    toast.success("✓");
-    setTitle(""); setDescription(""); setVendor(""); setCost(""); setPriority("normal"); setUnitId("");
+    toast.success(isAr ? "تم حفظ الطلب" : "Request saved");
+    setTitle(""); setDescription(""); setVendor(""); setCost(""); setPriority("normal"); setUnitId(""); setPhotos([]);
     onCreated?.();
     onOpenChange(false);
   };
@@ -109,6 +139,28 @@ export function AddMaintenanceDialog({ open, onOpenChange, onCreated }: { open: 
               <Label className="text-xs text-sage-500">{t2("cost")}</Label>
               <Input type="number" inputMode="decimal" value={cost} onChange={(e) => setCost(e.target.value)} className="rounded-xl border-sage-200 bg-card h-11" />
             </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-sage-500">{isAr ? "صور المشكلة" : "Photos"}</Label>
+            <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => uploadPhotos(e.target.files)} />
+            <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
+              className="w-full h-11 rounded-xl border-2 border-dashed border-sage-300/60 bg-sage-100/30 text-sage-600 text-xs font-semibold flex items-center justify-center gap-2 hover:bg-sage-100/60 disabled:opacity-60">
+              {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+              {uploading ? (isAr ? "جاري الرفع..." : "Uploading...") : (isAr ? "إضافة صور" : "Add photos")}
+            </button>
+            {photos.length > 0 && (
+              <div className="grid grid-cols-4 gap-2 mt-2">
+                {photos.map((url) => (
+                  <div key={url} className="relative aspect-square rounded-lg overflow-hidden border border-sage-200">
+                    <img src={url} alt="" className="w-full h-full object-cover" />
+                    <button type="button" onClick={() => removePhoto(url)}
+                      className="absolute top-0.5 end-0.5 h-5 w-5 rounded-full bg-burgundy text-white flex items-center justify-center">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <div className="flex gap-2 pt-2">
             <Button variant="outline" className="flex-1 rounded-xl" onClick={() => onOpenChange(false)}>{t2("cancel")}</Button>
