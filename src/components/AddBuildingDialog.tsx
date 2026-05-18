@@ -28,6 +28,8 @@ export function AddBuildingDialog({ open, onOpenChange, onCreated }: { open: boo
   const [address, setAddress] = useState("");
   const [busy, setBusy] = useState(false);
 
+  const guard = useUnsavedGuard({ open, onOpenChange });
+
   const submit = async () => {
     if (!user || !name.trim()) return;
     setBusy(true);
