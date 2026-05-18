@@ -789,6 +789,12 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
     if (node.nodeType !== Node.ELEMENT_NODE) return;
     const el = node as HTMLElement;
     if (el.tagName === "TITLE") return;
+    // Skip any external stylesheet/font link — they taint the canvas via CORS
+    // and html2canvas's foreignObjectRendering will silently fail.
+    if (el.tagName === "LINK") {
+      const href = el.getAttribute("href") || "";
+      if (/^https?:\/\//i.test(href)) return;
+    }
     container.appendChild(el.cloneNode(true));
   });
 
