@@ -215,6 +215,18 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const remaining = Math.max(0, (Number(expected) || 0) - (Number(amount) || 0));
   const isPartial = Number(amount) > 0 && Number(expected) > 0 && Number(amount) < Number(expected);
 
+  // Detect "final installment of a partially-paid month"
+  const currentMonthEntry = unpaidMonths.find((m) => m.year === periodYear && m.month === periodMonthNum);
+  const hasPriorPartial = !!currentMonthEntry && activeRent > 0 && currentMonthEntry.remaining + 0.01 < activeRent;
+  const settlesMonth = !!currentMonthEntry && Number(amount) + 0.01 >= currentMonthEntry.remaining;
+  const isFinalSettlement = hasPriorPartial && settlesMonth;
+  const monthLabelForNote = `${monthNames[periodMonthNum - 1]} ${periodYear}`;
+  const settlementNote = isFinalSettlement
+    ? (lang === "ar"
+        ? `تم سداد الجزء الأخير من المبلغ المتبقي عن شهر ${monthLabelForNote}.`
+        : `Final installment of the outstanding balance for ${monthLabelForNote} has been settled.`)
+    : null;
+
   const submit = async () => {
     const parsed = schema.safeParse({
       unit_id: unitId,
