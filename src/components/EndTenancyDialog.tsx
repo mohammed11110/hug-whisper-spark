@@ -11,6 +11,7 @@ import { useCurrency } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
 import { computeBalance } from "@/lib/balance";
 import { toast } from "sonner";
+import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
 
 interface Props {
   open: boolean;
