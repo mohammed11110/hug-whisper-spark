@@ -12,6 +12,7 @@ import {
   HardDriveDownload,
   UsersRound,
   Wrench,
+  Activity as ActivityIcon,
 } from "lucide-react";
 import {
   Sidebar,
