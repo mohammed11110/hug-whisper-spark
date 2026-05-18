@@ -8,7 +8,7 @@ import { useI18n } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
 import { useAppSettings } from "@/lib/appSettings";
-import { buildLeaseHTML, downloadHTMLAsPDF, printHTML } from "@/lib/pdfDocs";
+import { buildLeaseHTML, downloadHTMLAsPDF, printHTML, buildTenantStatementHTML, type StatementRow } from "@/lib/pdfDocs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { AddPaymentDialog } from "@/components/AddPaymentDialog";
