@@ -98,6 +98,7 @@ export function EndTenancyDialog({ open, onOpenChange, unit, tenancyId, onDone }
     setSaving(false);
     if (uErr) return toast.error(uErr.message);
     toast.success(t2("tenancy_ended_ok"));
+    guard.markSaved();
     onOpenChange(false);
     onDone();
   };
@@ -105,12 +106,12 @@ export function EndTenancyDialog({ open, onOpenChange, unit, tenancyId, onDone }
   if (!unit) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={guard.handleOpenChange}>
       <DialogContent className="rounded-2xl max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-burgundy">{t2("end_tenancy")} — {unit.tenant_name}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3">
+        <div className="space-y-3" {...guard.formProps}>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs text-sage-500">{t2("end_date")}</Label>
