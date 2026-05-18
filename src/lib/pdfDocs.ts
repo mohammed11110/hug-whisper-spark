@@ -24,6 +24,10 @@ export interface ReceiptData {
   tenantName?: string | null;
   notes?: string | null;
   currency?: string | null;
+  lang?: "ar" | "en";
+  unpaidMonths?: Array<{ label: string; remaining: number }>;
+  unpaidTotal?: number | null;
+  unpaidUpToLabel?: string | null;
 }
 
 export interface Lease {
@@ -143,6 +147,9 @@ const pageShell = (title: string, body: string, options?: { rtl?: boolean }) => 
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>${escapeHtml(title)}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Cairo:wght@400;600;700;800&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
     <style>
       :root {
         color-scheme: light;
@@ -158,9 +165,15 @@ const pageShell = (title: string, body: string, options?: { rtl?: boolean }) => 
       * { box-sizing: border-box; }
       html, body { margin: 0; padding: 0; background: #eef2eb; }
       body {
-        font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+        font-family: ${options?.rtl ? `"Noto Naskh Arabic", "Cairo", "Segoe UI", Tahoma, Arial, sans-serif` : `"Inter", "Segoe UI", Tahoma, Arial, sans-serif`};
         color: var(--ink);
         padding: 24px;
+        font-feature-settings: "kern", "liga", "calt";
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+      }
+      :lang(ar), [lang="ar"], [dir="rtl"] {
+        font-family: "Noto Naskh Arabic", "Cairo", "Segoe UI", Tahoma, Arial, sans-serif;
       }
       .page {
         width: 794px;
@@ -324,25 +337,40 @@ const brandBlock = (brand: BrandInfo, title: string, subtitle?: string | null, m
 `;
 
 export function buildReceiptHTML(data: ReceiptData): string {
+  const rtl = data.lang === "ar";
   const partial = data.expectedAmount && data.amount < data.expectedAmount;
+  const L = (ar: string, en: string) => (rtl ? ar : en);
+  const unpaidRows = (data.unpaidMonths || [])
+    .map(
+      (m) => `<tr><td>${escapeHtml(m.label)}</td><td>${escapeHtml(formatMoney(m.remaining, data.currency))}</td></tr>`
+    )
+    .join("");
   const body = `
     ${brandBlock(
       data.brand,
-      "Receipt / سند قبض",
+      rtl ? "سند قبض" : "Receipt",
       data.brand.name,
       `<div>${escapeHtml(data.receiptNumber)}</div><div>${formatDate(data.paymentDate)}</div>`
     )}
     <div class="content">
       <div class="grid">
-        <div class="card"><div class="label">Building / المبنى</div><div class="value">${escapeHtml(data.building || "—")}</div></div>
-        <div class="card"><div class="label">Unit / الوحدة</div><div class="value">${escapeHtml(data.unitNumber || "—")}</div></div>
-        <div class="card"><div class="label">Tenant / المستأجر</div><div class="value">${escapeHtml(data.tenantName || "—")}</div></div>
-        <div class="card"><div class="label">Method / طريقة الدفع</div><div class="value">${escapeHtml(data.method || "—")}</div></div>
-        <div class="card"><div class="label">Amount / المبلغ</div><div class="value amount-positive">${escapeHtml(formatMoney(data.amount, data.currency))}</div></div>
-        <div class="card"><div class="label">Rent period / فترة الإيجار</div><div class="value">${escapeHtml(data.periodLabel || "—")}</div></div>
+        <div class="card"><div class="label">${L("المبنى", "Building")}</div><div class="value">${escapeHtml(data.building || "—")}</div></div>
+        <div class="card"><div class="label">${L("الوحدة", "Unit")}</div><div class="value">${escapeHtml(data.unitNumber || "—")}</div></div>
+        <div class="card"><div class="label">${L("المستأجر", "Tenant")}</div><div class="value">${escapeHtml(data.tenantName || "—")}</div></div>
+        <div class="card"><div class="label">${L("طريقة الدفع", "Method")}</div><div class="value">${escapeHtml(data.method || "—")}</div></div>
+        <div class="card"><div class="label">${L("المبلغ المدفوع", "Amount paid")}</div><div class="value amount-positive">${escapeHtml(formatMoney(data.amount, data.currency))}</div></div>
+        <div class="card"><div class="label">${L("فترة الإيجار", "Rent period")}</div><div class="value">${escapeHtml(data.periodLabel || "—")}</div></div>
       </div>
-      ${data.expectedAmount ? `<div class="note">Expected / المتوقع: <strong>${escapeHtml(formatMoney(data.expectedAmount, data.currency))}</strong>${partial ? ` — <span class="pill">Partial payment / دفعة جزئية</span>` : ""}</div>` : ""}
-      ${data.notes ? `<div class="section-title">Notes / ملاحظات</div><div class="card"><div class="value">${escapeHtml(data.notes)}</div></div>` : ""}
+      ${data.expectedAmount ? `<div class="note">${L("المتوقع", "Expected")}: <strong>${escapeHtml(formatMoney(data.expectedAmount, data.currency))}</strong>${partial ? ` — <span class="pill">${L("دفعة جزئية", "Partial payment")}</span>` : ""}</div>` : ""}
+      ${unpaidRows ? `
+        <div class="section-title">${L("الأشهر المتبقية على المستأجر", "Remaining unpaid months")}</div>
+        <table>
+          <thead><tr><th>${L("الشهر", "Month")}</th><th>${L("المبلغ المتبقي", "Remaining amount")}</th></tr></thead>
+          <tbody>${unpaidRows}</tbody>
+        </table>
+        ${data.unpaidTotal != null ? `<div class="note"><strong>${L("إجمالي المتبقي", "Total outstanding")}${data.unpaidUpToLabel ? ` ${L("حتى", "through")} ${escapeHtml(data.unpaidUpToLabel)}` : ""}:</strong> <span class="amount-negative">${escapeHtml(formatMoney(data.unpaidTotal, data.currency))}</span></div>` : ""}
+      ` : (data.unpaidTotal != null ? `<div class="note"><strong>${L("إجمالي المتبقي", "Total outstanding")}${data.unpaidUpToLabel ? ` ${L("حتى", "through")} ${escapeHtml(data.unpaidUpToLabel)}` : ""}:</strong> <span class="amount-positive">${escapeHtml(formatMoney(data.unpaidTotal, data.currency))}</span></div>` : "")}
+      ${data.notes ? `<div class="section-title">${L("ملاحظات", "Notes")}</div><div class="card"><div class="value">${escapeHtml(data.notes)}</div></div>` : ""}
     </div>
     <div class="footer">
       <div>${escapeHtml(data.brand.phone || "")}</div>
@@ -350,7 +378,7 @@ export function buildReceiptHTML(data: ReceiptData): string {
     </div>
   `;
 
-  return pageShell("Receipt", body);
+  return pageShell(rtl ? "سند قبض" : "Receipt", body, { rtl });
 }
 
 export function buildLeaseHTML(data: Lease): string {
@@ -579,6 +607,11 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
 
   try {
     const target = (container.querySelector(".page") as HTMLElement) || container;
+    // Ensure web fonts (incl. Arabic) are fully loaded so glyphs render connected
+    try {
+      if ((document as any).fonts?.ready) await (document as any).fonts.ready;
+      await new Promise((r) => setTimeout(r, 250));
+    } catch { /* noop */ }
     const canvas = await html2canvas(target, {
       scale: 2,
       useCORS: true,
