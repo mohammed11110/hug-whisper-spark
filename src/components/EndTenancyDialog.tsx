@@ -181,11 +181,12 @@ export function EndTenancyDialog({ open, onOpenChange, unit, tenancyId, onDone }
           </div>
         </div>
         <DialogFooter className="gap-2 sm:gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl">{t2("cancel")}</Button>
-          <Button onClick={submit} disabled={saving} className="rounded-xl bg-burgundy hover:bg-burgundy/90 text-primary-foreground">
+          <Button data-guard-ignore variant="outline" onClick={() => guard.handleOpenChange(false)} className="rounded-xl">{t2("cancel")}</Button>
+          <Button data-guard-ignore onClick={submit} disabled={saving} className="rounded-xl bg-burgundy hover:bg-burgundy/90 text-primary-foreground">
             {t2("end_tenancy")}
           </Button>
         </DialogFooter>
+        {guard.ConfirmDiscardUI}
       </DialogContent>
     </Dialog>
   );
