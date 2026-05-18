@@ -90,6 +90,7 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
       floor: Math.max(1, parseInt(floor) || 1),
       type,
       tenant_name: occupied ? tenantName.trim() : null,
+      tenant_name_en: occupied ? (tenantNameEn.trim() || null) : null,
       tenant_phone: occupied ? tenantPhone.trim() : null,
       tenant_email: occupied ? tenantEmail.trim() || null : null,
       rent_amount: occupied ? rentN : 0,
