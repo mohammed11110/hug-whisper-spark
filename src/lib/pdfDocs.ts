@@ -868,6 +868,12 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
   const pageSize = settings?.pageSize || DEFAULT_PAGE_SIZE;
   const margins = settings?.margins || DEFAULT_MARGINS;
 
+  // Preload local fonts as data URLs BEFORE creating the iframe, so they are
+  // guaranteed available when html2canvas snapshots the document. This is the
+  // single most important step for correct Arabic letter joining.
+  const fontUrls = await getFontDataUrls();
+  const fontFaceCss = buildFontFaceCss(fontUrls);
+
   const iframe = document.createElement("iframe");
   iframe.setAttribute("aria-hidden", "true");
   iframe.style.position = "fixed";
@@ -893,7 +899,7 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
       iframe.onload = () => finish(() => resolve());
       iframe.onerror = () => finish(() => reject(new Error("تعذّر تجهيز ملف العقد قبل التنزيل.")));
       iframe.srcdoc = html;
-      window.setTimeout(() => finish(() => resolve()), 400);
+      window.setTimeout(() => finish(() => resolve()), 600);
     });
 
     const frameDoc = iframe.contentDocument;
@@ -901,11 +907,22 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
 
     stripExternalRenderResources(frameDoc);
 
+    // Inject embedded data-URL fonts directly into the iframe document
+    const fontStyle = frameDoc.getElementById("pdf-fonts") || frameDoc.createElement("style");
+    fontStyle.id = "pdf-fonts";
+    fontStyle.textContent = fontFaceCss;
+    if (!fontStyle.parentNode) frameDoc.head.appendChild(fontStyle);
+
+    // Also register via FontFace API for reliable readiness signal
+    await registerFontsInDocument(frameDoc, fontUrls);
+
     const target = (frameDoc.querySelector(".page") as HTMLElement) || frameDoc.body;
     target.style.background = "#ffffff";
     // Inline images as data URLs so foreignObjectRendering / CORS never produce a blank canvas
     await inlineImages(target);
     await waitForWebFonts(target);
+    // Extra settle time so layout reflows with the newly-loaded Arabic font
+    await new Promise((r) => setTimeout(r, 200));
 
     const hasArabic = /[\u0600-\u06FF]/.test(target.innerText || target.textContent || "");
 
@@ -922,23 +939,34 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
       });
 
     let canvas: HTMLCanvasElement;
-    try {
-      canvas = await renderOnce(hasArabic, false);
-      if (isCanvasBlank(canvas)) {
-        console.warn("[pdf] first render blank — retrying without foreignObjectRendering");
-        canvas = await renderOnce(false, false);
+    if (hasArabic) {
+      // Arabic text REQUIRES foreignObjectRendering for correct letter joining.
+      // The non-foreignObject path draws codepoints individually and produces
+      // disconnected letters. Never fall back to it when Arabic is present.
+      try {
+        canvas = await renderOnce(true, false);
+      } catch (e) {
+        console.warn("[pdf] foreignObject render failed, retrying once", e);
+        await new Promise((r) => setTimeout(r, 300));
+        canvas = await renderOnce(true, false);
       }
-    } catch (e) {
-      console.warn("[pdf] primary render failed, falling back", e);
-      canvas = await renderOnce(hasArabic ? true : false, false);
       if (isCanvasBlank(canvas)) {
+        await new Promise((r) => setTimeout(r, 400));
+        canvas = await renderOnce(true, false);
+      }
+    } else {
+      try {
         canvas = await renderOnce(false, false);
+        if (isCanvasBlank(canvas)) canvas = await renderOnce(true, false);
+      } catch {
+        canvas = await renderOnce(true, false);
       }
     }
 
     if (isCanvasBlank(canvas)) {
       throw new Error("تعذّر إنشاء الـ PDF: الصفحة الناتجة فارغة. حاول مرة أخرى.");
     }
+
 
     const pdf = new jsPDF({ unit: "mm", format: pageSize.toLowerCase() as "a4" | "a5" | "letter" });
     const pageW = pdf.internal.pageSize.getWidth();
