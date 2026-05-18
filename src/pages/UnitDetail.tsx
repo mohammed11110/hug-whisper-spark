@@ -258,6 +258,7 @@ export default function UnitDetail() {
           unit.tenant_name ? (
             <DetailsTab unit={unit} payments={payments} format={format} t2={t2} lang={lang}
               onPay={() => setPayOpen(true)} onLeasePDF={() => exportLease("download")} onLeasePrint={() => exportLease("print")}
+              onStatement={exportStatement}
               onEnd={() => setEndOpen(true)} reload={load} />
           ) : (
             <VacantState t2={t2} onAdd={() => setNewTenantOpen(true)} />
