@@ -386,7 +386,6 @@ function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLea
         </div>
       </Card>
       <Card>
-      <Card>
         <h3 className="text-sage-600 font-bold mb-3 text-sm">{t2("rent_amount")}</h3>
         <Row icon={Wallet} label={t2("rent_amount")} value={`${format(Number(unit.rent_amount))} / ${t2(unit.rent_type)}`} />
         <DueDateRow unit={unit} t2={t2} lang={lang} />
