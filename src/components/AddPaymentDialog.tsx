@@ -141,24 +141,24 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, presetUnitId]);
 
-  // Smart rent-month suggestion based on contract + prior payments + amount
+  // Load unpaid months for the selected unit (based on contract + prior payments)
   useEffect(() => {
-    if (!open || !unitId) { setSuggestion(null); return; }
-    const amt = Number(amount) || 0;
-    if (amt <= 0) { setSuggestion(null); return; }
+    if (!open || !unitId) { setUnpaidMonths([]); setAllPaid(false); return; }
     let cancelled = false;
     (async () => {
       const { data: tn } = await supabase
         .from("tenancies")
-        .select("contract_start_date, rent_amount, rent_type, status")
+        .select("contract_start_date, contract_end_date, rent_amount, rent_type, status")
         .eq("unit_id", unitId)
         .eq("status", "active")
         .maybeSingle();
-      if (!tn || cancelled) { setSuggestion(null); return; }
+      if (cancelled) return;
+      if (!tn) { setUnpaidMonths([]); setAllPaid(false); return; }
       const startStr = (tn as any).contract_start_date as string | null;
+      const endStr = (tn as any).contract_end_date as string | null;
       const rentAmt = Number((tn as any).rent_amount) || 0;
       const rentType = (tn as any).rent_type as string;
-      if (!startStr || rentAmt <= 0) { setSuggestion(null); return; }
+      if (!startStr || rentAmt <= 0) { setUnpaidMonths([]); setAllPaid(false); return; }
 
       const { data: ps } = await supabase
         .from("payments")
@@ -174,41 +174,32 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
 
       const today = new Date();
       const start = new Date(startStr);
+      const horizonByToday = new Date(today.getFullYear(), today.getMonth() + 2, 1);
+      const horizonByContract = endStr ? new Date(endStr) : horizonByToday;
+      const horizon = horizonByContract < horizonByToday ? horizonByContract : horizonByToday;
       const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
-      const limit = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-      let firstUnpaid: { year: number; month: number } | null = null;
-      while (cursor <= limit) {
+      const out: { year: number; month: number; remaining: number }[] = [];
+      while (cursor <= horizon) {
         const y = cursor.getFullYear();
         const m = cursor.getMonth() + 1;
         const k = `${y}-${String(m).padStart(2, "0")}`;
         const paid = paidByMonth.get(k) || 0;
-        if (rentType === "monthly" && paid + 0.01 < rentAmt) {
-          firstUnpaid = { year: y, month: m };
-          break;
-        }
-        if (rentType === "yearly" && m === start.getMonth() + 1 && paid + 0.01 < rentAmt) {
-          firstUnpaid = { year: y, month: m };
-          break;
+        const isContractAnchor = rentType !== "yearly" || m === start.getMonth() + 1;
+        if (isContractAnchor && paid + 0.01 < rentAmt) {
+          out.push({ year: y, month: m, remaining: rentAmt - paid });
         }
         cursor.setMonth(cursor.getMonth() + 1);
       }
       if (cancelled) return;
-      if (!firstUnpaid) { setSuggestion(null); return; }
-      const covers = rentType === "monthly" && rentAmt > 0 ? Math.max(1, Math.round(amt / rentAmt)) : 1;
-      const monthName = (lang === "ar" ? AR_MONTHS : EN_MONTHS)[firstUnpaid.month - 1];
-      const reason = lang === "ar"
-        ? `أول شهر غير مسدد بالكامل: ${monthName} ${firstUnpaid.year}${covers > 1 ? ` — المبلغ يغطي ${covers} أشهر تقريباً` : ""}`
-        : `First unpaid month: ${monthName} ${firstUnpaid.year}${covers > 1 ? ` — amount covers ~${covers} months` : ""}`;
-      setSuggestion({ year: firstUnpaid.year, month: firstUnpaid.month, covers, reason });
+      setUnpaidMonths(out);
+      setAllPaid(out.length === 0);
+      if (out.length > 0) {
+        setPeriodYear(out[0].year);
+        setPeriodMonthNum(out[0].month);
+      }
     })();
     return () => { cancelled = true; };
-  }, [open, unitId, amount, lang]);
-
-  const applySuggestion = () => {
-    if (!suggestion) return;
-    setPeriodYear(suggestion.year);
-    setPeriodMonthNum(suggestion.month);
-  };
+  }, [open, unitId]);
 
   const onPickUnit = (id: string) => {
     setUnitId(id);
