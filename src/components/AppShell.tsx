@@ -1,6 +1,7 @@
 import { Outlet } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { ActivityNotifier } from "@/components/ActivityNotifier";
 
 /**
  * Layout shell: on iPad/desktop (md+) shows a collapsible sidebar next to the
@@ -10,6 +11,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 export function AppShell() {
   return (
     <SidebarProvider defaultOpen={false}>
+      <ActivityNotifier />
       <div className="flex w-full min-h-svh">
         <div className="hidden md:block">
           <AppSidebar />
