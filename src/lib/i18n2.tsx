@@ -68,7 +68,7 @@ const dict: Record<Key, Partial<Record<Lang, string>>> = {
   add_unit: { ar: "إضافة وحدة", en: "Add unit", ur: "یونٹ شامل کریں", zh: "添加单元", hi: "इकाई जोड़ें", bn: "ইউনিট যোগ", fr: "Ajouter une unité", es: "Agregar unidad", tr: "Birim ekle" },
   unit_number: { ar: "رقم الوحدة", en: "Unit number", ur: "یونٹ نمبر", zh: "单元号", hi: "इकाई संख्या", bn: "ইউনিট নম্বর", fr: "N° d'unité", es: "Nº unidad", tr: "Birim no" },
   unit_type: { ar: "نوع الوحدة", en: "Unit type", ur: "قسم", zh: "类型", hi: "प्रकार", bn: "ধরন", fr: "Type", es: "Tipo", tr: "Tür" },
-  tenant_name: { ar: "اسم المستأجر", en: "Tenant name", ur: "کرایہ دار کا نام", zh: "租户姓名", hi: "किरायेदार का नाम", bn: "ভাড়াটের নাম", fr: "Locataire", es: "Inquilino", tr: "Kiracı adı" },
+  tenant_name: { ar: "اسم المستأجر (عربي)", en: "Tenant name (Arabic)", ur: "کرایہ دار کا نام", zh: "租户姓名", hi: "किरायेदार का नाम", bn: "ভাড়াটের নাম", fr: "Locataire", es: "Inquilino", tr: "Kiracı adı" },
   tenant_phone: { ar: "هاتف المستأجر", en: "Tenant phone", ur: "فون", zh: "电话", hi: "फ़ोन", bn: "ফোন", fr: "Téléphone", es: "Teléfono", tr: "Telefon" },
   rent_amount: { ar: "قيمة الإيجار", en: "Rent amount", ur: "کرایہ", zh: "租金", hi: "किराया राशि", bn: "ভাড়া", fr: "Loyer", es: "Renta", tr: "Kira" },
   rent_type: { ar: "نوع الإيجار", en: "Rent type", ur: "کرایہ کی قسم", zh: "周期", hi: "किराया प्रकार", bn: "ভাড়ার ধরন", fr: "Périodicité", es: "Periodicidad", tr: "Kira tipi" },
