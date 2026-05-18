@@ -138,17 +138,26 @@ export default function Notifications() {
         </p>
       </div>
 
-      <div className="px-5 mt-4 flex gap-1.5 overflow-x-auto">
-        {TABS.map((tb) => (
-          <button key={tb.id} onClick={() => setTab(tb.id as any)}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap ${
-              tab === tb.id ? "bg-gradient-sage text-primary-foreground shadow-soft" : "bg-muted text-muted-foreground"
-            }`}>
-            <tb.icon className="h-3.5 w-3.5" />
-            {tb.label}
-            <span className={`text-[10px] px-1.5 rounded-full ${tab === tb.id ? "bg-white/25" : "bg-sage-200/60"}`}>{tb.count}</span>
+      <div className="px-5 mt-4 flex items-center gap-2">
+        <div className="flex gap-1.5 overflow-x-auto flex-1">
+          {TABS.map((tb) => (
+            <button key={tb.id} onClick={() => setTab(tb.id as any)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap ${
+                tab === tb.id ? "bg-gradient-sage text-primary-foreground shadow-soft" : "bg-muted text-muted-foreground"
+              }`}>
+              <tb.icon className="h-3.5 w-3.5" />
+              {tb.label}
+              <span className={`text-[10px] px-1.5 rounded-full ${tab === tb.id ? "bg-white/25" : "bg-sage-200/60"}`}>{tb.count}</span>
+            </button>
+          ))}
+        </div>
+        {filtered.some((i) => i.tenant_phone && i.kind !== "contract") && (
+          <button onClick={sendAll}
+            className="flex items-center gap-1 px-3 py-2 rounded-xl bg-[#25D366]/15 text-[#128C7E] text-xs font-bold whitespace-nowrap hover:bg-[#25D366]/25">
+            <MessageCircle className="h-3.5 w-3.5" />
+            {lang === "ar" ? "إرسال للكل" : "Send all"}
           </button>
-        ))}
+        )}
       </div>
 
       <div className="px-5 mt-4 space-y-2.5">
