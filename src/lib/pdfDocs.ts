@@ -725,20 +725,51 @@ function isCanvasBlank(canvas: HTMLCanvasElement): boolean {
     if (!ctx) return false;
     const w = canvas.width, h = canvas.height;
     if (!w || !h) return true;
-    const stepX = Math.max(1, Math.floor(w / 50));
-    const stepY = Math.max(1, Math.floor(h / 50));
+    const stepX = Math.max(1, Math.floor(w / 80));
+    const stepY = Math.max(1, Math.floor(h / 80));
     const data = ctx.getImageData(0, 0, w, h).data;
+    let nonWhite = 0;
     for (let y = 0; y < h; y += stepY) {
       for (let x = 0; x < w; x += stepX) {
         const i = (y * w + x) * 4;
         const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
-        if (a !== 0 && !(r > 245 && g > 245 && b > 245)) return false;
+        // Treat as "ink" only if clearly darker than pure white
+        if (a !== 0 && (r < 240 || g < 240 || b < 240)) {
+          nonWhite++;
+          if (nonWhite > 5) return false;
+        }
       }
     }
-    return true;
+    return nonWhite <= 5;
   } catch {
     return false;
   }
+}
+
+async function waitForWebFonts(root: HTMLElement) {
+  try {
+    if ((document as any).fonts?.ready) {
+      await (document as any).fonts.ready;
+    }
+    // Force-load key Arabic + Latin faces so html2canvas's foreignObject
+    // snapshot has them available for proper shaping.
+    const faces = [
+      '700 16px "Tajawal"',
+      '500 16px "Tajawal"',
+      '700 16px "Noto Naskh Arabic"',
+      '500 16px "Cairo"',
+      '700 16px "Inter"',
+    ];
+    if ((document as any).fonts?.load) {
+      const sample = "أبجد هوز Aa1";
+      await Promise.all(
+        faces.map((f) =>
+          (document as any).fonts.load(f, sample).catch(() => undefined)
+        )
+      );
+    }
+    await new Promise((r) => setTimeout(r, 350));
+  } catch { /* noop */ }
 }
 
 export async function downloadHTMLAsPDF(html: string, filename: string, settings?: PdfSettings) {
@@ -759,10 +790,7 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
     const target = (container.querySelector(".page") as HTMLElement) || container;
     // Inline images as data URLs so foreignObjectRendering / CORS never produce a blank canvas
     await inlineImages(target);
-    try {
-      if ((document as any).fonts?.ready) await (document as any).fonts.ready;
-      await new Promise((r) => setTimeout(r, 250));
-    } catch { /* noop */ }
+    await waitForWebFonts(target);
 
     const hasArabic = /[\u0600-\u06FF]/.test(target.innerText || "");
 
@@ -780,14 +808,17 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
 
     let canvas: HTMLCanvasElement;
     try {
-      canvas = await renderOnce(hasArabic, false);
-      if (isCanvasBlank(canvas)) {
+      // For Arabic we MUST use foreignObjectRendering — html2canvas's
+      // fallback renderer cannot shape/join Arabic letters and produces
+      // disconnected glyphs. Do not fall back for Arabic.
+      canvas = await renderOnce(hasArabic, hasArabic ? true : false);
+      if (!hasArabic && isCanvasBlank(canvas)) {
         console.warn("[pdf] first render blank — retrying without foreignObjectRendering");
         canvas = await renderOnce(false, true);
       }
     } catch (e) {
       console.warn("[pdf] primary render failed, falling back", e);
-      canvas = await renderOnce(false, true);
+      canvas = await renderOnce(hasArabic, true);
     }
 
     if (isCanvasBlank(canvas)) {
