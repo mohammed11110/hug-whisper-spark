@@ -35,6 +35,7 @@ import Refund from "./pages/Refund";
 import Assistant from "./pages/Assistant";
 import Admin from "./pages/Admin";
 import MonthlyCollection from "./pages/MonthlyCollection";
+import Maintenance from "./pages/Maintenance";
 import Unsubscribe from "./pages/Unsubscribe";
 import NotFound from "./pages/NotFound.tsx";
 import { AppShell } from "./components/AppShell";
@@ -76,6 +77,7 @@ const App = () => (
                       <Route path="/assistant" element={<RequireAuth><Assistant /></RequireAuth>} />
                       <Route path="/admin" element={<RequireAuth><Admin /></RequireAuth>} />
                       <Route path="/collection" element={<RequireAuth><MonthlyCollection /></RequireAuth>} />
+                      <Route path="/maintenance" element={<RequireAuth><Maintenance /></RequireAuth>} />
                     </Route>
                     <Route path="/install" element={<Install />} />
                     <Route path="/terms" element={<Terms />} />

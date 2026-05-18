@@ -11,6 +11,7 @@ import {
   Settings as SettingsIcon,
   HardDriveDownload,
   UsersRound,
+  Wrench,
 } from "lucide-react";
 import {
   Sidebar,
@@ -46,6 +47,7 @@ export function AppSidebar() {
   ];
   const tools = [
     { to: "/reports", label: t("reports"), icon: BarChart3 },
+    { to: "/maintenance", label: t2("maintenance_requests"), icon: Wrench },
     { to: "/notifications", label: t("notifications"), icon: Bell },
     { to: "/assistant", label: "AI", icon: Sparkles },
   ];
