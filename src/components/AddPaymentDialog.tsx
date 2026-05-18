@@ -303,12 +303,13 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         building: u?.building_name || "—",
         unitNumber: u?.unit_number || "—",
         tenantName: u?.tenant_name || "—",
-        notes: notes.trim() || null,
+        notes: mergedNotes,
         currency: format(0).replace(/[\d.,\s]/g, "").trim() || "",
         lang: lang === "ar" ? "ar" : "en",
         unpaidMonths: upTo,
         unpaidTotal,
         unpaidUpToLabel: monthLabel,
+        settlementNote,
       });
       await downloadHTMLAsPDF(html, `receipt-${(receipt.trim() || formatReceipt(settings.receipt))}.pdf`, settings);
     } catch (e: any) {
