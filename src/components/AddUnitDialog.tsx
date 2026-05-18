@@ -121,6 +121,26 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
       }
     }
 
+    await logActivity({
+      entityType: "unit",
+      action: "created",
+      entityId: created.id,
+      buildingId,
+      entityLabel: `${unitNumber.trim()}${occupied && tenantName.trim() ? ` — ${tenantName.trim()}` : ""}`,
+      descriptionAr: `إضافة وحدة جديدة رقم ${unitNumber.trim()}${occupied ? ` للمستأجر ${tenantName.trim()}` : " (شاغرة)"}`,
+      descriptionEn: `New unit ${unitNumber.trim()} added${occupied ? ` for ${tenantName.trim()}` : " (vacant)"}`,
+    });
+    if (occupied && tenantName.trim()) {
+      await logActivity({
+        entityType: "tenant",
+        action: "created",
+        entityId: created.id,
+        buildingId,
+        entityLabel: tenantName.trim(),
+        descriptionAr: `إضافة مستأجر جديد: ${tenantName.trim()} — وحدة ${unitNumber.trim()}`,
+        descriptionEn: `New tenant added: ${tenantName.trim()} — unit ${unitNumber.trim()}`,
+      });
+    }
     setBusy(false);
     toast.success("✓");
     reset();
