@@ -9,6 +9,7 @@ import { useI18n } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
 
 const METHODS = ["cash", "transfer", "cheque", "card"] as const;
 
