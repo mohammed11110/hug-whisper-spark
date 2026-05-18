@@ -130,6 +130,15 @@ export default function Maintenance() {
                 {r.cost ? <span>{t2("cost")}: <b>{format(Number(r.cost))}</b></span> : null}
               </div>
             )}
+            {r.photos && r.photos.length > 0 && (
+              <div className="grid grid-cols-4 gap-1.5">
+                {r.photos.map((url, i) => (
+                  <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="aspect-square rounded-lg overflow-hidden border border-sage-200 block">
+                    <img src={url} alt="" loading="lazy" className="w-full h-full object-cover" />
+                  </a>
+                ))}
+              </div>
+            )}
             <div className="flex gap-1.5">
               {STATUSES.filter((s) => s !== r.status).map((s) => (
                 <button key={s} onClick={() => setStatus(r.id, s)}
