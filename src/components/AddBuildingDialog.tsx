@@ -76,6 +76,7 @@ export function AddBuildingDialog({ open, onOpenChange, onCreated }: { open: boo
     toast.success("✓");
     setName(""); setNameEn(""); setLandlordName(""); setLandlordNameEn(""); setFloors("1"); setUnitsCount("0"); setCity(""); setAddress(""); setType("tower");
     onCreated?.();
+    guard.markSaved();
     onOpenChange(false);
   };
 
