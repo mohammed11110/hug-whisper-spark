@@ -843,7 +843,7 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
     }
 
     if (isCanvasBlank(canvas)) {
-      throw new Error("PDF render produced a blank page");
+      throw new Error("تعذّر إنشاء الـ PDF: الصفحة الناتجة فارغة. حاول مرة أخرى.");
     }
 
     const pdf = new jsPDF({ unit: "mm", format: pageSize.toLowerCase() as "a4" | "a5" | "letter" });
@@ -851,7 +851,12 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
     const pageH = pdf.internal.pageSize.getHeight();
     const printableW = pageW - margins.left - margins.right;
     const printableH = pageH - margins.top - margins.bottom;
-    const imgData = canvas.toDataURL("image/png");
+    let imgData: string;
+    try {
+      imgData = canvas.toDataURL("image/png");
+    } catch (err) {
+      throw new Error("تعذّر إنشاء الـ PDF بسبب قيود أمان المتصفح (CORS). أعد المحاولة.");
+    }
 
     const imgW = printableW;
     const imgH = (canvas.height * printableW) / canvas.width;
