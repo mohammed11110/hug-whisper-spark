@@ -11,6 +11,7 @@ import { ActivityNotifier } from "@/components/ActivityNotifier";
 export function AppShell() {
   return (
     <SidebarProvider defaultOpen={false}>
+      <ActivityNotifier />
       <div className="flex w-full min-h-svh">
         <div className="hidden md:block">
           <AppSidebar />
