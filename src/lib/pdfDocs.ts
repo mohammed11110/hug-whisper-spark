@@ -19,6 +19,15 @@ export function pickLandlord(brand: BrandInfo | undefined, lang: "ar" | "en" | s
   return (brand.landlordName || brand.landlordNameEn || brand.name || "").trim();
 }
 
+// Bilingual landlord display: shows both AR and EN names side by side when both exist.
+export function landlordBilingual(brand: BrandInfo | undefined): string {
+  if (!brand) return "";
+  const ar = (brand.landlordName || "").trim();
+  const en = (brand.landlordNameEn || "").trim();
+  if (ar && en) return `${ar} · ${en}`;
+  return ar || en || (brand.name || "").trim();
+}
+
 export interface LeaseData {
   brand: BrandInfo;
   building_name: string;
