@@ -181,36 +181,26 @@
     font-weight: 700;
   }
 
-  html[dir="rtl"] body,
-  html[dir="rtl"] input,
-  html[dir="rtl"] textarea,
-  html[dir="rtl"] select,
-  html[dir="rtl"] button,
-  html[lang="ar"] body,
-  html[lang="ar"] input,
-  html[lang="ar"] textarea,
-  html[lang="ar"] select,
-  html[lang="ar"] button {
+  /* CRITICAL: any non-zero letter-spacing breaks Arabic letter joining.
+     Force letter-spacing to 0 on EVERY element under RTL/Arabic, overriding
+     all Tailwind tracking-* utilities and inline styles. */
+  html[dir="rtl"] *,
+  html[lang="ar"] *,
+  html[dir="rtl"] *::before,
+  html[dir="rtl"] *::after,
+  html[lang="ar"] *::before,
+  html[lang="ar"] *::after {
     letter-spacing: 0 !important;
-    word-spacing: 0;
-    font-feature-settings: "kern", "liga", "calt", "init", "medi", "fina", "rlig";
+    word-spacing: normal !important;
+    font-feature-settings: "kern", "liga", "calt", "rlig", "init", "medi", "fina", "isol" !important;
+    font-variant-ligatures: normal !important;
+    text-rendering: optimizeLegibility !important;
   }
 
-  html[dir="rtl"] h1,
-  html[dir="rtl"] h2,
-  html[dir="rtl"] h3,
-  html[dir="rtl"] h4,
-  html[dir="rtl"] h5,
-  html[dir="rtl"] h6,
-  html[lang="ar"] h1,
-  html[lang="ar"] h2,
-  html[lang="ar"] h3,
-  html[lang="ar"] h4,
-  html[lang="ar"] h5,
-  html[lang="ar"] h6,
-  html[dir="rtl"] [class*="tracking-"],
-  html[lang="ar"] [class*="tracking-"] {
-    letter-spacing: 0 !important;
+  /* Keep monospace numeric inputs (PIN, codes) usable without breaking Arabic */
+  html[dir="rtl"] .font-mono,
+  html[lang="ar"] .font-mono {
+    letter-spacing: 0.1em !important;
   }
 }
 
