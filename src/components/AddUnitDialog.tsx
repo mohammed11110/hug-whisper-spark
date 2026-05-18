@@ -46,6 +46,7 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
   const [type, setType] = useState<typeof UNIT_TYPES[number]>("apartment");
   const [occupied, setOccupied] = useState(false);
   const [tenantName, setTenantName] = useState("");
+  const [tenantNameEn, setTenantNameEn] = useState("");
   const [tenantPhone, setTenantPhone] = useState("");
   const [tenantEmail, setTenantEmail] = useState("");
   const [rentAmount, setRentAmount] = useState<string>("0");
