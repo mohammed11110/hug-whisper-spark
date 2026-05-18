@@ -410,6 +410,11 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                   const [y, m] = v.split("-").map(Number);
                   setPeriodYear(y);
                   setPeriodMonthNum(m);
+                  const entry = unpaidMonths.find((u) => u.year === y && u.month === m);
+                  if (entry) {
+                    if (activeRent > 0) setExpected(String(activeRent));
+                    setAmount(String(entry.remaining));
+                  }
                 }}
               >
                 <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11"><SelectValue /></SelectTrigger>
