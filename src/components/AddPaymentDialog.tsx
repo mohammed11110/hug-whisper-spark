@@ -78,7 +78,9 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const [periodMonthNum, setPeriodMonthNum] = useState<number>(() => new Date().getMonth() + 1);
   const [saving, setSaving] = useState(false);
   const [unitOpen, setUnitOpen] = useState(false);
-  const [suggestion, setSuggestion] = useState<{ year: number; month: number; covers: number; reason: string } | null>(null);
+  const [unpaidMonths, setUnpaidMonths] = useState<{ year: number; month: number; remaining: number }[]>([]);
+  const [showAllMonths, setShowAllMonths] = useState(false);
+  const [allPaid, setAllPaid] = useState(false);
 
   const { start: periodStart, end: periodEnd } = monthRange(periodYear, periodMonthNum);
   const monthNames = lang === "ar" ? AR_MONTHS : EN_MONTHS;
@@ -139,24 +141,24 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, presetUnitId]);
 
-  // Smart rent-month suggestion based on contract + prior payments + amount
+  // Load unpaid months for the selected unit (based on contract + prior payments)
   useEffect(() => {
-    if (!open || !unitId) { setSuggestion(null); return; }
-    const amt = Number(amount) || 0;
-    if (amt <= 0) { setSuggestion(null); return; }
+    if (!open || !unitId) { setUnpaidMonths([]); setAllPaid(false); return; }
     let cancelled = false;
     (async () => {
       const { data: tn } = await supabase
         .from("tenancies")
-        .select("contract_start_date, rent_amount, rent_type, status")
+        .select("contract_start_date, contract_end_date, rent_amount, rent_type, status")
         .eq("unit_id", unitId)
         .eq("status", "active")
         .maybeSingle();
-      if (!tn || cancelled) { setSuggestion(null); return; }
+      if (cancelled) return;
+      if (!tn) { setUnpaidMonths([]); setAllPaid(false); return; }
       const startStr = (tn as any).contract_start_date as string | null;
+      const endStr = (tn as any).contract_end_date as string | null;
       const rentAmt = Number((tn as any).rent_amount) || 0;
       const rentType = (tn as any).rent_type as string;
-      if (!startStr || rentAmt <= 0) { setSuggestion(null); return; }
+      if (!startStr || rentAmt <= 0) { setUnpaidMonths([]); setAllPaid(false); return; }
 
       const { data: ps } = await supabase
         .from("payments")
@@ -172,41 +174,32 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
 
       const today = new Date();
       const start = new Date(startStr);
+      const horizonByToday = new Date(today.getFullYear(), today.getMonth() + 2, 1);
+      const horizonByContract = endStr ? new Date(endStr) : horizonByToday;
+      const horizon = horizonByContract < horizonByToday ? horizonByContract : horizonByToday;
       const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
-      const limit = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-      let firstUnpaid: { year: number; month: number } | null = null;
-      while (cursor <= limit) {
+      const out: { year: number; month: number; remaining: number }[] = [];
+      while (cursor <= horizon) {
         const y = cursor.getFullYear();
         const m = cursor.getMonth() + 1;
         const k = `${y}-${String(m).padStart(2, "0")}`;
         const paid = paidByMonth.get(k) || 0;
-        if (rentType === "monthly" && paid + 0.01 < rentAmt) {
-          firstUnpaid = { year: y, month: m };
-          break;
-        }
-        if (rentType === "yearly" && m === start.getMonth() + 1 && paid + 0.01 < rentAmt) {
-          firstUnpaid = { year: y, month: m };
-          break;
+        const isContractAnchor = rentType !== "yearly" || m === start.getMonth() + 1;
+        if (isContractAnchor && paid + 0.01 < rentAmt) {
+          out.push({ year: y, month: m, remaining: rentAmt - paid });
         }
         cursor.setMonth(cursor.getMonth() + 1);
       }
       if (cancelled) return;
-      if (!firstUnpaid) { setSuggestion(null); return; }
-      const covers = rentType === "monthly" && rentAmt > 0 ? Math.max(1, Math.round(amt / rentAmt)) : 1;
-      const monthName = (lang === "ar" ? AR_MONTHS : EN_MONTHS)[firstUnpaid.month - 1];
-      const reason = lang === "ar"
-        ? `أول شهر غير مسدد بالكامل: ${monthName} ${firstUnpaid.year}${covers > 1 ? ` — المبلغ يغطي ${covers} أشهر تقريباً` : ""}`
-        : `First unpaid month: ${monthName} ${firstUnpaid.year}${covers > 1 ? ` — amount covers ~${covers} months` : ""}`;
-      setSuggestion({ year: firstUnpaid.year, month: firstUnpaid.month, covers, reason });
+      setUnpaidMonths(out);
+      setAllPaid(out.length === 0);
+      if (out.length > 0) {
+        setPeriodYear(out[0].year);
+        setPeriodMonthNum(out[0].month);
+      }
     })();
     return () => { cancelled = true; };
-  }, [open, unitId, amount, lang]);
-
-  const applySuggestion = () => {
-    if (!suggestion) return;
-    setPeriodYear(suggestion.year);
-    setPeriodMonthNum(suggestion.month);
-  };
+  }, [open, unitId]);
 
   const onPickUnit = (id: string) => {
     setUnitId(id);
@@ -350,40 +343,66 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
               );
             })()}
           </div>
-          {/* Rent month */}
+          {/* Rent month — unpaid only by default */}
           <div className="space-y-1.5">
-            <Label className="text-xs text-sage-500">{t2("rent_month")}</Label>
-            <div className="grid grid-cols-2 gap-2">
-              <Select value={String(periodMonthNum)} onValueChange={(v) => setPeriodMonthNum(Number(v))}>
-                <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11"><SelectValue /></SelectTrigger>
-                <SelectContent className="max-h-72">
-                  {monthNames.map((n, i) => (
-                    <SelectItem key={i} value={String(i + 1)}>{n}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={String(periodYear)} onValueChange={(v) => setPeriodYear(Number(v))}>
-                <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11"><SelectValue /></SelectTrigger>
-                <SelectContent className="max-h-72">
-                  {years.map((y) => (
-                    <SelectItem key={y} value={String(y)}>{y}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-sage-500">{t2("rent_month")}</Label>
+              {unitId && unpaidMonths.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllMonths((s) => !s)}
+                  className="text-[11px] text-sage-500 hover:text-sage-600 font-semibold"
+                >
+                  {showAllMonths
+                    ? (lang === "ar" ? "غير المدفوعة فقط" : "Unpaid only")
+                    : (lang === "ar" ? "عرض كل الأشهر" : "Show all months")}
+                </button>
+              )}
             </div>
-            {suggestion && !(suggestion.year === periodYear && suggestion.month === periodMonthNum) && (
-              <button
-                type="button"
-                onClick={applySuggestion}
-                className="w-full flex items-start gap-2 bg-sage-100/60 border border-sage-200 rounded-xl px-3 py-2 text-xs text-sage-600 text-start hover:bg-sage-100"
+            {unitId && allPaid && !showAllMonths ? (
+              <div className="rounded-xl border border-dashed border-sage-200 bg-sage-100/40 px-3 py-3 text-xs text-sage-600 flex items-center justify-between">
+                <span className="font-semibold">{lang === "ar" ? "كل الأشهر مدفوعة ✓" : "All months paid ✓"}</span>
+                <button type="button" onClick={() => setShowAllMonths(true)} className="font-bold text-sage-500 hover:underline">
+                  {lang === "ar" ? "اختيار شهر آخر" : "Pick another month"}
+                </button>
+              </div>
+            ) : unitId && !showAllMonths && unpaidMonths.length > 0 ? (
+              <Select
+                value={`${periodYear}-${periodMonthNum}`}
+                onValueChange={(v) => {
+                  const [y, m] = v.split("-").map(Number);
+                  setPeriodYear(y);
+                  setPeriodMonthNum(m);
+                }}
               >
-                <Sparkles className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-sage-500" />
-                <span className="flex-1">
-                  <span className="font-semibold block">{lang === "ar" ? "اقتراح ذكي" : "Smart suggestion"}</span>
-                  <span className="opacity-80">{suggestion.reason}</span>
-                </span>
-                <span className="font-bold text-sage-600 flex-shrink-0">{lang === "ar" ? "تطبيق" : "Apply"}</span>
-              </button>
+                <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11"><SelectValue /></SelectTrigger>
+                <SelectContent className="max-h-72">
+                  {unpaidMonths.map((u) => (
+                    <SelectItem key={`${u.year}-${u.month}`} value={`${u.year}-${u.month}`}>
+                      {monthNames[u.month - 1]} {u.year} · {format(u.remaining)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <Select value={String(periodMonthNum)} onValueChange={(v) => setPeriodMonthNum(Number(v))}>
+                  <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11"><SelectValue /></SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    {monthNames.map((n, i) => (
+                      <SelectItem key={i} value={String(i + 1)}>{n}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={String(periodYear)} onValueChange={(v) => setPeriodYear(Number(v))}>
+                  <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11"><SelectValue /></SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    {years.map((y) => (
+                      <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             )}
           </div>
 
