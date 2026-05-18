@@ -56,7 +56,7 @@ const DEFAULTS: AppSettings = {
   templates: { ...DEFAULT_TEMPLATES },
   upcomingDays: 7,
   contractWarnDays: 30,
-  brand: { name: "أملاكي · Amlaki", logo: null, phone: "", address: "", landlordName: "" },
+  brand: { name: "أملاكي · Amlaki", logo: null, phone: "", address: "", landlordName: "", landlordNameEn: "" },
   showAiFab: false,
   receipt: { prefix: "R-", startNumber: 1, padding: 0, nextNumber: 1 },
 };
