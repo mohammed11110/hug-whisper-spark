@@ -8,6 +8,7 @@ export interface BrandInfo {
   logo: string | null;
   phone: string;
   address: string;
+  landlordName?: string;
 }
 
 export interface LeaseData {
@@ -99,7 +100,7 @@ export function buildLeaseHTML(d: LeaseData): string {
   </div>
   <div class="grid2">
     <div class="box"><h3>${L.first}</h3>
-      <div class="row"><span>${L.name}</span><b>${d.brand.name}</b></div>
+      <div class="row"><span>${L.name}</span><b>${d.brand.landlordName || d.brand.name}</b></div>
       <div class="row"><span>${L.phone}</span><b>${d.brand.phone || "—"}</b></div>
       <div class="row"><span>${L.address}</span><b>${d.brand.address || "—"}</b></div>
     </div>
