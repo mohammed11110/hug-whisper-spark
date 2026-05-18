@@ -93,17 +93,29 @@ export default function Notifications() {
     contract: items.filter(i => i.kind === "contract").length,
   }), [items]);
 
-  const sendWhatsApp = (it: AlertItem) => {
-    if (!it.tenant_phone) return;
+  const buildMsg = (it: AlertItem) => {
     const tpl = it.kind === "late" ? settings.templates.late : settings.templates.reminder;
-    const msg = fillTemplate(tpl, {
+    return fillTemplate(tpl, {
       tenant: it.tenant_name,
       unit: it.unit_number,
       building: it.building_name,
       amount: format(it.amount),
       remaining: format(it.remaining),
     });
-    openWhatsApp(it.tenant_phone, msg);
+  };
+
+  const sendWhatsApp = (it: AlertItem) => {
+    if (!it.tenant_phone) return;
+    openWhatsApp(it.tenant_phone, buildMsg(it));
+  };
+
+  const sendAll = async () => {
+    const targets = filtered.filter((i) => i.tenant_phone && i.kind !== "contract");
+    if (!targets.length) return;
+    for (const it of targets) {
+      openWhatsApp(it.tenant_phone!, buildMsg(it));
+      await new Promise((r) => setTimeout(r, 400));
+    }
   };
 
   const TABS = [
