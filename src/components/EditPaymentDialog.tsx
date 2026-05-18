@@ -109,7 +109,7 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
   const years = yearOptions();
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={guard.handleOpenChange}>
       <DialogContent className="rounded-2xl max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-sage-600">{lang === "ar" ? "تعديل الدفعة" : "Edit payment"}</DialogTitle>
@@ -117,7 +117,7 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
         {loading ? (
           <p className="text-center text-sage-500 py-8">…</p>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-3" {...guard.formProps}>
             <div className="space-y-1.5">
               <Label className="text-xs text-sage-500">{t2("rent_month")}</Label>
               <div className="grid grid-cols-2 gap-2">
