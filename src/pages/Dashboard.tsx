@@ -139,6 +139,9 @@ export default function Dashboard() {
           <span className="text-terracotta rtl:rotate-180 text-xl">›</span>
         </Link>
 
+        {/* Recent Activity */}
+        <RecentActivityCard limit={8} />
+
         {/* Empty state */}
         {isEmpty && (
           <div className="bg-card border border-sage-200/60 rounded-3xl p-8 text-center shadow-soft animate-float-up" style={{ animationDelay: "0.25s" }}>
