@@ -40,6 +40,7 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
   const [pendingPhoto, setPendingPhoto] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [extracting, setExtracting] = useState(false);
+  const guard = useUnsavedGuard({ open, onOpenChange });
 
   const extractFromId = async () => {
     if (!idImageUrl) return;
