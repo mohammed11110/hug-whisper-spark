@@ -746,8 +746,9 @@ function isCanvasBlank(canvas: HTMLCanvasElement): boolean {
 
 async function waitForWebFonts(root: HTMLElement) {
   try {
-    if ((document as any).fonts?.ready) {
-      await (document as any).fonts.ready;
+    const fonts = (root.ownerDocument as any)?.fonts;
+    if (fonts?.ready) {
+      await fonts.ready;
     }
     // Force-load key Arabic + Latin faces so html2canvas's foreignObject
     // snapshot has them available for proper shaping.
@@ -758,11 +759,11 @@ async function waitForWebFonts(root: HTMLElement) {
       '700 16px "Outfit"',
       '500 16px "Outfit"',
     ];
-    if ((document as any).fonts?.load) {
+    if (fonts?.load) {
       const sample = "أبجد هوز Aa1";
       await Promise.all(
         faces.map((f) =>
-          (document as any).fonts.load(f, sample).catch(() => undefined)
+          fonts.load(f, sample).catch(() => undefined)
         )
       );
     }
@@ -770,45 +771,59 @@ async function waitForWebFonts(root: HTMLElement) {
   } catch { /* noop */ }
 }
 
+function stripExternalRenderResources(doc: Document) {
+  Array.from(doc.querySelectorAll('link[href]')).forEach((el) => {
+    const href = el.getAttribute("href") || "";
+    if (/^https?:\/\//i.test(href)) {
+      el.remove();
+    }
+  });
+
+  Array.from(doc.querySelectorAll("style")).forEach((style) => {
+    if (!style.textContent) return;
+    style.textContent = style.textContent.replace(/@import\s+url\((?:'|")?https?:\/\/[^;]+;?/gi, "");
+  });
+}
+
 export async function downloadHTMLAsPDF(html: string, filename: string, settings?: PdfSettings) {
   const pageSize = settings?.pageSize || DEFAULT_PAGE_SIZE;
   const margins = settings?.margins || DEFAULT_MARGINS;
 
-  const container = document.createElement("div");
-  container.style.position = "fixed";
-  container.style.left = "-20000px";
-  container.style.top = "0";
-  container.style.width = "794px";
-  container.style.background = "#ffffff";
-  container.style.zIndex = "-1";
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  const headNodes = Array.from(doc.head.childNodes);
-  const bodyNodes = Array.from(doc.body.childNodes);
-
-  headNodes.forEach((node) => {
-    if (node.nodeType !== Node.ELEMENT_NODE) return;
-    const el = node as HTMLElement;
-    if (el.tagName === "TITLE") return;
-    // Skip any external stylesheet/font link — they taint the canvas via CORS
-    // and html2canvas's foreignObjectRendering will silently fail.
-    if (el.tagName === "LINK") {
-      const href = el.getAttribute("href") || "";
-      if (/^https?:\/\//i.test(href)) return;
-    }
-    container.appendChild(el.cloneNode(true));
-  });
-
-  const mount = document.createElement("div");
-  mount.setAttribute("dir", doc.documentElement.getAttribute("dir") || "ltr");
-  mount.setAttribute("lang", doc.documentElement.getAttribute("lang") || "en");
-  mount.style.width = "794px";
-  mount.style.background = "#ffffff";
-  bodyNodes.forEach((node) => mount.appendChild(node.cloneNode(true)));
-  container.appendChild(mount);
-  document.body.appendChild(container);
+  const iframe = document.createElement("iframe");
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.style.position = "fixed";
+  iframe.style.left = "-20000px";
+  iframe.style.top = "0";
+  iframe.style.width = "794px";
+  iframe.style.height = "1123px";
+  iframe.style.opacity = "0";
+  iframe.style.pointerEvents = "none";
+  iframe.style.background = "#ffffff";
+  iframe.style.border = "0";
+  document.body.appendChild(iframe);
 
   try {
-    const target = (mount.querySelector(".page") as HTMLElement) || mount;
+    await new Promise<void>((resolve, reject) => {
+      let settled = false;
+      const finish = (cb: () => void) => {
+        if (settled) return;
+        settled = true;
+        cb();
+      };
+
+      iframe.onload = () => finish(() => resolve());
+      iframe.onerror = () => finish(() => reject(new Error("تعذّر تجهيز ملف العقد قبل التنزيل.")));
+      iframe.srcdoc = html;
+      window.setTimeout(() => finish(() => resolve()), 400);
+    });
+
+    const frameDoc = iframe.contentDocument;
+    if (!frameDoc) throw new Error("تعذّر تجهيز صفحة العقد للتنزيل.");
+
+    stripExternalRenderResources(frameDoc);
+
+    const target = (frameDoc.querySelector(".page") as HTMLElement) || frameDoc.body;
+    target.style.background = "#ffffff";
     // Inline images as data URLs so foreignObjectRendering / CORS never produce a blank canvas
     await inlineImages(target);
     await waitForWebFonts(target);
@@ -829,17 +844,17 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
 
     let canvas: HTMLCanvasElement;
     try {
-      // For Arabic we MUST use foreignObjectRendering — html2canvas's
-      // fallback renderer cannot shape/join Arabic letters and produces
-      // disconnected glyphs. Do not fall back for Arabic.
-      canvas = await renderOnce(true, true);
-      if (!hasArabic && isCanvasBlank(canvas)) {
+      canvas = await renderOnce(true, false);
+      if (isCanvasBlank(canvas)) {
         console.warn("[pdf] first render blank — retrying without foreignObjectRendering");
-        canvas = await renderOnce(false, true);
+        canvas = await renderOnce(false, false);
       }
     } catch (e) {
       console.warn("[pdf] primary render failed, falling back", e);
-      canvas = await renderOnce(hasArabic ? true : false, true);
+      canvas = await renderOnce(hasArabic ? true : false, false);
+      if (isCanvasBlank(canvas)) {
+        canvas = await renderOnce(false, false);
+      }
     }
 
     if (isCanvasBlank(canvas)) {
@@ -891,6 +906,6 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
 
     pdf.save(filename);
   } finally {
-    container.remove();
+    iframe.remove();
   }
 }
