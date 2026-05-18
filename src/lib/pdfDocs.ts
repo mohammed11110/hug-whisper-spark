@@ -149,7 +149,7 @@ const pageShell = (title: string, body: string, options?: { rtl?: boolean }) => 
     <title>${escapeHtml(title)}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Cairo:wght@400;600;700;800&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Cairo:wght@400;600;700;800&family=Tajawal:wght@400;500;700;800&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
     <style>
       :root {
         color-scheme: light;
@@ -165,15 +165,20 @@ const pageShell = (title: string, body: string, options?: { rtl?: boolean }) => 
       * { box-sizing: border-box; }
       html, body { margin: 0; padding: 0; background: #eef2eb; }
       body {
-        font-family: ${options?.rtl ? `"Noto Naskh Arabic", "Cairo", "Segoe UI", Tahoma, Arial, sans-serif` : `"Inter", "Segoe UI", Tahoma, Arial, sans-serif`};
+        font-family: ${options?.rtl ? `"Tajawal", "Noto Naskh Arabic", "Cairo", "Amiri", "Segoe UI", Tahoma, Arial, sans-serif` : `"Inter", "Segoe UI", Tahoma, Arial, sans-serif`};
         color: var(--ink);
         padding: 24px;
-        font-feature-settings: "kern", "liga", "calt";
+        font-feature-settings: "kern", "liga", "calt", "init", "medi", "fina", "isol";
         text-rendering: optimizeLegibility;
         -webkit-font-smoothing: antialiased;
+        unicode-bidi: ${options?.rtl ? "plaintext" : "normal"};
       }
-      :lang(ar), [lang="ar"], [dir="rtl"] {
-        font-family: "Noto Naskh Arabic", "Cairo", "Segoe UI", Tahoma, Arial, sans-serif;
+      :lang(ar), [lang="ar"], [dir="rtl"], [dir="rtl"] * {
+        font-family: "Tajawal", "Noto Naskh Arabic", "Cairo", "Amiri", "Segoe UI", Tahoma, Arial, sans-serif;
+        font-feature-settings: "kern", "liga", "calt", "init", "medi", "fina", "isol";
+      }
+      [dir="rtl"] .value, [dir="rtl"] .label, [dir="rtl"] td, [dir="rtl"] th, [dir="rtl"] p, [dir="rtl"] div {
+        unicode-bidi: plaintext;
       }
       .page {
         width: 794px;
@@ -612,14 +617,32 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
       if ((document as any).fonts?.ready) await (document as any).fonts.ready;
       await new Promise((r) => setTimeout(r, 250));
     } catch { /* noop */ }
-    const canvas = await html2canvas(target, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: "#ffffff",
-      logging: false,
-      windowWidth: target.scrollWidth || 794,
-      windowHeight: target.scrollHeight || target.offsetHeight || 1123,
-    });
+    // Detect Arabic content — use foreignObjectRendering to preserve native
+    // browser text shaping (connected Arabic letters). Falls back to default
+    // rendering if foreignObject fails (e.g. CORS-tainted images).
+    const hasArabic = /[\u0600-\u06FF]/.test(target.innerText || "");
+    let canvas: HTMLCanvasElement;
+    try {
+      canvas = await html2canvas(target, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: false,
+        backgroundColor: "#ffffff",
+        logging: false,
+        foreignObjectRendering: hasArabic,
+        windowWidth: target.scrollWidth || 794,
+        windowHeight: target.scrollHeight || target.offsetHeight || 1123,
+      });
+    } catch {
+      canvas = await html2canvas(target, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+        windowWidth: target.scrollWidth || 794,
+        windowHeight: target.scrollHeight || target.offsetHeight || 1123,
+      });
+    }
 
     const pdf = new jsPDF({ unit: "mm", format: pageSize.toLowerCase() as "a4" | "a5" | "letter" });
     const pageW = pdf.internal.pageSize.getWidth();
