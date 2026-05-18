@@ -401,48 +401,102 @@ export function buildReceiptHTML(data: ReceiptData): string {
 
 export function buildLeaseHTML(data: Lease): string {
   const rtl = data.lang === "ar";
+  const L = (ar: string, en: string) => (rtl ? ar : en);
   const landlordLine = [data.brand.landlordName, data.brand.landlordNameEn].filter(Boolean).join(" / ") || data.brand.name;
+  const rentTypeLabel = rtl ? arOr(RENT_TYPE_AR, data.rent_type) : (data.rent_type || "—");
+  const contractTypeLabel = rtl ? arOr(CONTRACT_TYPE_AR, data.contract_type) : (data.contract_type || "—");
+  const unitTypeLabel = rtl ? arOr(UNIT_TYPE_AR, data.unit_type) : (data.unit_type || "—");
+  const rentMoney = formatMoney(data.rent_amount, data.currency);
+  const depositMoney = formatMoney(data.security_deposit || 0, data.currency);
+  const startDate = formatDate(data.contract_start_date, rtl);
+  const endDate = formatDate(data.contract_end_date, rtl);
+  const dueDay = data.due_day != null ? String(data.due_day) : "—";
+
+  const clausesAr = `
+    <ol style="padding-inline-start:22px; line-height:2; margin:0;">
+      <li>أقرّ الطرف الثاني (المستأجر) باستلامه الوحدة المؤجَّرة بحالةٍ جيدةٍ صالحةٍ للاستعمال المتفق عليه.</li>
+      <li>قيمة الإيجار <strong>${escapeHtml(rentMoney)}</strong> تُسدَّد <strong>${escapeHtml(rentTypeLabel)}</strong> في موعدٍ أقصاه يوم <strong>${escapeHtml(dueDay)}</strong> من كل دورة استحقاق.</li>
+      <li>مدّة العقد من <strong>${escapeHtml(startDate)}</strong> وحتى <strong>${escapeHtml(endDate)}</strong>، وهو من نوع <strong>${escapeHtml(contractTypeLabel)}</strong>.</li>
+      <li>قام المستأجر بدفع وديعة تأمين قدرها <strong>${escapeHtml(depositMoney)}</strong> تُردّ عند انتهاء العقد بعد التحقق من سلامة الوحدة وسداد جميع المستحقات.</li>
+      <li>يلتزم المستأجر باستخدام الوحدة للغرض المتفق عليه فقط، والمحافظة عليها، وعدم إجراء أي تعديلاتٍ إنشائيةٍ دون إذنٍ خطيٍّ من المؤجِّر.</li>
+      <li>يتحمّل المستأجر فواتير الخدمات (الكهرباء، المياه، الإنترنت، الغاز) ما لم يُتَّفق على خلاف ذلك كتابةً.</li>
+      <li>لا يحقّ للمستأجر تأجير الوحدة من الباطن أو التنازل عن العقد للغير إلا بموافقةٍ خطيةٍ مسبقةٍ من المؤجِّر.</li>
+      <li>في حال التأخّر عن السداد لأكثر من <strong>15</strong> يوماً من تاريخ الاستحقاق، يحقّ للمؤجِّر اتخاذ الإجراءات النظامية المقررة.</li>
+      <li>عند رغبة أحد الطرفين في إنهاء العقد قبل انتهاء مدّته، يجب إشعار الطرف الآخر كتابةً قبل <strong>30</strong> يوماً على الأقل.</li>
+      <li>يخضع هذا العقد لأحكام قانون إيجار المباني المعمول به، وتختص المحاكم المختصة بالنظر في أي نزاعٍ ينشأ عن تفسيره أو تنفيذه.</li>
+      <li>حُرِّر هذا العقد من نسختين أصليّتين، بيد كلِّ طرفٍ نسخةٌ للعمل بموجبها عند الحاجة.</li>
+    </ol>`;
+
+  const clausesEn = `
+    <ol style="padding-inline-start:22px; line-height:2; margin:0;">
+      <li>The Tenant acknowledges receipt of the leased unit in good condition, fit for the agreed use.</li>
+      <li>Rent of <strong>${escapeHtml(rentMoney)}</strong> is payable <strong>${escapeHtml(rentTypeLabel)}</strong>, no later than day <strong>${escapeHtml(dueDay)}</strong> of each due cycle.</li>
+      <li>Lease term runs from <strong>${escapeHtml(startDate)}</strong> to <strong>${escapeHtml(endDate)}</strong> (<strong>${escapeHtml(contractTypeLabel)}</strong>).</li>
+      <li>A security deposit of <strong>${escapeHtml(depositMoney)}</strong> has been paid and is refundable at lease end, subject to inspection and settlement of dues.</li>
+      <li>The Tenant shall use the unit solely for the agreed purpose, maintain it, and shall make no structural alterations without the Landlord's written consent.</li>
+      <li>Utilities (electricity, water, internet, gas) are payable by the Tenant unless otherwise agreed in writing.</li>
+      <li>The Tenant may not sublet or assign this lease without prior written approval of the Landlord.</li>
+      <li>Failure to pay rent for more than <strong>15</strong> days past the due date entitles the Landlord to pursue available legal remedies.</li>
+      <li>Either party wishing to terminate before the end of the term must give the other party at least <strong>30</strong> days' written notice.</li>
+      <li>This agreement is governed by the applicable tenancy law; competent courts shall have jurisdiction over any dispute.</li>
+      <li>Executed in two original counterparts, one for each party.</li>
+    </ol>`;
+
   const body = `
     ${brandBlock(
       data.brand,
-      rtl ? "عقد إيجار" : "Lease Agreement",
+      L("عقد إيجار", "Lease Agreement"),
       landlordLine,
-      `<div>${escapeHtml(data.building_name || "—")}</div><div>${escapeHtml(data.unit_number || "—")}</div>`
+      `<div>${escapeHtml(data.building_name || "—")}</div><div>${escapeHtml(data.unit_number || "—")}</div><div>${escapeHtml(startDate)}</div>`
     )}
     <div class="content">
+      <p style="font-size:13px; line-height:2; margin-bottom:18px; color:var(--muted);">
+        ${L(
+          `إنه في يوم <strong>${escapeHtml(startDate)}</strong> تمّ الاتفاق بين كلٍّ من المؤجِّر <strong>${escapeHtml(landlordLine)}</strong> (الطرف الأول)، والمستأجر <strong>${escapeHtml(data.tenant_name || "—")}</strong> (الطرف الثاني)، على تأجير الوحدة الموضّحة بياناتها أدناه وفق الشروط والبنود التالية:`,
+          `On <strong>${escapeHtml(startDate)}</strong>, this agreement is made between the Landlord <strong>${escapeHtml(landlordLine)}</strong> (First Party) and the Tenant <strong>${escapeHtml(data.tenant_name || "—")}</strong> (Second Party) for the lease of the unit described below, subject to the following terms:`
+        )}
+      </p>
+      <div class="section-title">${L("بيانات الوحدة والمستأجر", "Unit & Tenant Details")}</div>
       <div class="grid">
-        <div class="card"><div class="label">${rtl ? "اسم المستأجر" : "Tenant name"}</div><div class="value">${escapeHtml(data.tenant_name || "—")}</div></div>
-        <div class="card"><div class="label">${rtl ? "رقم الهاتف" : "Phone"}</div><div class="value">${escapeHtml(data.tenant_phone || "—")}</div></div>
-        <div class="card"><div class="label">${rtl ? "رقم الهوية" : "ID number"}</div><div class="value">${escapeHtml(data.tenant_id_number || "—")}</div></div>
-        <div class="card"><div class="label">${rtl ? "نوع الوحدة" : "Unit type"}</div><div class="value">${escapeHtml(data.unit_type || "—")}</div></div>
-        <div class="card"><div class="label">${rtl ? "الطابق" : "Floor"}</div><div class="value">${escapeHtml(data.floor ?? "—")}</div></div>
-        <div class="card"><div class="label">${rtl ? "نوع الإيجار" : "Rent type"}</div><div class="value">${escapeHtml(data.rent_type || "—")}</div></div>
-        <div class="card"><div class="label">${rtl ? "قيمة الإيجار" : "Rent amount"}</div><div class="value amount-positive">${escapeHtml(formatMoney(data.rent_amount, data.currency))}</div></div>
-        <div class="card"><div class="label">${rtl ? "وديعة التأمين" : "Security deposit"}</div><div class="value">${escapeHtml(formatMoney(data.security_deposit || 0, data.currency))}</div></div>
-        <div class="card"><div class="label">${rtl ? "بداية العقد" : "Contract start"}</div><div class="value">${formatDate(data.contract_start_date)}</div></div>
-        <div class="card"><div class="label">${rtl ? "نهاية العقد" : "Contract end"}</div><div class="value">${formatDate(data.contract_end_date)}</div></div>
-        <div class="card"><div class="label">${rtl ? "يوم الاستحقاق" : "Due day"}</div><div class="value">${escapeHtml(data.due_day ?? "—")}</div></div>
-        <div class="card"><div class="label">${rtl ? "نوع العقد" : "Contract type"}</div><div class="value">${escapeHtml(data.contract_type || "—")}</div></div>
+        <div class="card"><div class="label">${L("اسم المستأجر", "Tenant name")}</div><div class="value">${escapeHtml(data.tenant_name || "—")}</div></div>
+        <div class="card"><div class="label">${L("رقم الهاتف", "Phone")}</div><div class="value">${escapeHtml(data.tenant_phone || "—")}</div></div>
+        <div class="card"><div class="label">${L("رقم الهوية / السجل المدني", "ID number")}</div><div class="value">${escapeHtml(data.tenant_id_number || "—")}</div></div>
+        <div class="card"><div class="label">${L("نوع الوحدة", "Unit type")}</div><div class="value">${escapeHtml(unitTypeLabel)}</div></div>
+        <div class="card"><div class="label">${L("الطابق", "Floor")}</div><div class="value">${escapeHtml(data.floor ?? "—")}</div></div>
+        <div class="card"><div class="label">${L("نوع الإيجار", "Rent type")}</div><div class="value">${escapeHtml(rentTypeLabel)}</div></div>
+        <div class="card"><div class="label">${L("قيمة الإيجار", "Rent amount")}</div><div class="value amount-positive">${escapeHtml(rentMoney)}</div></div>
+        <div class="card"><div class="label">${L("وديعة التأمين", "Security deposit")}</div><div class="value">${escapeHtml(depositMoney)}</div></div>
+        <div class="card"><div class="label">${L("بداية العقد", "Contract start")}</div><div class="value">${escapeHtml(startDate)}</div></div>
+        <div class="card"><div class="label">${L("نهاية العقد", "Contract end")}</div><div class="value">${escapeHtml(endDate)}</div></div>
+        <div class="card"><div class="label">${L("يوم استحقاق الإيجار", "Due day")}</div><div class="value">${escapeHtml(dueDay)}</div></div>
+        <div class="card"><div class="label">${L("نوع العقد", "Contract type")}</div><div class="value">${escapeHtml(contractTypeLabel)}</div></div>
       </div>
-      <div class="section-title">${rtl ? "بيانات الأطراف" : "Parties"}</div>
+
+      <div class="section-title">${L("شروط وبنود العقد", "Terms & Conditions")}</div>
+      ${rtl ? clausesAr : clausesEn}
+
+      <div class="section-title">${L("توقيع الأطراف", "Signatures")}</div>
       <table>
         <thead>
           <tr>
-            <th>${rtl ? "الطرف" : "Party"}</th>
-            <th>${rtl ? "الاسم" : "Name"}</th>
-            <th>${rtl ? "معلومة إضافية" : "Additional info"}</th>
+            <th>${L("الطرف", "Party")}</th>
+            <th>${L("الاسم", "Name")}</th>
+            <th>${L("بيانات التواصل", "Contact")}</th>
+            <th>${L("التوقيع", "Signature")}</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td>${rtl ? "المؤجر" : "Landlord"}</td>
+            <td>${L("المؤجِّر (الطرف الأول)", "Landlord (First Party)")}</td>
             <td>${escapeHtml(landlordLine || "—")}</td>
             <td>${escapeHtml(data.brand.phone || data.brand.address || "—")}</td>
+            <td style="height:48px;">&nbsp;</td>
           </tr>
           <tr>
-            <td>${rtl ? "المستأجر" : "Tenant"}</td>
+            <td>${L("المستأجر (الطرف الثاني)", "Tenant (Second Party)")}</td>
             <td>${escapeHtml([data.tenant_name, data.tenant_name_en].filter(Boolean).join(" / ") || data.tenant_name || "—")}</td>
             <td>${escapeHtml(data.tenant_id_number || data.tenant_phone || "—")}</td>
+            <td style="height:48px;">&nbsp;</td>
           </tr>
         </tbody>
       </table>
@@ -450,7 +504,7 @@ export function buildLeaseHTML(data: Lease): string {
     <div class="footer">${escapeHtml(data.brand.address || "")}</div>
   `;
 
-  return pageShell(rtl ? "عقد إيجار" : "Lease Agreement", body, { rtl });
+  return pageShell(L("عقد إيجار", "Lease Agreement"), body, { rtl });
 }
 
 export function buildTenantStatementHTML(data: TenantStatementData): string {
