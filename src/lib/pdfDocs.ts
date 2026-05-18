@@ -9,6 +9,14 @@ export interface BrandInfo {
   phone: string;
   address: string;
   landlordName?: string;
+  landlordNameEn?: string;
+}
+
+// Pick landlord name for a given language with safe fallback.
+export function pickLandlord(brand: BrandInfo | undefined, lang: "ar" | "en" | string): string {
+  if (!brand) return "";
+  if (lang === "en") return (brand.landlordNameEn || brand.landlordName || brand.name || "").trim();
+  return (brand.landlordName || brand.landlordNameEn || brand.name || "").trim();
 }
 
 export interface LeaseData {
