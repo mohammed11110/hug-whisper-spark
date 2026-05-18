@@ -35,6 +35,7 @@ export function AddBuildingDialog({ open, onOpenChange, onCreated }: { open: boo
       name: name.trim(),
       name_en: nameEn.trim() || null,
       landlord_name: landlordName.trim() || null,
+      landlord_name_en: landlordNameEn.trim() || null,
       type,
       floors: Math.max(1, parseInt(floors) || 1),
       city: city.trim() || null,
