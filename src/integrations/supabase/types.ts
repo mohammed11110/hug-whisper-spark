@@ -99,6 +99,7 @@ export type Database = {
           floors: number
           id: string
           landlord_name: string | null
+          landlord_name_en: string | null
           name: string
           name_en: string | null
           type: string
@@ -111,6 +112,7 @@ export type Database = {
           floors?: number
           id?: string
           landlord_name?: string | null
+          landlord_name_en?: string | null
           name: string
           name_en?: string | null
           type?: string
@@ -123,6 +125,7 @@ export type Database = {
           floors?: number
           id?: string
           landlord_name?: string | null
+          landlord_name_en?: string | null
           name?: string
           name_en?: string | null
           type?: string
@@ -608,6 +611,7 @@ export type Database = {
           tenant_id_number: string | null
           tenant_id_type: string | null
           tenant_name: string | null
+          tenant_name_en: string | null
           tenant_phone: string | null
           unit_id: string
           updated_at: string
@@ -638,6 +642,7 @@ export type Database = {
           tenant_id_number?: string | null
           tenant_id_type?: string | null
           tenant_name?: string | null
+          tenant_name_en?: string | null
           tenant_phone?: string | null
           unit_id: string
           updated_at?: string
@@ -668,6 +673,7 @@ export type Database = {
           tenant_id_number?: string | null
           tenant_id_type?: string | null
           tenant_name?: string | null
+          tenant_name_en?: string | null
           tenant_phone?: string | null
           unit_id?: string
           updated_at?: string
@@ -707,6 +713,7 @@ export type Database = {
           tenant_id_number: string | null
           tenant_id_type: string | null
           tenant_name: string | null
+          tenant_name_en: string | null
           tenant_phone: string | null
           type: string
           unit_number: string
@@ -745,6 +752,7 @@ export type Database = {
           tenant_id_number?: string | null
           tenant_id_type?: string | null
           tenant_name?: string | null
+          tenant_name_en?: string | null
           tenant_phone?: string | null
           type?: string
           unit_number: string
@@ -783,6 +791,7 @@ export type Database = {
           tenant_id_number?: string | null
           tenant_id_type?: string | null
           tenant_name?: string | null
+          tenant_name_en?: string | null
           tenant_phone?: string | null
           type?: string
           unit_number?: string
