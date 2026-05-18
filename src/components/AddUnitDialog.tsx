@@ -149,6 +149,7 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
     toast.success("✓");
     reset();
     onCreated?.();
+    guard.markSaved();
     onOpenChange(false);
   };
 
