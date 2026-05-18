@@ -56,6 +56,7 @@ export type Database = {
           created_at: string
           floors: number
           id: string
+          landlord_name: string | null
           name: string
           name_en: string | null
           type: string
@@ -67,6 +68,7 @@ export type Database = {
           created_at?: string
           floors?: number
           id?: string
+          landlord_name?: string | null
           name: string
           name_en?: string | null
           type?: string
@@ -78,6 +80,7 @@ export type Database = {
           created_at?: string
           floors?: number
           id?: string
+          landlord_name?: string | null
           name?: string
           name_en?: string | null
           type?: string
@@ -251,6 +254,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      maintenance_requests: {
+        Row: {
+          building_id: string
+          cost: number | null
+          created_at: string
+          description: string | null
+          id: string
+          photos: Json
+          priority: string
+          resolved_at: string | null
+          status: string
+          tenant_name: string | null
+          title: string
+          unit_id: string | null
+          updated_at: string
+          vendor: string | null
+        }
+        Insert: {
+          building_id: string
+          cost?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          photos?: Json
+          priority?: string
+          resolved_at?: string | null
+          status?: string
+          tenant_name?: string | null
+          title: string
+          unit_id?: string | null
+          updated_at?: string
+          vendor?: string | null
+        }
+        Update: {
+          building_id?: string
+          cost?: number | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          photos?: Json
+          priority?: string
+          resolved_at?: string | null
+          status?: string
+          tenant_name?: string | null
+          title?: string
+          unit_id?: string | null
+          updated_at?: string
+          vendor?: string | null
+        }
+        Relationships: []
       }
       payments: {
         Row: {
