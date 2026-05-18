@@ -79,6 +79,7 @@ const App = () => (
                       <Route path="/admin" element={<RequireAuth><Admin /></RequireAuth>} />
                       <Route path="/collection" element={<RequireAuth><MonthlyCollection /></RequireAuth>} />
                       <Route path="/maintenance" element={<RequireAuth><Maintenance /></RequireAuth>} />
+                      <Route path="/activity" element={<RequireAuth><Activity /></RequireAuth>} />
                     </Route>
                     <Route path="/install" element={<Install />} />
                     <Route path="/terms" element={<Terms />} />
