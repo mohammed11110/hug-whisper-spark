@@ -239,6 +239,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     }
     setSaving(true);
     const { data: activeT } = await supabase.from("tenancies").select("id").eq("unit_id", unitId).eq("status", "active").maybeSingle();
+    const mergedNotes = [settlementNote, notes.trim()].filter(Boolean).join(" — ") || null;
     const { error } = await supabase.from("payments").insert({
       unit_id: unitId,
       tenancy_id: (activeT as any)?.id || null,
@@ -247,7 +248,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
       payment_date: date,
       receipt_number: receipt.trim() || null,
       payment_method: method,
-      notes: notes.trim() || null,
+      notes: mergedNotes,
       period_start: periodStart || null,
       period_end: periodEnd || null,
     });
