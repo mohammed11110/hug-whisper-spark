@@ -109,16 +109,17 @@ export function EditUnitDialog({
     if (error) return toast.error(error.message);
     toast.success("✓");
     onSaved?.();
+    guard.markSaved();
     onOpenChange(false);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={guard.handleOpenChange}>
       <DialogContent className="max-w-[400px] rounded-3xl border-sage-200 bg-background max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-sage-600 text-xl font-black">{t2("edit_unit")}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3 mt-2">
+        <div className="space-y-3 mt-2" {...guard.formProps}>
           <div className="grid grid-cols-2 gap-3">
             <Field label={t2("unit_number")}>
               <Input value={unitNumber} onChange={(e) => setUnitNumber(e.target.value)} className="rounded-xl border-sage-200 bg-card" />
