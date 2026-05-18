@@ -84,7 +84,9 @@ export function useUnsavedGuard(opts: {
     onChange: markDirty,
     onClick: (e: React.MouseEvent<HTMLDivElement>) => {
       const target = e.target as HTMLElement;
-      // Buttons used as toggles/pills inside the form mark dirty too.
+      // Skip Cancel/Save buttons explicitly marked to ignore dirty-tracking.
+      if (target.closest("[data-guard-ignore]")) return;
+      // Pill / toggle buttons inside the form mark dirty too.
       if (target.closest("button[type='button']")) markDirty();
     },
   };
