@@ -15,6 +15,7 @@ interface Req {
   title: string; description: string | null;
   priority: string; status: string;
   tenant_name: string | null; cost: number | null; vendor: string | null;
+  photos: string[] | null;
   created_at: string;
   building_name?: string; unit_number?: string;
 }
