@@ -34,6 +34,7 @@ export function EndTenancyDialog({ open, onOpenChange, unit, tenancyId, onDone }
   const [notes, setNotes] = useState("");
   const [outstanding, setOutstanding] = useState(0);
   const [saving, setSaving] = useState(false);
+  const guard = useUnsavedGuard({ open, onOpenChange });
 
   useEffect(() => {
     if (!open || !unit) return;
