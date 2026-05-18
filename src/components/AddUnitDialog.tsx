@@ -195,7 +195,10 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
           {occupied && (
             <>
               <Field label={`${t2("tenant_name")} *`}>
-                <Input value={tenantName} onChange={(e) => setTenantName(e.target.value)} className="rounded-xl border-sage-200 bg-card" />
+                <Input value={tenantName} onChange={(e) => setTenantName(e.target.value)} dir="rtl" className="rounded-xl border-sage-200 bg-card" />
+              </Field>
+              <Field label={t2("tenant_name_en")}>
+                <Input value={tenantNameEn} onChange={(e) => setTenantNameEn(e.target.value)} dir="ltr" placeholder="Optional" className="rounded-xl border-sage-200 bg-card" />
               </Field>
               <Field label={`${t2("tenant_phone")} *`}>
                 <Input value={tenantPhone} onChange={(e) => setTenantPhone(e.target.value)} className="rounded-xl border-sage-200 bg-card" />
