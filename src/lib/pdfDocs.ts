@@ -135,12 +135,23 @@ const formatMoney = (value: number | null | undefined, currency?: string | null)
   return `${amount.toLocaleString("en-US", { maximumFractionDigits: 2 })}${currency ? ` ${currency}` : ""}`;
 };
 
-const formatDate = (value?: string | null) => {
+const formatDate = (value?: string | null, rtl = false) => {
   if (!value) return "—";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return escapeHtml(value);
-  return d.toLocaleDateString("en-GB");
+  // Use Western digits in both locales for clarity in contracts
+  return d.toLocaleDateString(rtl ? "ar-OM-u-nu-latn" : "en-GB", { day: "2-digit", month: "long", year: "numeric" });
 };
+
+const RENT_TYPE_AR: Record<string, string> = { monthly: "شهري", yearly: "سنوي", daily: "يومي", weekly: "أسبوعي" };
+const CONTRACT_TYPE_AR: Record<string, string> = { yearly: "سنوي", monthly: "شهري", "open-ended": "غير محدد المدة", openended: "غير محدد المدة" };
+const UNIT_TYPE_AR: Record<string, string> = {
+  apartment: "شقة", studio: "استوديو", shop: "محل تجاري", office: "مكتب",
+  villa: "فيلا", warehouse: "مستودع", room: "غرفة", land: "أرض",
+};
+const arOr = (map: Record<string, string>, v?: string | null) => (v ? (map[v.toLowerCase()] || v) : "—");
+
+const amountInArabicWords = (_n: number) => ""; // placeholder; kept for future use
 
 const pageShell = (title: string, body: string, options?: { rtl?: boolean }) => `<!doctype html>
 <html lang="${options?.rtl ? "ar" : "en"}" dir="${options?.rtl ? "rtl" : "ltr"}">
