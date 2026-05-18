@@ -28,6 +28,7 @@ export interface ReceiptData {
   unpaidMonths?: Array<{ label: string; remaining: number }>;
   unpaidTotal?: number | null;
   unpaidUpToLabel?: string | null;
+  settlementNote?: string | null;
 }
 
 export interface Lease {
