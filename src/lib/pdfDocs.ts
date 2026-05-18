@@ -617,14 +617,32 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
       if ((document as any).fonts?.ready) await (document as any).fonts.ready;
       await new Promise((r) => setTimeout(r, 250));
     } catch { /* noop */ }
-    const canvas = await html2canvas(target, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: "#ffffff",
-      logging: false,
-      windowWidth: target.scrollWidth || 794,
-      windowHeight: target.scrollHeight || target.offsetHeight || 1123,
-    });
+    // Detect Arabic content — use foreignObjectRendering to preserve native
+    // browser text shaping (connected Arabic letters). Falls back to default
+    // rendering if foreignObject fails (e.g. CORS-tainted images).
+    const hasArabic = /[\u0600-\u06FF]/.test(target.innerText || "");
+    let canvas: HTMLCanvasElement;
+    try {
+      canvas = await html2canvas(target, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: false,
+        backgroundColor: "#ffffff",
+        logging: false,
+        foreignObjectRendering: hasArabic,
+        windowWidth: target.scrollWidth || 794,
+        windowHeight: target.scrollHeight || target.offsetHeight || 1123,
+      });
+    } catch {
+      canvas = await html2canvas(target, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+        windowWidth: target.scrollWidth || 794,
+        windowHeight: target.scrollHeight || target.offsetHeight || 1123,
+      });
+    }
 
     const pdf = new jsPDF({ unit: "mm", format: pageSize.toLowerCase() as "a4" | "a5" | "letter" });
     const pageW = pdf.internal.pageSize.getWidth();
