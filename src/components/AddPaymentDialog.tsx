@@ -15,6 +15,7 @@ import { useAppSettings, formatReceipt } from "@/lib/appSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { buildReceiptHTML, downloadHTMLAsPDF } from "@/lib/pdfDocs";
+import { logActivity } from "@/lib/activityLogger";
 import { z } from "zod";
 
 interface UnitOpt {
@@ -248,6 +249,20 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     setSaving(false);
     if (error) return toast.error(error.message);
     toast.success("✓");
+    const _u = units.find((x) => x.id === unitId);
+    const _tenant = _u?.tenant_name || "";
+    const _unitNum = _u?.unit_number || "";
+    const _bldg = _u?.building_name || "";
+    await logActivity({
+      entityType: "payment",
+      action: "paid",
+      entityId: unitId,
+      buildingId: (_u as any)?.building_id || null,
+      entityLabel: `${_bldg} - ${_unitNum}`,
+      descriptionAr: `تم تحصيل ${Number(amount).toLocaleString()} من ${_tenant || "مستأجر"} — وحدة ${_unitNum}${isPartial ? " (دفعة جزئية)" : ""}`,
+      descriptionEn: `Collected ${Number(amount).toLocaleString()} from ${_tenant || "tenant"} — unit ${_unitNum}${isPartial ? " (partial)" : ""}`,
+      changes: { amount: Number(amount), expected: Number(expected) || null, partial: isPartial },
+    });
     bumpReceiptNumber();
     // Auto-generate branded PDF receipt
     try {

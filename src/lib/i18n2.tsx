@@ -37,7 +37,11 @@ type Key =
   | "maintenance_requests" | "new_request" | "request_title" | "request_description"
   | "priority" | "priority_low" | "priority_normal" | "priority_high" | "priority_urgent"
   | "status_open" | "status_in_progress" | "status_done" | "status_cancelled"
-  | "no_maintenance" | "no_maintenance_msg" | "cost" | "vendor";
+  | "no_maintenance" | "no_maintenance_msg" | "cost" | "vendor"
+  | "recent_activity" | "view_all" | "no_activity" | "no_activity_msg" | "activity_log"
+  | "act_created" | "act_updated" | "act_deleted" | "act_restored" | "act_paid" | "act_ended"
+  | "ent_building" | "ent_unit" | "ent_tenant" | "ent_payment" | "ent_expense" | "ent_maintenance" | "ent_settings"
+  | "filter_action" | "filter_entity";
 
 const dict: Record<Key, Partial<Record<Lang, string>>> = {
   all: { ar: "الكل", en: "All", ur: "تمام", zh: "全部", hi: "सभी", bn: "সব", fr: "Tous", es: "Todos", tr: "Tümü" },
@@ -213,6 +217,26 @@ const dict: Record<Key, Partial<Record<Lang, string>>> = {
   no_maintenance_msg: { ar: "أضف أول طلب صيانة لتتبع الأعطال والإصلاحات", en: "Add your first maintenance request to track issues and repairs", ur: "پہلی درخواست شامل کریں", zh: "添加第一个请求", hi: "पहला अनुरोध जोड़ें", bn: "প্রথম অনুরোধ যোগ করুন", fr: "Ajoutez la première demande", es: "Agrega la primera solicitud", tr: "İlk talebi ekleyin" },
   cost: { ar: "التكلفة", en: "Cost", ur: "لاگت", zh: "费用", hi: "लागत", bn: "খরচ", fr: "Coût", es: "Costo", tr: "Maliyet" },
   vendor: { ar: "المُورِّد", en: "Vendor", ur: "وینڈر", zh: "供应商", hi: "विक्रेता", bn: "ভেন্ডর", fr: "Fournisseur", es: "Proveedor", tr: "Tedarikçi" },
+  recent_activity: { ar: "آخر النشاطات", en: "Recent activity", ur: "حالیہ سرگرمی", zh: "最近活动", hi: "हाल की गतिविधि", bn: "সাম্প্রতিক কার্যকলাপ", fr: "Activité récente", es: "Actividad reciente", tr: "Son etkinlik" },
+  view_all: { ar: "عرض الكل", en: "View all", ur: "سب دیکھیں", zh: "查看全部", hi: "सभी देखें", bn: "সব দেখুন", fr: "Voir tout", es: "Ver todo", tr: "Tümünü gör" },
+  no_activity: { ar: "لا توجد نشاطات بعد", en: "No activity yet", ur: "ابھی کوئی سرگرمی نہیں", zh: "暂无活动", hi: "अभी कोई गतिविधि नहीं", bn: "কোনো কার্যকলাপ নেই", fr: "Aucune activité", es: "Sin actividad", tr: "Henüz etkinlik yok" },
+  no_activity_msg: { ar: "ستظهر هنا جميع التغييرات في النظام لحظة حدوثها", en: "Every system change will appear here in real time", ur: "تمام تبدیلیاں یہاں ظاہر ہوں گی", zh: "所有更改将显示在此处", hi: "सभी बदलाव यहाँ दिखेंगे", bn: "সব পরিবর্তন এখানে দেখা যাবে", fr: "Tous les changements apparaîtront ici", es: "Todos los cambios aparecerán aquí", tr: "Tüm değişiklikler burada görünür" },
+  activity_log: { ar: "سجل النشاطات", en: "Activity log", ur: "سرگرمی لاگ", zh: "活动日志", hi: "गतिविधि लॉग", bn: "কার্যকলাপ লগ", fr: "Journal d'activité", es: "Registro de actividad", tr: "Etkinlik kaydı" },
+  act_created: { ar: "إضافة", en: "Created", ur: "بنایا", zh: "新建", hi: "बनाया", bn: "তৈরি", fr: "Créé", es: "Creado", tr: "Oluşturuldu" },
+  act_updated: { ar: "تعديل", en: "Updated", ur: "اپ ڈیٹ", zh: "更新", hi: "अद्यतन", bn: "হালনাগাদ", fr: "Mis à jour", es: "Actualizado", tr: "Güncellendi" },
+  act_deleted: { ar: "حذف", en: "Deleted", ur: "حذف", zh: "删除", hi: "हटाया", bn: "মুছে ফেলা", fr: "Supprimé", es: "Eliminado", tr: "Silindi" },
+  act_restored: { ar: "استرجاع", en: "Restored", ur: "بحال", zh: "恢复", hi: "बहाल", bn: "পুনরুদ্ধার", fr: "Restauré", es: "Restaurado", tr: "Geri yüklendi" },
+  act_paid: { ar: "تحصيل", en: "Payment", ur: "ادائیگی", zh: "收款", hi: "भुगतान", bn: "পেমেন্ট", fr: "Paiement", es: "Pago", tr: "Ödeme" },
+  act_ended: { ar: "إنهاء", en: "Ended", ur: "ختم", zh: "结束", hi: "समाप्त", bn: "শেষ", fr: "Terminé", es: "Finalizado", tr: "Sonlandı" },
+  ent_building: { ar: "مبنى", en: "Building", ur: "عمارت", zh: "建筑", hi: "इमारत", bn: "ভবন", fr: "Bâtiment", es: "Edificio", tr: "Bina" },
+  ent_unit: { ar: "وحدة", en: "Unit", ur: "یونٹ", zh: "单元", hi: "इकाई", bn: "ইউনিট", fr: "Unité", es: "Unidad", tr: "Birim" },
+  ent_tenant: { ar: "مستأجر", en: "Tenant", ur: "کرایہ دار", zh: "租户", hi: "किरायेदार", bn: "ভাড়াটে", fr: "Locataire", es: "Inquilino", tr: "Kiracı" },
+  ent_payment: { ar: "دفعة", en: "Payment", ur: "ادائیگی", zh: "付款", hi: "भुगतान", bn: "পেমেন্ট", fr: "Paiement", es: "Pago", tr: "Ödeme" },
+  ent_expense: { ar: "مصروف", en: "Expense", ur: "خرچ", zh: "支出", hi: "खर्च", bn: "ব্যয়", fr: "Dépense", es: "Gasto", tr: "Gider" },
+  ent_maintenance: { ar: "صيانة", en: "Maintenance", ur: "دیکھ بھال", zh: "维护", hi: "रखरखाव", bn: "রক্ষণাবেক্ষণ", fr: "Maintenance", es: "Mantenim.", tr: "Bakım" },
+  ent_settings: { ar: "إعدادات", en: "Settings", ur: "سیٹنگز", zh: "设置", hi: "सेटिंग्स", bn: "সেটিংস", fr: "Réglages", es: "Ajustes", tr: "Ayarlar" },
+  filter_action: { ar: "نوع الإجراء", en: "Action", ur: "عمل", zh: "操作", hi: "क्रिया", bn: "ক্রিয়া", fr: "Action", es: "Acción", tr: "İşlem" },
+  filter_entity: { ar: "النوع", en: "Type", ur: "قسم", zh: "类型", hi: "प्रकार", bn: "ধরন", fr: "Type", es: "Tipo", tr: "Tür" },
 };
 
 export function useT2() {

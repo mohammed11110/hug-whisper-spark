@@ -12,6 +12,7 @@ import {
   HardDriveDownload,
   UsersRound,
   Wrench,
+  Activity as ActivityIcon,
 } from "lucide-react";
 import {
   Sidebar,
@@ -49,6 +50,7 @@ export function AppSidebar() {
     { to: "/reports", label: t("reports"), icon: BarChart3 },
     { to: "/maintenance", label: t2("maintenance_requests"), icon: Wrench },
     { to: "/notifications", label: t("notifications"), icon: Bell },
+    { to: "/activity", label: t2("activity_log"), icon: ActivityIcon },
     { to: "/assistant", label: "AI", icon: Sparkles },
   ];
   const manage = [

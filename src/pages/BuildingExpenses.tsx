@@ -11,6 +11,7 @@ import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { logActivity } from "@/lib/activityLogger";
 
 interface Expense {
   id: string;
@@ -72,13 +73,27 @@ export default function BuildingExpenses() {
     setBusy(false);
     if (error) return toast.error(error.message);
     toast.success("✓");
+    await logActivity({
+      entityType: "expense", action: "created", buildingId: id || null,
+      entityLabel: `${cat} — ${amt}`,
+      descriptionAr: `إضافة مصروف ${cat}: ${amt}${vendor ? ` (${vendor})` : ""}`,
+      descriptionEn: `Expense added (${cat}): ${amt}${vendor ? ` — ${vendor}` : ""}`,
+      changes: { category: cat, amount: amt, vendor: vendor || null },
+    });
     setAmount(""); setVendor(""); setDesc(""); setOpen(false);
     load();
   };
 
   const remove = async (eid: string) => {
+    const item = items.find((x) => x.id === eid);
     const { error } = await supabase.from("expenses").delete().eq("id", eid);
     if (error) return toast.error(error.message);
+    await logActivity({
+      entityType: "expense", action: "deleted", buildingId: id || null,
+      entityLabel: item ? `${item.category} — ${item.amount}` : eid,
+      descriptionAr: `حذف مصروف${item ? `: ${item.category} - ${item.amount}` : ""}`,
+      descriptionEn: `Expense deleted${item ? `: ${item.category} - ${item.amount}` : ""}`,
+    });
     load();
   };
 

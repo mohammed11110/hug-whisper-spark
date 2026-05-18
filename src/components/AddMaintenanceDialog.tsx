@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useT2 } from "@/lib/i18n2";
 import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
+import { logActivity } from "@/lib/activityLogger";
 import { toast } from "sonner";
 import { Camera, X, Loader2 } from "lucide-react";
 
@@ -83,6 +84,15 @@ export function AddMaintenanceDialog({ open, onOpenChange, onCreated }: { open: 
     setBusy(false);
     if (error) return toast.error(error.message);
     toast.success(isAr ? "تم حفظ الطلب" : "Request saved");
+    await logActivity({
+      entityType: "maintenance",
+      action: "created",
+      buildingId,
+      entityLabel: title.trim(),
+      descriptionAr: `طلب صيانة جديد: ${title.trim()}${u?.unit_number ? ` — وحدة ${u.unit_number}` : ""}`,
+      descriptionEn: `New maintenance request: ${title.trim()}${u?.unit_number ? ` — unit ${u.unit_number}` : ""}`,
+      changes: { priority, cost: cost ? Number(cost) : null },
+    });
     setTitle(""); setDescription(""); setVendor(""); setCost(""); setPriority("normal"); setUnitId(""); setPhotos([]);
     onCreated?.();
     onOpenChange(false);

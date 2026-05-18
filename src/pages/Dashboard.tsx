@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/auth";
 import { useAppSettings } from "@/lib/appSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
+import { RecentActivityCard } from "@/components/dashboard/RecentActivityCard";
 
 interface Stats {
   buildings: number;
@@ -137,6 +138,9 @@ export default function Dashboard() {
           </div>
           <span className="text-terracotta rtl:rotate-180 text-xl">›</span>
         </Link>
+
+        {/* Recent Activity */}
+        <RecentActivityCard limit={8} />
 
         {/* Empty state */}
         {isEmpty && (
