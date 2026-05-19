@@ -4,7 +4,11 @@ import {
   ArrowRight, Clock, Coins, RotateCcw, Printer, ShieldAlert, MessageCircle, Bell,
   Database, Users, Image as ImageIcon, Smartphone, Globe, Moon, Sun, Monitor,
   Crown, Sparkles, LogOut, ChevronDown, Shield, User as UserIcon, Mail,
+  CreditCard, Loader2,
 } from "lucide-react";
+import { useSubscription } from "@/hooks/useSubscription";
+import { getPaddleEnvironment } from "@/lib/paddle";
+import { supabase } from "@/integrations/supabase/client";
 import { useTheme } from "@/lib/theme";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Textarea } from "@/components/ui/textarea";
@@ -51,6 +55,52 @@ export default function Settings() {
   const [openAdvanced, setOpenAdvanced] = useState(false);
   const RL = (k: string) => RET_LABELS[k]?.[lang === "ar" ? "ar" : "en"] || k;
   const saved = () => toast.success(tr(lang, "تم الحفظ", "Saved"));
+  const sub = useSubscription();
+  const [portalLoading, setPortalLoading] = useState(false);
+
+  const planLabel = (p: string) => {
+    const map: Record<string, { ar: string; en: string }> = {
+      free: { ar: "الخطة المجانية", en: "Free plan" },
+      starter: { ar: "خطة Starter", en: "Starter plan" },
+      pro: { ar: "خطة Pro", en: "Pro plan" },
+      business: { ar: "خطة Business", en: "Business plan" },
+      enterprise: { ar: "خطة Enterprise", en: "Enterprise plan" },
+    };
+    return (map[p] ?? map.free)[lang === "ar" ? "ar" : "en"];
+  };
+
+  const openPortal = async () => {
+    if (sub.loading) return;
+    if (!sub.paddleSubscriptionId) {
+      toast.info(
+        tr(lang, "لا يوجد اشتراك مدفوع بعد. اختر خطة للبدء.", "No paid subscription yet. Choose a plan to get started."),
+        { action: { label: tr(lang, "الخطط", "Plans"), onClick: () => navigate("/pricing") } },
+      );
+      return;
+    }
+    setPortalLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("customer-portal", {
+        body: { environment: getPaddleEnvironment() },
+      });
+      if (error) throw error;
+      if (!data?.url) {
+        if ((data as any)?.error === "no_subscription") {
+          toast.info(
+            tr(lang, "لا يوجد اشتراك مدفوع بعد. اختر خطة للبدء.", "No paid subscription yet. Choose a plan to get started."),
+            { action: { label: tr(lang, "الخطط", "Plans"), onClick: () => navigate("/pricing") } },
+          );
+          return;
+        }
+        throw new Error("no_url");
+      }
+      window.open(data.url, "_blank", "noopener,noreferrer");
+    } catch (e) {
+      toast.error(tr(lang, "تعذّر فتح بوابة الإدارة. حاول مجدداً.", "Couldn't open the portal. Please try again."));
+    } finally {
+      setPortalLoading(false);
+    }
+  };
 
   return (
     <div className="mobile-shell min-h-screen pb-24 bg-background">
@@ -100,6 +150,26 @@ export default function Settings() {
             <span className="flex-1 text-sm font-bold text-sage-600">{tr(lang, "الخطط والأسعار", "Plans & pricing")}</span>
             <ArrowRight className="h-4 w-4 text-sage-400 rtl:rotate-180" />
           </Link>
+          <button
+            onClick={openPortal}
+            disabled={portalLoading || sub.loading}
+            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-sage-50 transition disabled:opacity-60"
+          >
+            <CreditCard className="h-4 w-4 text-sage-600" />
+            <div className="flex-1 text-start">
+              <p className="text-sm font-bold text-sage-600">{tr(lang, "إدارة الاشتراك", "Manage subscription")}</p>
+              <p className="text-[11px] text-muted-foreground">
+                {sub.paddleSubscriptionId
+                  ? planLabel(sub.plan)
+                  : tr(lang, "أنت على الخطة المجانية", "You're on the Free plan")}
+              </p>
+            </div>
+            {portalLoading ? (
+              <Loader2 className="h-4 w-4 text-sage-400 animate-spin" />
+            ) : (
+              <ArrowRight className="h-4 w-4 text-sage-400 rtl:rotate-180" />
+            )}
+          </button>
           <button
             onClick={async () => {
               await signOut();
