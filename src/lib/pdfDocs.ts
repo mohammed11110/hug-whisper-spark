@@ -46,6 +46,13 @@ async function getFontDataUrls(): Promise<Record<FontKey, string>> {
   return fontDataUrlCache as Record<FontKey, string>;
 }
 
+async function getFontBase64Map(): Promise<Record<FontKey, string>> {
+  const dataUrls = await getFontDataUrls();
+  return Object.fromEntries(
+    Object.entries(dataUrls).map(([key, value]) => [key, value.split(",")[1] || ""])
+  ) as Record<FontKey, string>;
+}
+
 function buildFontFaceCss(urls: Record<FontKey, string>): string {
   const face = (family: string, weight: string, url: string) =>
     url ? `@font-face{font-family:'${family}';src:url('${url}') format('truetype');font-weight:${weight};font-style:normal;font-display:block;}` : "";
@@ -79,6 +86,73 @@ async function registerFontsInDocument(doc: Document, urls: Record<FontKey, stri
     } catch { /* noop */ }
   }));
   try { await anyDoc.fonts.ready; } catch { /* noop */ }
+}
+
+const PDF_COLORS = {
+  ink: [34, 49, 39] as const,
+  muted: [106, 120, 107] as const,
+  line: [217, 226, 213] as const,
+  soft: [246, 243, 236] as const,
+  sage: [95, 126, 101] as const,
+  gold: [168, 148, 86] as const,
+};
+
+const MM_PER_POINT = 0.352778;
+const ARABIC_TEXT_RE = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/;
+
+function normalizePdfText(value: unknown) {
+  const text = String(value ?? "").replace(/\s+/g, " ").trim();
+  return text || "—";
+}
+
+function hasArabicText(value: string) {
+  return ARABIC_TEXT_RE.test(value);
+}
+
+function getPdfLineHeight(fontSize: number, factor = 1.45) {
+  return fontSize * MM_PER_POINT * factor;
+}
+
+function normalizePdfLines(value: string | string[] | string[][]): string[] {
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => Array.isArray(item) ? item.join(" ") : item);
+  }
+  return [value];
+}
+
+function preparePdfText(pdf: jsPDF, value: unknown, bold = false) {
+  const text = normalizePdfText(value);
+  const arabic = hasArabicText(text);
+  pdf.setFont(arabic ? "NotoKufiArabic" : "Outfit", bold ? "bold" : "normal");
+  pdf.setR2L(arabic);
+  return {
+    arabic,
+    text: arabic ? pdf.processArabic(text) : text,
+  };
+}
+
+function splitPdfText(pdf: jsPDF, value: unknown, maxWidth: number, fontSize: number, bold = false) {
+  pdf.setFontSize(fontSize);
+  const prepared = preparePdfText(pdf, value, bold);
+  const lines = normalizePdfLines(pdf.splitTextToSize(prepared.text, maxWidth));
+  return { ...prepared, lines };
+}
+
+async function registerLeasePdfFonts(pdf: jsPDF) {
+  const fonts = await getFontBase64Map();
+  if (!fonts.notoKufiRegular || !fonts.notoKufiBold || !fonts.outfitRegular || !fonts.outfitBold) {
+    throw new Error("تعذّر تحميل الخطوط المحلية اللازمة لإنشاء العقد PDF.");
+  }
+
+  pdf.addFileToVFS("NotoKufiArabic-Regular.ttf", fonts.notoKufiRegular);
+  pdf.addFont("NotoKufiArabic-Regular.ttf", "NotoKufiArabic", "normal");
+  pdf.addFileToVFS("NotoKufiArabic-Bold.ttf", fonts.notoKufiBold);
+  pdf.addFont("NotoKufiArabic-Bold.ttf", "NotoKufiArabic", "bold");
+
+  pdf.addFileToVFS("Outfit-Regular.ttf", fonts.outfitRegular);
+  pdf.addFont("Outfit-Regular.ttf", "Outfit", "normal");
+  pdf.addFileToVFS("Outfit-Bold.ttf", fonts.outfitBold);
+  pdf.addFont("Outfit-Bold.ttf", "Outfit", "bold");
 }
 
 export interface BrandInfo {
