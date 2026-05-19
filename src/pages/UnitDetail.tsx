@@ -8,7 +8,7 @@ import { useI18n } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
 import { useAppSettings } from "@/lib/appSettings";
-import { buildLeaseHTML, downloadHTMLAsPDF, printHTML, buildTenantStatementHTML, type StatementRow } from "@/lib/pdfDocs";
+import { buildLeaseHTML, downloadHTMLAsPDF, downloadLeasePDF, printHTML, buildTenantStatementHTML, type StatementRow } from "@/lib/pdfDocs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
@@ -95,13 +95,14 @@ export default function UnitDetail() {
 
   const exportLease = async (mode: "download" | "print") => {
     if (!unit) return;
-    const html = buildLeaseHTML({
+    const leaseData = {
       brand: settings.brand,
       building_name: buildingName || "—",
       unit_number: unit.unit_number,
       unit_type: t2(unit.type as any),
       floor: unit.floor,
       tenant_name: unit.tenant_name || "",
+      tenant_name_en: (unit as any).tenant_name_en || "",
       tenant_phone: unit.tenant_phone || "",
       tenant_id_number: (unit as any).tenant_id_number || "",
       rent_amount: Number(unit.rent_amount),
@@ -113,12 +114,14 @@ export default function UnitDetail() {
       security_deposit: Number((unit as any).security_deposit || 0),
       currency: currency.symbol,
       lang: lang === "ar" ? "ar" : "en",
-    });
+    } as const;
+
     if (mode === "print") {
+      const html = buildLeaseHTML(leaseData);
       printHTML(html);
     } else {
       try {
-        await downloadHTMLAsPDF(html, `lease-${unit.unit_number}-${unit.tenant_name || "tenant"}.pdf`, settings);
+        await downloadLeasePDF(leaseData, `lease-${unit.unit_number}-${unit.tenant_name || "tenant"}.pdf`);
         toast.success("PDF ✓");
       } catch (e: any) { toast.error(e.message || "PDF error"); }
     }
