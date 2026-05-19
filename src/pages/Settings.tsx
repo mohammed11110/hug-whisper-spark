@@ -96,7 +96,18 @@ export default function Settings() {
       }
       window.open(data.url, "_blank", "noopener,noreferrer");
     } catch (e) {
-      toast.error(tr(lang, "تعذّر فتح بوابة الإدارة. حاول مجدداً.", "Couldn't open the portal. Please try again."));
+      toast.error(
+        tr(lang, "تعذّر فتح بوابة الإدارة", "Couldn't open the portal"),
+        {
+          description: tr(
+            lang,
+            "تحقّق من اتصالك بالإنترنت ثم أعد المحاولة.",
+            "Check your connection and try again.",
+          ),
+          action: { label: tr(lang, "إعادة المحاولة", "Retry"), onClick: () => openPortal() },
+          duration: 8000,
+        },
+      );
     } finally {
       setPortalLoading(false);
     }
