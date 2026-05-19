@@ -74,7 +74,7 @@ const App = () => (
                       <Route path="/notifications" element={<RequireAuth><Notifications /></RequireAuth>} />
                       <Route path="/backup" element={<RequireAuth><Backup /></RequireAuth>} />
                       <Route path="/team" element={<RequireAuth><Team /></RequireAuth>} />
-                      <Route path="/pricing" element={<RequireAuth><Pricing /></RequireAuth>} />
+                      
                       <Route path="/assistant" element={<RequireAuth><Assistant /></RequireAuth>} />
                       <Route path="/admin" element={<RequireAuth><Admin /></RequireAuth>} />
                       <Route path="/collection" element={<RequireAuth><MonthlyCollection /></RequireAuth>} />
@@ -82,6 +82,7 @@ const App = () => (
                       <Route path="/activity" element={<RequireAuth><Activity /></RequireAuth>} />
                     </Route>
                     <Route path="/install" element={<Install />} />
+                    <Route path="/pricing" element={<Pricing />} />
                     <Route path="/terms" element={<Terms />} />
                     <Route path="/privacy" element={<Privacy />} />
                     <Route path="/refund" element={<Refund />} />
