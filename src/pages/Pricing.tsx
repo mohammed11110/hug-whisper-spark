@@ -276,23 +276,25 @@ export default function Pricing() {
           </div>
         )}
 
-        <div className="rounded-2xl p-4 border-2 border-sage-200/40 bg-card">
-          <div className="flex items-center gap-2 mb-2">
-            <Gift className="h-4 w-4 text-sage-500" />
-            <h3 className="font-bold text-sage-600 text-sm">{ar ? "هل لديك كود ترويجي؟" : "Have a promo code?"}</h3>
+        {user && (
+          <div className="rounded-2xl p-4 border-2 border-sage-200/40 bg-card">
+            <div className="flex items-center gap-2 mb-2">
+              <Gift className="h-4 w-4 text-sage-500" />
+              <h3 className="font-bold text-sage-600 text-sm">{ar ? "هل لديك كود ترويجي؟" : "Have a promo code?"}</h3>
+            </div>
+            <div className="flex gap-2">
+              <Input
+                value={code}
+                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                placeholder="AMLAKI-FREE-001"
+                className="h-11 rounded-xl"
+              />
+              <Button onClick={redeem} disabled={redeeming || !code.trim()} className="h-11 px-5 rounded-xl bg-gradient-sage text-primary-foreground font-bold">
+                {redeeming ? "..." : (ar ? "تفعيل" : "Redeem")}
+              </Button>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <Input
-              value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase())}
-              placeholder="AMLAKI-FREE-001"
-              className="h-11 rounded-xl"
-            />
-            <Button onClick={redeem} disabled={redeeming || !code.trim()} className="h-11 px-5 rounded-xl bg-gradient-sage text-primary-foreground font-bold">
-              {redeeming ? "..." : (ar ? "تفعيل" : "Redeem")}
-            </Button>
-          </div>
-        </div>
+        )}
 
         {/* Toggle */}
         <div className="flex justify-center">
@@ -391,8 +393,14 @@ export default function Pricing() {
         <p className="text-[11px] text-muted-foreground text-center px-4">
           {ar ? "يمكنك الإلغاء في أي وقت خلال التجربة دون أي رسوم. لا توجد رسوم خفية." : "Cancel anytime during the trial — no charges. No hidden fees."}
         </p>
+
+        <div className="pt-2 pb-4 flex flex-wrap justify-center gap-x-4 gap-y-2 text-[11px] text-muted-foreground">
+          <Link to="/terms" className="hover:text-sage-600">{ar ? "الشروط" : "Terms"}</Link>
+          <Link to="/privacy" className="hover:text-sage-600">{ar ? "الخصوصية" : "Privacy"}</Link>
+          <Link to="/refund" className="hover:text-sage-600">{ar ? "الاسترداد" : "Refund"}</Link>
+        </div>
       </div>
-      <BottomNav />
+      {user && <BottomNav />}
     </div>
   );
 }
