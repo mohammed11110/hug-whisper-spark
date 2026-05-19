@@ -1,5 +1,6 @@
 import { ArrowRight, Check, Crown, Gift, Sparkles, Zap, Building2, ShieldCheck, Loader2 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { Logo } from "@/components/Logo";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
@@ -110,6 +111,7 @@ const PLANS: Plan[] = [
 export default function Pricing() {
   const { lang } = useI18n();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const ar = lang === "ar";
   const [yearly, setYearly] = useState(false);
   const [code, setCode] = useState("");
@@ -120,6 +122,10 @@ export default function Pricing() {
   const usage = useUnitUsage();
 
   const handleSelect = async (p: Plan) => {
+    if (!user) {
+      navigate(`/auth?mode=signup&plan=${p.id}`);
+      return;
+    }
     if (p.id === "free") {
       toast.info(ar ? "أنت على الخطة المجانية" : "You're on the Free plan");
       return;
@@ -189,9 +195,23 @@ export default function Pricing() {
   return (
     <div className="mobile-shell pb-24 bg-background">
       <PaymentTestModeBanner />
-      <TopBar />
+      {user ? (
+        <TopBar />
+      ) : (
+        <header className="sticky top-0 z-30 glass border-b border-sage-200/40">
+          <div className="flex items-center justify-between px-4 h-14">
+            <Link to="/welcome" className="flex items-center gap-2">
+              <Logo size={28} />
+              <span className="font-black text-sage-600 text-lg tracking-tight">{ar ? "أملاكي" : "Amlaki"}</span>
+            </Link>
+            <Link to="/auth?mode=signin" className="text-sm font-bold text-sage-600 hover:underline">
+              {ar ? "تسجيل الدخول" : "Sign in"}
+            </Link>
+          </div>
+        </header>
+      )}
       <div className="px-5 pt-2 flex items-center gap-2">
-        <Link to="/settings" className="text-sage-500"><ArrowRight className="h-5 w-5 rtl:rotate-180" /></Link>
+        <Link to={user ? "/settings" : "/welcome"} className="text-sage-500"><ArrowRight className="h-5 w-5 rtl:rotate-180" /></Link>
         <h1 className="text-2xl font-black text-sage-600">{ar ? "الخطط والأسعار" : "Plans & Pricing"}</h1>
       </div>
 
@@ -256,23 +276,25 @@ export default function Pricing() {
           </div>
         )}
 
-        <div className="rounded-2xl p-4 border-2 border-sage-200/40 bg-card">
-          <div className="flex items-center gap-2 mb-2">
-            <Gift className="h-4 w-4 text-sage-500" />
-            <h3 className="font-bold text-sage-600 text-sm">{ar ? "هل لديك كود ترويجي؟" : "Have a promo code?"}</h3>
+        {user && (
+          <div className="rounded-2xl p-4 border-2 border-sage-200/40 bg-card">
+            <div className="flex items-center gap-2 mb-2">
+              <Gift className="h-4 w-4 text-sage-500" />
+              <h3 className="font-bold text-sage-600 text-sm">{ar ? "هل لديك كود ترويجي؟" : "Have a promo code?"}</h3>
+            </div>
+            <div className="flex gap-2">
+              <Input
+                value={code}
+                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                placeholder="AMLAKI-FREE-001"
+                className="h-11 rounded-xl"
+              />
+              <Button onClick={redeem} disabled={redeeming || !code.trim()} className="h-11 px-5 rounded-xl bg-gradient-sage text-primary-foreground font-bold">
+                {redeeming ? "..." : (ar ? "تفعيل" : "Redeem")}
+              </Button>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <Input
-              value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase())}
-              placeholder="AMLAKI-FREE-001"
-              className="h-11 rounded-xl"
-            />
-            <Button onClick={redeem} disabled={redeeming || !code.trim()} className="h-11 px-5 rounded-xl bg-gradient-sage text-primary-foreground font-bold">
-              {redeeming ? "..." : (ar ? "تفعيل" : "Redeem")}
-            </Button>
-          </div>
-        </div>
+        )}
 
         {/* Toggle */}
         <div className="flex justify-center">
@@ -371,8 +393,14 @@ export default function Pricing() {
         <p className="text-[11px] text-muted-foreground text-center px-4">
           {ar ? "يمكنك الإلغاء في أي وقت خلال التجربة دون أي رسوم. لا توجد رسوم خفية." : "Cancel anytime during the trial — no charges. No hidden fees."}
         </p>
+
+        <div className="pt-2 pb-4 flex flex-wrap justify-center gap-x-4 gap-y-2 text-[11px] text-muted-foreground">
+          <Link to="/terms" className="hover:text-sage-600">{ar ? "الشروط" : "Terms"}</Link>
+          <Link to="/privacy" className="hover:text-sage-600">{ar ? "الخصوصية" : "Privacy"}</Link>
+          <Link to="/refund" className="hover:text-sage-600">{ar ? "الاسترداد" : "Refund"}</Link>
+        </div>
       </div>
-      <BottomNav />
+      {user && <BottomNav />}
     </div>
   );
 }

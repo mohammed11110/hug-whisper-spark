@@ -163,6 +163,13 @@ export default function Auth() {
             {busy ? t("loading") : mode === "signup" ? t("sign_up") : t("sign_in")}
           </Button>
         </form>
+
+        <footer className="mt-8 flex flex-wrap justify-center gap-x-4 gap-y-2 text-[11px] text-sage-500">
+          <Link to="/pricing" className="hover:text-sage-600 font-medium">{t("pricing") || "Pricing"}</Link>
+          <Link to="/terms" className="hover:text-sage-600">{t("terms") || "Terms"}</Link>
+          <Link to="/privacy" className="hover:text-sage-600">{t("privacy") || "Privacy"}</Link>
+          <Link to="/refund" className="hover:text-sage-600">{t("refund") || "Refund"}</Link>
+        </footer>
       </main>
     </div>
   );

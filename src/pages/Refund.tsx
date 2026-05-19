@@ -4,7 +4,7 @@ import { TopBar } from "@/components/TopBar";
 import { useI18n } from "@/lib/i18n";
 
 const LAST_UPDATED = "2026-05-13";
-const COMPANY = "أملاكي · Amlaki";
+const COMPANY = "أملاكي · Amlaki1";
 const SUPPORT_EMAIL = "support@amlaki.app";
 
 export default function Refund() {
