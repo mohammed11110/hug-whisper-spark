@@ -151,6 +151,26 @@ export default function Settings() {
             <ArrowRight className="h-4 w-4 text-sage-400 rtl:rotate-180" />
           </Link>
           <button
+            onClick={openPortal}
+            disabled={portalLoading || sub.loading}
+            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-sage-50 transition disabled:opacity-60"
+          >
+            <CreditCard className="h-4 w-4 text-sage-600" />
+            <div className="flex-1 text-start">
+              <p className="text-sm font-bold text-sage-600">{tr(lang, "إدارة الاشتراك", "Manage subscription")}</p>
+              <p className="text-[11px] text-muted-foreground">
+                {sub.paddleSubscriptionId
+                  ? planLabel(sub.plan)
+                  : tr(lang, "أنت على الخطة المجانية", "You're on the Free plan")}
+              </p>
+            </div>
+            {portalLoading ? (
+              <Loader2 className="h-4 w-4 text-sage-400 animate-spin" />
+            ) : (
+              <ArrowRight className="h-4 w-4 text-sage-400 rtl:rotate-180" />
+            )}
+          </button>
+          <button
             onClick={async () => {
               await signOut();
               toast.success(tr(lang, "تم تسجيل الخروج", "Signed out"));
