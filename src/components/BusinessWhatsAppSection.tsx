@@ -62,18 +62,13 @@ export function BusinessWhatsAppSection() {
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
-      const sent = (data as any).code as string;
       const target = (data as any).phone as string;
-      // Open wa.me to the user's own number with the code
-      const msg = tr(
-        lang,
-        `كود تحقق رقم واتساب الأعمال في تطبيق أملاكي: ${sent}`,
-        `Amlaki business WhatsApp verification code: ${sent}`
-      );
+      // The verification code is sent to the target WhatsApp number server-side.
+      // We open wa.me as a convenience so the user can quickly switch to WhatsApp.
       const cleaned = target.replace(/[^\d]/g, "");
-      window.open(`https://wa.me/${cleaned}?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
+      window.open(`https://wa.me/${cleaned}`, "_blank", "noopener,noreferrer");
       setStep("awaiting_code");
-      toast.success(tr(lang, "أُرسل الكود إلى واتسابك. أدخله أدناه.", "Code sent to your WhatsApp. Enter it below."));
+      toast.success(tr(lang, "أُرسل الكود إلى واتساب الرقم. تحقّق من الرسائل وأدخل الكود.", "Code sent to that WhatsApp number. Check messages and enter the code."));
       await load();
     } catch (e: any) {
       toast.error(e?.message || tr(lang, "تعذر إرسال الكود", "Could not send code"));
