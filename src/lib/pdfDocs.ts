@@ -675,6 +675,266 @@ export function buildLeaseHTML(data: Lease): string {
   return pageShell(L("عقد إيجار", "Lease Agreement"), body, { rtl });
 }
 
+export async function downloadLeasePDF(data: Lease, filename: string) {
+  const rtl = data.lang !== "en";
+  const L = (ar: string, en: string) => (rtl ? ar : en);
+  const pdf = new jsPDF({ unit: "mm", format: "a4" });
+  await registerLeasePdfFonts(pdf);
+
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const marginX = 16;
+  const marginTop = 18;
+  const marginBottom = 16;
+  const contentW = pageW - marginX * 2;
+  const colGap = 6;
+  const cardW = (contentW - colGap) / 2;
+  const labelFontSize = 9;
+  const valueFontSize = 12;
+  const sectionFontSize = 14;
+  const bodyFontSize = 11;
+  const titleFontSize = 19;
+  const smallFontSize = 10;
+
+  const landlordLine = [data.brand.landlordName, data.brand.landlordNameEn].filter(Boolean).join(" / ") || data.brand.name || "—";
+  const rentTypeLabel = rtl ? arOr(RENT_TYPE_AR, data.rent_type) : (data.rent_type || "—");
+  const contractTypeLabel = rtl ? arOr(CONTRACT_TYPE_AR, data.contract_type) : (data.contract_type || "—");
+  const unitTypeLabel = rtl ? arOr(UNIT_TYPE_AR, data.unit_type) : (data.unit_type || "—");
+  const rentMoney = formatMoney(data.rent_amount, data.currency);
+  const depositMoney = formatMoney(data.security_deposit || 0, data.currency);
+  const startDate = formatDate(data.contract_start_date, rtl);
+  const endDate = formatDate(data.contract_end_date, rtl);
+  const dueDay = data.due_day != null ? String(data.due_day) : "—";
+  const intro = L(
+    `إنه في يوم ${startDate} تم الاتفاق بين المؤجر ${landlordLine} والمستأجر ${data.tenant_name || "—"} على تأجير الوحدة الموضحة أدناه وفق الشروط والبنود التالية.`,
+    `On ${startDate}, this lease agreement is made between the Landlord ${landlordLine} and the Tenant ${data.tenant_name || "—"}, subject to the terms below.`
+  );
+  const clauses = rtl
+    ? [
+        `أقرّ الطرف الثاني (المستأجر) باستلامه الوحدة المؤجَّرة بحالة جيدة صالحة للاستعمال المتفق عليه.`,
+        `قيمة الإيجار ${rentMoney} تُسدَّد ${rentTypeLabel} في موعد أقصاه يوم ${dueDay} من كل دورة استحقاق.`,
+        `مدة العقد من ${startDate} وحتى ${endDate}، وهو من نوع ${contractTypeLabel}.`,
+        `قام المستأجر بدفع وديعة تأمين قدرها ${depositMoney} تُرد عند انتهاء العقد بعد التحقق من سلامة الوحدة وسداد جميع المستحقات.`,
+        `يلتزم المستأجر باستخدام الوحدة للغرض المتفق عليه فقط والمحافظة عليها وعدم إجراء أي تعديلات إنشائية دون إذن خطي من المؤجر.`,
+        `يتحمّل المستأجر فواتير الخدمات ما لم يُتفق على خلاف ذلك كتابةً.`,
+        `لا يحق للمستأجر تأجير الوحدة من الباطن أو التنازل عن العقد للغير إلا بموافقة خطية مسبقة من المؤجر.`,
+        `في حال التأخر عن السداد لأكثر من 15 يوماً من تاريخ الاستحقاق، يحق للمؤجر اتخاذ الإجراءات النظامية المقررة.`,
+        `عند رغبة أحد الطرفين في إنهاء العقد قبل انتهاء مدته، يجب إشعار الطرف الآخر كتابةً قبل 30 يوماً على الأقل.`,
+        `حُرر هذا العقد من نسختين أصليتين بيد كل طرف نسخة للعمل بموجبها عند الحاجة.`,
+      ]
+    : [
+        `The Tenant acknowledges receipt of the leased unit in good condition and fit for the agreed use.`,
+        `Rent of ${rentMoney} is payable ${rentTypeLabel}, no later than day ${dueDay} of each due cycle.`,
+        `Lease term runs from ${startDate} to ${endDate} and is classified as ${contractTypeLabel}.`,
+        `A security deposit of ${depositMoney} has been paid and is refundable at lease end subject to inspection and settlement of dues.`,
+        `The Tenant shall use the unit only for the agreed purpose and may not make structural alterations without written approval.`,
+        `Utilities are payable by the Tenant unless otherwise agreed in writing.`,
+        `The Tenant may not sublet or assign this lease without prior written approval of the Landlord.`,
+        `Delay in payment for more than 15 days past due date entitles the Landlord to pursue legal remedies.`,
+        `Either party wishing to terminate before the end of the term must provide at least 30 days written notice.`,
+        `This agreement is executed in two original counterparts, one for each party.`,
+      ];
+
+  const detailCards = [
+    { label: L("اسم المستأجر", "Tenant name"), value: data.tenant_name || "—" },
+    { label: L("رقم الهاتف", "Phone"), value: data.tenant_phone || "—" },
+    { label: L("رقم الهوية / السجل المدني", "ID number"), value: data.tenant_id_number || "—" },
+    { label: L("نوع الوحدة", "Unit type"), value: unitTypeLabel },
+    { label: L("الطابق", "Floor"), value: data.floor ?? "—" },
+    { label: L("نوع الإيجار", "Rent type"), value: rentTypeLabel },
+    { label: L("قيمة الإيجار", "Rent amount"), value: rentMoney },
+    { label: L("وديعة التأمين", "Security deposit"), value: depositMoney },
+    { label: L("بداية العقد", "Contract start"), value: startDate },
+    { label: L("نهاية العقد", "Contract end"), value: endDate },
+    { label: L("يوم استحقاق الإيجار", "Due day"), value: dueDay },
+    { label: L("نوع العقد", "Contract type"), value: contractTypeLabel },
+  ];
+
+  let cursorY = marginTop;
+
+  const ensureSpace = (heightNeeded: number) => {
+    if (cursorY + heightNeeded <= pageH - marginBottom) return;
+    pdf.addPage();
+    cursorY = marginTop;
+  };
+
+  const setTextColor = (rgb: readonly number[]) => pdf.setTextColor(rgb[0], rgb[1], rgb[2]);
+  const setDrawColor = (rgb: readonly number[]) => pdf.setDrawColor(rgb[0], rgb[1], rgb[2]);
+  const setFillColor = (rgb: readonly number[]) => pdf.setFillColor(rgb[0], rgb[1], rgb[2]);
+
+  const drawTextBlock = ({ text, x, y, width, fontSize, bold = false, color = PDF_COLORS.ink, align }: {
+    text: unknown; x: number; y: number; width: number; fontSize: number; bold?: boolean; color?: readonly number[]; align?: "left" | "right" | "center";
+  }) => {
+    pdf.setFontSize(fontSize);
+    const prepared = splitPdfText(pdf, text, width, fontSize, bold);
+    setTextColor(color);
+    const resolvedAlign = align || (prepared.arabic ? "right" : "left");
+    const textX = resolvedAlign === "right" ? x + width : resolvedAlign === "center" ? x + width / 2 : x;
+    pdf.text(prepared.lines, textX, y, { align: resolvedAlign });
+    return prepared.lines.length * getPdfLineHeight(fontSize);
+  };
+
+  const drawSectionTitle = (title: string) => {
+    ensureSpace(12);
+    const height = drawTextBlock({ text: title, x: marginX, y: cursorY, width: contentW, fontSize: sectionFontSize, bold: true, color: PDF_COLORS.sage });
+    cursorY += height + 2;
+    setDrawColor(PDF_COLORS.line);
+    pdf.line(marginX, cursorY, pageW - marginX, cursorY);
+    cursorY += 6;
+  };
+
+  const drawDetailCard = (x: number, y: number, label: string, value: unknown) => {
+    const innerPadding = 4;
+    const labelH = getPdfLineHeight(labelFontSize, 1.2);
+    const valuePrepared = splitPdfText(pdf, value, cardW - innerPadding * 2, valueFontSize, true);
+    const valueH = valuePrepared.lines.length * getPdfLineHeight(valueFontSize);
+    const cardH = Math.max(22, innerPadding * 2 + labelH + valueH + 4);
+    setFillColor(PDF_COLORS.soft);
+    setDrawColor(PDF_COLORS.line);
+    pdf.roundedRect(x, y, cardW, cardH, 4, 4, "FD");
+    drawTextBlock({ text: label, x: x + innerPadding, y: y + 6, width: cardW - innerPadding * 2, fontSize: labelFontSize, color: PDF_COLORS.muted });
+    drawTextBlock({ text: value, x: x + innerPadding, y: y + 6 + labelH + 2, width: cardW - innerPadding * 2, fontSize: valueFontSize, bold: true });
+    return cardH;
+  };
+
+  const drawSignatureTable = () => {
+    const rows = [
+      {
+        party: L("المؤجر (الطرف الأول)", "Landlord (First Party)"),
+        name: landlordLine,
+        contact: data.brand.phone || data.brand.address || "—",
+      },
+      {
+        party: L("المستأجر (الطرف الثاني)", "Tenant (Second Party)"),
+        name: [data.tenant_name, data.tenant_name_en].filter(Boolean).join(" / ") || data.tenant_name || "—",
+        contact: data.tenant_phone || data.tenant_id_number || "—",
+      },
+    ];
+    const cols = rtl
+      ? [
+          { key: "signature", label: L("التوقيع", "Signature"), width: 38 },
+          { key: "contact", label: L("بيانات التواصل", "Contact"), width: 46 },
+          { key: "name", label: L("الاسم", "Name"), width: 52 },
+          { key: "party", label: L("الطرف", "Party"), width: contentW - 38 - 46 - 52 },
+        ]
+      : [
+          { key: "party", label: L("الطرف", "Party"), width: contentW - 38 - 46 - 52 },
+          { key: "name", label: L("الاسم", "Name"), width: 52 },
+          { key: "contact", label: L("بيانات التواصل", "Contact"), width: 46 },
+          { key: "signature", label: L("التوقيع", "Signature"), width: 38 },
+        ];
+
+    const headerH = 10;
+    ensureSpace(18 + headerH + rows.length * 20);
+    setFillColor([244, 247, 242]);
+    setDrawColor(PDF_COLORS.line);
+    pdf.rect(marginX, cursorY, contentW, headerH, "FD");
+    let x = marginX;
+    cols.forEach((col, idx) => {
+      drawTextBlock({ text: col.label, x, y: cursorY + 6.5, width: col.width, fontSize: smallFontSize, bold: true, color: PDF_COLORS.muted });
+      x += col.width;
+      if (idx < cols.length - 1) pdf.line(x, cursorY, x, cursorY + headerH);
+    });
+    cursorY += headerH;
+
+    rows.forEach((row) => {
+      const cellHeights = cols.map((col) => {
+        if (col.key === "signature") return 18;
+        const prepared = splitPdfText(pdf, (row as any)[col.key], col.width - 4, bodyFontSize, col.key !== "contact");
+        return Math.max(18, prepared.lines.length * getPdfLineHeight(bodyFontSize) + 6);
+      });
+      const rowH = Math.max(...cellHeights);
+      ensureSpace(rowH);
+      pdf.rect(marginX, cursorY, contentW, rowH);
+      let cellX = marginX;
+      cols.forEach((col, idx) => {
+        if (idx > 0) pdf.line(cellX, cursorY, cellX, cursorY + rowH);
+        if (col.key === "signature") {
+          setDrawColor(PDF_COLORS.line);
+          pdf.line(cellX + 4, cursorY + rowH - 5, cellX + col.width - 4, cursorY + rowH - 5);
+        } else {
+          drawTextBlock({
+            text: (row as any)[col.key],
+            x: cellX + 2,
+            y: cursorY + 6,
+            width: col.width - 4,
+            fontSize: bodyFontSize,
+            bold: col.key === "name" || col.key === "party",
+          });
+        }
+        cellX += col.width;
+      });
+      cursorY += rowH;
+    });
+  };
+
+  ensureSpace(34);
+  setFillColor([247, 243, 234]);
+  setDrawColor(PDF_COLORS.line);
+  pdf.roundedRect(marginX, cursorY, contentW, 28, 6, 6, "FD");
+  if (data.brand.logo) {
+    try {
+      const logoData = await urlToDataUrl(data.brand.logo);
+      pdf.addImage(logoData, "PNG", rtl ? pageW - marginX - 18 : marginX + 4, cursorY + 5, 14, 14, undefined, "FAST");
+    } catch {
+      // noop
+    }
+  }
+  drawTextBlock({ text: L("عقد إيجار", "Lease Agreement"), x: marginX + 22, y: cursorY + 9, width: contentW - 44, fontSize: titleFontSize, bold: true, color: PDF_COLORS.ink, align: "center" });
+  drawTextBlock({ text: landlordLine, x: marginX + 22, y: cursorY + 17, width: contentW - 44, fontSize: smallFontSize, color: PDF_COLORS.muted, align: "center" });
+  cursorY += 36;
+
+  cursorY += drawTextBlock({ text: intro, x: marginX, y: cursorY, width: contentW, fontSize: bodyFontSize, color: PDF_COLORS.muted }) + 3;
+  drawSectionTitle(L("بيانات الوحدة والمستأجر", "Unit & Tenant Details"));
+
+  for (let i = 0; i < detailCards.length; i += 2) {
+    const rowCards = detailCards.slice(i, i + 2);
+    const heights = rowCards.map((card) => {
+      const prepared = splitPdfText(pdf, card.value, cardW - 8, valueFontSize, true);
+      return Math.max(22, 8 + getPdfLineHeight(labelFontSize, 1.2) + prepared.lines.length * getPdfLineHeight(valueFontSize) + 4);
+    });
+    const rowH = Math.max(...heights);
+    ensureSpace(rowH + 4);
+    rowCards.forEach((card, idx) => {
+      const x = rtl ? pageW - marginX - cardW - idx * (cardW + colGap) : marginX + idx * (cardW + colGap);
+      drawDetailCard(x, cursorY, card.label, card.value);
+    });
+    cursorY += rowH + 4;
+  }
+
+  drawSectionTitle(L("شروط وبنود العقد", "Terms & Conditions"));
+  clauses.forEach((clause, index) => {
+    const prefix = rtl ? `${index + 1}.` : `${index + 1}.`;
+    const prefixWidth = 10;
+    const prepared = splitPdfText(pdf, clause, contentW - prefixWidth - 2, bodyFontSize, false);
+    const blockHeight = Math.max(getPdfLineHeight(bodyFontSize), prepared.lines.length * getPdfLineHeight(bodyFontSize));
+    ensureSpace(blockHeight + 3);
+    drawTextBlock({ text: prefix, x: rtl ? pageW - marginX - prefixWidth : marginX, y: cursorY, width: prefixWidth, fontSize: bodyFontSize, bold: true });
+    drawTextBlock({
+      text: clause,
+      x: rtl ? marginX : marginX + prefixWidth + 2,
+      y: cursorY,
+      width: contentW - prefixWidth - 2,
+      fontSize: bodyFontSize,
+      color: PDF_COLORS.ink,
+    });
+    cursorY += blockHeight + 3;
+  });
+
+  drawSectionTitle(L("توقيع الأطراف", "Signatures"));
+  drawSignatureTable();
+
+  const footerText = [data.brand.address, data.brand.phone].filter(Boolean).join(" — ") || data.brand.name || "";
+  ensureSpace(14);
+  cursorY += 6;
+  setDrawColor(PDF_COLORS.line);
+  pdf.line(marginX, cursorY, pageW - marginX, cursorY);
+  cursorY += 6;
+  drawTextBlock({ text: footerText, x: marginX, y: cursorY, width: contentW, fontSize: smallFontSize, color: PDF_COLORS.muted, align: "center" });
+
+  pdf.save(filename);
+}
+
 export function buildTenantStatementHTML(data: TenantStatementData): string {
   const rows = data.rows
     .map(
