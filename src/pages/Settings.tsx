@@ -55,6 +55,52 @@ export default function Settings() {
   const [openAdvanced, setOpenAdvanced] = useState(false);
   const RL = (k: string) => RET_LABELS[k]?.[lang === "ar" ? "ar" : "en"] || k;
   const saved = () => toast.success(tr(lang, "تم الحفظ", "Saved"));
+  const sub = useSubscription();
+  const [portalLoading, setPortalLoading] = useState(false);
+
+  const planLabel = (p: string) => {
+    const map: Record<string, { ar: string; en: string }> = {
+      free: { ar: "الخطة المجانية", en: "Free plan" },
+      starter: { ar: "خطة Starter", en: "Starter plan" },
+      pro: { ar: "خطة Pro", en: "Pro plan" },
+      business: { ar: "خطة Business", en: "Business plan" },
+      enterprise: { ar: "خطة Enterprise", en: "Enterprise plan" },
+    };
+    return (map[p] ?? map.free)[lang === "ar" ? "ar" : "en"];
+  };
+
+  const openPortal = async () => {
+    if (sub.loading) return;
+    if (!sub.paddleSubscriptionId) {
+      toast.info(
+        tr(lang, "لا يوجد اشتراك مدفوع بعد. اختر خطة للبدء.", "No paid subscription yet. Choose a plan to get started."),
+        { action: { label: tr(lang, "الخطط", "Plans"), onClick: () => navigate("/pricing") } },
+      );
+      return;
+    }
+    setPortalLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("customer-portal", {
+        body: { environment: getPaddleEnvironment() },
+      });
+      if (error) throw error;
+      if (!data?.url) {
+        if ((data as any)?.error === "no_subscription") {
+          toast.info(
+            tr(lang, "لا يوجد اشتراك مدفوع بعد. اختر خطة للبدء.", "No paid subscription yet. Choose a plan to get started."),
+            { action: { label: tr(lang, "الخطط", "Plans"), onClick: () => navigate("/pricing") } },
+          );
+          return;
+        }
+        throw new Error("no_url");
+      }
+      window.open(data.url, "_blank", "noopener,noreferrer");
+    } catch (e) {
+      toast.error(tr(lang, "تعذّر فتح بوابة الإدارة. حاول مجدداً.", "Couldn't open the portal. Please try again."));
+    } finally {
+      setPortalLoading(false);
+    }
+  };
 
   return (
     <div className="mobile-shell min-h-screen pb-24 bg-background">
