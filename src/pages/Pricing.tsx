@@ -232,14 +232,14 @@ export default function Pricing() {
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
                   {ar ? "الوحدات" : "Units"}
                 </div>
-                <div className={`font-black text-${usageColor}`}>
+                <div className={`font-black ${usageTextClass}`}>
                   {usage.unitCount}<span className="text-muted-foreground font-normal">/{sub.unitLimit === Infinity ? "∞" : sub.unitLimit}</span>
                 </div>
               </div>
             </div>
             {sub.unitLimit !== Infinity && (
               <div className="h-1.5 rounded-full bg-sage-100 overflow-hidden">
-                <div className={`h-full bg-${usageColor} transition-all`} style={{ width: `${usagePercent}%` }} />
+                <div className={`h-full ${usageBarClass} transition-all`} style={{ width: `${usagePercent}%` }} />
               </div>
             )}
             {sub.paddleSubscriptionId && (
