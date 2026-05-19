@@ -4,7 +4,11 @@ import {
   ArrowRight, Clock, Coins, RotateCcw, Printer, ShieldAlert, MessageCircle, Bell,
   Database, Users, Image as ImageIcon, Smartphone, Globe, Moon, Sun, Monitor,
   Crown, Sparkles, LogOut, ChevronDown, Shield, User as UserIcon, Mail,
+  CreditCard, Loader2,
 } from "lucide-react";
+import { useSubscription } from "@/hooks/useSubscription";
+import { getPaddleEnvironment } from "@/lib/paddle";
+import { supabase } from "@/integrations/supabase/client";
 import { useTheme } from "@/lib/theme";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Textarea } from "@/components/ui/textarea";
