@@ -183,7 +183,8 @@ export default function Pricing() {
   };
 
   const usagePercent = sub.unitLimit === Infinity ? 0 : Math.min(100, Math.round((usage.unitCount / sub.unitLimit) * 100));
-  const usageColor = usagePercent >= 100 ? "burgundy" : usagePercent >= 80 ? "terracotta" : "sage-500";
+  const usageTextClass = usagePercent >= 100 ? "text-burgundy" : usagePercent >= 80 ? "text-terracotta" : "text-sage-500";
+  const usageBarClass = usagePercent >= 100 ? "bg-burgundy" : usagePercent >= 80 ? "bg-terracotta" : "bg-sage-500";
 
   return (
     <div className="mobile-shell pb-24 bg-background">
