@@ -198,6 +198,13 @@ export default function Payments() {
   const buildReceiptHTML = (r: Row, lng: RLang) => {
     const L = RECEIPT_TXT[lng];
     const dir = lng === "ar" ? "rtl" : "ltr";
+    const esc = (v: unknown) =>
+      String(v ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
     const receiptTotalDue = r.expected_amount && r.expected_amount > 0 ? r.expected_amount : r.remaining + r.amount;
     const receiptRemaining = Math.max(0, receiptTotalDue - r.amount);
     const sc = settings.statusColors;
@@ -210,10 +217,10 @@ export default function Payments() {
     const showStatus = r.unit_status !== "soon";
     const brand = settings.brand;
     const brandHeader = brand.logo
-      ? `<img src="${brand.logo}" style="height:46px;object-fit:contain"/>`
-      : `<h1>${brand.name}</h1>`;
+      ? `<img src="${esc(brand.logo)}" style="height:46px;object-fit:contain"/>`
+      : `<h1>${esc(brand.name)}</h1>`;
     const html = `
-      <html dir="${dir}"><head><meta charset="utf-8"/><title>${r.receipt_number || r.id}</title>
+      <html dir="${dir}"><head><meta charset="utf-8"/><title>${esc(r.receipt_number || r.id)}</title>
       <style>
         @page{size:${settings.pageSize};margin:${settings.margins.top}mm ${settings.margins.right}mm ${settings.margins.bottom}mm ${settings.margins.left}mm}
         *{box-sizing:border-box}
