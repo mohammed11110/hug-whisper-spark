@@ -1,4 +1,4 @@
-import { ArrowRight, Check, Crown, Gift, Sparkles, Zap } from "lucide-react";
+import { ArrowRight, Check, Crown, Gift, Sparkles, Zap, Building2, ShieldCheck, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
@@ -8,13 +8,20 @@ import { useI18n } from "@/lib/i18n";
 import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
+import { usePaddleCheckout } from "@/hooks/usePaddleCheckout";
+import { useSubscription, useUnitUsage, PLAN_UNIT_LIMITS, type PlanTier } from "@/hooks/useSubscription";
+import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 
 type Plan = {
-  id: "free" | "basic" | "pro" | "business";
+  id: PlanTier;
   nameAr: string;
   nameEn: string;
+  units: number;
   priceMonthly: number;
   priceYearly: number;
+  priceIdMonthly?: string;
+  priceIdYearly?: string;
   taglineAr: string;
   taglineEn: string;
   featuresAr: string[];
@@ -28,66 +35,123 @@ const PLANS: Plan[] = [
     id: "free",
     nameAr: "مجاني",
     nameEn: "Free",
+    units: 5,
     priceMonthly: 0,
     priceYearly: 0,
     taglineAr: "للتجربة",
     taglineEn: "For trying out",
     icon: Sparkles,
-    featuresAr: ["مبنى واحد", "5 وحدات كحد أقصى", "تقارير أساسية", "دعم بالبريد"],
-    featuresEn: ["1 building", "Up to 5 units", "Basic reports", "Email support"],
+    featuresAr: ["حتى 5 وحدات", "مباني غير محدودة", "تقارير أساسية", "دعم بالبريد"],
+    featuresEn: ["Up to 5 units", "Unlimited buildings", "Basic reports", "Email support"],
   },
   {
-    id: "basic",
-    nameAr: "أساسي",
-    nameEn: "Basic",
-    priceMonthly: 9,
-    priceYearly: 90,
+    id: "starter",
+    nameAr: "بداية",
+    nameEn: "Starter",
+    units: 25,
+    priceMonthly: 10,
+    priceYearly: 100,
+    priceIdMonthly: "starter_monthly",
+    priceIdYearly: "starter_yearly",
     taglineAr: "للملاك الجدد",
     taglineEn: "For new landlords",
     icon: Zap,
-    featuresAr: ["3 مباني", "30 وحدة", "تقارير متقدمة", "تذكيرات تلقائية", "تصدير PDF"],
-    featuresEn: ["3 buildings", "30 units", "Advanced reports", "Auto reminders", "PDF export"],
+    featuresAr: ["حتى 25 وحدة", "مباني غير محدودة", "تقارير متقدمة", "تذكيرات تلقائية", "تصدير PDF"],
+    featuresEn: ["Up to 25 units", "Unlimited buildings", "Advanced reports", "Auto reminders", "PDF export"],
   },
   {
     id: "pro",
     nameAr: "احترافي",
-    nameEn: "Professional",
+    nameEn: "Pro",
+    units: 75,
     priceMonthly: 29,
     priceYearly: 290,
+    priceIdMonthly: "pro_monthly",
+    priceIdYearly: "pro_yearly",
     taglineAr: "الأكثر شعبية",
     taglineEn: "Most popular",
     highlight: true,
     icon: Crown,
-    featuresAr: ["مباني غير محدودة", "وحدات غير محدودة", "فريق عمل", "مساعد ذكي AI", "نسخ احتياطي تلقائي", "أولوية الدعم"],
-    featuresEn: ["Unlimited buildings", "Unlimited units", "Team members", "AI assistant", "Auto backups", "Priority support"],
+    featuresAr: ["حتى 75 وحدة", "مباني غير محدودة", "فريق عمل", "مساعد ذكي AI", "نسخ احتياطي تلقائي", "أولوية الدعم"],
+    featuresEn: ["Up to 75 units", "Unlimited buildings", "Team members", "AI assistant", "Auto backups", "Priority support"],
   },
   {
     id: "business",
     nameAr: "شركات",
     nameEn: "Business",
+    units: 200,
     priceMonthly: 79,
     priceYearly: 790,
+    priceIdMonthly: "business_monthly",
+    priceIdYearly: "business_yearly",
     taglineAr: "للشركات الكبرى",
     taglineEn: "For enterprises",
-    icon: Crown,
-    featuresAr: ["كل مزايا Pro", "علامة تجارية مخصصة", "API مفتوح", "تكامل ZATCA", "مدير حساب مخصص"],
-    featuresEn: ["All Pro features", "Custom branding", "Open API", "ZATCA integration", "Dedicated manager"],
+    icon: Building2,
+    featuresAr: ["حتى 200 وحدة", "مباني غير محدودة", "علامة تجارية مخصصة", "API مفتوح", "تكامل ZATCA"],
+    featuresEn: ["Up to 200 units", "Unlimited buildings", "Custom branding", "Open API", "ZATCA integration"],
+  },
+  {
+    id: "enterprise",
+    nameAr: "مؤسسي",
+    nameEn: "Enterprise",
+    units: Infinity,
+    priceMonthly: 199,
+    priceYearly: 1990,
+    priceIdMonthly: "enterprise_monthly",
+    priceIdYearly: "enterprise_yearly",
+    taglineAr: "وحدات بلا حدود",
+    taglineEn: "Unlimited everything",
+    icon: ShieldCheck,
+    featuresAr: ["وحدات غير محدودة", "مدير حساب مخصص", "تكامل مخصص", "SLA 99.9%", "تدريب الفريق"],
+    featuresEn: ["Unlimited units", "Dedicated manager", "Custom integrations", "99.9% SLA", "Team training"],
   },
 ];
 
 export default function Pricing() {
   const { lang } = useI18n();
+  const { user } = useAuth();
   const ar = lang === "ar";
   const [yearly, setYearly] = useState(false);
   const [code, setCode] = useState("");
   const [redeeming, setRedeeming] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const { openCheckout, loading: checkoutLoading } = usePaddleCheckout();
+  const sub = useSubscription();
+  const usage = useUnitUsage();
 
-  const handleSelect = (p: Plan) => {
+  const handleSelect = async (p: Plan) => {
     if (p.id === "free") {
       toast.info(ar ? "أنت على الخطة المجانية" : "You're on the Free plan");
       return;
     }
-    toast.info(ar ? "سيتم تفعيل الدفع قريباً" : "Payments will be enabled soon");
+    const priceId = yearly ? p.priceIdYearly : p.priceIdMonthly;
+    if (!priceId) return;
+    try {
+      await openCheckout({
+        priceId,
+        customerEmail: user?.email,
+        customData: { userId: user?.id || "" },
+        successUrl: `${window.location.origin}/pricing?checkout=success`,
+      });
+    } catch (e: any) {
+      toast.error(e.message || "Checkout error");
+    }
+  };
+
+  const openPortal = async () => {
+    setPortalLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("customer-portal", {
+        body: { environment: sub.isActive ? undefined : "sandbox" },
+      });
+      if (error) throw error;
+      if (data?.url) window.open(data.url, "_blank");
+      else toast.error(ar ? "لا يوجد اشتراك نشط" : "No active subscription");
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setPortalLoading(false);
+    }
   };
 
   const redeem = async () => {
@@ -118,8 +182,13 @@ export default function Pricing() {
     }
   };
 
+  const usagePercent = sub.unitLimit === Infinity ? 0 : Math.min(100, Math.round((usage.unitCount / sub.unitLimit) * 100));
+  const usageTextClass = usagePercent >= 100 ? "text-burgundy" : usagePercent >= 80 ? "text-terracotta" : "text-sage-500";
+  const usageBarClass = usagePercent >= 100 ? "bg-burgundy" : usagePercent >= 80 ? "bg-terracotta" : "bg-sage-500";
+
   return (
     <div className="mobile-shell pb-24 bg-background">
+      <PaymentTestModeBanner />
       <TopBar />
       <div className="px-5 pt-2 flex items-center gap-2">
         <Link to="/settings" className="text-sage-500"><ArrowRight className="h-5 w-5 rtl:rotate-180" /></Link>
@@ -128,8 +197,64 @@ export default function Pricing() {
 
       <div className="px-5 mt-4 space-y-5">
         <p className="text-sm text-muted-foreground text-center">
-          {ar ? "اختر الخطة المناسبة لحجم أعمالك" : "Choose the plan that fits your business"}
+          {ar ? "اختر الخطة المناسبة لعدد وحداتك — مباني غير محدودة في كل الخطط" : "Pick a plan by units — unlimited buildings on all tiers"}
         </p>
+
+        {/* Trial banner */}
+        {sub.isTrialing && sub.trialDaysLeft !== null && (
+          <div className="rounded-2xl p-4 border-2 border-gold/40 bg-gradient-gold/10">
+            <div className="flex items-center gap-2 text-gold font-bold text-sm">
+              <Sparkles className="h-4 w-4" />
+              {ar
+                ? `تبقى ${sub.trialDaysLeft} يوم من تجربتك المجانية`
+                : `${sub.trialDaysLeft} days left in your free trial`}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {ar ? "ستبدأ الفوترة تلقائياً بعد انتهاء التجربة." : "Billing starts automatically when the trial ends."}
+            </p>
+          </div>
+        )}
+
+        {/* Current usage */}
+        {user && !sub.loading && (
+          <div className="rounded-2xl p-4 border-2 border-sage-200/40 bg-card">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  {ar ? "خطتك الحالية" : "Current plan"}
+                </div>
+                <div className="font-black text-sage-600 capitalize">
+                  {sub.plan === "free" ? (ar ? "مجاني" : "Free") : sub.plan}
+                  {sub.isTrialing && <span className="ms-2 text-[10px] bg-gold/20 text-gold px-2 py-0.5 rounded-full font-bold">{ar ? "تجربة" : "TRIAL"}</span>}
+                </div>
+              </div>
+              <div className="text-end">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  {ar ? "الوحدات" : "Units"}
+                </div>
+                <div className={`font-black ${usageTextClass}`}>
+                  {usage.unitCount}<span className="text-muted-foreground font-normal">/{sub.unitLimit === Infinity ? "∞" : sub.unitLimit}</span>
+                </div>
+              </div>
+            </div>
+            {sub.unitLimit !== Infinity && (
+              <div className="h-1.5 rounded-full bg-sage-100 overflow-hidden">
+                <div className={`h-full ${usageBarClass} transition-all`} style={{ width: `${usagePercent}%` }} />
+              </div>
+            )}
+            {sub.paddleSubscriptionId && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={openPortal}
+                disabled={portalLoading}
+                className="mt-3 w-full text-xs text-sage-500 hover:text-sage-600"
+              >
+                {portalLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : (ar ? "إدارة الاشتراك والفواتير" : "Manage subscription & invoices")}
+              </Button>
+            )}
+          </div>
+        )}
 
         <div className="rounded-2xl p-4 border-2 border-sage-200/40 bg-card">
           <div className="flex items-center gap-2 mb-2">
@@ -172,12 +297,16 @@ export default function Pricing() {
           const Icon = p.icon;
           const price = yearly ? p.priceYearly : p.priceMonthly;
           const features = ar ? p.featuresAr : p.featuresEn;
+          const isCurrent = sub.plan === p.id;
+          const unitsLabel = p.units === Infinity
+            ? (ar ? "وحدات غير محدودة" : "Unlimited units")
+            : (ar ? `حتى ${p.units} وحدة` : `Up to ${p.units} units`);
           return (
             <div
               key={p.id}
-              className={`rounded-3xl p-5 border-2 shadow-soft animate-float-up ${
+              className={`rounded-3xl p-5 border-2 shadow-soft animate-float-up relative ${
                 p.highlight
-                  ? "border-sage-400 bg-gradient-to-br from-card to-sage-100/40 relative"
+                  ? "border-sage-400 bg-gradient-to-br from-card to-sage-100/40"
                   : "border-sage-200/40 bg-card"
               }`}
             >
@@ -193,8 +322,11 @@ export default function Pricing() {
                       <Icon className="h-4 w-4" />
                     </div>
                     <div>
-                      <h3 className="font-black text-sage-600">{ar ? p.nameAr : p.nameEn}</h3>
-                      <p className="text-[10px] text-muted-foreground">{ar ? p.taglineAr : p.taglineEn}</p>
+                      <h3 className="font-black text-sage-600 flex items-center gap-2">
+                        {ar ? p.nameAr : p.nameEn}
+                        {isCurrent && <span className="text-[9px] bg-sage-200 text-sage-600 px-2 py-0.5 rounded-full">{ar ? "الحالية" : "Current"}</span>}
+                      </h3>
+                      <p className="text-[10px] text-muted-foreground">{unitsLabel}</p>
                     </div>
                   </div>
                 </div>
@@ -203,6 +335,11 @@ export default function Pricing() {
                     <span className="text-3xl font-black text-sage-600">${price}</span>
                     <span className="text-xs text-muted-foreground">/{yearly ? (ar ? "سنة" : "yr") : (ar ? "شهر" : "mo")}</span>
                   </div>
+                  {p.id !== "free" && (
+                    <p className="text-[10px] text-gold font-bold mt-0.5">
+                      {ar ? "14 يوم تجربة مجانية" : "14-day free trial"}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -217,18 +354,22 @@ export default function Pricing() {
 
               <Button
                 onClick={() => handleSelect(p)}
+                disabled={checkoutLoading || isCurrent}
                 className={`w-full rounded-xl h-11 font-bold ${
                   p.highlight ? "bg-gradient-sage text-primary-foreground" : "bg-muted text-sage-600 hover:bg-sage-100"
                 }`}
               >
-                {p.id === "free" ? (ar ? "خطتك الحالية" : "Current plan") : (ar ? "اختر الخطة" : "Choose plan")}
+                {checkoutLoading ? <Loader2 className="h-4 w-4 animate-spin" /> :
+                  isCurrent ? (ar ? "خطتك الحالية" : "Current plan") :
+                  p.id === "free" ? (ar ? "خطة مجانية" : "Free plan") :
+                  (ar ? "ابدأ التجربة المجانية" : "Start free trial")}
               </Button>
             </div>
           );
         })}
 
         <p className="text-[11px] text-muted-foreground text-center px-4">
-          {ar ? "يمكنك الإلغاء في أي وقت. لا توجد رسوم خفية." : "Cancel anytime. No hidden fees."}
+          {ar ? "يمكنك الإلغاء في أي وقت خلال التجربة دون أي رسوم. لا توجد رسوم خفية." : "Cancel anytime during the trial — no charges. No hidden fees."}
         </p>
       </div>
       <BottomNav />
