@@ -124,10 +124,10 @@ function preparePdfText(pdf: jsPDF, value: unknown, bold = false) {
   const text = normalizePdfText(value);
   const arabic = hasArabicText(text);
   pdf.setFont(arabic ? "NotoKufiArabic" : "Outfit", bold ? "bold" : "normal");
-  pdf.setR2L(arabic);
+  pdf.setR2L(false);
   return {
     arabic,
-    text: arabic ? pdf.processArabic(text) : text,
+    text,
   };
 }
 
