@@ -681,6 +681,18 @@ export async function downloadLeasePDF(data: Lease, filename: string) {
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
   await registerLeasePdfFonts(pdf);
 
+  type SignatureRow = {
+    party: string;
+    name: string;
+    contact: string;
+  };
+
+  type SignatureColumn = {
+    key: keyof SignatureRow | "signature";
+    label: string;
+    width: number;
+  };
+
   const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();
   const marginX = 16;
@@ -798,7 +810,7 @@ export async function downloadLeasePDF(data: Lease, filename: string) {
   };
 
   const drawSignatureTable = () => {
-    const rows = [
+    const rows: SignatureRow[] = [
       {
         party: L("المؤجر (الطرف الأول)", "Landlord (First Party)"),
         name: landlordLine,
@@ -810,7 +822,7 @@ export async function downloadLeasePDF(data: Lease, filename: string) {
         contact: data.tenant_phone || data.tenant_id_number || "—",
       },
     ];
-    const cols = rtl
+    const cols: SignatureColumn[] = rtl
       ? [
           { key: "signature", label: L("التوقيع", "Signature"), width: 38 },
           { key: "contact", label: L("بيانات التواصل", "Contact"), width: 46 },
@@ -840,7 +852,7 @@ export async function downloadLeasePDF(data: Lease, filename: string) {
     rows.forEach((row) => {
       const cellHeights = cols.map((col) => {
         if (col.key === "signature") return 18;
-        const prepared = splitPdfText(pdf, (row as any)[col.key], col.width - 4, bodyFontSize, col.key !== "contact");
+        const prepared = splitPdfText(pdf, row[col.key], col.width - 4, bodyFontSize, col.key !== "contact");
         return Math.max(18, prepared.lines.length * getPdfLineHeight(bodyFontSize) + 6);
       });
       const rowH = Math.max(...cellHeights);
@@ -854,7 +866,7 @@ export async function downloadLeasePDF(data: Lease, filename: string) {
           pdf.line(cellX + 4, cursorY + rowH - 5, cellX + col.width - 4, cursorY + rowH - 5);
         } else {
           drawTextBlock({
-            text: (row as any)[col.key],
+            text: row[col.key],
             x: cellX + 2,
             y: cursorY + 6,
             width: col.width - 4,
