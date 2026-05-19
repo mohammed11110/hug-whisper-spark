@@ -198,6 +198,13 @@ export default function Payments() {
   const buildReceiptHTML = (r: Row, lng: RLang) => {
     const L = RECEIPT_TXT[lng];
     const dir = lng === "ar" ? "rtl" : "ltr";
+    const esc = (v: unknown) =>
+      String(v ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
     const receiptTotalDue = r.expected_amount && r.expected_amount > 0 ? r.expected_amount : r.remaining + r.amount;
     const receiptRemaining = Math.max(0, receiptTotalDue - r.amount);
     const sc = settings.statusColors;
@@ -210,10 +217,10 @@ export default function Payments() {
     const showStatus = r.unit_status !== "soon";
     const brand = settings.brand;
     const brandHeader = brand.logo
-      ? `<img src="${brand.logo}" style="height:46px;object-fit:contain"/>`
-      : `<h1>${brand.name}</h1>`;
+      ? `<img src="${esc(brand.logo)}" style="height:46px;object-fit:contain"/>`
+      : `<h1>${esc(brand.name)}</h1>`;
     const html = `
-      <html dir="${dir}"><head><meta charset="utf-8"/><title>${r.receipt_number || r.id}</title>
+      <html dir="${dir}"><head><meta charset="utf-8"/><title>${esc(r.receipt_number || r.id)}</title>
       <style>
         @page{size:${settings.pageSize};margin:${settings.margins.top}mm ${settings.margins.right}mm ${settings.margins.bottom}mm ${settings.margins.left}mm}
         *{box-sizing:border-box}
@@ -241,19 +248,19 @@ export default function Payments() {
           <div class="header">
             <div>
               ${brandHeader}
-              <p class="sub">${L.receipt_number} · ${r.receipt_number || "—"}</p>
-              ${brand.address || brand.phone ? `<p class="brand-meta">${brand.address || ""} ${brand.phone ? "· " + brand.phone : ""}</p>` : ""}
+              <p class="sub">${esc(L.receipt_number)} · ${esc(r.receipt_number || "—")}</p>
+              ${brand.address || brand.phone ? `<p class="brand-meta">${esc(brand.address || "")} ${brand.phone ? "· " + esc(brand.phone) : ""}</p>` : ""}
             </div>
-            ${showStatus ? `<span class="badge">${us.label}</span>` : ""}
+            ${showStatus ? `<span class="badge">${esc(us.label)}</span>` : ""}
           </div>
           <div class="meta">
-            <div><span>${L.payment_date}</span><b>${r.payment_date}</b></div>
-            <div><span>${L.building_name}</span><b>${r.building_name}</b></div>
+            <div><span>${esc(L.payment_date)}</span><b>${esc(r.payment_date)}</b></div>
+            <div><span>${esc(L.building_name)}</span><b>${esc(r.building_name)}</b></div>
           </div>
-          <div class="row"><span>${L.unit_number}</span><b><span class="unit-pill">#${r.unit_number}</span></b></div>
+          <div class="row"><span>${esc(L.unit_number)}</span><b><span class="unit-pill">#${esc(r.unit_number)}</span></b></div>
           
-          <div class="row"><span>${L.tenant_name}</span><b>${r.tenant_name || "—"}</b></div>
-          ${r.period_start ? `<div class="row"><span>${L.rent_month}</span><b>${monthLabel(r.period_start, lng)}</b></div>` : ""}
+          <div class="row"><span>${esc(L.tenant_name)}</span><b>${esc(r.tenant_name || "—")}</b></div>
+          ${r.period_start ? `<div class="row"><span>${esc(L.rent_month)}</span><b>${esc(monthLabel(r.period_start, lng))}</b></div>` : ""}
           
           <div style="margin-top:18px;padding:16px 18px;background:#f6faf3;border:1px solid #cdd9c8;border-radius:14px">
             <div style="font-size:11px;color:#7a8a78;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;font-weight:700">${L.summary}</div>
