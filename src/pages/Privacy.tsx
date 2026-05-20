@@ -16,6 +16,13 @@ export default function Privacy() {
 
   return (
     <div className="mobile-shell pb-24 bg-background min-h-screen">
+      <SEO
+        path="/privacy"
+        title={ar ? "سياسة الخصوصية · أملاكي" : "Privacy Policy — Amlaki"}
+        description={ar
+          ? "كيف تجمع منصة أملاكي بياناتك وتحميها وكيف يمكنك التحكم بها."
+          : "How Amlaki collects, protects, and lets you control your data."}
+      />
       <TopBar />
       <div className="px-5 pt-2 flex items-center gap-2">
         <Link to="/settings" className="text-sage-500"><ArrowRight className="h-5 w-5 rtl:rotate-180" /></Link>
