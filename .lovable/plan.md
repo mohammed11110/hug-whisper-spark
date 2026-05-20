@@ -1,78 +1,47 @@
-## الوضع الحالي ✅
+# تحسين وضوح اللغة العربية في ملفات PDF
 
-مشروعك **مُجهّز بالكامل** لـ Capacitor — لا حاجة لأي تعديلات على الكود:
-- `capacitor.config.ts` موجود ومضبوط (appId, appName: Amlaki, خلفية cream)
-- `@capacitor/core`, `@capacitor/ios`, `@capacitor/android`, `@capacitor/splash-screen` مثبّتة
-- Splash screen مضبوط بألوان الهوية
+## المشكلة
+الإيصالات والعقود الناتجة (مثل `receipt-R-01003.pdf` المرفق) تُولَّد عبر `html2canvas` ثم تُدرج كصورة PNG داخل PDF. الصورة الناتجة بدقة `scale: 2` فقط، فيظهر النص العربي ضبابياً عند التكبير أو الطباعة، خاصة على الأحرف الدقيقة لخط Noto Kufi Arabic.
 
-## ماذا سأفعل
+## السبب الجذري
+في `src/lib/pdfDocs.ts` (السطر 1276):
+- `html2canvas` يستخدم `scale: 2` (≈ 192 DPI) — أقل من المعيار المطلوب للنص العربي (300 DPI).
+- الصورة تُضاف بـ `"FAST"` (سرعة ضغط مقابل جودة أقل في بعض المسارات).
+- لا يوجد رفع لـ DPI ولا تحسين خاص للنص.
 
-لا توجد تعديلات كود مطلوبة على Lovable. سأقدّم لك **دليل تشغيل خطوة بخطوة** على جهازك بعد تصدير المشروع.
+## الخطة
 
-## الخطوات على جهازك
+### 1. رفع دقة الـ rasterization
+في `src/lib/pdfDocs.ts` داخل `renderOnce`:
+- تغيير `scale: 2` إلى `scale: 3` للنصوص العربية (≈ 288 DPI، يوازي جودة الطباعة).
+- إبقاء `scale: 2` للنصوص اللاتينية فقط (لتقليل حجم الملف عند عدم الحاجة).
+- تمرير العامل ديناميكياً بناءً على `hasArabic`.
 
-### 1. تصدير المشروع
-- اضغط زر **GitHub** أعلى يمين Lovable → **Export to GitHub**
-- استنسخ المشروع: `git clone <repo-url>`
+### 2. تحسين إدراج الصورة في PDF
+- استبدال `"FAST"` بـ `"SLOW"` في `pdf.addImage(...)` (سطر 1333 و1354).
+  - `SLOW` = ضغط أعلى جودة (مهم للنصوص الحادة)، الفرق في الحجم طفيف.
+- نفس التغيير في مسار الصفحات المتعددة.
 
-### 2. تثبيت الاعتماديات
-```bash
-cd amlaki
-npm install
-```
+### 3. تحسين CSS لتقديم النص
+في `pageShell` (سطر 330+):
+- إضافة `font-synthesis: none;` لمنع الزخرفة الصناعية للخطوط.
+- إضافة `-webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;` (الأول موجود).
+- إضافة `text-rendering: geometricPrecision` للنص العربي بدلاً من `optimizeLegibility` (يعطي حواف أحدّ بعد rasterization).
 
-### 3. إضافة المنصات
-```bash
-npx cap add ios       # يحتاج macOS + Xcode
-npx cap add android   # يحتاج Android Studio
-```
+### 4. ضمان تحميل الخط قبل الـ snapshot
+- زيادة فترة الاستقرار من `200ms` (سطر 1271) إلى `350ms` لضمان أن Noto Kufi جاهز قبل التقاط الصورة (يمنع fallback إلى Tahoma الذي يعطي نتيجة أقل وضوحاً).
 
-### 4. بناء التطبيق ومزامنته
-```bash
-npm run build
-npx cap sync
-```
+## الملفات المتأثرة
+- `src/lib/pdfDocs.ts` فقط (تغييرات داخل دالة الـ rendering ومتغير الـ CSS).
 
-### 5. التشغيل
-```bash
-npx cap run ios       # على Mac
-npx cap run android   # على أي نظام
-```
+## ما لن يتغير
+- شكل القالب، الألوان، التخطيط، الترجمات.
+- توليد العقود (يستخدم نفس المسار، سيستفيد تلقائياً).
+- لا تغييرات على الـ backend أو قاعدة البيانات.
 
-## المتطلبات
+## المخاطر
+- زيادة حجم ملف PDF بمقدار ≈ 1.5×–2× (من ~250KB إلى ~400-500KB لإيصال صفحة واحدة) — مقبول مقابل الوضوح.
+- زيادة وقت التوليد ≈ 30% (يبقى تحت ثانية واحدة).
 
-| المنصة | الأداة المطلوبة | النظام |
-|--------|----------------|--------|
-| iOS | Xcode 15+ | macOS فقط |
-| Android | Android Studio | Windows / Mac / Linux |
-| App Store | حساب Apple Developer ($99/سنة) | — |
-| Google Play | حساب Google Play ($25 مرة واحدة) | — |
-
-## وضع التطوير السريع (Hot Reload)
-
-ملفك يدعم بالفعل التحديث الفوري من sandbox Lovable. لتفعيله:
-```bash
-CAP_ENV=dev npx cap sync
-npx cap run ios
-```
-سيتصل التطبيق مباشرة بـ Lovable preview ويعكس تغييراتك فوراً.
-
-## بعد كل تحديث في Lovable
-```bash
-git pull
-npm install
-npm run build
-npx cap sync
-```
-
-## للنشر على المتاجر
-
-- **iOS**: افتح `npx cap open ios` → Xcode → Archive → Distribute to App Store
-- **Android**: افتح `npx cap open android` → Build → Generated Signed Bundle → ارفع لـ Play Console
-
-📖 **اقرأ المقال الرسمي لتفاصيل أكثر**:
-https://lovable.dev/blog/mobile-development-with-capacitor
-
----
-
-**هل أبدأ التنفيذ؟** ملاحظة: المشروع جاهز فعلياً، لذا "التنفيذ" هنا يعني فقط التأكد من الإعدادات. إذا أردت إضافات (إشعارات Push، كاميرا أصلية، Face ID...) أخبرني وسأضيف الـ plugins المناسبة.
+## التحقق
+بعد التطبيق: توليد إيصال عربي وفتحه بزووم 200% — الأحرف يجب أن تكون واضحة وحادة بدون ضبابية.

@@ -332,13 +332,17 @@ const pageShell = (title: string, body: string, options?: { rtl?: boolean }) => 
         color: var(--ink);
         padding: 24px;
         font-feature-settings: "kern", "liga", "calt", "init", "medi", "fina", "isol";
-        text-rendering: optimizeLegibility;
+        text-rendering: ${options?.rtl ? "geometricPrecision" : "optimizeLegibility"};
         -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        font-synthesis: none;
         unicode-bidi: ${options?.rtl ? "plaintext" : "normal"};
       }
       :lang(ar), [lang="ar"], [dir="rtl"], [dir="rtl"] * {
         font-family: "Noto Kufi Arabic", "Noto Naskh Arabic", "Segoe UI", Tahoma, Arial, sans-serif;
         font-feature-settings: "kern", "liga", "calt", "init", "medi", "fina", "isol";
+        text-rendering: geometricPrecision;
+        font-synthesis: none;
       }
       [dir="rtl"] .value, [dir="rtl"] .label, [dir="rtl"] td, [dir="rtl"] th, [dir="rtl"] p, [dir="rtl"] div {
         unicode-bidi: plaintext;
@@ -1268,13 +1272,15 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
     await inlineImages(target);
     await waitForWebFonts(target);
     // Extra settle time so layout reflows with the newly-loaded Arabic font
-    await new Promise((r) => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 350));
 
     const hasArabic = /[\u0600-\u06FF]/.test(target.innerText || target.textContent || "");
+    // Higher scale for Arabic so Noto Kufi joining strokes stay sharp after rasterization
+    const renderScale = hasArabic ? 3 : 2;
 
     const renderOnce = (useForeignObject: boolean, allowTaint: boolean) =>
       html2canvas(target, {
-        scale: 2,
+        scale: renderScale,
         useCORS: true,
         allowTaint,
         backgroundColor: "#ffffff",
@@ -1330,7 +1336,7 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
     const imgH = (canvas.height * printableW) / canvas.width;
 
     if (imgH <= printableH) {
-      pdf.addImage(imgData, "PNG", margins.left, margins.top, imgW, imgH, undefined, "FAST");
+      pdf.addImage(imgData, "PNG", margins.left, margins.top, imgW, imgH, undefined, "SLOW");
     } else {
       const pageCanvas = document.createElement("canvas");
       const pageCtx = pageCanvas.getContext("2d");
@@ -1351,7 +1357,7 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
         const sliceImg = pageCanvas.toDataURL("image/png");
         if (pageIndex > 0) pdf.addPage();
         const sliceH = (currentSlice * printableW) / canvas.width;
-        pdf.addImage(sliceImg, "PNG", margins.left, margins.top, printableW, sliceH, undefined, "FAST");
+        pdf.addImage(sliceImg, "PNG", margins.left, margins.top, printableW, sliceH, undefined, "SLOW");
         renderedHeight += currentSlice;
         pageIndex += 1;
       }
