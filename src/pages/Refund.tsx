@@ -1,7 +1,9 @@
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { TopBar } from "@/components/TopBar";
+import { SEO } from "@/components/SEO";
 import { useI18n } from "@/lib/i18n";
+
 
 const LAST_UPDATED = "2026-05-13";
 const COMPANY = "أملاكي · Amlaki1";
