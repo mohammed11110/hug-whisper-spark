@@ -1353,7 +1353,7 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
         const sliceImg = pageCanvas.toDataURL("image/png");
         if (pageIndex > 0) pdf.addPage();
         const sliceH = (currentSlice * printableW) / canvas.width;
-        pdf.addImage(sliceImg, "PNG", margins.left, margins.top, printableW, sliceH, undefined, "FAST");
+        pdf.addImage(sliceImg, "PNG", margins.left, margins.top, printableW, sliceH, undefined, "SLOW");
         renderedHeight += currentSlice;
         pageIndex += 1;
       }
