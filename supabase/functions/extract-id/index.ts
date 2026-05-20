@@ -40,8 +40,8 @@ Deno.serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
     const { imageUrl } = await req.json();
-    if (!imageUrl) {
-      return new Response(JSON.stringify({ error: "imageUrl required" }), {
+    if (!imageUrl || !isAllowedSupabaseUrl(imageUrl, Deno.env.get("SUPABASE_URL")!)) {
+      return new Response(JSON.stringify({ error: "Invalid imageUrl" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
