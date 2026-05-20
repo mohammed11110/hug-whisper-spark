@@ -35,6 +35,31 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders })
   }
 
+  // Restrict to service_role callers only (server-to-server). verify_jwt=true
+  // accepts any valid JWT including the public anon key, so we must check the
+  // role claim to prevent spam/abuse from browser clients.
+  const authHeader = req.headers.get('Authorization') || ''
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : ''
+  let role: string | undefined
+  try {
+    const payload = token.split('.')[1]
+    if (payload) {
+      const decoded = JSON.parse(
+        atob(payload.replace(/-/g, '+').replace(/_/g, '/'))
+      )
+      role = decoded?.role
+    }
+  } catch {
+    role = undefined
+  }
+  if (role !== 'service_role') {
+    return new Response(JSON.stringify({ error: 'Forbidden' }), {
+      status: 403,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+
+
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
