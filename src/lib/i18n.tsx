@@ -137,6 +137,17 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     document.documentElement.lang = lang;
     document.documentElement.dir = meta.rtl ? "rtl" : "ltr";
     localStorage.setItem("amlaki_lang", lang);
+    // Sync language to user_metadata so auth emails (recovery, magic link, etc.)
+    // are sent in the user's current language. Fire-and-forget, ignore errors
+    // (user might not be signed in yet).
+    import("@/integrations/supabase/client").then(({ supabase }) => {
+      supabase.auth.getSession().then(({ data }) => {
+        if (!data.session) return;
+        const current = (data.session.user.user_metadata as any)?.language;
+        if (current === lang) return;
+        supabase.auth.updateUser({ data: { language: lang } }).catch(() => {});
+      });
+    });
   }, [lang, meta.rtl]);
 
   const setLang = (l: Lang) => setLangState(l);

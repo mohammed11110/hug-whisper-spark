@@ -9,6 +9,7 @@ import { MagicLinkEmail } from '../_shared/email-templates/magic-link.tsx'
 import { RecoveryEmail } from '../_shared/email-templates/recovery.tsx'
 import { EmailChangeEmail } from '../_shared/email-templates/email-change.tsx'
 import { ReauthenticationEmail } from '../_shared/email-templates/reauthentication.tsx'
+import { normalizeLang, getStrings } from '../_shared/email-templates/translations.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,13 +17,13 @@ const corsHeaders = {
     'authorization, x-client-info, apikey, content-type, x-lovable-signature, x-lovable-timestamp, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 }
 
-const EMAIL_SUBJECTS: Record<string, string> = {
-  signup: 'Confirm your email',
-  invite: "You've been invited",
-  magiclink: 'Your login link',
-  recovery: 'Reset your password',
-  email_change: 'Confirm your new email',
-  reauthentication: 'Your verification code',
+const SUBJECT_KEYS: Record<string, 'signup' | 'invite' | 'magiclink' | 'recovery' | 'email_change' | 'reauthentication'> = {
+  signup: 'signup',
+  invite: 'invite',
+  magiclink: 'magiclink',
+  recovery: 'recovery',
+  email_change: 'email_change',
+  reauthentication: 'reauthentication',
 }
 
 // Template mapping
@@ -218,6 +219,9 @@ async function handleWebhook(req: Request): Promise<Response> {
     )
   }
 
+  // Detect user language from user_metadata.language (set at signup or via updateUser)
+  const userLang = normalizeLang(payload.user?.user_metadata?.language)
+
   // Build template props from payload.data (HookData structure)
   const templateProps = {
     siteName: SITE_NAME,
@@ -228,6 +232,7 @@ async function handleWebhook(req: Request): Promise<Response> {
     email: payload.data.email,
     oldEmail: payload.data.old_email,
     newEmail: payload.data.new_email,
+    lang: userLang,
   }
 
   // Render React Email to HTML and plain text
@@ -235,6 +240,10 @@ async function handleWebhook(req: Request): Promise<Response> {
   const text = await renderAsync(React.createElement(EmailTemplate, templateProps), {
     plainText: true,
   })
+
+  // Localised subject line
+  const subjectKey = SUBJECT_KEYS[emailType]
+  const subject = subjectKey ? getStrings(userLang, subjectKey).subject : 'Notification'
 
   // Enqueue email for async processing by the dispatcher (process-email-queue).
   const supabase = createClient(
@@ -260,7 +269,7 @@ async function handleWebhook(req: Request): Promise<Response> {
       to: payload.data.email,
       from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
       sender_domain: SENDER_DOMAIN,
-      subject: EMAIL_SUBJECTS[emailType] || 'Notification',
+      subject,
       html,
       text,
       purpose: 'transactional',
