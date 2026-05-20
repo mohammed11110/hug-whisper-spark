@@ -33,8 +33,8 @@ Deno.serve(async (req) => {
     }
 
     const { imageUrl } = await req.json();
-    if (!imageUrl) {
-      return new Response(JSON.stringify({ error: "imageUrl required" }), {
+    if (!imageUrl || !isAllowedSupabaseUrl(imageUrl, SUPABASE_URL)) {
+      return new Response(JSON.stringify({ error: "Invalid imageUrl" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
