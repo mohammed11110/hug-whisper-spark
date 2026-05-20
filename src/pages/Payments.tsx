@@ -86,7 +86,7 @@ export default function Payments() {
   const [pinForDel, setPinForDel] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [receiptLang, setReceiptLang] = useState<RLang>(lang === "en" ? "en" : "ar");
+  const receiptLang: RLang = docLang(lang);
 
   useEffect(() => {
     writeFilters(LS_KEY, { search, filter, statusFilter }, settings.filterRetentionMin);
