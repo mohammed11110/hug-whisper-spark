@@ -1,40 +1,35 @@
 /// <reference types="npm:@types/react@18.3.1" />
 import * as React from 'npm:react@18.3.1'
-import {
-  Body, Button, Container, Head, Heading, Html, Preview, Text,
-} from 'npm:@react-email/components@0.0.22'
+import { Body, Button, Container, Head, Heading, Html, Preview, Text } from 'npm:@react-email/components@0.0.22'
+import { normalizeLang, isRtl, fontFamily, getStrings, SITE_NAME_BY_LANG } from './translations.ts'
 
-interface RecoveryEmailProps {
-  siteName: string
-  confirmationUrl: string
+interface Props { confirmationUrl: string; lang?: string }
+
+export const RecoveryEmail = ({ confirmationUrl, lang }: Props) => {
+  const L = normalizeLang(lang)
+  const s = getStrings(L, 'recovery')
+  const dir = isRtl(L) ? 'rtl' : 'ltr'
+  const ff = fontFamily(L)
+  return (
+    <Html lang={L} dir={dir}>
+      <Head />
+      <Preview>{s.preview}</Preview>
+      <Body style={{ backgroundColor: '#ffffff', fontFamily: ff }}>
+        <Container style={container}>
+          <Heading style={brand}>{SITE_NAME_BY_LANG[L]}</Heading>
+          <Heading style={h1}>{s.heading}</Heading>
+          <Text style={text}>{typeof s.body === 'string' ? s.body : ''}</Text>
+          <Button style={button} href={confirmationUrl}>{s.button}</Button>
+          <Text style={footer}>{s.footer}</Text>
+          <Text style={signature}>{s.signature}</Text>
+        </Container>
+      </Body>
+    </Html>
+  )
 }
-
-export const RecoveryEmail = ({ siteName, confirmationUrl }: RecoveryEmailProps) => (
-  <Html lang="ar" dir="rtl">
-    <Head />
-    <Preview>إعادة تعيين كلمة المرور - أملاكي</Preview>
-    <Body style={main}>
-      <Container style={container}>
-        <Heading style={brand}>أملاكي</Heading>
-        <Heading style={h1}>إعادة تعيين كلمة المرور</Heading>
-        <Text style={text}>
-          مرحباً،<br />
-          استلمنا طلباً لإعادة تعيين كلمة المرور الخاصة بحسابك في أملاكي.
-          اضغط على الزر أدناه لاختيار كلمة مرور جديدة.
-        </Text>
-        <Button style={button} href={confirmationUrl}>إعادة تعيين كلمة المرور</Button>
-        <Text style={footer}>
-          إذا لم تطلب إعادة التعيين، يمكنك تجاهل هذه الرسالة بأمان — كلمة المرور لن تتغيّر.
-        </Text>
-        <Text style={signature}>فريق أملاكي</Text>
-      </Container>
-    </Body>
-  </Html>
-)
 
 export default RecoveryEmail
 
-const main = { backgroundColor: '#ffffff', fontFamily: '"Noto Kufi Arabic", Arial, sans-serif' }
 const container = { padding: '32px 28px', maxWidth: '560px' }
 const brand = { fontSize: '20px', fontWeight: 'bold' as const, color: '#5f7e65', margin: '0 0 24px', textAlign: 'center' as const }
 const h1 = { fontSize: '22px', fontWeight: 'bold' as const, color: '#3d4d3f', margin: '0 0 18px' }
