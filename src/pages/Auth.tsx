@@ -18,7 +18,7 @@ const REMEMBER_KEY = "remembered_email";
 export default function Auth() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const t2 = useT2();
   const [mode, setMode] = useState<"signin" | "signup">((params.get("mode") as any) || "signin");
   const [email, setEmail] = useState("");
