@@ -1,42 +1,78 @@
-## الهدف
+## الوضع الحالي ✅
 
-جعل لغة الإيصالات (Receipts) والعقود (Lease PDF) وكشف الحساب (Statement) تتبع لغة النظام تلقائياً:
-- لغة النظام عربية → كل المستندات بالعربية
-- أي لغة أخرى (en, ur, fa, hi, zh, tr, ru, fr, es, de, pt …) → كل المستندات بالإنجليزية
+مشروعك **مُجهّز بالكامل** لـ Capacitor — لا حاجة لأي تعديلات على الكود:
+- `capacitor.config.ts` موجود ومضبوط (appId, appName: Amlaki, خلفية cream)
+- `@capacitor/core`, `@capacitor/ios`, `@capacitor/android`, `@capacitor/splash-screen` مثبّتة
+- Splash screen مضبوط بألوان الهوية
 
-## التغييرات
+## ماذا سأفعل
 
-### 1) دالة مساعدة موحّدة
-في `src/lib/i18n.tsx` (أو ملف مساعد قريب) — إضافة:
-```ts
-export const docLang = (lang: string): "ar" | "en" => lang === "ar" ? "ar" : "en";
+لا توجد تعديلات كود مطلوبة على Lovable. سأقدّم لك **دليل تشغيل خطوة بخطوة** على جهازك بعد تصدير المشروع.
+
+## الخطوات على جهازك
+
+### 1. تصدير المشروع
+- اضغط زر **GitHub** أعلى يمين Lovable → **Export to GitHub**
+- استنسخ المشروع: `git clone <repo-url>`
+
+### 2. تثبيت الاعتماديات
+```bash
+cd amlaki
+npm install
 ```
-لاستخدامها في كل أماكن توليد المستندات.
 
-### 2) صفحة المدفوعات `src/pages/Payments.tsx`
-- إزالة شريط/زر اختيار لغة الإيصال (`receiptLang` state + UI toggle حوالي السطر 89 و348–355).
-- استبدال كل استخدامات `lng` بـ `docLang(lang)` المشتقة من `useI18n()`.
-- النتيجة: تنزيل/طباعة/واتساب الإيصال يستعمل لغة النظام مباشرة.
+### 3. إضافة المنصات
+```bash
+npx cap add ios       # يحتاج macOS + Xcode
+npx cap add android   # يحتاج Android Studio
+```
 
-### 3) `src/components/AddPaymentDialog.tsx`
-- التأكد من تمرير `lang: docLang(lang)` عند `buildReceiptHTML` (السطر 295) بدلاً من القيمة الحالية إن كانت ثابتة.
+### 4. بناء التطبيق ومزامنته
+```bash
+npm run build
+npx cap sync
+```
 
-### 4) صفحة تفاصيل الوحدة `src/pages/UnitDetail.tsx`
-- السطر 116: `lang: docLang(lang)` لعقد الإيجار (Lease PDF + Print).
-- نفس الشيء لـ `buildTenantStatementHTML` عند توليد كشف الحساب.
+### 5. التشغيل
+```bash
+npx cap run ios       # على Mac
+npx cap run android   # على أي نظام
+```
 
-### 5) مراجعة بقية المستندات
-- `src/pages/Reports.tsx`: `buildReportHTML` — تمرير `docLang(lang)` لو موجود حقل lang.
-- أي مكان آخر يستدعي `pdfDocs` — البحث بـ `rg "from \"@/lib/pdfDocs\""` والتأكد.
+## المتطلبات
 
-## ما لن يتغير
+| المنصة | الأداة المطلوبة | النظام |
+|--------|----------------|--------|
+| iOS | Xcode 15+ | macOS فقط |
+| Android | Android Studio | Windows / Mac / Linux |
+| App Store | حساب Apple Developer ($99/سنة) | — |
+| Google Play | حساب Google Play ($25 مرة واحدة) | — |
 
-- ملف `src/lib/pdfDocs.ts` نفسه يبقى كما هو (يدعم ar/en) — لا حاجة لإضافة لغات جديدة.
-- زر تبديل اللغة اليدوي في صفحة المدفوعات سيُحذف نهائياً (اللغة تتبع النظام فقط، حسب طلبك).
-- العقود القانونية تبقى بالعربية للمستخدم العربي وبالإنجليزية لغيره — مطابق للممارسة المعتمدة.
+## وضع التطوير السريع (Hot Reload)
 
-## الاختبار
+ملفك يدعم بالفعل التحديث الفوري من sandbox Lovable. لتفعيله:
+```bash
+CAP_ENV=dev npx cap sync
+npx cap run ios
+```
+سيتصل التطبيق مباشرة بـ Lovable preview ويعكس تغييراتك فوراً.
 
-1. تغيير لغة النظام إلى الفرنسية → فتح وحدة → تنزيل عقد + إيصال → يجب أن يخرجا بالإنجليزية.
-2. تغيير اللغة إلى العربية → نفس الخطوات → المستندان بالعربية مع RTL.
-3. التأكد أن لا زر "لغة الإيصال" يظهر في صفحة المدفوعات.
+## بعد كل تحديث في Lovable
+```bash
+git pull
+npm install
+npm run build
+npx cap sync
+```
+
+## للنشر على المتاجر
+
+- **iOS**: افتح `npx cap open ios` → Xcode → Archive → Distribute to App Store
+- **Android**: افتح `npx cap open android` → Build → Generated Signed Bundle → ارفع لـ Play Console
+
+📖 **اقرأ المقال الرسمي لتفاصيل أكثر**:
+https://lovable.dev/blog/mobile-development-with-capacitor
+
+---
+
+**هل أبدأ التنفيذ؟** ملاحظة: المشروع جاهز فعلياً، لذا "التنفيذ" هنا يعني فقط التأكد من الإعدادات. إذا أردت إضافات (إشعارات Push، كاميرا أصلية، Face ID...) أخبرني وسأضيف الـ plugins المناسبة.
