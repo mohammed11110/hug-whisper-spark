@@ -161,3 +161,8 @@ export const useI18n = () => {
   if (!ctx) throw new Error("useI18n must be used inside I18nProvider");
   return ctx;
 };
+
+/** Documents (receipts, contracts, statements) support only ar/en.
+ *  If the system language is Arabic → ar; otherwise → en. */
+export const docLang = (lang: string): "ar" | "en" => (lang === "ar" ? "ar" : "en");
+
