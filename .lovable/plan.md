@@ -1,59 +1,42 @@
 ## الهدف
-عند إرسال أي إيميل مصادقة (تأكيد التسجيل، استعادة كلمة المرور، رابط سحري، دعوة، تغيير إيميل، تأكيد مزدوج)، يتم اختيار اللغة تلقائياً حسب لغة المستخدم بدلاً من الإنجليزية فقط.
 
-## اللغات المدعومة (12)
-ar · en · ur · fa · hi · zh · tr · ru · fr · es · de · pt
-أي لغة أخرى → fallback إلى الإنجليزية.
+جعل لغة الإيصالات (Receipts) والعقود (Lease PDF) وكشف الحساب (Statement) تتبع لغة النظام تلقائياً:
+- لغة النظام عربية → كل المستندات بالعربية
+- أي لغة أخرى (en, ur, fa, hi, zh, tr, ru, fr, es, de, pt …) → كل المستندات بالإنجليزية
 
-## آلية العمل
+## التغييرات
 
-```text
-User signs up / requests email
-        │
-        ▼
-  حفظ language في user_metadata.language
-        │
-        ▼
-  Supabase Auth يطلق auth-email-hook
-        │
-        ▼
-  hook يقرأ user_metadata.language
-        │
-        ▼
-  يختار القالب المناسب من الترجمات
-        │
-        ▼
-  يُرسَل الإيميل باللغة الصحيحة + RTL/LTR
+### 1) دالة مساعدة موحّدة
+في `src/lib/i18n.tsx` (أو ملف مساعد قريب) — إضافة:
+```ts
+export const docLang = (lang: string): "ar" | "en" => lang === "ar" ? "ar" : "en";
 ```
+لاستخدامها في كل أماكن توليد المستندات.
 
-## الخطوات
+### 2) صفحة المدفوعات `src/pages/Payments.tsx`
+- إزالة شريط/زر اختيار لغة الإيصال (`receiptLang` state + UI toggle حوالي السطر 89 و348–355).
+- استبدال كل استخدامات `lng` بـ `docLang(lang)` المشتقة من `useI18n()`.
+- النتيجة: تنزيل/طباعة/واتساب الإيصال يستعمل لغة النظام مباشرة.
 
-1. **حفظ اللغة في حساب المستخدم**
-   - عند التسجيل: تمرير `options.data.language` في `supabase.auth.signUp`
-   - عند تغيير اللغة لمستخدم مسجّل: استدعاء `supabase.auth.updateUser({ data: { language } })` تلقائياً من `i18n.tsx`
-   - تحديث `handle_new_user` trigger لتخزين اللغة في `profiles` أيضاً (نسخة احتياطية)
+### 3) `src/components/AddPaymentDialog.tsx`
+- التأكد من تمرير `lang: docLang(lang)` عند `buildReceiptHTML` (السطر 295) بدلاً من القيمة الحالية إن كانت ثابتة.
 
-2. **بنية الترجمات في القوالب**
-   - إنشاء ملف `supabase/functions/_shared/email-templates/translations.ts` يحتوي قاموس لكل قالب × كل لغة (subject + heading + body + button + footer)
-   - كل قالب من القوالب الستة يستقبل prop `lang` ويختار النصوص من القاموس
-   - تطبيق `dir="rtl"` و `lang="xx"` على `<Html>` تلقائياً للغات RTL (ar, ur, fa, he, ku, ps)
-   - استخدام الخط المناسب: Noto Kufi Arabic للـRTL، Outfit للبقية
+### 4) صفحة تفاصيل الوحدة `src/pages/UnitDetail.tsx`
+- السطر 116: `lang: docLang(lang)` لعقد الإيجار (Lease PDF + Print).
+- نفس الشيء لـ `buildTenantStatementHTML` عند توليد كشف الحساب.
 
-3. **تعديل `auth-email-hook/index.ts`**
-   - قراءة `user.user_metadata.language` من payload الـ webhook
-   - تطبيع القيمة + fallback إلى `en` إذا غير مدعومة
-   - تمرير `lang` إلى مكوّن React Email
-   - تمرير subject المترجم إلى `enqueue_email`
+### 5) مراجعة بقية المستندات
+- `src/pages/Reports.tsx`: `buildReportHTML` — تمرير `docLang(lang)` لو موجود حقل lang.
+- أي مكان آخر يستدعي `pdfDocs` — البحث بـ `rg "from \"@/lib/pdfDocs\""` والتأكد.
 
-4. **القوالب الستة المُحدَّثة**
-   - signup.tsx · recovery.tsx · magic-link.tsx · invite.tsx · email-change.tsx · reauthentication.tsx
-   - الحفاظ على الهوية البصرية (sage palette, white bg, brand spacing)
+## ما لن يتغير
 
-5. **النشر والاختبار**
-   - `deploy_edge_functions(["auth-email-hook"])`
-   - اختبار: تغيير اللغة في التطبيق → طلب استعادة كلمة المرور → التأكد من وصول الإيميل بنفس اللغة
+- ملف `src/lib/pdfDocs.ts` نفسه يبقى كما هو (يدعم ar/en) — لا حاجة لإضافة لغات جديدة.
+- زر تبديل اللغة اليدوي في صفحة المدفوعات سيُحذف نهائياً (اللغة تتبع النظام فقط، حسب طلبك).
+- العقود القانونية تبقى بالعربية للمستخدم العربي وبالإنجليزية لغيره — مطابق للممارسة المعتمدة.
 
-## ملاحظات
-- المستخدمون الحاليون بدون `language` في metadata سيحصلون على الإنجليزية افتراضياً حتى يغيّروا اللغة مرة واحدة في التطبيق
-- لا حاجة لإعادة إعداد domain أو DNS — البنية التحتية للإيميل جاهزة
-- الترجمات نصوص ثابتة (ليست AI) — صفر تكلفة، صفر زمن استجابة إضافي
+## الاختبار
+
+1. تغيير لغة النظام إلى الفرنسية → فتح وحدة → تنزيل عقد + إيصال → يجب أن يخرجا بالإنجليزية.
+2. تغيير اللغة إلى العربية → نفس الخطوات → المستندان بالعربية مع RTL.
+3. التأكد أن لا زر "لغة الإيصال" يظهر في صفحة المدفوعات.
