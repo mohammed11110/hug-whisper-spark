@@ -105,7 +105,14 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
       opening_balance_date: occupied && arrN > 0 ? (contractStart || new Date().toISOString().slice(0, 10)) : null,
     }).select("id").single();
 
-    if (error || !created) { setBusy(false); return toast.error(error?.message || ""); }
+    if (error || !created) {
+      setBusy(false);
+      if (error?.message?.includes("unit_quota_exceeded")) {
+        return toast.error(t2("unit_quota_exceeded") || "You've reached your plan's unit limit. Please upgrade to add more.");
+      }
+      return toast.error(error?.message || "");
+    }
+
 
     if (occupied && recordPay && payN > 0) {
       const sel = monthOpts.find((o) => o.value === payMonth);
