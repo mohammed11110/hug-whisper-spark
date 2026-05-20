@@ -42,12 +42,13 @@ export default function Auth() {
     setBusy(true);
     try {
       if (mode === "signup") {
+        const currentLang = (typeof window !== 'undefined' && localStorage.getItem('amlaki_lang')) || 'ar';
         const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/`,
-            data: { name },
+            data: { name, language: currentLang },
           },
         });
         if (error) throw error;
