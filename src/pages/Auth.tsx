@@ -71,6 +71,13 @@ export default function Auth() {
 
   return (
     <div className="mobile-shell flex flex-col bg-background min-h-screen">
+      <SEO
+        path="/auth"
+        title={lang === "ar" ? "تسجيل الدخول · أملاكي" : "Sign in — Amlaki"}
+        description={lang === "ar"
+          ? "سجّل دخولك إلى أملاكي أو أنشئ حساباً جديداً لإدارة عقاراتك."
+          : "Sign in to Amlaki or create an account to manage your properties."}
+      />
       <header className="flex items-center p-4 gap-2">
         <Link to="/welcome">
           <Button variant="ghost" size="icon" className="rounded-full">
