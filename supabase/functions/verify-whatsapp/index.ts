@@ -59,7 +59,9 @@ Deno.serve(async (req) => {
           status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      const code = String(Math.floor(100000 + Math.random() * 900000));
+      const rand = new Uint32Array(1);
+      crypto.getRandomValues(rand);
+      const code = String(100000 + (rand[0] % 900000));
       const expires = new Date(Date.now() + CODE_TTL_MIN * 60 * 1000).toISOString();
 
       const { error } = await admin
