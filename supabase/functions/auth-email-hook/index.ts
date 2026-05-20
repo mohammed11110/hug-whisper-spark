@@ -9,6 +9,7 @@ import { MagicLinkEmail } from '../_shared/email-templates/magic-link.tsx'
 import { RecoveryEmail } from '../_shared/email-templates/recovery.tsx'
 import { EmailChangeEmail } from '../_shared/email-templates/email-change.tsx'
 import { ReauthenticationEmail } from '../_shared/email-templates/reauthentication.tsx'
+import { normalizeLang, getStrings } from '../_shared/email-templates/translations.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,13 +17,13 @@ const corsHeaders = {
     'authorization, x-client-info, apikey, content-type, x-lovable-signature, x-lovable-timestamp, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 }
 
-const EMAIL_SUBJECTS: Record<string, string> = {
-  signup: 'Confirm your email',
-  invite: "You've been invited",
-  magiclink: 'Your login link',
-  recovery: 'Reset your password',
-  email_change: 'Confirm your new email',
-  reauthentication: 'Your verification code',
+const SUBJECT_KEYS: Record<string, 'signup' | 'invite' | 'magiclink' | 'recovery' | 'email_change' | 'reauthentication'> = {
+  signup: 'signup',
+  invite: 'invite',
+  magiclink: 'magiclink',
+  recovery: 'recovery',
+  email_change: 'email_change',
+  reauthentication: 'reauthentication',
 }
 
 // Template mapping
