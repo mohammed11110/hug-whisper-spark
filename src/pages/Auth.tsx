@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Logo } from "@/components/Logo";
 import { useI18n } from "@/lib/i18n";
+import { SEO } from "@/components/SEO";
 import { useT2 } from "@/lib/i18n2";
 import { toast } from "sonner";
 
@@ -17,7 +18,7 @@ const REMEMBER_KEY = "remembered_email";
 export default function Auth() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const t2 = useT2();
   const [mode, setMode] = useState<"signin" | "signup">((params.get("mode") as any) || "signin");
   const [email, setEmail] = useState("");
@@ -70,6 +71,13 @@ export default function Auth() {
 
   return (
     <div className="mobile-shell flex flex-col bg-background min-h-screen">
+      <SEO
+        path="/auth"
+        title={lang === "ar" ? "تسجيل الدخول · أملاكي" : "Sign in — Amlaki"}
+        description={lang === "ar"
+          ? "سجّل دخولك إلى أملاكي أو أنشئ حساباً جديداً لإدارة عقاراتك."
+          : "Sign in to Amlaki or create an account to manage your properties."}
+      />
       <header className="flex items-center p-4 gap-2">
         <Link to="/welcome">
           <Button variant="ghost" size="icon" className="rounded-full">

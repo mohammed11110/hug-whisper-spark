@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Smartphone, Download, Share2, Plus, ArrowRight, Apple } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/lib/i18n";
+import { SEO } from "@/components/SEO";
 
 export default function Install() {
   const { lang } = useI18n();
@@ -35,6 +36,13 @@ export default function Install() {
 
   return (
     <div className="mobile-shell min-h-screen pb-10 bg-background">
+      <SEO
+        path="/install"
+        title={lang === "ar" ? "تثبيت تطبيق أملاكي" : "Install Amlaki App"}
+        description={lang === "ar"
+          ? "ثبّت تطبيق أملاكي على هاتفك للوصول السريع وإدارة عقاراتك أينما كنت."
+          : "Install the Amlaki app on your phone for fast access and on-the-go property management."}
+      />
       <div className="bg-gradient-deep text-primary-foreground px-5 pt-5 pb-7 rounded-b-[2rem]">
         <Link to="/" className="inline-flex items-center text-primary-foreground/80 text-sm">
           <ArrowRight className="h-4 w-4 me-1 rtl:rotate-180" /> {t("الرئيسية", "Home")}
