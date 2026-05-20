@@ -345,22 +345,8 @@ export default function Payments() {
         </div>
       </div>
 
-      {/* Receipt language toggle */}
-      <div className="px-5 mt-2 flex items-center gap-2">
-        <span className="text-[11px] text-muted-foreground">
-          {lang === "ar" ? "لغة الإيصال" : "Receipt language"}:
-        </span>
-        <div className="inline-flex rounded-lg overflow-hidden ring-1 ring-sage-300">
-          {(["ar", "en"] as RLang[]).map((l) => (
-            <button key={l} onClick={() => setReceiptLang(l)}
-              className={`px-2.5 py-1 text-[11px] font-bold transition-colors ${
-                receiptLang === l ? "bg-gradient-sage text-primary-foreground" : "bg-card text-sage-600 hover:bg-sage-100"
-              }`}>
-              {l === "ar" ? "عربي" : "English"}
-            </button>
-          ))}
-        </div>
-      </div>
+
+
 
       {/* Stat */}
       <div className="px-5 mt-4">
