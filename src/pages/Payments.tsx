@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, docLang } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
 import { useAppSettings, readFilters, writeFilters } from "@/lib/appSettings";
@@ -86,7 +86,7 @@ export default function Payments() {
   const [pinForDel, setPinForDel] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [receiptLang, setReceiptLang] = useState<RLang>(lang === "en" ? "en" : "ar");
+  const receiptLang: RLang = docLang(lang);
 
   useEffect(() => {
     writeFilters(LS_KEY, { search, filter, statusFilter }, settings.filterRetentionMin);
@@ -345,22 +345,8 @@ export default function Payments() {
         </div>
       </div>
 
-      {/* Receipt language toggle */}
-      <div className="px-5 mt-2 flex items-center gap-2">
-        <span className="text-[11px] text-muted-foreground">
-          {lang === "ar" ? "لغة الإيصال" : "Receipt language"}:
-        </span>
-        <div className="inline-flex rounded-lg overflow-hidden ring-1 ring-sage-300">
-          {(["ar", "en"] as RLang[]).map((l) => (
-            <button key={l} onClick={() => setReceiptLang(l)}
-              className={`px-2.5 py-1 text-[11px] font-bold transition-colors ${
-                receiptLang === l ? "bg-gradient-sage text-primary-foreground" : "bg-card text-sage-600 hover:bg-sage-100"
-              }`}>
-              {l === "ar" ? "عربي" : "English"}
-            </button>
-          ))}
-        </div>
-      </div>
+
+
 
       {/* Stat */}
       <div className="px-5 mt-4">
