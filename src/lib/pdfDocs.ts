@@ -1268,13 +1268,15 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
     await inlineImages(target);
     await waitForWebFonts(target);
     // Extra settle time so layout reflows with the newly-loaded Arabic font
-    await new Promise((r) => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 350));
 
     const hasArabic = /[\u0600-\u06FF]/.test(target.innerText || target.textContent || "");
+    // Higher scale for Arabic so Noto Kufi joining strokes stay sharp after rasterization
+    const renderScale = hasArabic ? 3 : 2;
 
     const renderOnce = (useForeignObject: boolean, allowTaint: boolean) =>
       html2canvas(target, {
-        scale: 2,
+        scale: renderScale,
         useCORS: true,
         allowTaint,
         backgroundColor: "#ffffff",
