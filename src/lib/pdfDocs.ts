@@ -1332,7 +1332,7 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
     const imgH = (canvas.height * printableW) / canvas.width;
 
     if (imgH <= printableH) {
-      pdf.addImage(imgData, "PNG", margins.left, margins.top, imgW, imgH, undefined, "FAST");
+      pdf.addImage(imgData, "PNG", margins.left, margins.top, imgW, imgH, undefined, "SLOW");
     } else {
       const pageCanvas = document.createElement("canvas");
       const pageCtx = pageCanvas.getContext("2d");
