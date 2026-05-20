@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, docLang } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
 import { useAppSettings, readFilters, writeFilters } from "@/lib/appSettings";
