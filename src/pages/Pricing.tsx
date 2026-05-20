@@ -194,6 +194,13 @@ export default function Pricing() {
 
   return (
     <div className="mobile-shell pb-24 bg-background">
+      <SEO
+        path="/pricing"
+        title={ar ? "الأسعار · أملاكي" : "Pricing — Amlaki"}
+        description={ar
+          ? "اطّلع على خطط أملاكي وأسعارها — اشترك سنوياً ووفّر، أو ابدأ مجاناً."
+          : "Compare Amlaki plans and pricing — save with yearly billing or start free."}
+      />
       <PaymentTestModeBanner />
       {user ? (
         <TopBar />
