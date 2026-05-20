@@ -13,6 +13,7 @@ import { useAuth } from "@/lib/auth";
 import { usePaddleCheckout } from "@/hooks/usePaddleCheckout";
 import { useSubscription, useUnitUsage, PLAN_UNIT_LIMITS, type PlanTier } from "@/hooks/useSubscription";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
+import { SEO } from "@/components/SEO";
 
 type Plan = {
   id: PlanTier;
