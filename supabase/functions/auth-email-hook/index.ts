@@ -219,6 +219,9 @@ async function handleWebhook(req: Request): Promise<Response> {
     )
   }
 
+  // Detect user language from user_metadata.language (set at signup or via updateUser)
+  const userLang = normalizeLang(payload.user?.user_metadata?.language)
+
   // Build template props from payload.data (HookData structure)
   const templateProps = {
     siteName: SITE_NAME,
@@ -229,6 +232,7 @@ async function handleWebhook(req: Request): Promise<Response> {
     email: payload.data.email,
     oldEmail: payload.data.old_email,
     newEmail: payload.data.new_email,
+    lang: userLang,
   }
 
   // Render React Email to HTML and plain text
@@ -236,6 +240,10 @@ async function handleWebhook(req: Request): Promise<Response> {
   const text = await renderAsync(React.createElement(EmailTemplate, templateProps), {
     plainText: true,
   })
+
+  // Localised subject line
+  const subjectKey = SUBJECT_KEYS[emailType]
+  const subject = subjectKey ? getStrings(userLang, subjectKey).subject : 'Notification'
 
   // Enqueue email for async processing by the dispatcher (process-email-queue).
   const supabase = createClient(
@@ -261,7 +269,7 @@ async function handleWebhook(req: Request): Promise<Response> {
       to: payload.data.email,
       from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
       sender_domain: SENDER_DOMAIN,
-      subject: EMAIL_SUBJECTS[emailType] || 'Notification',
+      subject,
       html,
       text,
       purpose: 'transactional',
