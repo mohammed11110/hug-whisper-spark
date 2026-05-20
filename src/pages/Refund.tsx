@@ -15,6 +15,13 @@ export default function Refund() {
 
   return (
     <div className="mobile-shell pb-24 bg-background min-h-screen">
+      <SEO
+        path="/refund"
+        title={ar ? "سياسة الاسترجاع · أملاكي" : "Refund Policy — Amlaki"}
+        description={ar
+          ? "تفاصيل سياسة الاسترجاع والاسترداد لاشتراكات أملاكي."
+          : "Refund and cancellation policy for Amlaki subscriptions."}
+      />
       <TopBar />
       <div className="px-5 pt-2 flex items-center gap-2">
         <Link to="/settings" className="text-sage-500"><ArrowRight className="h-5 w-5 rtl:rotate-180" /></Link>
