@@ -1,6 +1,16 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+function isAllowedSupabaseUrl(url: string, supabaseUrl: string): boolean {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== "https:") return false;
+    const allowedHost = new URL(supabaseUrl).hostname;
+    return u.hostname === allowedHost && u.pathname.startsWith("/storage/v1/");
+  } catch { return false; }
+}
+
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
