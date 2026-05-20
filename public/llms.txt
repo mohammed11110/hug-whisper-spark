@@ -1,0 +1,16 @@
+# Amlaki — أملاكي
+
+> Premium property management platform for landlords across MENA and beyond. Manage buildings, units, tenants, leases, payments and maintenance in one elegant app.
+
+## Pages
+
+- [Welcome](/welcome): Product overview and getting started.
+- [Pricing](/pricing): Plans, features, and subscription pricing.
+- [Install](/install): Install the Amlaki PWA on iOS, Android, or desktop.
+- [Sign in](/auth): Log in or create an Amlaki account.
+
+## Optional
+
+- [Terms of Service](/terms): Legal terms for using Amlaki.
+- [Privacy Policy](/privacy): How user data is handled.
+- [Refund Policy](/refund): Subscription refund and cancellation terms.
