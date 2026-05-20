@@ -38,6 +38,13 @@ Deno.serve(async (req) => {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+    const allUrls = [...handoverUrls, ...returnUrls];
+    if (allUrls.length > 16 || !allUrls.every((u) => typeof u === 'string' && isAllowedSupabaseUrl(u, SUPABASE_URL))) {
+      return new Response(JSON.stringify({ error: 'Invalid image URLs' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
