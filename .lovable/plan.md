@@ -1,36 +1,59 @@
-# خطة: زر "إدارة الاشتراك" في الإعدادات
-
 ## الهدف
-إضافة زر داخل قسم "الحساب" في `src/pages/Settings.tsx` يفتح Customer Portal الخاص بـ Paddle للمستخدم الحالي، مع التعامل المناسب عندما لا يكون للمستخدم اشتراك نشط (Free فقط أو لم يشترك بعد).
+عند إرسال أي إيميل مصادقة (تأكيد التسجيل، استعادة كلمة المرور، رابط سحري، دعوة، تغيير إيميل، تأكيد مزدوج)، يتم اختيار اللغة تلقائياً حسب لغة المستخدم بدلاً من الإنجليزية فقط.
 
-## السلوك
-- يظهر الزر دائماً ضمن قسم الحساب، أسفل "الخطط والأسعار" ومباشرة قبل "تسجيل الخروج".
-- عند الضغط:
-  1. إن كان `useSubscription` لا يزال يحمّل → الزر معطّل مع spinner صغير.
-  2. إن لم يكن هناك اشتراك (`paddleSubscriptionId === null` أو `plan === "free"` بدون صف اشتراك) → نعرض toast إعلامي:
-     - عربي: «لا يوجد اشتراك مدفوع بعد. اختر خطة للبدء.»
-     - إنجليزي: "No paid subscription yet. Choose a plan to get started."
-     - مع زر/تحويل إلى `/pricing`.
-  3. إن كان هناك اشتراك → نستدعي edge function `customer-portal` مع `environment` المشتقّ من `getPaddleEnvironment()`، نستقبل `url`، ونفتحه في تبويب جديد `window.open(url, "_blank", "noopener,noreferrer")`.
-  4. في حال الخطأ:
-     - `404 no_subscription` من الـ function → نفس مسار "لا يوجد اشتراك".
-     - أي خطأ آخر → toast خطأ بنص عربي/إنجليزي عام.
+## اللغات المدعومة (12)
+ar · en · ur · fa · hi · zh · tr · ru · fr · es · de · pt
+أي لغة أخرى → fallback إلى الإنجليزية.
 
-## الواجهة
-- زر بنفس نمط عناصر قسم الحساب (`px-4 py-3`, hover sage-50, أيقونة `CreditCard` من lucide بلون `text-sage-600`، سهم `ArrowRight` على اليمين مع `rtl:rotate-180`).
-- النصوص: «إدارة الاشتراك» / "Manage subscription"، مع سطر فرعي صغير:
-  - عند الاشتراك النشط: اسم الخطة الحالية (Starter/Pro/...).
-  - عند عدم الاشتراك: «أنت على الخطة المجانية» / "You're on the Free plan".
-- حالة التحميل: استبدال السهم بـ `Loader2` يدور، الزر معطّل.
+## آلية العمل
 
-## التغييرات التقنية
-1. **`src/pages/Settings.tsx`** فقط:
-   - استيراد `useSubscription` من `@/hooks/useSubscription`، `getPaddleEnvironment` من `@/lib/paddle`، `supabase` من `@/integrations/supabase/client`، الأيقونتين `CreditCard` و`Loader2`.
-   - حالة محلية `const [portalLoading, setPortalLoading] = useState(false)`.
-   - دالة `openPortal()` تستدعي `supabase.functions.invoke("customer-portal", { body: { environment: getPaddleEnvironment() } })` وتفتح الـ URL.
-   - إدراج الزر داخل نفس البطاقة `divide-y` للحساب بين رابط `/pricing` وزر تسجيل الخروج.
+```text
+User signs up / requests email
+        │
+        ▼
+  حفظ language في user_metadata.language
+        │
+        ▼
+  Supabase Auth يطلق auth-email-hook
+        │
+        ▼
+  hook يقرأ user_metadata.language
+        │
+        ▼
+  يختار القالب المناسب من الترجمات
+        │
+        ▼
+  يُرسَل الإيميل باللغة الصحيحة + RTL/LTR
+```
 
-## ما لا يتغيّر
-- لا تعديل على الـ edge function `customer-portal` (تعمل بالفعل، تُعيد `404 no_subscription` عند الحاجة).
-- لا تغييرات في قاعدة البيانات أو المخطط.
-- لا تعديل في `SettingsPanel.tsx` (الـ Sheet السفلي) ضمن هذه الخطوة — التركيز على صفحة `/settings` فقط كما طلب المستخدم.
+## الخطوات
+
+1. **حفظ اللغة في حساب المستخدم**
+   - عند التسجيل: تمرير `options.data.language` في `supabase.auth.signUp`
+   - عند تغيير اللغة لمستخدم مسجّل: استدعاء `supabase.auth.updateUser({ data: { language } })` تلقائياً من `i18n.tsx`
+   - تحديث `handle_new_user` trigger لتخزين اللغة في `profiles` أيضاً (نسخة احتياطية)
+
+2. **بنية الترجمات في القوالب**
+   - إنشاء ملف `supabase/functions/_shared/email-templates/translations.ts` يحتوي قاموس لكل قالب × كل لغة (subject + heading + body + button + footer)
+   - كل قالب من القوالب الستة يستقبل prop `lang` ويختار النصوص من القاموس
+   - تطبيق `dir="rtl"` و `lang="xx"` على `<Html>` تلقائياً للغات RTL (ar, ur, fa, he, ku, ps)
+   - استخدام الخط المناسب: Noto Kufi Arabic للـRTL، Outfit للبقية
+
+3. **تعديل `auth-email-hook/index.ts`**
+   - قراءة `user.user_metadata.language` من payload الـ webhook
+   - تطبيع القيمة + fallback إلى `en` إذا غير مدعومة
+   - تمرير `lang` إلى مكوّن React Email
+   - تمرير subject المترجم إلى `enqueue_email`
+
+4. **القوالب الستة المُحدَّثة**
+   - signup.tsx · recovery.tsx · magic-link.tsx · invite.tsx · email-change.tsx · reauthentication.tsx
+   - الحفاظ على الهوية البصرية (sage palette, white bg, brand spacing)
+
+5. **النشر والاختبار**
+   - `deploy_edge_functions(["auth-email-hook"])`
+   - اختبار: تغيير اللغة في التطبيق → طلب استعادة كلمة المرور → التأكد من وصول الإيميل بنفس اللغة
+
+## ملاحظات
+- المستخدمون الحاليون بدون `language` في metadata سيحصلون على الإنجليزية افتراضياً حتى يغيّروا اللغة مرة واحدة في التطبيق
+- لا حاجة لإعادة إعداد domain أو DNS — البنية التحتية للإيميل جاهزة
+- الترجمات نصوص ثابتة (ليست AI) — صفر تكلفة، صفر زمن استجابة إضافي
