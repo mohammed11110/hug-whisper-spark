@@ -7,6 +7,15 @@ const corsHeaders = {
 
 const LABELS = ["living", "bedroom", "kitchen", "bathroom", "entrance", "exterior", "balcony", "other"] as const;
 
+function isAllowedSupabaseUrl(url: string, supabaseUrl: string): boolean {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== "https:") return false;
+    const allowedHost = new URL(supabaseUrl).hostname;
+    return u.hostname === allowedHost && u.pathname.startsWith("/storage/v1/");
+  } catch { return false; }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
