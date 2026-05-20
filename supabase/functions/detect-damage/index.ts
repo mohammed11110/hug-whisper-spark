@@ -1,6 +1,16 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+function isAllowedSupabaseUrl(url: string, supabaseUrl: string): boolean {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== "https:") return false;
+    const allowedHost = new URL(supabaseUrl).hostname;
+    return u.hostname === allowedHost && u.pathname.startsWith("/storage/v1/");
+  } catch { return false; }
+}
+
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -25,6 +35,13 @@ Deno.serve(async (req) => {
     const { handoverUrls, returnUrls, lang } = await req.json();
     if (!Array.isArray(handoverUrls) || !Array.isArray(returnUrls) || handoverUrls.length === 0 || returnUrls.length === 0) {
       return new Response(JSON.stringify({ error: 'handoverUrls and returnUrls required (non-empty arrays)' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+    const allUrls = [...handoverUrls, ...returnUrls];
+    if (allUrls.length > 16 || !allUrls.every((u) => typeof u === 'string' && isAllowedSupabaseUrl(u, SUPABASE_URL))) {
+      return new Response(JSON.stringify({ error: 'Invalid image URLs' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

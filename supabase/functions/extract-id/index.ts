@@ -5,6 +5,15 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function isAllowedSupabaseUrl(url: string, supabaseUrl: string): boolean {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== "https:") return false;
+    const allowedHost = new URL(supabaseUrl).hostname;
+    return u.hostname === allowedHost && u.pathname.startsWith("/storage/v1/");
+  } catch { return false; }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -31,8 +40,8 @@ Deno.serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
     const { imageUrl } = await req.json();
-    if (!imageUrl) {
-      return new Response(JSON.stringify({ error: "imageUrl required" }), {
+    if (!imageUrl || !isAllowedSupabaseUrl(imageUrl, Deno.env.get("SUPABASE_URL")!)) {
+      return new Response(JSON.stringify({ error: "Invalid imageUrl" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
