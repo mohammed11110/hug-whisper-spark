@@ -934,6 +934,7 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      get_plan_unit_limit: { Args: { _plan: string }; Returns: number }
       has_active_subscription: {
         Args: { check_env?: string; user_uuid: string }
         Returns: boolean
@@ -975,6 +976,7 @@ export type Database = {
         }[]
       }
       redeem_promo_code: { Args: { _code: string }; Returns: Json }
+      user_active_plan: { Args: { _user_id: string }; Returns: string }
     }
     Enums: {
       app_role: "admin" | "user"

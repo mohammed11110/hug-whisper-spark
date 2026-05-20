@@ -1,5 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { verifyWebhook, EventName, type PaddleEnv } from '../_shared/paddle.ts';
+import { verifyWebhookAuto, EventName, type PaddleEnv } from '../_shared/paddle.ts';
 
 let _supabase: ReturnType<typeof createClient> | null = null;
 function getSupabase() {
@@ -148,8 +148,8 @@ async function logEvent(event: any, env: PaddleEnv) {
   void env;
 }
 
-async function handleWebhook(req: Request, env: PaddleEnv) {
-  const event = await verifyWebhook(req, env);
+async function handleWebhook(req: Request) {
+  const { event, env } = await verifyWebhookAuto(req);
   switch (event.eventType) {
     case EventName.SubscriptionCreated:
     case EventName.SubscriptionActivated:
@@ -169,10 +169,8 @@ async function handleWebhook(req: Request, env: PaddleEnv) {
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-  const url = new URL(req.url);
-  const env = (url.searchParams.get('env') || 'sandbox') as PaddleEnv;
   try {
-    await handleWebhook(req, env);
+    await handleWebhook(req);
     return new Response(JSON.stringify({ received: true }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
@@ -182,3 +180,4 @@ Deno.serve(async (req) => {
     return new Response('Webhook error', { status: 400 });
   }
 });
+

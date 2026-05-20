@@ -54,3 +54,30 @@ export async function verifyWebhook(req: Request, env: PaddleEnv) {
   const paddle = getPaddleClient(env);
   return await paddle.webhooks.unmarshal(body, secret, signature);
 }
+
+/**
+ * Verify a webhook by trying both live and sandbox secrets server-side.
+ * The environment is determined by which secret successfully validates the
+ * signature — an attacker cannot select the env via query string, because
+ * forging a valid signature requires the real Paddle webhook secret.
+ */
+export async function verifyWebhookAuto(req: Request): Promise<{ event: any; env: PaddleEnv }> {
+  const signature = req.headers.get('paddle-signature');
+  const body = await req.text();
+  if (!signature || !body) throw new Error('Missing signature or body');
+
+  const envs: PaddleEnv[] = ['live', 'sandbox'];
+  let lastErr: unknown;
+  for (const env of envs) {
+    try {
+      const secret = getWebhookSecret(env);
+      const paddle = getPaddleClient(env);
+      const event = await paddle.webhooks.unmarshal(body, secret, signature);
+      return { event, env };
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw new Error(`Webhook signature verification failed: ${lastErr}`);
+}
+
