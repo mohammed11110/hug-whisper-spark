@@ -2,13 +2,23 @@ import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { BotanicalDecor } from "@/components/BotanicalDecor";
+import { SEO } from "@/components/SEO";
 import { useI18n } from "@/lib/i18n";
 import { Link } from "react-router-dom";
 
 export default function Welcome() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const ar = lang === "ar";
   return (
     <div className="mobile-shell flex flex-col bg-gradient-cream overflow-hidden">
+      <SEO
+        path="/welcome"
+        title={ar ? "أملاكي · إدارة العقارات بذكاء وأناقة" : "Amlaki — Manage your properties with elegance"}
+        description={ar
+          ? "ابدأ مع أملاكي لإدارة مبانيك ووحداتك ومستأجريك ومدفوعاتك في مكان واحد."
+          : "Get started with Amlaki to manage your buildings, units, tenants and payments in one place."}
+      />
+
       <header className="flex justify-end p-4">
         <LanguageSwitcher />
       </header>
