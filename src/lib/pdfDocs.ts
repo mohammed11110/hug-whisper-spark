@@ -332,13 +332,17 @@ const pageShell = (title: string, body: string, options?: { rtl?: boolean }) => 
         color: var(--ink);
         padding: 24px;
         font-feature-settings: "kern", "liga", "calt", "init", "medi", "fina", "isol";
-        text-rendering: optimizeLegibility;
+        text-rendering: ${options?.rtl ? "geometricPrecision" : "optimizeLegibility"};
         -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        font-synthesis: none;
         unicode-bidi: ${options?.rtl ? "plaintext" : "normal"};
       }
       :lang(ar), [lang="ar"], [dir="rtl"], [dir="rtl"] * {
         font-family: "Noto Kufi Arabic", "Noto Naskh Arabic", "Segoe UI", Tahoma, Arial, sans-serif;
         font-feature-settings: "kern", "liga", "calt", "init", "medi", "fina", "isol";
+        text-rendering: geometricPrecision;
+        font-synthesis: none;
       }
       [dir="rtl"] .value, [dir="rtl"] .label, [dir="rtl"] td, [dir="rtl"] th, [dir="rtl"] p, [dir="rtl"] div {
         unicode-bidi: plaintext;
