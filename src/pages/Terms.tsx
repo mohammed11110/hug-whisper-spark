@@ -15,6 +15,13 @@ export default function Terms() {
 
   return (
     <div className="mobile-shell pb-24 bg-background min-h-screen">
+      <SEO
+        path="/terms"
+        title={ar ? "شروط الاستخدام · أملاكي" : "Terms of Service — Amlaki"}
+        description={ar
+          ? "اطّلع على شروط استخدام منصة أملاكي لإدارة العقارات."
+          : "Read the Terms of Service for the Amlaki property management platform."}
+      />
       <TopBar />
       <div className="px-5 pt-2 flex items-center gap-2">
         <Link to="/settings" className="text-sage-500"><ArrowRight className="h-5 w-5 rtl:rotate-180" /></Link>
