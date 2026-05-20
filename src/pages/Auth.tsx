@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Logo } from "@/components/Logo";
 import { useI18n } from "@/lib/i18n";
+import { SEO } from "@/components/SEO";
 import { useT2 } from "@/lib/i18n2";
 import { toast } from "sonner";
 
