@@ -1,5 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { verifyWebhook, EventName, type PaddleEnv } from '../_shared/paddle.ts';
+import { verifyWebhookAuto, EventName, type PaddleEnv } from '../_shared/paddle.ts';
 
 let _supabase: ReturnType<typeof createClient> | null = null;
 function getSupabase() {
