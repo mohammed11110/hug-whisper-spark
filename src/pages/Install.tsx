@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Smartphone, Download, Share2, Plus, ArrowRight, Apple } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/lib/i18n";
+import { SEO } from "@/components/SEO";
 
 export default function Install() {
   const { lang } = useI18n();
