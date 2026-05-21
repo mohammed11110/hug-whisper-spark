@@ -11,7 +11,8 @@ function monthDays(year: number, month: number): Date[] {
   const last = new Date(year, month + 1, 0).getDate();
   return Array.from({ length: last }, (_, i) => new Date(year, month, i + 1));
 }
-const ymd = (d: Date) => d.toISOString().slice(0, 10);
+const ymd = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 const STATUS_COLOR: Record<string, string> = {
   confirmed: "bg-sage-300",

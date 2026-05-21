@@ -1,71 +1,59 @@
+# فحص قسم الإيجارات اليومية — المشاكل المكتشفة
 
-## الوضع الحالي
+## المشاكل الحرجة
 
-التطبيق مصمَّم موبايل-أولاً وكل الصفحات تستخدم `mobile-shell` بعرض ثابت **430px**. حتى على شاشات اللابتوب يظهر شريط ضيق في المنتصف.
+### 1) الـ Triggers غير مُفعّلة في قاعدة البيانات (حرج)
+الدوال `check_daily_booking_overlap()` و `auto_create_cleaning_task()` موجودة، لكن **لم تُربط كـ triggers** على جدول `daily_bookings`. النتائج:
+- **لا حماية من الحجوزات المتداخلة**: يمكن حجز نفس الوحدة لضيفَين في نفس التواريخ بدون أي خطأ.
+- **مهام التنظيف لا تُنشأ تلقائياً** عند تسجيل مغادرة الضيف (قسم التنظيف سيظل فارغاً دائماً).
 
-ما هو موجود فعلاً:
-- ✅ `AppShell` يعرض شريط جانبي (Sidebar) على md+.
-- ✅ `BottomNav` مخفي تلقائياً على md+ (`md:hidden`).
-- ❌ `.mobile-shell { max-width: 430px }` يخنق المحتوى على جميع الشاشات.
-- ❌ الشبكات (cards) عمود واحد دائماً — لا تستفيد من العرض.
-- ❌ الـ Dialogs و الـ TopBar مُصمَّمة لعرض 430px.
+**الإصلاح** (migration):
+```sql
+CREATE TRIGGER trg_daily_booking_overlap
+  BEFORE INSERT OR UPDATE ON public.daily_bookings
+  FOR EACH ROW EXECUTE FUNCTION public.check_daily_booking_overlap();
 
-## الخطة
+CREATE TRIGGER trg_daily_auto_cleaning
+  AFTER UPDATE ON public.daily_bookings
+  FOR EACH ROW EXECUTE FUNCTION public.auto_create_cleaning_task();
 
-### 1. توسعة `mobile-shell` (`src/index.css`)
-```css
-.mobile-shell {
-  @apply mx-auto bg-background min-h-screen relative;
-  max-width: 430px;           /* phone */
-}
-@media (min-width: 768px) {   /* iPad portrait+ */
-  .mobile-shell { max-width: 720px; box-shadow: none; }
-}
-@media (min-width: 1024px) {  /* iPad landscape / laptop */
-  .mobile-shell { max-width: 960px; }
-}
-@media (min-width: 1280px) {  /* desktop */
-  .mobile-shell { max-width: 1200px; }
-}
+CREATE TRIGGER trg_daily_units_updated
+  BEFORE UPDATE ON public.daily_units
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+-- ونفسه للجداول الأخرى التي بها updated_at
 ```
-+ زيادة الحشوات الجانبية (`md:px-8 lg:px-12`) في الصفحات الرئيسية.
 
-### 2. شبكات متجاوبة في الصفحات الأساسية
-في `Dashboard`, `Buildings`, `Tenants`, `Payments`, `Maintenance`, `BuildingExpenses`, `MonthlyCollection`, `Reports`, `Activity`, `Settings`:
-- بطاقات: `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4`.
-- صفوف KPI في Dashboard: `md:grid-cols-4` بدل عمودين.
-- جداول/قوائم طويلة: عرض جدولي (`<table>`) على md+ بدلاً من بطاقات مكدّسة.
+### 2) "اليوم" يُحسب بتوقيت UTC لا بالتوقيت المحلي (متوسط)
+في `DailyBookings.tsx` و `DailyDashboard.tsx` و `DailyCalendar.tsx` يُستخدم:
+```ts
+new Date().toISOString().slice(0,10)
+```
+هذا يعطي تاريخ UTC. مستخدم في سلطنة عُمان (UTC+4) بعد الساعة 8 مساءً سيرى "اليوم" = الغد. يؤثر على:
+- بطاقات الدخول/المغادرة اليوم في لوحة المعلومات.
+- التاريخ الافتراضي لحجز جديد.
+- تظليل عمود "اليوم" في التقويم.
 
-### 3. TopBar و Dialogs
-- `TopBar`: padding أفقي يتسع على md+، إخفاء بعض الأيقونات المكرّرة مع وجود السايدبار.
-- Dialogs (`AddBuilding`, `AddUnit`, `AddPayment`, `NewTenancy`, `AddMaintenance`…): رفع `max-w-md` إلى `md:max-w-lg lg:max-w-2xl`، عمودين للحقول على md+.
+**الإصلاح**: استخدام دالة محلية:
+```ts
+const localYMD = (d = new Date()) =>
+  `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+```
+وتطبيقها في الملفات الثلاثة.
 
-### 4. السايدبار والـ AppShell
-- فتح السايدبار افتراضياً على lg+ (`defaultOpen={isLg}`).
-- إضافة زر toggle ظاهر في TopBar على md+.
-- إخفاء `mobile-shell` shadow عندما السايدبار مفتوح (يبدو غريباً).
+## مشاكل ثانوية (اختيارية)
 
-### 5. صفحات خاصة
-- `Welcome` / `Auth` / `Pricing`: تخطيط split-screen على lg+ (نموذج يمين، عرض تسويقي يسار).
-- `BuildingDetail` / `UnitDetail`: عمودين على lg+ (تفاصيل + جانب جانبي للإجراءات).
-- `Assistant`: تكبير منطقة الدردشة، رسائل بعرض أكبر.
+3. تحذير React: `DialogContent` بدون `DialogDescription` — إضافة `<DialogDescription>` (أو `aria-describedby={undefined}`) في حوارات الحجز/الوحدة/التسعير.
+4. `DailyMessages` يستخدم `insert` للقالب الجديد؛ لو وُجد ضمنياً سيفشل — تحويلها لـ `upsert` على `(building_id, key)`.
 
-### 6. الطباعة والـ PDF
-لا تغيير — الـ PDFs تستخدم `pdfDocs.ts` المستقل.
+## الملفات المتأثرة
+- **Migration جديد** للـ triggers (يتطلب موافقتك).
+- `src/pages/daily/DailyBookings.tsx`, `DailyDashboard.tsx`, `DailyCalendar.tsx` — استبدال حساب "اليوم".
+- (اختياري) `DailyMessages.tsx` + ثلاث حوارات لإضافة Description.
 
-### 7. اختبار
-- تجربة على 4 مقاسات: 390px (iPhone)، 820px (iPad portrait)، 1180px (iPad landscape)، 1440px (laptop).
-- التأكد من RTL على كل المقاسات.
-- لقطات شاشة قبل/بعد للصفحات الأساسية.
+## ما تم التحقق منه وهو سليم
+- مسارات `/daily/*` مسجّلة في `App.tsx`.
+- جميع الجداول الستة موجودة في قاعدة البيانات.
+- محرّك التسعير (`pricing.ts`) منطقه صحيح: قاعدة موسمية > نهاية أسبوع > الأساسي.
+- زر "حجز جديد" يعمل، وحساب الإجمالي تلقائي، ورسالة الواتساب جاهزة.
 
-## النطاق
-هذا تحديث متوسط الحجم يلمس ~15-20 ملف. لن يغيّر أي منطق أعمال أو قاعدة بيانات.
-
-## ترتيب التنفيذ المقترح
-1. (5 دقائق) تحديث `mobile-shell` + `AppShell` — أكبر أثر بأقل تغيير.
-2. Dashboard + Buildings + Tenants (الأكثر استخداماً).
-3. Payments + Maintenance + Expenses + Collection.
-4. Dialogs.
-5. صفحات خاصة (Welcome/Auth/Pricing).
-
-هل أبدأ بالخطوة 1 و 2 الآن، أم تريد تنفيذ كل المراحل دفعة واحدة؟
+هل تريدني أن أنفّذ هذه الإصلاحات؟

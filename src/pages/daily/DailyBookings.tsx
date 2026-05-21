@@ -56,9 +56,11 @@ const STATUS_LABEL: Record<string, string> = {
   confirmed: "مؤكد", checked_in: "دخل", checked_out: "غادر", cancelled: "ملغي", pending: "معلق",
 };
 
-const todayStr = () => new Date().toISOString().slice(0, 10);
+const localYMD = (d: Date = new Date()) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const todayStr = () => localYMD();
 const addDays = (d: string, n: number) => {
-  const dt = new Date(d + "T00:00:00"); dt.setDate(dt.getDate() + n); return dt.toISOString().slice(0,10);
+  const dt = new Date(d + "T00:00:00"); dt.setDate(dt.getDate() + n); return localYMD(dt);
 };
 
 export default function DailyBookings() {
