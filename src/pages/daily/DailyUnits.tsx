@@ -28,6 +28,7 @@ interface Unit {
   door_code: string | null;
   notes: string | null;
   active: boolean;
+  source_unit_id?: string | null;
 }
 
 const emptyForm: Partial<Unit> = {
