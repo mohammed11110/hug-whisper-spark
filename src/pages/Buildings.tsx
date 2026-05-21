@@ -110,7 +110,7 @@ export default function Buildings() {
           ))}
         </div>
 
-        <div className="mt-4 space-y-3">
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
           {loading ? (
             <p className="text-center text-muted-foreground py-10">{t("loading")}</p>
           ) : visible.length === 0 ? (
