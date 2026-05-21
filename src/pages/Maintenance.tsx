@@ -95,7 +95,7 @@ export default function Maintenance() {
   return (
     <div className="mobile-shell min-h-screen pb-24 bg-background">
       <TopBar />
-      <div className="px-5 pt-2 flex items-center justify-between gap-2">
+      <div className="px-5 md:px-8 lg:px-12 pt-2 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Wrench className="h-5 w-5 text-sage-600" />
           <h1 className="text-2xl font-black text-sage-600">{t2("maintenance_requests")}</h1>
