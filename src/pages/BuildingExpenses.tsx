@@ -46,6 +46,7 @@ export default function BuildingExpenses() {
   const [vendor, setVendor] = useState("");
   const [desc, setDesc] = useState("");
   const [busy, setBusy] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<Expense | null>(null);
 
   const load = async () => {
     if (!id) return;
