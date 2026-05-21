@@ -153,7 +153,7 @@ export default function MonthlyCollection() {
   return (
     <div className="mobile-shell pb-24">
       <TopBar />
-      <div className="px-5 pt-5 space-y-5">
+      <div className="px-5 md:px-8 lg:px-12 pt-5 space-y-5">
         <div className="flex items-center justify-between gap-3 animate-float-up">
           <div className="flex items-center gap-2">
             <Link to="/">
@@ -295,7 +295,7 @@ export default function MonthlyCollection() {
 
       <Dialog open={showPaymentsDialog} onOpenChange={setShowPaymentsDialog}>
         <DialogContent className="max-w-lg max-h-[80vh] p-0 gap-0">
-          <DialogHeader className="px-5 pt-5 pb-2">
+          <DialogHeader className="px-5 md:px-8 lg:px-12 pt-5 pb-2">
             <DialogTitle className="text-lg font-bold text-sage-600">
               {t2("payments")} — {month.label}
             </DialogTitle>

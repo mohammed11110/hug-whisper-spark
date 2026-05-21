@@ -81,7 +81,7 @@ export default function Activity() {
   return (
     <div className="mobile-shell pb-24">
       <TopBar />
-      <div className="px-5 pt-5 space-y-4">
+      <div className="px-5 md:px-8 lg:px-12 pt-5 space-y-4">
         <div className="flex items-center gap-2.5">
           <div className="h-11 w-11 rounded-2xl bg-gradient-sage grid place-items-center shadow-soft">
             <ActivityIcon className="h-5 w-5 text-primary-foreground" />

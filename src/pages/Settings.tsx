@@ -117,14 +117,14 @@ export default function Settings() {
     <div className="mobile-shell min-h-screen pb-24 bg-background">
       <TopBar />
 
-      <div className="px-5 pt-2 flex items-center gap-2">
+      <div className="px-5 md:px-8 lg:px-12 pt-2 flex items-center gap-2">
         <Link to="/" className="text-sage-500"><ArrowRight className="h-5 w-5 rtl:rotate-180" /></Link>
         <h1 className="text-2xl font-black text-sage-600">{tr(lang, "الإعدادات", "Settings")}</h1>
       </div>
 
       {/* === Admin Panel (admins only) === */}
       {isAdmin && (
-        <section className="px-5 mt-5">
+        <section className="px-5 md:px-8 lg:px-12 mt-5">
           <div className="flex items-center gap-2 mb-2">
             <Shield className="h-4 w-4 text-burgundy" />
             <h2 className="font-bold text-burgundy text-sm">{tr(lang, "لوحة المسؤول", "Admin panel")}</h2>
@@ -144,7 +144,7 @@ export default function Settings() {
       )}
 
       {/* === Account === */}
-      <section className="px-5 mt-5">
+      <section className="px-5 md:px-8 lg:px-12 mt-5">
         <div className="flex items-center gap-2 mb-2">
           <UserIcon className="h-4 w-4 text-sage-600" />
           <h2 className="font-bold text-sage-600 text-sm">{tr(lang, "الحساب", "Account")}</h2>
@@ -198,7 +198,7 @@ export default function Settings() {
       <BusinessWhatsAppSection />
 
       {/* === Preferences === */}
-      <section className="px-5 mt-6">
+      <section className="px-5 md:px-8 lg:px-12 mt-6">
         <h2 className="font-bold text-sage-600 text-sm mb-2">{tr(lang, "التفضيلات", "Preferences")}</h2>
 
         {/* Language */}
@@ -297,7 +297,7 @@ export default function Settings() {
       </section>
 
       {/* === Business brand === */}
-      <section className="px-5 mt-6">
+      <section className="px-5 md:px-8 lg:px-12 mt-6">
         <div className="flex items-center gap-2 mb-2">
           <ImageIcon className="h-4 w-4 text-sage-600" />
           <h2 className="font-bold text-sage-600 text-sm">
@@ -371,7 +371,7 @@ export default function Settings() {
       </section>
 
       {/* === Receipt numbering === */}
-      <section className="px-5 mt-6">
+      <section className="px-5 md:px-8 lg:px-12 mt-6">
         <div className="flex items-center gap-2 mb-2">
           <Printer className="h-4 w-4 text-sage-600" />
           <h2 className="font-bold text-sage-600 text-sm">
@@ -420,7 +420,7 @@ export default function Settings() {
       </section>
 
       {/* === Notifications & messages === */}
-      <section className="px-5 mt-6">
+      <section className="px-5 md:px-8 lg:px-12 mt-6">
         <div className="flex items-center gap-2 mb-2">
           <Bell className="h-4 w-4 text-sage-600" />
           <h2 className="font-bold text-sage-600 text-sm">
@@ -470,7 +470,7 @@ export default function Settings() {
       </section>
 
       {/* === Security === */}
-      <section className="px-5 mt-6">
+      <section className="px-5 md:px-8 lg:px-12 mt-6">
         <div className="flex items-center gap-2 mb-2">
           <ShieldAlert className="h-4 w-4 text-burgundy" />
           <h2 className="font-bold text-sage-600 text-sm">{tr(lang, "الأمان", "Security")}</h2>
@@ -504,7 +504,7 @@ export default function Settings() {
       </section>
 
       {/* === Tools === */}
-      <section className="px-5 mt-6 space-y-2">
+      <section className="px-5 md:px-8 lg:px-12 mt-6 space-y-2">
         <h2 className="font-bold text-sage-600 text-sm mb-2">{tr(lang, "الأدوات", "Tools")}</h2>
         {[
           { to: "/team", icon: Users, ar: "الفريق والصلاحيات", en: "Team & roles", arS: "ادعُ محاسبين أو مدراء فرع", enS: "Invite accountants or managers" },
@@ -524,7 +524,7 @@ export default function Settings() {
       </section>
 
       {/* === Advanced (collapsible) === */}
-      <section className="px-5 mt-6">
+      <section className="px-5 md:px-8 lg:px-12 mt-6">
         <button
           onClick={() => setOpenAdvanced((v) => !v)}
           className="w-full flex items-center justify-between bg-card border border-sage-200/50 rounded-2xl p-4 shadow-soft hover:bg-sage-50 transition"
@@ -640,7 +640,7 @@ export default function Settings() {
       </section>
 
       {/* === Legal === */}
-      <section className="px-5 mt-6">
+      <section className="px-5 md:px-8 lg:px-12 mt-6">
         <h2 className="font-bold text-sage-600 text-sm mb-2">{tr(lang, "الصفحات القانونية", "Legal")}</h2>
         <div className="rounded-2xl bg-card shadow-soft divide-y divide-sage-100 overflow-hidden">
           {([
