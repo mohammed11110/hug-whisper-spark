@@ -17,7 +17,8 @@ export default function DailyDashboard() {
 
   useEffect(() => {
     if (!buildingId) return;
-    const today = new Date().toISOString().slice(0, 10);
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     const firstOfMonth = today.slice(0, 7) + "-01";
 
     (async () => {
