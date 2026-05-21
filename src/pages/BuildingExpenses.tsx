@@ -204,6 +204,14 @@ export default function BuildingExpenses() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDeleteDialog
+        open={!!pendingDelete}
+        onOpenChange={(o) => !o && setPendingDelete(null)}
+        onConfirm={confirmRemove}
+        title={lang === "ar" ? "حذف المصروف؟" : "Delete expense?"}
+        description={pendingDelete ? `${lang === "ar" ? catLabelAr(pendingDelete.category) : catLabelEn(pendingDelete.category)} — ${format(Number(pendingDelete.amount))}` : undefined}
+      />
     </div>
   );
 }
