@@ -134,9 +134,14 @@ export default function Maintenance() {
             </div>
             {r.description && <p className="text-xs text-muted-foreground leading-relaxed">{r.description}</p>}
             {(r.cost || r.vendor) && (
-              <div className="flex justify-between text-[11px] text-sage-600 bg-sage-100/40 rounded-lg px-3 py-1.5">
+              <div className="flex justify-between items-center text-[11px] text-sage-600 bg-sage-100/40 rounded-lg px-3 py-1.5">
                 {r.vendor && <span>{t2("vendor")}: <b>{r.vendor}</b></span>}
                 {r.cost ? <span>{t2("cost")}: <b>{format(Number(r.cost))}</b></span> : null}
+              </div>
+            )}
+            {r.status === "done" && r.cost && Number(r.cost) > 0 && (
+              <div className="text-[10px] font-bold text-sage-600 bg-sage-200/40 rounded-full px-2 py-0.5 inline-flex items-center gap-1 w-fit">
+                ↗ {lang === "ar" ? "مصروف مُسجّل" : "Expense logged"}
               </div>
             )}
             {r.photos && r.photos.length > 0 && (
