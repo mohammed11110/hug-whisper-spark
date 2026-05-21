@@ -229,6 +229,7 @@ export type Database = {
           description: string | null
           expense_date: string
           id: string
+          maintenance_request_id: string | null
           unit_id: string | null
           vendor: string | null
         }
@@ -240,6 +241,7 @@ export type Database = {
           description?: string | null
           expense_date?: string
           id?: string
+          maintenance_request_id?: string | null
           unit_id?: string | null
           vendor?: string | null
         }
@@ -251,6 +253,7 @@ export type Database = {
           description?: string | null
           expense_date?: string
           id?: string
+          maintenance_request_id?: string | null
           unit_id?: string | null
           vendor?: string | null
         }
