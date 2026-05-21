@@ -154,7 +154,7 @@ export default function Tenants() {
         <p className="text-xs text-muted-foreground mt-0.5">{filtered.length} {t("tenants")}</p>
       </div>
 
-      <div className="px-5 mt-4 flex gap-2">
+      <div className="px-5 md:px-8 lg:px-12 mt-4 flex gap-2">
         <div className="relative flex-1">
           <Search className="absolute top-1/2 -translate-y-1/2 start-3 h-4 w-4 text-sage-400" />
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("search")}
