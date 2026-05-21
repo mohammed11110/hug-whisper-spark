@@ -27,7 +27,7 @@ export default function DailyCleaning() {
       supabase.from("daily_cleaning_tasks").select("*").eq("building_id", buildingId).order("scheduled_date", { ascending: false }),
       supabase.from("daily_units").select("id,name").eq("building_id", buildingId),
     ]);
-    setTasks((tRes.data || []) as Task[]);
+    setTasks(((tRes.data || []) as unknown) as Task[]);
     setUnits((uRes.data || []) as Unit[]);
   };
   useEffect(() => { load(); }, [buildingId]);
