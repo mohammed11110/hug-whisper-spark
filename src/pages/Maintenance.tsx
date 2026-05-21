@@ -70,9 +70,18 @@ export default function Maintenance() {
   const setStatus = async (id: string, status: string) => {
     const patch: any = { status };
     if (status === "done") patch.resolved_at = new Date().toISOString();
+    const row = rows.find((r) => r.id === id);
     const { error } = await (supabase as any).from("maintenance_requests").update(patch).eq("id", id);
     if (error) return toast.error(error.message);
-    toast.success("✓");
+    if (status === "done") {
+      if (row?.cost && Number(row.cost) > 0) {
+        toast.success(lang === "ar" ? "✓ تم الإكمال وإضافة المصروف" : "✓ Completed & expense logged");
+      } else {
+        toast.success(lang === "ar" ? "✓ تم الإكمال — أضف تكلفة لتسجيلها كمصروف" : "✓ Completed — add a cost to log it as an expense");
+      }
+    } else {
+      toast.success("✓");
+    }
     load();
   };
 
