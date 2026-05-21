@@ -221,7 +221,67 @@ export default function DailyUnits() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <Dialog open={importOpen} onOpenChange={setImportOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>استيراد وحدات شاغرة</DialogTitle>
+            </DialogHeader>
+            <div className="py-2 max-h-[60vh] overflow-y-auto">
+              {vacant.length === 0 ? (
+                <div className="text-center py-10 text-muted-foreground text-sm border-2 border-dashed border-sage-200/60 rounded-2xl">
+                  لا توجد وحدات شاغرة قابلة للاستيراد
+                </div>
+              ) : (
+                <ul className="space-y-2">
+                  {vacant.map((u) => (
+                    <li
+                      key={u.id}
+                      className="flex items-center justify-between gap-3 bg-cream rounded-xl px-3 py-2 border border-sage-200/40"
+                    >
+                      <label className="flex items-center gap-3 cursor-pointer flex-1">
+                        <Checkbox
+                          checked={!!picked[u.id]}
+                          onCheckedChange={(v) => setPicked((p) => ({ ...p, [u.id]: !!v }))}
+                        />
+                        <div className="text-sm">
+                          <div className="font-bold text-sage-700">{u.unit_number}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {u.type} · الطابق {u.floor}
+                            {u.rent_amount > 0 && ` · شهري ${u.rent_amount} ر.ع`}
+                          </div>
+                        </div>
+                      </label>
+                      {u.rent_amount > 0 && (
+                        <span className="text-xs text-sage-600 font-bold">
+                          ≈ {Math.max(5, Math.round((Number(u.rent_amount) / 30) * 1.5))} ر.ع/ليلة
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {vacant.length > 0 && (
+                <p className="text-[11px] text-muted-foreground mt-3">
+                  السعر المقترح = (الإيجار الشهري ÷ 30) × 1.5، قابل للتعديل لاحقاً.
+                </p>
+              )}
+            </div>
+            {vacant.length > 0 && (
+              <DialogFooter>
+                <Button
+                  onClick={importVacant}
+                  disabled={importing}
+                  className="bg-sage-400 hover:bg-sage-500 text-white"
+                >
+                  استيراد المختارة
+                </Button>
+              </DialogFooter>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
+
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
         {rows.map((u) => (
