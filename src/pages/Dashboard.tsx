@@ -91,7 +91,7 @@ export default function Dashboard() {
     <div className="mobile-shell pb-24">
       <TopBar hasAlerts={stats.overdue > 0} />
 
-      <div className="px-5 pt-5 space-y-5">
+      <div className="px-5 md:px-8 lg:px-12 pt-5 space-y-5 md:space-y-6">
         <div className="animate-float-up">
           <p className="text-sm text-muted-foreground">{greeting}</p>
           <h1 className="text-2xl font-black text-sage-600 tracking-tight">{profileName} 👋</h1>
