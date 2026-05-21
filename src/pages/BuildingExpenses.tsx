@@ -149,7 +149,7 @@ export default function BuildingExpenses() {
                   <p className="text-[11px] text-muted-foreground truncate">{e.expense_date}{e.description ? ` · ${e.description}` : ""}</p>
                 </div>
                 <p className="font-black text-burgundy whitespace-nowrap">{format(Number(e.amount))}</p>
-                <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-burgundy" onClick={() => remove(e.id)}>
+                <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-burgundy" onClick={() => setPendingDelete(e)}>
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </div>
