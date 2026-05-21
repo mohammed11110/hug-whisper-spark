@@ -86,16 +86,19 @@ export default function BuildingExpenses() {
     load();
   };
 
-  const remove = async (eid: string) => {
-    const item = items.find((x) => x.id === eid);
-    const { error } = await supabase.from("expenses").delete().eq("id", eid);
+  const confirmRemove = async () => {
+    const item = pendingDelete;
+    if (!item) return;
+    setPendingDelete(null);
+    const { error } = await supabase.from("expenses").delete().eq("id", item.id);
     if (error) return toast.error(error.message);
     await logActivity({
       entityType: "expense", action: "deleted", buildingId: id || null,
-      entityLabel: item ? `${item.category} — ${item.amount}` : eid,
-      descriptionAr: `حذف مصروف${item ? `: ${item.category} - ${item.amount}` : ""}`,
-      descriptionEn: `Expense deleted${item ? `: ${item.category} - ${item.amount}` : ""}`,
+      entityLabel: `${item.category} — ${item.amount}`,
+      descriptionAr: `حذف مصروف: ${item.category} - ${item.amount}`,
+      descriptionEn: `Expense deleted: ${item.category} - ${item.amount}`,
     });
+    toast.success(lang === "ar" ? "تم الحذف" : "Deleted");
     load();
   };
 
