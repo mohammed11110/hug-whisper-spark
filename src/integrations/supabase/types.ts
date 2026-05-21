@@ -133,6 +133,307 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_bookings: {
+        Row: {
+          building_id: string
+          check_in: string
+          check_out: string
+          created_at: string
+          created_by: string | null
+          guest_email: string | null
+          guest_name: string
+          guest_phone: string | null
+          guests_count: number
+          id: string
+          notes: string | null
+          paid_amount: number
+          source: string
+          status: string
+          total_price: number
+          unit_id: string
+          updated_at: string
+        }
+        Insert: {
+          building_id: string
+          check_in: string
+          check_out: string
+          created_at?: string
+          created_by?: string | null
+          guest_email?: string | null
+          guest_name: string
+          guest_phone?: string | null
+          guests_count?: number
+          id?: string
+          notes?: string | null
+          paid_amount?: number
+          source?: string
+          status?: string
+          total_price?: number
+          unit_id: string
+          updated_at?: string
+        }
+        Update: {
+          building_id?: string
+          check_in?: string
+          check_out?: string
+          created_at?: string
+          created_by?: string | null
+          guest_email?: string | null
+          guest_name?: string
+          guest_phone?: string | null
+          guests_count?: number
+          id?: string
+          notes?: string | null
+          paid_amount?: number
+          source?: string
+          status?: string
+          total_price?: number
+          unit_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_bookings_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "daily_units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      daily_cleaners: {
+        Row: {
+          active: boolean
+          building_id: string
+          created_at: string
+          id: string
+          name: string
+          phone: string | null
+        }
+        Insert: {
+          active?: boolean
+          building_id: string
+          created_at?: string
+          id?: string
+          name: string
+          phone?: string | null
+        }
+        Update: {
+          active?: boolean
+          building_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          phone?: string | null
+        }
+        Relationships: []
+      }
+      daily_cleaning_tasks: {
+        Row: {
+          assignee_name: string | null
+          assignee_phone: string | null
+          booking_id: string | null
+          building_id: string
+          checklist: Json
+          completed_at: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          scheduled_date: string
+          status: string
+          unit_id: string
+          updated_at: string
+        }
+        Insert: {
+          assignee_name?: string | null
+          assignee_phone?: string | null
+          booking_id?: string | null
+          building_id: string
+          checklist?: Json
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          scheduled_date?: string
+          status?: string
+          unit_id: string
+          updated_at?: string
+        }
+        Update: {
+          assignee_name?: string | null
+          assignee_phone?: string | null
+          booking_id?: string | null
+          building_id?: string
+          checklist?: Json
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          scheduled_date?: string
+          status?: string
+          unit_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_cleaning_tasks_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "daily_bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_cleaning_tasks_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "daily_units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      daily_message_templates: {
+        Row: {
+          body_ar: string
+          building_id: string
+          created_at: string
+          id: string
+          key: string
+          title_ar: string
+          updated_at: string
+        }
+        Insert: {
+          body_ar: string
+          building_id: string
+          created_at?: string
+          id?: string
+          key: string
+          title_ar: string
+          updated_at?: string
+        }
+        Update: {
+          body_ar?: string
+          building_id?: string
+          created_at?: string
+          id?: string
+          key?: string
+          title_ar?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      daily_pricing_rules: {
+        Row: {
+          building_id: string
+          created_at: string
+          end_date: string
+          id: string
+          min_stay: number
+          name: string
+          price_per_night: number
+          priority: number
+          start_date: string
+          unit_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          building_id: string
+          created_at?: string
+          end_date: string
+          id?: string
+          min_stay?: number
+          name: string
+          price_per_night: number
+          priority?: number
+          start_date: string
+          unit_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          building_id?: string
+          created_at?: string
+          end_date?: string
+          id?: string
+          min_stay?: number
+          name?: string
+          price_per_night?: number
+          priority?: number
+          start_date?: string
+          unit_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_pricing_rules_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "daily_units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      daily_units: {
+        Row: {
+          active: boolean
+          amenities: Json
+          base_price: number
+          bedrooms: number
+          building_id: string
+          created_at: string
+          door_code: string | null
+          floor: number
+          id: string
+          max_guests: number
+          min_stay_nights: number
+          name: string
+          name_en: string | null
+          notes: string | null
+          photos: Json
+          type: string
+          updated_at: string
+          weekend_multiplier: number
+        }
+        Insert: {
+          active?: boolean
+          amenities?: Json
+          base_price?: number
+          bedrooms?: number
+          building_id: string
+          created_at?: string
+          door_code?: string | null
+          floor?: number
+          id?: string
+          max_guests?: number
+          min_stay_nights?: number
+          name: string
+          name_en?: string | null
+          notes?: string | null
+          photos?: Json
+          type?: string
+          updated_at?: string
+          weekend_multiplier?: number
+        }
+        Update: {
+          active?: boolean
+          amenities?: Json
+          base_price?: number
+          bedrooms?: number
+          building_id?: string
+          created_at?: string
+          door_code?: string | null
+          floor?: number
+          id?: string
+          max_guests?: number
+          min_stay_nights?: number
+          name?: string
+          name_en?: string | null
+          notes?: string | null
+          photos?: Json
+          type?: string
+          updated_at?: string
+          weekend_multiplier?: number
+        }
+        Relationships: []
+      }
       email_send_log: {
         Row: {
           created_at: string
