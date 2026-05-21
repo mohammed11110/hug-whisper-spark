@@ -12,6 +12,7 @@ import { useCurrency } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
+import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 
 interface Expense {
   id: string;
@@ -45,6 +46,7 @@ export default function BuildingExpenses() {
   const [vendor, setVendor] = useState("");
   const [desc, setDesc] = useState("");
   const [busy, setBusy] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<Expense | null>(null);
 
   const load = async () => {
     if (!id) return;
@@ -84,16 +86,19 @@ export default function BuildingExpenses() {
     load();
   };
 
-  const remove = async (eid: string) => {
-    const item = items.find((x) => x.id === eid);
-    const { error } = await supabase.from("expenses").delete().eq("id", eid);
+  const confirmRemove = async () => {
+    const item = pendingDelete;
+    if (!item) return;
+    setPendingDelete(null);
+    const { error } = await supabase.from("expenses").delete().eq("id", item.id);
     if (error) return toast.error(error.message);
     await logActivity({
       entityType: "expense", action: "deleted", buildingId: id || null,
-      entityLabel: item ? `${item.category} — ${item.amount}` : eid,
-      descriptionAr: `حذف مصروف${item ? `: ${item.category} - ${item.amount}` : ""}`,
-      descriptionEn: `Expense deleted${item ? `: ${item.category} - ${item.amount}` : ""}`,
+      entityLabel: `${item.category} — ${item.amount}`,
+      descriptionAr: `حذف مصروف: ${item.category} - ${item.amount}`,
+      descriptionEn: `Expense deleted: ${item.category} - ${item.amount}`,
     });
+    toast.success(lang === "ar" ? "تم الحذف" : "Deleted");
     load();
   };
 
@@ -144,7 +149,7 @@ export default function BuildingExpenses() {
                   <p className="text-[11px] text-muted-foreground truncate">{e.expense_date}{e.description ? ` · ${e.description}` : ""}</p>
                 </div>
                 <p className="font-black text-burgundy whitespace-nowrap">{format(Number(e.amount))}</p>
-                <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-burgundy" onClick={() => remove(e.id)}>
+                <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-burgundy" onClick={() => setPendingDelete(e)}>
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </div>
@@ -199,6 +204,14 @@ export default function BuildingExpenses() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDeleteDialog
+        open={!!pendingDelete}
+        onOpenChange={(o) => !o && setPendingDelete(null)}
+        onConfirm={confirmRemove}
+        title={lang === "ar" ? "حذف المصروف؟" : "Delete expense?"}
+        description={pendingDelete ? `${lang === "ar" ? catLabelAr(pendingDelete.category) : catLabelEn(pendingDelete.category)} — ${format(Number(pendingDelete.amount))}` : undefined}
+      />
     </div>
   );
 }
