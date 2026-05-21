@@ -144,9 +144,22 @@ export default function Maintenance() {
                 {r.cost ? <span>{t2("cost")}: <b>{format(Number(r.cost))}</b></span> : null}
               </div>
             )}
-            {r.status === "done" && r.cost && Number(r.cost) > 0 && (
-              <div className="text-[10px] font-bold text-sage-600 bg-sage-200/40 rounded-full px-2 py-0.5 inline-flex items-center gap-1 w-fit">
-                ↗ {lang === "ar" ? "مصروف مُسجّل" : "Expense logged"}
+            {r.status === "done" && r.expense && (
+              <div className="space-y-1">
+                <div className="text-[10px] font-bold text-sage-600 bg-sage-200/40 rounded-full px-2 py-1 inline-flex items-center gap-1.5 w-fit">
+                  ↗ {lang === "ar" ? "مصروف مُسجّل" : "Expense logged"}
+                </div>
+                <div className="text-[10px] text-sage-600 bg-sage-100/50 rounded-lg px-3 py-1.5 space-y-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-muted-foreground">{lang === "ar" ? "معرف:" : "ID:"}</span>
+                    <span className="font-mono font-semibold">{r.expense.id.slice(1, 6)}</span>
+                  </div>
+                  {r.expense.description && (
+                    <div className="text-muted-foreground leading-snug">
+                      {r.expense.description}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
             {r.photos && r.photos.length > 0 && (
