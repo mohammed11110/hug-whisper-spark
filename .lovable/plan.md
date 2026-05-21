@@ -1,38 +1,71 @@
 
-## المشكلة
+## الوضع الحالي
 
-المُشغّل (trigger) الذي يربط طلبات الصيانة المكتملة بالمصروفات يعمل بشكل صحيح للطلبات الجديدة، لكن **الطلبات القديمة التي اكتملت قبل إضافة المُشغّل لم تُسجَّل تلقائياً** في جدول المصروفات.
+التطبيق مصمَّم موبايل-أولاً وكل الصفحات تستخدم `mobile-shell` بعرض ثابت **430px**. حتى على شاشات اللابتوب يظهر شريط ضيق في المنتصف.
 
-### ما وجدته في قاعدة البيانات
-- 4 طلبات صيانة بحالة `done` ولها تكلفة (15، 40.1، 30، -9).
-- 0 مصروفات مرتبطة بأي طلب صيانة.
-- المُشغّل `trg_sync_maintenance_expense` موجود وسليم، لكنه يعمل فقط عند تغيير الحالة الآن.
-- الاختبار اليدوي أكد أن الإدراج يعمل — السبب فعلاً أن البيانات القديمة سابقة للمُشغّل.
-
-كما لاحظت طلباً واحداً بتكلفة سالبة (-9) لن يُسجَّل لأن المُشغّل يشترط `cost > 0`.
+ما هو موجود فعلاً:
+- ✅ `AppShell` يعرض شريط جانبي (Sidebar) على md+.
+- ✅ `BottomNav` مخفي تلقائياً على md+ (`md:hidden`).
+- ❌ `.mobile-shell { max-width: 430px }` يخنق المحتوى على جميع الشاشات.
+- ❌ الشبكات (cards) عمود واحد دائماً — لا تستفيد من العرض.
+- ❌ الـ Dialogs و الـ TopBar مُصمَّمة لعرض 430px.
 
 ## الخطة
 
-### 1. Migration لتعبئة البيانات القديمة (backfill)
-إدراج مصروفات لكل طلب صيانة `done` بتكلفة موجبة وغير مرتبط بمصروف بعد:
-
-```sql
-INSERT INTO public.expenses (building_id, unit_id, category, amount, vendor, description, expense_date, maintenance_request_id)
-SELECT
-  m.building_id, m.unit_id, 'maintenance', m.cost, m.vendor,
-  m.title || CASE WHEN m.vendor IS NOT NULL AND length(trim(m.vendor))>0 THEN ' — '||m.vendor ELSE '' END,
-  COALESCE(m.resolved_at::date, CURRENT_DATE),
-  m.id
-FROM public.maintenance_requests m
-LEFT JOIN public.expenses e ON e.maintenance_request_id = m.id
-WHERE m.status='done' AND m.cost IS NOT NULL AND m.cost > 0 AND e.id IS NULL;
+### 1. توسعة `mobile-shell` (`src/index.css`)
+```css
+.mobile-shell {
+  @apply mx-auto bg-background min-h-screen relative;
+  max-width: 430px;           /* phone */
+}
+@media (min-width: 768px) {   /* iPad portrait+ */
+  .mobile-shell { max-width: 720px; box-shadow: none; }
+}
+@media (min-width: 1024px) {  /* iPad landscape / laptop */
+  .mobile-shell { max-width: 960px; }
+}
+@media (min-width: 1280px) {  /* desktop */
+  .mobile-shell { max-width: 1200px; }
+}
 ```
++ زيادة الحشوات الجانبية (`md:px-8 lg:px-12`) في الصفحات الرئيسية.
 
-### 2. التحقق
-- إعادة فتح صفحة الصيانة → يجب أن تظهر شارة "↗ مصروف مُسجّل" + معرف ووصف المصروف على البطاقات الأربع المكتملة.
-- صفحة المصروفات تعرض السجلات الجديدة.
+### 2. شبكات متجاوبة في الصفحات الأساسية
+في `Dashboard`, `Buildings`, `Tenants`, `Payments`, `Maintenance`, `BuildingExpenses`, `MonthlyCollection`, `Reports`, `Activity`, `Settings`:
+- بطاقات: `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4`.
+- صفوف KPI في Dashboard: `md:grid-cols-4` بدل عمودين.
+- جداول/قوائم طويلة: عرض جدولي (`<table>`) على md+ بدلاً من بطاقات مكدّسة.
 
-### ملاحظات
-- لن أعدّل المُشغّل — يعمل بشكل صحيح للطلبات الجديدة.
-- الطلب ذو التكلفة السالبة (-9) سيُتجاهَل كما هو مُصمَّم.
-- لا تغييرات في كود الواجهة.
+### 3. TopBar و Dialogs
+- `TopBar`: padding أفقي يتسع على md+، إخفاء بعض الأيقونات المكرّرة مع وجود السايدبار.
+- Dialogs (`AddBuilding`, `AddUnit`, `AddPayment`, `NewTenancy`, `AddMaintenance`…): رفع `max-w-md` إلى `md:max-w-lg lg:max-w-2xl`، عمودين للحقول على md+.
+
+### 4. السايدبار والـ AppShell
+- فتح السايدبار افتراضياً على lg+ (`defaultOpen={isLg}`).
+- إضافة زر toggle ظاهر في TopBar على md+.
+- إخفاء `mobile-shell` shadow عندما السايدبار مفتوح (يبدو غريباً).
+
+### 5. صفحات خاصة
+- `Welcome` / `Auth` / `Pricing`: تخطيط split-screen على lg+ (نموذج يمين، عرض تسويقي يسار).
+- `BuildingDetail` / `UnitDetail`: عمودين على lg+ (تفاصيل + جانب جانبي للإجراءات).
+- `Assistant`: تكبير منطقة الدردشة، رسائل بعرض أكبر.
+
+### 6. الطباعة والـ PDF
+لا تغيير — الـ PDFs تستخدم `pdfDocs.ts` المستقل.
+
+### 7. اختبار
+- تجربة على 4 مقاسات: 390px (iPhone)، 820px (iPad portrait)، 1180px (iPad landscape)، 1440px (laptop).
+- التأكد من RTL على كل المقاسات.
+- لقطات شاشة قبل/بعد للصفحات الأساسية.
+
+## النطاق
+هذا تحديث متوسط الحجم يلمس ~15-20 ملف. لن يغيّر أي منطق أعمال أو قاعدة بيانات.
+
+## ترتيب التنفيذ المقترح
+1. (5 دقائق) تحديث `mobile-shell` + `AppShell` — أكبر أثر بأقل تغيير.
+2. Dashboard + Buildings + Tenants (الأكثر استخداماً).
+3. Payments + Maintenance + Expenses + Collection.
+4. Dialogs.
+5. صفحات خاصة (Welcome/Auth/Pricing).
+
+هل أبدأ بالخطوة 1 و 2 الآن، أم تريد تنفيذ كل المراحل دفعة واحدة؟
