@@ -149,7 +149,7 @@ export default function Tenants() {
   return (
     <div className="mobile-shell pb-24">
       <TopBar />
-      <div className="px-5 pt-4">
+      <div className="px-5 md:px-8 lg:px-12 pt-4">
         <h1 className="text-2xl font-black text-sage-600 tracking-tight">{t("tenants")}</h1>
         <p className="text-xs text-muted-foreground mt-0.5">{filtered.length} {t("tenants")}</p>
       </div>
