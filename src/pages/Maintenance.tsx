@@ -116,7 +116,7 @@ export default function Maintenance() {
         ))}
       </div>
 
-      <div className="px-5 mt-4 space-y-3">
+      <div className="px-5 md:px-8 lg:px-12 mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 items-start">
         {filtered.length === 0 ? (
           <div className="rounded-2xl border-2 border-dashed border-sage-300/60 bg-card px-6 py-12 text-center space-y-2">
             <div className="text-4xl">🛠️</div>
