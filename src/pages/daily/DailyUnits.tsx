@@ -42,12 +42,24 @@ const emptyForm: Partial<Unit> = {
   active: true,
 };
 
+interface VacantUnit {
+  id: string;
+  unit_number: string;
+  type: string;
+  floor: number;
+  rent_amount: number;
+}
+
 export default function DailyUnits() {
   const { buildingId } = useDailyCtx();
   const [rows, setRows] = useState<Unit[]>([]);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<Partial<Unit>>(emptyForm);
   const [editId, setEditId] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [vacant, setVacant] = useState<VacantUnit[]>([]);
+  const [picked, setPicked] = useState<Record<string, boolean>>({});
+  const [importing, setImporting] = useState(false);
 
   const load = async () => {
     if (!buildingId) return;
