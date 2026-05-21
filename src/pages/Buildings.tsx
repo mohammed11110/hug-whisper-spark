@@ -72,7 +72,7 @@ export default function Buildings() {
   return (
     <div className="mobile-shell pb-24 min-h-screen">
       <TopBar />
-      <div className="px-5 pt-5">
+      <div className="px-5 md:px-8 lg:px-12 pt-5">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-black text-sage-600 tracking-tight">{t("buildings")}</h1>
           <div className="flex items-center gap-2">
