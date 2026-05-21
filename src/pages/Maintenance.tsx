@@ -54,16 +54,20 @@ export default function Maintenance() {
     const list = (data || []) as Req[];
     const bIds = Array.from(new Set(list.map((r) => r.building_id)));
     const uIds = Array.from(new Set(list.map((r) => r.unit_id).filter(Boolean) as string[]));
-    const [bs, us] = await Promise.all([
+    const mIds = list.map((r) => r.id);
+    const [bs, us, exps] = await Promise.all([
       bIds.length ? supabase.from("buildings").select("id,name,name_en").in("id", bIds) : Promise.resolve({ data: [] as any[] }),
       uIds.length ? supabase.from("units").select("id,unit_number").in("id", uIds) : Promise.resolve({ data: [] as any[] }),
+      mIds.length ? supabase.from("expenses").select("id,maintenance_request_id,description").in("maintenance_request_id", mIds) : Promise.resolve({ data: [] as any[] }),
     ]);
     const bMap = new Map((bs.data || []).map((b: any) => [b.id, b.name || b.name_en]));
     const uMap = new Map((us.data || []).map((u: any) => [u.id, u.unit_number]));
+    const eMap = new Map((exps.data || []).map((e: any) => [e.maintenance_request_id, { id: e.id, description: e.description }]));
     setRows(list.map((r) => ({
       ...r,
       building_name: bMap.get(r.building_id) as string,
       unit_number: r.unit_id ? uMap.get(r.unit_id) as string : undefined,
+      expense: eMap.get(r.id) || null,
     })));
   };
   useEffect(() => { load(); }, []);
