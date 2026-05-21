@@ -18,6 +18,7 @@ interface Req {
   photos: string[] | null;
   created_at: string;
   building_name?: string; unit_number?: string;
+  expense?: { id: string; description: string | null } | null;
 }
 
 const PRIORITY_COLOR: Record<string, string> = {
