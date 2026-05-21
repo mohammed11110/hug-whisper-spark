@@ -149,12 +149,12 @@ export default function Tenants() {
   return (
     <div className="mobile-shell pb-24">
       <TopBar />
-      <div className="px-5 pt-4">
+      <div className="px-5 md:px-8 lg:px-12 pt-4">
         <h1 className="text-2xl font-black text-sage-600 tracking-tight">{t("tenants")}</h1>
         <p className="text-xs text-muted-foreground mt-0.5">{filtered.length} {t("tenants")}</p>
       </div>
 
-      <div className="px-5 mt-4 flex gap-2">
+      <div className="px-5 md:px-8 lg:px-12 mt-4 flex gap-2">
         <div className="relative flex-1">
           <Search className="absolute top-1/2 -translate-y-1/2 start-3 h-4 w-4 text-sage-400" />
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("search")}
@@ -172,7 +172,7 @@ export default function Tenants() {
         </Select>
       </div>
 
-      <div className="px-5 mt-4 space-y-2.5">
+      <div className="px-5 md:px-8 lg:px-12 mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 md:gap-4">
         {loading ? (
           <p className="text-center text-sage-500 py-12 text-sm">{t("loading")}</p>
         ) : filtered.length === 0 ? (

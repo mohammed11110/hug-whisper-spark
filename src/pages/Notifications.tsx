@@ -128,7 +128,7 @@ export default function Notifications() {
   return (
     <div className="mobile-shell pb-24">
       <TopBar />
-      <div className="px-5 pt-4">
+      <div className="px-5 md:px-8 lg:px-12 pt-4">
         <h1 className="text-2xl font-black text-sage-600 tracking-tight flex items-center gap-2">
           <Bell className="h-6 w-6" />
           {lang === "ar" ? "التنبيهات" : "Notifications"}
@@ -138,7 +138,7 @@ export default function Notifications() {
         </p>
       </div>
 
-      <div className="px-5 mt-4 flex items-center gap-2">
+      <div className="px-5 md:px-8 lg:px-12 mt-4 flex items-center gap-2">
         <div className="flex gap-1.5 overflow-x-auto flex-1">
           {TABS.map((tb) => (
             <button key={tb.id} onClick={() => setTab(tb.id as any)}
@@ -160,7 +160,7 @@ export default function Notifications() {
         )}
       </div>
 
-      <div className="px-5 mt-4 space-y-2.5">
+      <div className="px-5 md:px-8 lg:px-12 mt-4 space-y-2.5">
         {loading ? (
           <p className="text-center text-sage-500 py-12 text-sm">{t("loading")}</p>
         ) : filtered.length === 0 ? (

@@ -95,7 +95,7 @@ export default function Maintenance() {
   return (
     <div className="mobile-shell min-h-screen pb-24 bg-background">
       <TopBar />
-      <div className="px-5 pt-2 flex items-center justify-between gap-2">
+      <div className="px-5 md:px-8 lg:px-12 pt-2 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Wrench className="h-5 w-5 text-sage-600" />
           <h1 className="text-2xl font-black text-sage-600">{t2("maintenance_requests")}</h1>
@@ -105,7 +105,7 @@ export default function Maintenance() {
         </Button>
       </div>
 
-      <div className="px-5 mt-4 flex gap-1.5 overflow-x-auto scrollbar-none">
+      <div className="px-5 md:px-8 lg:px-12 mt-4 flex gap-1.5 overflow-x-auto scrollbar-none">
         {(["all", ...STATUSES] as const).map((s) => (
           <button key={s} onClick={() => setFilter(s)}
             className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition ${
@@ -116,9 +116,9 @@ export default function Maintenance() {
         ))}
       </div>
 
-      <div className="px-5 mt-4 space-y-3">
+      <div className="px-5 md:px-8 lg:px-12 mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 items-start">
         {filtered.length === 0 ? (
-          <div className="rounded-2xl border-2 border-dashed border-sage-300/60 bg-card px-6 py-12 text-center space-y-2">
+          <div className="md:col-span-2 lg:col-span-3 rounded-2xl border-2 border-dashed border-sage-300/60 bg-card px-6 py-12 text-center space-y-2">
             <div className="text-4xl">🛠️</div>
             <h3 className="text-base font-black text-sage-600">{t2("no_maintenance")}</h3>
             <p className="text-xs text-muted-foreground">{t2("no_maintenance_msg")}</p>

@@ -319,7 +319,7 @@ export default function Payments() {
     <div className="mobile-shell min-h-screen pb-24 bg-background">
       <TopBar />
 
-      <div className="px-5 pt-2 flex items-start justify-between gap-2">
+      <div className="px-5 md:px-8 lg:px-12 pt-2 flex items-start justify-between gap-2">
         <div>
           <h1 className="text-2xl font-black text-sage-600">{t2("payments")}</h1>
           <p className="text-xs text-muted-foreground mt-0.5">{t2("receipts")}</p>
@@ -349,7 +349,7 @@ export default function Payments() {
 
 
       {/* Stat */}
-      <div className="px-5 mt-4">
+      <div className="px-5 md:px-8 lg:px-12 mt-4">
         <div className="rounded-3xl bg-gradient-deep text-primary-foreground p-5 shadow-soft">
           <p className="text-xs uppercase tracking-wider opacity-75">
             {filter === "month" ? t2("this_month") : filter === "year" ? t2("filter_year") : t2("all_payments")}
@@ -360,7 +360,7 @@ export default function Payments() {
       </div>
 
       {/* Filters */}
-      <div className="px-5 mt-4 space-y-3">
+      <div className="px-5 md:px-8 lg:px-12 mt-4 space-y-3">
         <div className="relative">
           <Search className="absolute top-1/2 -translate-y-1/2 start-3 h-4 w-4 text-sage-400" />
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("search" as any) || "..."}
@@ -395,11 +395,11 @@ export default function Payments() {
       </div>
 
       {/* List */}
-      <div className="px-5 mt-4 space-y-2.5">
+      <div className="px-5 md:px-8 lg:px-12 mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 md:gap-4 items-start">
         {loading ? (
-          <p className="text-center text-sage-500 py-12 text-sm">{t("loading")}</p>
+          <p className="md:col-span-2 lg:col-span-3 text-center text-sage-500 py-12 text-sm">{t("loading")}</p>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-16">
+          <div className="md:col-span-2 lg:col-span-3 text-center py-16">
             <div className="inline-flex p-4 rounded-3xl bg-sage-100 mb-3">
               <Receipt className="h-8 w-8 text-sage-400" />
             </div>

@@ -120,7 +120,7 @@ export default function BuildingExpenses() {
         </div>
       </div>
 
-      <div className="px-5 -mt-4 relative z-10">
+      <div className="px-5 md:px-8 lg:px-12 -mt-4 relative z-10">
         <Button onClick={() => setOpen(true)} className="w-full h-12 rounded-2xl bg-gradient-sage text-primary-foreground font-bold shadow-soft mb-4">
           <Plus className="h-4 w-4 me-1.5" />{lang === "ar" ? "إضافة مصروف" : "Add expense"}
         </Button>

@@ -91,7 +91,7 @@ export default function Dashboard() {
     <div className="mobile-shell pb-24">
       <TopBar hasAlerts={stats.overdue > 0} />
 
-      <div className="px-5 pt-5 space-y-5">
+      <div className="px-5 md:px-8 lg:px-12 pt-5 space-y-5 md:space-y-6">
         <div className="animate-float-up">
           <p className="text-sm text-muted-foreground">{greeting}</p>
           <h1 className="text-2xl font-black text-sage-600 tracking-tight">{profileName} 👋</h1>
@@ -120,7 +120,7 @@ export default function Dashboard() {
         </button>
 
         {/* Mini stats */}
-        <div className="grid grid-cols-2 gap-3 animate-float-up" style={{ animationDelay: "0.15s" }}>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 animate-float-up" style={{ animationDelay: "0.15s" }}>
           <StatCard icon={<Building2 className="h-4 w-4" />} label={t("buildings")} value={stats.buildings} color="sage-400" />
           <StatCard icon={<Users className="h-4 w-4" />} label={t("units")} value={stats.units} color="sage-500" />
           <StatCard icon={<AlertCircle className="h-4 w-4" />} label={t("overdue")} value={stats.overdue} color="burgundy" />

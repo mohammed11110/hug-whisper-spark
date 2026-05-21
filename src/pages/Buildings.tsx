@@ -72,7 +72,7 @@ export default function Buildings() {
   return (
     <div className="mobile-shell pb-24 min-h-screen">
       <TopBar />
-      <div className="px-5 pt-5">
+      <div className="px-5 md:px-8 lg:px-12 pt-5">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-black text-sage-600 tracking-tight">{t("buildings")}</h1>
           <div className="flex items-center gap-2">
@@ -110,7 +110,7 @@ export default function Buildings() {
           ))}
         </div>
 
-        <div className="mt-4 space-y-3">
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
           {loading ? (
             <p className="text-center text-muted-foreground py-10">{t("loading")}</p>
           ) : visible.length === 0 ? (

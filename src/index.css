@@ -277,9 +277,21 @@ html[lang="ar"] body {
   }
 
   .mobile-shell {
-    @apply mx-auto bg-background min-h-screen relative;
+    @apply mx-auto bg-background min-h-screen relative w-full;
     max-width: 430px;
     box-shadow: 0 0 40px hsl(130 16% 35% / 0.08);
+  }
+  @media (min-width: 768px) {
+    .mobile-shell {
+      max-width: 720px;
+      box-shadow: none;
+    }
+  }
+  @media (min-width: 1024px) {
+    .mobile-shell { max-width: 960px; }
+  }
+  @media (min-width: 1280px) {
+    .mobile-shell { max-width: 1200px; }
   }
 }
 
