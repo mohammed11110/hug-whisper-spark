@@ -388,6 +388,7 @@ export type Database = {
           name_en: string | null
           notes: string | null
           photos: Json
+          source_unit_id: string | null
           type: string
           updated_at: string
           weekend_multiplier: number
@@ -408,6 +409,7 @@ export type Database = {
           name_en?: string | null
           notes?: string | null
           photos?: Json
+          source_unit_id?: string | null
           type?: string
           updated_at?: string
           weekend_multiplier?: number
@@ -428,6 +430,7 @@ export type Database = {
           name_en?: string | null
           notes?: string | null
           photos?: Json
+          source_unit_id?: string | null
           type?: string
           updated_at?: string
           weekend_multiplier?: number

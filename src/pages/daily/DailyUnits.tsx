@@ -13,7 +13,8 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Plus, Pencil, Trash2, Download } from "lucide-react";
 import { toast } from "sonner";
 
 interface Unit {
@@ -27,6 +28,7 @@ interface Unit {
   door_code: string | null;
   notes: string | null;
   active: boolean;
+  source_unit_id?: string | null;
 }
 
 const emptyForm: Partial<Unit> = {
@@ -41,12 +43,24 @@ const emptyForm: Partial<Unit> = {
   active: true,
 };
 
+interface VacantUnit {
+  id: string;
+  unit_number: string;
+  type: string;
+  floor: number;
+  rent_amount: number;
+}
+
 export default function DailyUnits() {
   const { buildingId } = useDailyCtx();
   const [rows, setRows] = useState<Unit[]>([]);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<Partial<Unit>>(emptyForm);
   const [editId, setEditId] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [vacant, setVacant] = useState<VacantUnit[]>([]);
+  const [picked, setPicked] = useState<Record<string, boolean>>({});
+  const [importing, setImporting] = useState(false);
 
   const load = async () => {
     if (!buildingId) return;
@@ -100,10 +114,61 @@ export default function DailyUnits() {
     load();
   };
 
+  const openImport = async () => {
+    if (!buildingId) return;
+    setPicked({});
+    setImportOpen(true);
+    // Vacant units = status='vacant' AND not already imported as daily_unit
+    const alreadyImported = new Set(rows.map((r: any) => r.source_unit_id).filter(Boolean));
+    const { data, error } = await supabase
+      .from("units")
+      .select("id,unit_number,type,floor,rent_amount,status")
+      .eq("building_id", buildingId)
+      .eq("status", "vacant")
+      .order("unit_number");
+    if (error) return toast.error(error.message);
+    setVacant(((data || []) as any[]).filter((u) => !alreadyImported.has(u.id)) as VacantUnit[]);
+  };
+
+  const importVacant = async () => {
+    if (!buildingId) return;
+    const ids = Object.entries(picked).filter(([, v]) => v).map(([k]) => k);
+    if (ids.length === 0) return toast.error("اختر وحدة واحدة على الأقل");
+    setImporting(true);
+    const payload = vacant
+      .filter((u) => ids.includes(u.id))
+      .map((u) => ({
+        building_id: buildingId,
+        source_unit_id: u.id,
+        name: u.unit_number,
+        type: u.type || "apartment",
+        floor: u.floor || 1,
+        bedrooms: 1,
+        max_guests: 2,
+        base_price: u.rent_amount ? Math.max(5, Math.round((Number(u.rent_amount) / 30) * 1.5)) : 25,
+        weekend_multiplier: 1.3,
+        active: true,
+      }));
+    const { error } = await supabase.from("daily_units").insert(payload);
+    setImporting(false);
+    if (error) return toast.error(error.message);
+    toast.success(`تمت إضافة ${ids.length} وحدة`);
+    setImportOpen(false);
+    load();
+  };
+
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <Button
+          variant="outline"
+          className="border-sage-300 text-sage-700 hover:bg-sage-100"
+          onClick={openImport}
+        >
+          <Download className="w-4 h-4 ml-1" /> استيراد من الشاغرة
+        </Button>
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setForm(emptyForm); setEditId(null); } }}>
+
           <DialogTrigger asChild>
             <Button className="bg-sage-400 hover:bg-sage-500 text-white">
               <Plus className="w-4 h-4 ml-1" /> وحدة جديدة
@@ -157,7 +222,67 @@ export default function DailyUnits() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <Dialog open={importOpen} onOpenChange={setImportOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>استيراد وحدات شاغرة</DialogTitle>
+            </DialogHeader>
+            <div className="py-2 max-h-[60vh] overflow-y-auto">
+              {vacant.length === 0 ? (
+                <div className="text-center py-10 text-muted-foreground text-sm border-2 border-dashed border-sage-200/60 rounded-2xl">
+                  لا توجد وحدات شاغرة قابلة للاستيراد
+                </div>
+              ) : (
+                <ul className="space-y-2">
+                  {vacant.map((u) => (
+                    <li
+                      key={u.id}
+                      className="flex items-center justify-between gap-3 bg-cream rounded-xl px-3 py-2 border border-sage-200/40"
+                    >
+                      <label className="flex items-center gap-3 cursor-pointer flex-1">
+                        <Checkbox
+                          checked={!!picked[u.id]}
+                          onCheckedChange={(v) => setPicked((p) => ({ ...p, [u.id]: !!v }))}
+                        />
+                        <div className="text-sm">
+                          <div className="font-bold text-sage-700">{u.unit_number}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {u.type} · الطابق {u.floor}
+                            {u.rent_amount > 0 && ` · شهري ${u.rent_amount} ر.ع`}
+                          </div>
+                        </div>
+                      </label>
+                      {u.rent_amount > 0 && (
+                        <span className="text-xs text-sage-600 font-bold">
+                          ≈ {Math.max(5, Math.round((Number(u.rent_amount) / 30) * 1.5))} ر.ع/ليلة
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {vacant.length > 0 && (
+                <p className="text-[11px] text-muted-foreground mt-3">
+                  السعر المقترح = (الإيجار الشهري ÷ 30) × 1.5، قابل للتعديل لاحقاً.
+                </p>
+              )}
+            </div>
+            {vacant.length > 0 && (
+              <DialogFooter>
+                <Button
+                  onClick={importVacant}
+                  disabled={importing}
+                  className="bg-sage-400 hover:bg-sage-500 text-white"
+                >
+                  استيراد المختارة
+                </Button>
+              </DialogFooter>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
+
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
         {rows.map((u) => (
