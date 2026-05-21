@@ -105,7 +105,7 @@ export default function Maintenance() {
         </Button>
       </div>
 
-      <div className="px-5 mt-4 flex gap-1.5 overflow-x-auto scrollbar-none">
+      <div className="px-5 md:px-8 lg:px-12 mt-4 flex gap-1.5 overflow-x-auto scrollbar-none">
         {(["all", ...STATUSES] as const).map((s) => (
           <button key={s} onClick={() => setFilter(s)}
             className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition ${
