@@ -39,6 +39,15 @@ import Maintenance from "./pages/Maintenance";
 import Activity from "./pages/Activity";
 import Unsubscribe from "./pages/Unsubscribe";
 import NotFound from "./pages/NotFound.tsx";
+import DailyLayout from "./pages/daily/DailyLayout";
+import DailyDashboard from "./pages/daily/DailyDashboard";
+import DailyCalendar from "./pages/daily/DailyCalendar";
+import DailyBookings from "./pages/daily/DailyBookings";
+import DailyUnits from "./pages/daily/DailyUnits";
+import DailyPricing from "./pages/daily/DailyPricing";
+import DailyCleaning from "./pages/daily/DailyCleaning";
+import DailyMessages from "./pages/daily/DailyMessages";
+import DailyReports from "./pages/daily/DailyReports";
 import { AppShell } from "./components/AppShell";
 
 const queryClient = new QueryClient();
@@ -80,6 +89,16 @@ const App = () => (
                       <Route path="/collection" element={<RequireAuth><MonthlyCollection /></RequireAuth>} />
                       <Route path="/maintenance" element={<RequireAuth><Maintenance /></RequireAuth>} />
                       <Route path="/activity" element={<RequireAuth><Activity /></RequireAuth>} />
+                      <Route path="/daily" element={<RequireAuth><DailyLayout /></RequireAuth>}>
+                        <Route index element={<DailyDashboard />} />
+                        <Route path="calendar" element={<DailyCalendar />} />
+                        <Route path="bookings" element={<DailyBookings />} />
+                        <Route path="units" element={<DailyUnits />} />
+                        <Route path="pricing" element={<DailyPricing />} />
+                        <Route path="cleaning" element={<DailyCleaning />} />
+                        <Route path="messages" element={<DailyMessages />} />
+                        <Route path="reports" element={<DailyReports />} />
+                      </Route>
                     </Route>
                     <Route path="/install" element={<Install />} />
                     <Route path="/pricing" element={<Pricing />} />

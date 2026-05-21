@@ -13,6 +13,7 @@ import {
   UsersRound,
   Wrench,
   Activity as ActivityIcon,
+  CalendarRange,
 } from "lucide-react";
 import {
   Sidebar,
@@ -45,6 +46,7 @@ export function AppSidebar() {
     { to: "/tenants", label: t("tenants"), icon: Users },
     { to: "/payments", label: t("payments"), icon: Wallet },
     { to: "/collection", label: t2("monthly_collection"), icon: CalendarCheck },
+    { to: "/daily", label: "الإيجارات اليومية", icon: CalendarRange },
   ];
   const tools = [
     { to: "/reports", label: t("reports"), icon: BarChart3 },
