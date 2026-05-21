@@ -1,0 +1,190 @@
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useDailyCtx } from "./DailyLayout";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Plus, Pencil, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+
+interface Unit {
+  id: string;
+  name: string;
+  type: string;
+  bedrooms: number;
+  max_guests: number;
+  base_price: number;
+  weekend_multiplier: number;
+  door_code: string | null;
+  notes: string | null;
+  active: boolean;
+}
+
+const emptyForm: Partial<Unit> = {
+  name: "",
+  type: "apartment",
+  bedrooms: 1,
+  max_guests: 2,
+  base_price: 25,
+  weekend_multiplier: 1.3,
+  door_code: "",
+  notes: "",
+  active: true,
+};
+
+export default function DailyUnits() {
+  const { buildingId } = useDailyCtx();
+  const [rows, setRows] = useState<Unit[]>([]);
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState<Partial<Unit>>(emptyForm);
+  const [editId, setEditId] = useState<string | null>(null);
+
+  const load = async () => {
+    if (!buildingId) return;
+    const { data } = await supabase
+      .from("daily_units")
+      .select("*")
+      .eq("building_id", buildingId)
+      .order("created_at", { ascending: false });
+    setRows((data || []) as Unit[]);
+  };
+  useEffect(() => {
+    load();
+  }, [buildingId]);
+
+  const save = async () => {
+    if (!buildingId || !form.name) return;
+    const payload: any = {
+      building_id: buildingId,
+      name: form.name,
+      type: form.type,
+      bedrooms: Number(form.bedrooms) || 1,
+      max_guests: Number(form.max_guests) || 2,
+      base_price: Number(form.base_price) || 0,
+      weekend_multiplier: Number(form.weekend_multiplier) || 1,
+      door_code: form.door_code || null,
+      notes: form.notes || null,
+      active: form.active !== false,
+    };
+    const { error } = editId
+      ? await supabase.from("daily_units").update(payload).eq("id", editId)
+      : await supabase.from("daily_units").insert(payload);
+    if (error) return toast.error(error.message);
+    toast.success(editId ? "تم التحديث" : "تمت إضافة الوحدة");
+    setOpen(false);
+    setForm(emptyForm);
+    setEditId(null);
+    load();
+  };
+
+  const edit = (u: Unit) => {
+    setForm(u);
+    setEditId(u.id);
+    setOpen(true);
+  };
+
+  const remove = async (id: string) => {
+    if (!confirm("حذف الوحدة؟")) return;
+    const { error } = await supabase.from("daily_units").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    toast.success("تم الحذف");
+    load();
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setForm(emptyForm); setEditId(null); } }}>
+          <DialogTrigger asChild>
+            <Button className="bg-sage-400 hover:bg-sage-500 text-white">
+              <Plus className="w-4 h-4 ml-1" /> وحدة جديدة
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{editId ? "تعديل الوحدة" : "وحدة جديدة"}</DialogTitle>
+            </DialogHeader>
+            <div className="grid grid-cols-2 gap-3 py-2">
+              <div className="col-span-2">
+                <Label>الاسم</Label>
+                <Input value={form.name || ""} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              </div>
+              <div>
+                <Label>النوع</Label>
+                <select className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+                  <option value="studio">استوديو</option>
+                  <option value="apartment">شقة</option>
+                  <option value="villa">فيلا</option>
+                  <option value="chalet">شاليه</option>
+                </select>
+              </div>
+              <div>
+                <Label>غرف النوم</Label>
+                <Input type="number" value={form.bedrooms ?? 1} onChange={(e) => setForm({ ...form, bedrooms: Number(e.target.value) })} />
+              </div>
+              <div>
+                <Label>أقصى عدد ضيوف</Label>
+                <Input type="number" value={form.max_guests ?? 2} onChange={(e) => setForm({ ...form, max_guests: Number(e.target.value) })} />
+              </div>
+              <div>
+                <Label>سعر الليلة (ر.ع)</Label>
+                <Input type="number" step="0.5" value={form.base_price ?? 0} onChange={(e) => setForm({ ...form, base_price: Number(e.target.value) })} />
+              </div>
+              <div>
+                <Label>مضاعِف نهاية الأسبوع</Label>
+                <Input type="number" step="0.1" value={form.weekend_multiplier ?? 1.3} onChange={(e) => setForm({ ...form, weekend_multiplier: Number(e.target.value) })} />
+              </div>
+              <div>
+                <Label>رمز الباب</Label>
+                <Input value={form.door_code || ""} onChange={(e) => setForm({ ...form, door_code: e.target.value })} />
+              </div>
+              <div className="col-span-2">
+                <Label>ملاحظات</Label>
+                <Textarea value={form.notes || ""} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button onClick={save} className="bg-sage-400 hover:bg-sage-500 text-white">حفظ</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {rows.map((u) => (
+          <div key={u.id} className="bg-white rounded-2xl border border-sage-200/40 p-5">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="font-black text-sage-700">{u.name}</h3>
+                <p className="text-xs text-muted-foreground mt-1">{u.type} · {u.bedrooms} غرفة · حتى {u.max_guests} ضيوف</p>
+              </div>
+              <div className="flex gap-1">
+                <Button size="icon" variant="ghost" onClick={() => edit(u)}><Pencil className="w-4 h-4" /></Button>
+                <Button size="icon" variant="ghost" onClick={() => remove(u.id)}><Trash2 className="w-4 h-4 text-burgundy" /></Button>
+              </div>
+            </div>
+            <div className="mt-4 flex items-baseline justify-between">
+              <span className="text-2xl font-black text-sage-700">{u.base_price}</span>
+              <span className="text-xs text-muted-foreground">ر.ع / ليلة</span>
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">نهاية الأسبوع × {u.weekend_multiplier}</div>
+          </div>
+        ))}
+        {rows.length === 0 && (
+          <div className="md:col-span-2 lg:col-span-3 text-center py-12 text-muted-foreground border-2 border-dashed border-sage-200/60 rounded-2xl">
+            لا توجد وحدات بعد — ابدأ بإضافة أول وحدة
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
