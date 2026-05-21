@@ -397,9 +397,9 @@ export default function Payments() {
       {/* List */}
       <div className="px-5 md:px-8 lg:px-12 mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 md:gap-4 items-start">
         {loading ? (
-          <p className="text-center text-sage-500 py-12 text-sm">{t("loading")}</p>
+          <p className="md:col-span-2 lg:col-span-3 text-center text-sage-500 py-12 text-sm">{t("loading")}</p>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-16">
+          <div className="md:col-span-2 lg:col-span-3 text-center py-16">
             <div className="inline-flex p-4 rounded-3xl bg-sage-100 mb-3">
               <Receipt className="h-8 w-8 text-sage-400" />
             </div>
