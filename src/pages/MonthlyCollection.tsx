@@ -193,12 +193,12 @@ export default function MonthlyCollection() {
           <div className="bg-sage-300/15 border border-sage-300/30 rounded-2xl p-3 text-center">
             <CheckCircle2 className="h-5 w-5 text-sage-600 mx-auto mb-1" />
             <p className="text-2xl font-black text-sage-600">{paidRows.length}</p>
-            <p className="text-[11px] text-muted-foreground font-semibold">{t2("paid_tenants")}</p>
+            <p className="text-[11px] text-muted-foreground font-semibold">{lang === "ar" ? "مسدِّدون" : t2("paid_tenants")}</p>
           </div>
           <div className="bg-burgundy/10 border border-burgundy/20 rounded-2xl p-3 text-center">
             <AlertCircle className="h-5 w-5 text-burgundy mx-auto mb-1" />
             <p className="text-2xl font-black text-burgundy">{lateRows.length}</p>
-            <p className="text-[11px] text-muted-foreground font-semibold">{t2("late_tenants")}</p>
+            <p className="text-[11px] text-muted-foreground font-semibold">{lang === "ar" ? "متأخرون" : t2("late_tenants")}</p>
           </div>
         </div>
 
