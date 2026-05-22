@@ -22,11 +22,15 @@ import { z } from "zod";
 interface UnitOpt {
   id: string;
   unit_number: string;
+  building_id: string;
   building_name: string;
   rent_amount: number;
   tenant_name: string | null;
   arrears_note?: string | null;
 }
+
+interface BuildingOpt { id: string; name: string; }
+
 
 interface Props {
   open: boolean;
