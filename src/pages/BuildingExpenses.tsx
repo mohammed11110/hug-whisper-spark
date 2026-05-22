@@ -62,12 +62,7 @@ export default function BuildingExpenses() {
 
   useEffect(() => { load(); }, [id]);
 
-  const openAdd = () => { setEditing(null); setForm(emptyForm); setOpen(true); };
-  const openEdit = (e: Expense) => {
-    setEditing(e);
-    setForm({ cat: e.category, amount: String(e.amount), date: e.expense_date, vendor: e.vendor || "", desc: e.description || "" });
-    setOpen(true);
-  };
+  const openAdd = () => { setForm(emptyForm); setOpen(true); };
 
   const save = async () => {
     const amt = Number(form.amount);
@@ -77,39 +72,18 @@ export default function BuildingExpenses() {
       category: form.cat, amount: amt, expense_date: form.date,
       vendor: form.vendor.trim() || null, description: form.desc.trim() || null,
     };
-    let error;
-    if (editing) {
-      ({ error } = await supabase.from("expenses").update(payload).eq("id", editing.id));
-    } else {
-      ({ error } = await supabase.from("expenses").insert({ ...payload, building_id: id }));
-    }
+    const { error } = await supabase.from("expenses").insert({ ...payload, building_id: id });
     setBusy(false);
     if (error) return toast.error(error.message);
     toast.success("✓");
     await logActivity({
-      entityType: "expense", action: editing ? "updated" : "created", buildingId: id || null,
+      entityType: "expense", action: "created", buildingId: id || null,
       entityLabel: `${form.cat} — ${amt}`,
-      descriptionAr: `${editing ? "تعديل" : "إضافة"} مصروف ${form.cat}: ${amt}`,
-      descriptionEn: `Expense ${editing ? "updated" : "added"} (${form.cat}): ${amt}`,
+      descriptionAr: `إضافة مصروف ${form.cat}: ${amt}`,
+      descriptionEn: `Expense added (${form.cat}): ${amt}`,
       changes: payload,
     });
-    setOpen(false); setEditing(null);
-    load();
-  };
-
-  const toggleCancel = async (e: Expense) => {
-    const cancelling = !e.cancelled_at;
-    const { error } = await supabase.from("expenses")
-      .update({ cancelled_at: cancelling ? new Date().toISOString() : null })
-      .eq("id", e.id);
-    if (error) return toast.error(error.message);
-    await logActivity({
-      entityType: "expense", action: cancelling ? "deleted" : "restored", buildingId: id || null,
-      entityLabel: `${e.category} — ${e.amount}`,
-      descriptionAr: cancelling ? `إلغاء مصروف: ${e.category} - ${e.amount}` : `استرجاع مصروف: ${e.category} - ${e.amount}`,
-      descriptionEn: cancelling ? `Expense cancelled: ${e.category} - ${e.amount}` : `Expense restored: ${e.category} - ${e.amount}`,
-    });
-    toast.success(cancelling ? (lang === "ar" ? "تم الإلغاء" : "Cancelled") : (lang === "ar" ? "تم الاسترجاع" : "Restored"));
+    setOpen(false);
     load();
   };
 
