@@ -94,9 +94,10 @@ export default function Tenants() {
     }
     const { error } = await supabase.from("payments").insert(rows);
     if (!error) {
+      const collected = r.rent_amount + (collectArrears ? priorArrears : 0);
       await supabase.from("units").update({ last_paid_date: today_iso, status: "paid" }).eq("id", r.unit_id);
       setRows((prev) => prev.map((x) => x.unit_id === r.unit_id
-        ? { ...x, status: "paid", last_paid_date: today_iso, total_paid: x.total_paid + r.rent_amount }
+        ? { ...x, status: "paid", last_paid_date: today_iso, total_paid: x.total_paid + collected, outstanding: Math.max(0, x.outstanding - collected) }
         : x));
       toast.success(lang === "ar" ? "تم تسجيل الدفعة ✓" : "Payment recorded ✓");
     } else {
