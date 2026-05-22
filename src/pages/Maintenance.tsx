@@ -47,6 +47,7 @@ export default function Maintenance() {
   const [rows, setRows] = useState<Req[]>([]);
   const [filter, setFilter] = useState<string>("all");
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Req | null>(null);
 
   const load = async () => {
     const { data, error } = await (supabase as any)
