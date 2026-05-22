@@ -246,6 +246,14 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const priorArrearsTotal = priorArrears.reduce((s, m) => s + m.remaining, 0);
   const grandCollected = Number(amount || 0) + (collectPriorArrears ? priorArrearsTotal : 0);
 
+  // Total arrears up to and including the selected month (pre-payment)
+  const arrearsUpToSelected = unpaidMonths.filter(
+    (m) => m.year < periodYear || (m.year === periodYear && m.month <= periodMonthNum)
+  );
+  const arrearsUpToTotal = arrearsUpToSelected.reduce((s, m) => s + m.remaining, 0);
+  const selectedMonthLabel = `${monthNames[periodMonthNum - 1]} ${periodYear}`;
+
+
   // Detect "final installment of a partially-paid month"
   const currentMonthEntry = unpaidMonths.find((m) => m.year === periodYear && m.month === periodMonthNum);
   const hasPriorPartial = !!currentMonthEntry && activeRent > 0 && currentMonthEntry.remaining + 0.01 < activeRent;
@@ -367,7 +375,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         currency: format(0).replace(/[\d.,\s]/g, "").trim() || "",
         lang: lang === "ar" ? "ar" : "en",
         unpaidMonths: includeArrears ? upTo : [],
-        unpaidTotal: includeArrears ? unpaidTotal : 0,
+        unpaidTotal: includeArrears ? arrearsUpToTotal : 0,
         unpaidUpToLabel: includeArrears ? monthLabel : undefined,
         settlementNote,
         collectedArrears: collectedArrearsList,
@@ -535,6 +543,25 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
               </div>
             )}
           </div>
+
+          {unitId && arrearsUpToTotal > 0.009 && (
+            <div className="rounded-2xl border border-burgundy/20 bg-burgundy/10 px-4 py-3">
+              <div className="text-[11px] font-bold text-burgundy/80 uppercase tracking-wide">
+                {lang === "ar"
+                  ? `إجمالي المتأخرات حتى ${selectedMonthLabel}`
+                  : `Total arrears up to ${selectedMonthLabel}`}
+              </div>
+              <div className="mt-1 flex items-baseline justify-between gap-2">
+                <span className="text-xl font-extrabold text-burgundy tabular-nums">{format(arrearsUpToTotal)}</span>
+                <span className="text-[11px] text-burgundy/70 font-semibold">
+                  {lang === "ar"
+                    ? `${arrearsUpToSelected.length} ${arrearsUpToSelected.length === 1 ? "شهر غير مسدد" : "أشهر غير مسددة"}`
+                    : `${arrearsUpToSelected.length} unpaid ${arrearsUpToSelected.length === 1 ? "month" : "months"}`}
+                </span>
+              </div>
+            </div>
+          )}
+
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
