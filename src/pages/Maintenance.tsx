@@ -94,6 +94,26 @@ export default function Maintenance() {
     load();
   };
 
+  const toggleCancel = async (r: Req) => {
+    const cancelling = !r.cancelled_at;
+    const patch: any = cancelling
+      ? { cancelled_at: new Date().toISOString(), status: "cancelled" }
+      : { cancelled_at: null, status: "open" };
+    const { error } = await (supabase as any).from("maintenance_requests").update(patch).eq("id", r.id);
+    if (error) return toast.error(error.message);
+    await logActivity({
+      entityType: "maintenance",
+      action: cancelling ? "deleted" : "restored",
+      buildingId: r.building_id,
+      entityId: r.id,
+      entityLabel: r.title,
+      descriptionAr: cancelling ? `إلغاء طلب الصيانة: ${r.title}` : `استرجاع طلب الصيانة: ${r.title}`,
+      descriptionEn: cancelling ? `Cancelled maintenance request: ${r.title}` : `Restored maintenance request: ${r.title}`,
+    });
+    toast.success(cancelling ? (lang === "ar" ? "تم الإلغاء" : "Cancelled") : (lang === "ar" ? "تم الاسترجاع" : "Restored"));
+    load();
+  };
+
   const filtered = filter === "all" ? rows : rows.filter((r) => r.status === filter);
 
   return (
