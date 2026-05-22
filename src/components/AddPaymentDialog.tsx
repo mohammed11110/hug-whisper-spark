@@ -89,6 +89,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const [unitOpen, setUnitOpen] = useState(false);
   const guard = useUnsavedGuard({ open, onOpenChange });
   const [unpaidMonths, setUnpaidMonths] = useState<{ year: number; month: number; remaining: number }[]>([]);
+  const [includeArrears, setIncludeArrears] = useState(true);
   const [showAllMonths, setShowAllMonths] = useState(false);
   const [allPaid, setAllPaid] = useState(false);
   const [activeRent, setActiveRent] = useState<number>(0);
