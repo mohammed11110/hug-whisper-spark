@@ -1,59 +1,35 @@
-# فحص قسم الإيجارات اليومية — المشاكل المكتشفة
+# تعديل وإلغاء طلبات الصيانة
 
-## المشاكل الحرجة
+إضافة نفس خاصية **التعديل** و**الإلغاء/الاسترجاع** التي أُضيفت للمصروفات، لكن لطلبات الصيانة في صفحة `Maintenance.tsx`.
 
-### 1) الـ Triggers غير مُفعّلة في قاعدة البيانات (حرج)
-الدوال `check_daily_booking_overlap()` و `auto_create_cleaning_task()` موجودة، لكن **لم تُربط كـ triggers** على جدول `daily_bookings`. النتائج:
-- **لا حماية من الحجوزات المتداخلة**: يمكن حجز نفس الوحدة لضيفَين في نفس التواريخ بدون أي خطأ.
-- **مهام التنظيف لا تُنشأ تلقائياً** عند تسجيل مغادرة الضيف (قسم التنظيف سيظل فارغاً دائماً).
+## ما سيُضاف
 
-**الإصلاح** (migration):
+1. **زر تعديل (✏️)** بجانب كل طلب صيانة — يفتح Dialog لتعديل:
+   - العنوان، الوصف، الأولوية، المورد، التكلفة
+2. **زر إلغاء/استرجاع (🚫/↺)** — يُميّز الطلب كـ "ملغى" دون حذفه:
+   - الطلب يبقى ظاهراً في القائمة مع شطب وتعتيم
+   - حالة `cancelled` موجودة أصلاً في `STATUSES` لكن سنضيف حقل `cancelled_at` للتمييز الزمني والاسترجاع
+3. **الحذف الحالي** يبقى كما هو (إن وُجد).
+
+## التغييرات التقنية
+
+### قاعدة البيانات (migration)
 ```sql
-CREATE TRIGGER trg_daily_booking_overlap
-  BEFORE INSERT OR UPDATE ON public.daily_bookings
-  FOR EACH ROW EXECUTE FUNCTION public.check_daily_booking_overlap();
-
-CREATE TRIGGER trg_daily_auto_cleaning
-  AFTER UPDATE ON public.daily_bookings
-  FOR EACH ROW EXECUTE FUNCTION public.auto_create_cleaning_task();
-
-CREATE TRIGGER trg_daily_units_updated
-  BEFORE UPDATE ON public.daily_units
-  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
--- ونفسه للجداول الأخرى التي بها updated_at
+ALTER TABLE public.maintenance_requests
+  ADD COLUMN cancelled_at timestamptz NULL;
 ```
 
-### 2) "اليوم" يُحسب بتوقيت UTC لا بالتوقيت المحلي (متوسط)
-في `DailyBookings.tsx` و `DailyDashboard.tsx` و `DailyCalendar.tsx` يُستخدم:
-```ts
-new Date().toISOString().slice(0,10)
-```
-هذا يعطي تاريخ UTC. مستخدم في سلطنة عُمان (UTC+4) بعد الساعة 8 مساءً سيرى "اليوم" = الغد. يؤثر على:
-- بطاقات الدخول/المغادرة اليوم في لوحة المعلومات.
-- التاريخ الافتراضي لحجز جديد.
-- تظليل عمود "اليوم" في التقويم.
+### الكود
+- `src/pages/Maintenance.tsx`:
+  - إضافة `Pencil` + `Ban`/`RotateCcw` بجانب أزرار تغيير الحالة
+  - `toggleCancel(r)` يُحدّث `cancelled_at` + `status='cancelled'` أو يُرجع للحالة السابقة
+  - تصميم الطلب الملغى: `line-through`, `opacity-60`
+  - `logActivity` لكل من: updated, cancelled, restored
+- `src/components/EditMaintenanceDialog.tsx` (جديد):
+  - مبني على نمط `AddMaintenanceDialog`
+  - يستقبل الطلب الحالي ويُحدّث الحقول عبر `supabase.from("maintenance_requests").update()`
 
-**الإصلاح**: استخدام دالة محلية:
-```ts
-const localYMD = (d = new Date()) =>
-  `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-```
-وتطبيقها في الملفات الثلاثة.
-
-## مشاكل ثانوية (اختيارية)
-
-3. تحذير React: `DialogContent` بدون `DialogDescription` — إضافة `<DialogDescription>` (أو `aria-describedby={undefined}`) في حوارات الحجز/الوحدة/التسعير.
-4. `DailyMessages` يستخدم `insert` للقالب الجديد؛ لو وُجد ضمنياً سيفشل — تحويلها لـ `upsert` على `(building_id, key)`.
-
-## الملفات المتأثرة
-- **Migration جديد** للـ triggers (يتطلب موافقتك).
-- `src/pages/daily/DailyBookings.tsx`, `DailyDashboard.tsx`, `DailyCalendar.tsx` — استبدال حساب "اليوم".
-- (اختياري) `DailyMessages.tsx` + ثلاث حوارات لإضافة Description.
-
-## ما تم التحقق منه وهو سليم
-- مسارات `/daily/*` مسجّلة في `App.tsx`.
-- جميع الجداول الستة موجودة في قاعدة البيانات.
-- محرّك التسعير (`pricing.ts`) منطقه صحيح: قاعدة موسمية > نهاية أسبوع > الأساسي.
-- زر "حجز جديد" يعمل، وحساب الإجمالي تلقائي، ورسالة الواتساب جاهزة.
-
-هل تريدني أن أنفّذ هذه الإصلاحات؟
+## الملفات
+- جديد: `supabase/migrations/<timestamp>_add_cancelled_at_to_maintenance.sql`
+- جديد: `src/components/EditMaintenanceDialog.tsx`
+- تعديل: `src/pages/Maintenance.tsx`
