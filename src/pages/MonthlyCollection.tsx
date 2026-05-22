@@ -204,7 +204,7 @@ export default function MonthlyCollection() {
 
         {/* Late list */}
         {lateRows.length > 0 && (
-          <Section title={`⚠️ ${t2("late_tenants")} (${lateRows.length})`} accent="burgundy">
+          <Section title={`${t2("late_tenants")} · ${lateRows.length}`} accent="burgundy">
             {lateRows.map((r) => (
               <RowCard
                 key={r.unit.id}
@@ -213,8 +213,8 @@ export default function MonthlyCollection() {
                 building={buildings[r.unit.building_id] || ""}
                 phone={r.unit.tenant_phone}
                 primary={format(r.remaining)}
-                primaryLabel={lang === "ar" ? "متبقي إيجار هذا الشهر" : "Remaining this month"}
-                secondary={r.status === "partial" ? `${t2("partial_payment")}: ${format(r.paid)}` : undefined}
+                primaryLabel={lang === "ar" ? "المتبقي لهذا الشهر" : "Remaining this month"}
+                secondary={r.status === "partial" ? (lang === "ar" ? `سُدِّد جزئياً: ${format(r.paid)}` : `${t2("partial_payment")}: ${format(r.paid)}`) : undefined}
                 tone="danger"
                 action={
                   <Button size="sm" onClick={() => { setPresetUnit(r.unit.id); setPayOpen(true); }}
