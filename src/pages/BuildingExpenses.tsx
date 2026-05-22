@@ -103,7 +103,7 @@ export default function BuildingExpenses() {
     load();
   };
 
-  const total = items.filter((x) => !x.cancelled_at).reduce((s, x) => s + Number(x.amount), 0);
+  const total = items.reduce((s, x) => s + Number(x.amount), 0);
   const net = income - total;
 
   return (
