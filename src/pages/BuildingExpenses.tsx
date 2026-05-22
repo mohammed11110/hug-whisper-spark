@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Plus, Trash2, Wrench, Zap, Droplet, Receipt, MoreHorizontal } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Wrench, Zap, Droplet, Receipt, MoreHorizontal, Pencil, Ban, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +21,7 @@ interface Expense {
   expense_date: string;
   description: string | null;
   vendor: string | null;
+  cancelled_at: string | null;
 }
 
 const CATEGORIES = [
@@ -31,6 +32,8 @@ const CATEGORIES = [
   { key: "other", icon: MoreHorizontal },
 ];
 
+const emptyForm = { cat: "maintenance", amount: "", date: new Date().toISOString().slice(0, 10), vendor: "", desc: "" };
+
 export default function BuildingExpenses() {
   const { id } = useParams();
   const { t, lang } = useI18n();
@@ -40,11 +43,8 @@ export default function BuildingExpenses() {
   const [items, setItems] = useState<Expense[]>([]);
   const [income, setIncome] = useState(0);
   const [open, setOpen] = useState(false);
-  const [cat, setCat] = useState("maintenance");
-  const [amount, setAmount] = useState("");
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [vendor, setVendor] = useState("");
-  const [desc, setDesc] = useState("");
+  const [editing, setEditing] = useState<Expense | null>(null);
+  const [form, setForm] = useState(emptyForm);
   const [busy, setBusy] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Expense | null>(null);
 
@@ -64,25 +64,54 @@ export default function BuildingExpenses() {
 
   useEffect(() => { load(); }, [id]);
 
-  const add = async () => {
-    const amt = Number(amount);
+  const openAdd = () => { setEditing(null); setForm(emptyForm); setOpen(true); };
+  const openEdit = (e: Expense) => {
+    setEditing(e);
+    setForm({ cat: e.category, amount: String(e.amount), date: e.expense_date, vendor: e.vendor || "", desc: e.description || "" });
+    setOpen(true);
+  };
+
+  const save = async () => {
+    const amt = Number(form.amount);
     if (!amt || amt <= 0) return toast.error(lang === "ar" ? "أدخل المبلغ" : "Enter amount");
     setBusy(true);
-    const { error } = await supabase.from("expenses").insert({
-      building_id: id, category: cat, amount: amt, expense_date: date,
-      vendor: vendor.trim() || null, description: desc.trim() || null,
-    });
+    const payload = {
+      category: form.cat, amount: amt, expense_date: form.date,
+      vendor: form.vendor.trim() || null, description: form.desc.trim() || null,
+    };
+    let error;
+    if (editing) {
+      ({ error } = await supabase.from("expenses").update(payload).eq("id", editing.id));
+    } else {
+      ({ error } = await supabase.from("expenses").insert({ ...payload, building_id: id }));
+    }
     setBusy(false);
     if (error) return toast.error(error.message);
     toast.success("✓");
     await logActivity({
-      entityType: "expense", action: "created", buildingId: id || null,
-      entityLabel: `${cat} — ${amt}`,
-      descriptionAr: `إضافة مصروف ${cat}: ${amt}${vendor ? ` (${vendor})` : ""}`,
-      descriptionEn: `Expense added (${cat}): ${amt}${vendor ? ` — ${vendor}` : ""}`,
-      changes: { category: cat, amount: amt, vendor: vendor || null },
+      entityType: "expense", action: editing ? "updated" : "created", buildingId: id || null,
+      entityLabel: `${form.cat} — ${amt}`,
+      descriptionAr: `${editing ? "تعديل" : "إضافة"} مصروف ${form.cat}: ${amt}`,
+      descriptionEn: `Expense ${editing ? "updated" : "added"} (${form.cat}): ${amt}`,
+      changes: payload,
     });
-    setAmount(""); setVendor(""); setDesc(""); setOpen(false);
+    setOpen(false); setEditing(null);
+    load();
+  };
+
+  const toggleCancel = async (e: Expense) => {
+    const cancelling = !e.cancelled_at;
+    const { error } = await supabase.from("expenses")
+      .update({ cancelled_at: cancelling ? new Date().toISOString() : null })
+      .eq("id", e.id);
+    if (error) return toast.error(error.message);
+    await logActivity({
+      entityType: "expense", action: cancelling ? "deleted" : "restored", buildingId: id || null,
+      entityLabel: `${e.category} — ${e.amount}`,
+      descriptionAr: cancelling ? `إلغاء مصروف: ${e.category} - ${e.amount}` : `استرجاع مصروف: ${e.category} - ${e.amount}`,
+      descriptionEn: cancelling ? `Expense cancelled: ${e.category} - ${e.amount}` : `Expense restored: ${e.category} - ${e.amount}`,
+    });
+    toast.success(cancelling ? (lang === "ar" ? "تم الإلغاء" : "Cancelled") : (lang === "ar" ? "تم الاسترجاع" : "Restored"));
     load();
   };
 
@@ -102,7 +131,7 @@ export default function BuildingExpenses() {
     load();
   };
 
-  const total = items.reduce((s, x) => s + Number(x.amount), 0);
+  const total = items.filter((x) => !x.cancelled_at).reduce((s, x) => s + Number(x.amount), 0);
   const net = income - total;
 
   return (
@@ -126,7 +155,7 @@ export default function BuildingExpenses() {
       </div>
 
       <div className="px-5 md:px-8 lg:px-12 -mt-4 relative z-10">
-        <Button onClick={() => setOpen(true)} className="w-full h-12 rounded-2xl bg-gradient-sage text-primary-foreground font-bold shadow-soft mb-4">
+        <Button onClick={openAdd} className="w-full h-12 rounded-2xl bg-gradient-sage text-primary-foreground font-bold shadow-soft mb-4">
           <Plus className="h-4 w-4 me-1.5" />{lang === "ar" ? "إضافة مصروف" : "Add expense"}
         </Button>
 
@@ -136,20 +165,30 @@ export default function BuildingExpenses() {
           ) : items.map((e) => {
             const c = CATEGORIES.find((x) => x.key === e.category) || CATEGORIES[4];
             const Icon = c.icon;
+            const cancelled = !!e.cancelled_at;
             return (
-              <div key={e.id} className="bg-card border border-sage-200/40 rounded-2xl p-3.5 flex items-center gap-3 shadow-soft">
+              <div key={e.id} className={`bg-card border rounded-2xl p-3.5 flex items-center gap-2 shadow-soft ${cancelled ? "border-sage-200/40 opacity-60" : "border-sage-200/40"}`}>
                 <div className="h-10 w-10 rounded-xl bg-sage-100 text-sage-500 flex items-center justify-center flex-shrink-0">
                   <Icon className="h-4 w-4" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-sage-600 text-sm truncate">
+                  <p className={`font-bold text-sm truncate ${cancelled ? "text-muted-foreground line-through" : "text-sage-600"}`}>
                     {lang === "ar" ? catLabelAr(e.category) : catLabelEn(e.category)}
                     {e.vendor ? ` · ${e.vendor}` : ""}
+                    {cancelled && <span className="ms-2 text-[10px] font-bold text-terracotta no-underline">{lang === "ar" ? "ملغى" : "Cancelled"}</span>}
                   </p>
                   <p className="text-[11px] text-muted-foreground truncate">{e.expense_date}{e.description ? ` · ${e.description}` : ""}</p>
                 </div>
-                <p className="font-black text-burgundy whitespace-nowrap">{format(Number(e.amount))}</p>
-                <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-burgundy" onClick={() => setPendingDelete(e)}>
+                <p className={`font-black whitespace-nowrap text-sm ${cancelled ? "text-muted-foreground line-through" : "text-burgundy"}`}>{format(Number(e.amount))}</p>
+                {!cancelled && (
+                  <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-sage-500" onClick={() => openEdit(e)} title={lang === "ar" ? "تعديل" : "Edit"}>
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+                <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-terracotta" onClick={() => toggleCancel(e)} title={cancelled ? (lang === "ar" ? "استرجاع" : "Restore") : (lang === "ar" ? "إلغاء" : "Cancel")}>
+                  {cancelled ? <RotateCcw className="h-3.5 w-3.5" /> : <Ban className="h-3.5 w-3.5" />}
+                </Button>
+                <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-burgundy" onClick={() => setPendingDelete(e)} title={lang === "ar" ? "حذف" : "Delete"}>
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </div>
@@ -158,18 +197,18 @@ export default function BuildingExpenses() {
         </div>
       </div>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}>
         <DialogContent className="rounded-2xl max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-sage-600">{lang === "ar" ? "إضافة مصروف" : "Add expense"}</DialogTitle>
+            <DialogTitle className="text-sage-600">{editing ? (lang === "ar" ? "تعديل مصروف" : "Edit expense") : (lang === "ar" ? "إضافة مصروف" : "Add expense")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div>
               <Label className="text-xs text-sage-500">{lang === "ar" ? "الفئة" : "Category"}</Label>
               <div className="flex flex-wrap gap-1.5 mt-1.5">
                 {CATEGORIES.map((c) => (
-                  <button key={c.key} onClick={() => setCat(c.key)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-semibold ${cat === c.key ? "bg-gradient-sage text-primary-foreground shadow-soft" : "bg-muted text-muted-foreground"}`}>
+                  <button key={c.key} onClick={() => setForm((f) => ({ ...f, cat: c.key }))}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold ${form.cat === c.key ? "bg-gradient-sage text-primary-foreground shadow-soft" : "bg-muted text-muted-foreground"}`}>
                     {lang === "ar" ? catLabelAr(c.key) : catLabelEn(c.key)}
                   </button>
                 ))}
@@ -178,28 +217,28 @@ export default function BuildingExpenses() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs text-sage-500">{t2("amount")}</Label>
-                <Input type="number" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)}
+                <Input type="number" inputMode="decimal" value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
                   className="rounded-xl border-sage-200 bg-card h-11 mt-1.5" />
               </div>
               <div>
                 <Label className="text-xs text-sage-500">{t2("payment_date")}</Label>
-                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+                <Input type="date" value={form.date} onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
                   className="rounded-xl border-sage-200 bg-card h-11 mt-1.5" />
               </div>
             </div>
             <div>
               <Label className="text-xs text-sage-500">{lang === "ar" ? "المورد" : "Vendor"}</Label>
-              <Input value={vendor} onChange={(e) => setVendor(e.target.value)}
+              <Input value={form.vendor} onChange={(e) => setForm((f) => ({ ...f, vendor: e.target.value }))}
                 className="rounded-xl border-sage-200 bg-card h-11 mt-1.5" />
             </div>
             <div>
               <Label className="text-xs text-sage-500">{t2("notes")}</Label>
-              <Textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={2}
+              <Textarea value={form.desc} onChange={(e) => setForm((f) => ({ ...f, desc: e.target.value }))} rows={2}
                 className="rounded-xl border-sage-200 bg-card mt-1.5" />
             </div>
             <div className="flex gap-2 pt-1">
-              <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setOpen(false)}>{t2("cancel")}</Button>
-              <Button onClick={add} disabled={busy} className="flex-1 rounded-xl bg-gradient-sage text-primary-foreground">{t2("save")}</Button>
+              <Button variant="outline" className="flex-1 rounded-xl" onClick={() => { setOpen(false); setEditing(null); }}>{t2("cancel")}</Button>
+              <Button onClick={save} disabled={busy} className="flex-1 rounded-xl bg-gradient-sage text-primary-foreground">{t2("save")}</Button>
             </div>
           </div>
         </DialogContent>
