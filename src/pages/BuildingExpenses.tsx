@@ -42,7 +42,6 @@ export default function BuildingExpenses() {
   const [items, setItems] = useState<Expense[]>([]);
   const [income, setIncome] = useState(0);
   const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<Expense | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [busy, setBusy] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Expense | null>(null);
