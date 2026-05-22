@@ -334,7 +334,10 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         .filter((m) => m.year < periodYear || (m.year === periodYear && m.month <= periodMonthNum))
         .map((m) => {
           const isCurrent = m.year === periodYear && m.month === periodMonthNum;
-          const remaining = isCurrent ? Math.max(0, m.remaining - Number(amount)) : m.remaining;
+          const isPriorPaidNow = collectPriorArrears && !isCurrent;
+          const remaining = isCurrent
+            ? Math.max(0, m.remaining - Number(amount))
+            : (isPriorPaidNow ? 0 : m.remaining);
           return {
             label: `${(lang === "ar" ? AR_MONTHS : EN_MONTHS)[m.month - 1]} ${m.year}`,
             remaining,
@@ -342,11 +345,18 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         })
         .filter((m) => m.remaining > 0.009);
       const unpaidTotal = upTo.reduce((s, m) => s + m.remaining, 0);
+      const collectedArrearsList = collectPriorArrears
+        ? priorArrears.map((m) => ({
+            label: `${(lang === "ar" ? AR_MONTHS : EN_MONTHS)[m.month - 1]} ${m.year}`,
+            amount: m.remaining,
+          }))
+        : [];
+      const grandTotal = Number(amount) + collectedArrearsList.reduce((s, a) => s + a.amount, 0);
       const html = buildReceiptHTML({
         brand: settings.brand,
         receiptNumber: receipt.trim() || formatReceipt(settings.receipt),
         paymentDate: date,
-        amount: Number(amount),
+        amount: collectedArrearsList.length ? grandTotal : Number(amount),
         expectedAmount: Number(expected) || null,
         method: methodLabel(method, lang),
         periodLabel: monthLabel,
@@ -360,6 +370,8 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         unpaidTotal: includeArrears ? unpaidTotal : 0,
         unpaidUpToLabel: includeArrears ? monthLabel : undefined,
         settlementNote,
+        collectedArrears: collectedArrearsList,
+        grandTotal: collectedArrearsList.length ? grandTotal : null,
       });
       await downloadHTMLAsPDF(html, `receipt-${(receipt.trim() || formatReceipt(settings.receipt))}.pdf`, settings);
     } catch (e: any) {
