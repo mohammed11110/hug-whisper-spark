@@ -540,7 +540,26 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                     ))}
                   </SelectContent>
                 </Select>
+          </div>
+
+          {unitId && arrearsUpToTotal > 0.009 && (
+            <div className="rounded-2xl border border-burgundy/20 bg-burgundy/10 px-4 py-3">
+              <div className="text-[11px] font-bold text-burgundy/80 uppercase tracking-wide">
+                {lang === "ar"
+                  ? `إجمالي المتأخرات حتى ${selectedMonthLabel}`
+                  : `Total arrears up to ${selectedMonthLabel}`}
               </div>
+              <div className="mt-1 flex items-baseline justify-between gap-2">
+                <span className="text-xl font-extrabold text-burgundy tabular-nums">{format(arrearsUpToTotal)}</span>
+                <span className="text-[11px] text-burgundy/70 font-semibold">
+                  {lang === "ar"
+                    ? `${arrearsUpToSelected.length} ${arrearsUpToSelected.length === 1 ? "شهر غير مسدد" : "أشهر غير مسددة"}`
+                    : `${arrearsUpToSelected.length} unpaid ${arrearsUpToSelected.length === 1 ? "month" : "months"}`}
+                </span>
+              </div>
+            </div>
+          )}
+
             )}
           </div>
 
