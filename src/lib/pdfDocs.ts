@@ -543,6 +543,17 @@ export function buildReceiptHTML(data: ReceiptData): string {
         <div class="card"><div class="label">${L("عن فترة الإيجار", "Rent period")}</div><div class="value">${escapeHtml(data.periodLabel || "—")}</div></div>
       </div>
       ${data.settlementNote ? `<div class="note" style="background:#eef5ec;border-color:#cfe0ce;color:#2c5a36;"><strong>${L("إشعار سداد", "Settlement notice")}:</strong> ${escapeHtml(data.settlementNote)}</div>` : ""}
+      ${(data.collectedArrears && data.collectedArrears.length) ? `
+        <div class="section-title">${L("تفاصيل التحصيل", "Collection breakdown")}</div>
+        <table>
+          <thead><tr><th>${L("البند", "Item")}</th><th>${L("المبلغ", "Amount")}</th></tr></thead>
+          <tbody>
+            <tr><td>${L("إيجار", "Rent")} — ${escapeHtml(data.periodLabel || "—")}</td><td>${escapeHtml(formatMoney(data.amount - (data.collectedArrears.reduce((s,a)=>s+a.amount,0)), data.currency))}</td></tr>
+            ${data.collectedArrears.map(a => `<tr><td>${L("متأخرات", "Arrears")} — ${escapeHtml(a.label)}</td><td>${escapeHtml(formatMoney(a.amount, data.currency))}</td></tr>`).join("")}
+            <tr style="font-weight:800;background:#f5f0e0;"><td>${L("الإجمالي المحصَّل", "Total collected")}</td><td class="amount-positive">${escapeHtml(formatMoney(data.grandTotal ?? data.amount, data.currency))}</td></tr>
+          </tbody>
+        </table>
+      ` : ""}
       ${!data.settlementNote && data.expectedAmount ? `<div class="note">${L("الإيجار المتوقع للفترة", "Expected rent")}: <strong>${escapeHtml(formatMoney(data.expectedAmount, data.currency))}</strong>${partial ? ` — <span class="pill">${L("دفعة جزئية", "Partial payment")}</span>` : ""}</div>` : ""}
       ${unpaidRows ? `
         <div class="section-title">${L("الأشهر غير المسدّدة على المستأجر", "Remaining unpaid months")}</div>
