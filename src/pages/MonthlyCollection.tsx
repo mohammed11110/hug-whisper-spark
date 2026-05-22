@@ -229,7 +229,7 @@ export default function MonthlyCollection() {
 
         {/* Paid list */}
         {paidRows.length > 0 && (
-          <Section title={`✅ ${t2("paid_tenants")} (${paidRows.length})`} accent="sage">
+          <Section title={`${t2("paid_tenants")} · ${paidRows.length}`} accent="sage">
             {paidRows.map((r) => (
               <RowCard
                 key={r.unit.id}
