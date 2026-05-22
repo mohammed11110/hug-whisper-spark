@@ -159,10 +159,10 @@ export default function BuildingExpenses() {
         </div>
       </div>
 
-      <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}>
+      <Dialog open={open} onOpenChange={(o) => setOpen(o)}>
         <DialogContent className="rounded-2xl max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-sage-600">{editing ? (lang === "ar" ? "تعديل مصروف" : "Edit expense") : (lang === "ar" ? "إضافة مصروف" : "Add expense")}</DialogTitle>
+            <DialogTitle className="text-sage-600">{lang === "ar" ? "إضافة مصروف" : "Add expense"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div>
@@ -199,7 +199,7 @@ export default function BuildingExpenses() {
                 className="rounded-xl border-sage-200 bg-card mt-1.5" />
             </div>
             <div className="flex gap-2 pt-1">
-              <Button variant="outline" className="flex-1 rounded-xl" onClick={() => { setOpen(false); setEditing(null); }}>{t2("cancel")}</Button>
+              <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setOpen(false)}>{t2("cancel")}</Button>
               <Button onClick={save} disabled={busy} className="flex-1 rounded-xl bg-gradient-sage text-primary-foreground">{t2("save")}</Button>
             </div>
           </div>
