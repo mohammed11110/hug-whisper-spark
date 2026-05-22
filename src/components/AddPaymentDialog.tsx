@@ -271,20 +271,39 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     setSaving(true);
     const { data: activeT } = await supabase.from("tenancies").select("id").eq("unit_id", unitId).eq("status", "active").maybeSingle();
     const mergedNotes = [settlementNote, notes.trim()].filter(Boolean).join(" — ") || null;
-    const { error } = await supabase.from("payments").insert({
+    const sharedReceipt = receipt.trim() || null;
+    const rows: any[] = [{
       unit_id: unitId,
       tenancy_id: (activeT as any)?.id || null,
       amount: Number(amount),
       expected_amount: Number(expected) || null,
       payment_date: date,
-      receipt_number: receipt.trim() || null,
+      receipt_number: sharedReceipt,
       payment_method: method,
       notes: mergedNotes,
       period_start: periodStart || null,
       period_end: periodEnd || null,
-    });
+    }];
+    if (collectPriorArrears && priorArrears.length > 0) {
+      for (const m of priorArrears) {
+        const { start: ps, end: pe } = monthRange(m.year, m.month);
+        rows.push({
+          unit_id: unitId,
+          tenancy_id: (activeT as any)?.id || null,
+          amount: m.remaining,
+          expected_amount: activeRent || null,
+          payment_date: date,
+          receipt_number: sharedReceipt,
+          payment_method: method,
+          notes: (lang === "ar" ? "تحصيل متأخرات" : "Arrears collection") + ` — ${monthNames[m.month - 1]} ${m.year}`,
+          period_start: ps,
+          period_end: pe,
+        });
+      }
+    }
+    const { error } = await supabase.from("payments").insert(rows);
     if (!error) {
-      const newStatus = isPartial ? "soon" : "paid";
+      const newStatus = isPartial && !collectPriorArrears ? "soon" : "paid";
       await supabase.from("units").update({ last_paid_date: date, status: newStatus }).eq("id", unitId);
     }
     setSaving(false);
