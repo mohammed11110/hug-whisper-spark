@@ -1214,13 +1214,111 @@ function stripExternalRenderResources(doc: Document) {
   });
 }
 
-export async function downloadHTMLAsPDF(html: string, filename: string, settings?: PdfSettings) {
-  const pageSize = settings?.pageSize || DEFAULT_PAGE_SIZE;
-  const margins = settings?.margins || DEFAULT_MARGINS;
+function buildPdfFromCanvas(canvas: HTMLCanvasElement, filename: string, pageSize: PageSize, margins: Margins) {
+  const pdf = new jsPDF({ unit: "mm", format: pageSize.toLowerCase() as "a4" | "a5" | "letter" });
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const printableW = pageW - margins.left - margins.right;
+  const printableH = pageH - margins.top - margins.bottom;
+  let imgData: string;
+  try {
+    imgData = canvas.toDataURL("image/png");
+  } catch {
+    throw new Error("تعذّر إنشاء الـ PDF بسبب قيود أمان المتصفح (CORS). أعد المحاولة.");
+  }
+  const imgW = printableW;
+  const imgH = (canvas.height * printableW) / canvas.width;
 
-  // Preload local fonts as data URLs BEFORE creating the iframe, so they are
-  // guaranteed available when html2canvas snapshots the document. This is the
-  // single most important step for correct Arabic letter joining.
+  if (imgH <= printableH) {
+    pdf.addImage(imgData, "PNG", margins.left, margins.top, imgW, imgH, undefined, "SLOW");
+  } else {
+    const pageCanvas = document.createElement("canvas");
+    const pageCtx = pageCanvas.getContext("2d");
+    if (!pageCtx) throw new Error("Canvas rendering failed");
+    const sliceHeightPx = Math.floor((printableH * canvas.width) / printableW);
+    pageCanvas.width = canvas.width;
+    pageCanvas.height = sliceHeightPx;
+    let renderedHeight = 0;
+    let pageIndex = 0;
+    while (renderedHeight < canvas.height) {
+      const remaining = canvas.height - renderedHeight;
+      const currentSlice = Math.min(sliceHeightPx, remaining);
+      pageCanvas.height = currentSlice;
+      pageCtx.clearRect(0, 0, pageCanvas.width, currentSlice);
+      pageCtx.drawImage(canvas, 0, renderedHeight, canvas.width, currentSlice, 0, 0, canvas.width, currentSlice);
+      const sliceImg = pageCanvas.toDataURL("image/png");
+      if (pageIndex > 0) pdf.addPage();
+      const sliceH = (currentSlice * printableW) / canvas.width;
+      pdf.addImage(sliceImg, "PNG", margins.left, margins.top, printableW, sliceH, undefined, "SLOW");
+      renderedHeight += currentSlice;
+      pageIndex += 1;
+    }
+  }
+  pdf.save(filename);
+}
+
+/**
+ * Render an HTML string in a hidden container INSIDE the main document.
+ * Preferred path for Arabic content: the app's fonts (Noto Kufi Arabic, Outfit)
+ * are already loaded and stable, so html2canvas captures correctly-shaped
+ * (connected) Arabic letters. Matches the path used by the Payments page.
+ */
+async function renderInMainDocument(html: string): Promise<HTMLCanvasElement> {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, "text/html");
+
+  const wrapper = document.createElement("div");
+  wrapper.setAttribute("aria-hidden", "true");
+  wrapper.style.position = "fixed";
+  wrapper.style.left = "-20000px";
+  wrapper.style.top = "0";
+  wrapper.style.width = "794px";
+  wrapper.style.background = "#ffffff";
+  wrapper.style.zIndex = "-1";
+  wrapper.style.pointerEvents = "none";
+
+  // Carry over <style> tags from the source HTML head so .page layout matches
+  Array.from(doc.head.querySelectorAll("style")).forEach((s) => {
+    const clone = document.createElement("style");
+    clone.textContent = s.textContent || "";
+    wrapper.appendChild(clone);
+  });
+
+  const dir = doc.documentElement.getAttribute("dir") || "ltr";
+  wrapper.setAttribute("dir", dir);
+
+  const bodyHost = document.createElement("div");
+  bodyHost.innerHTML = doc.body.innerHTML;
+  wrapper.appendChild(bodyHost);
+
+  document.body.appendChild(wrapper);
+
+  try {
+    const target = (wrapper.querySelector(".page") as HTMLElement) || bodyHost;
+    target.style.background = "#ffffff";
+    await inlineImages(target);
+    await waitForWebFonts(target);
+    await new Promise((r) => setTimeout(r, 400));
+
+    const canvas = await html2canvas(target, {
+      scale: 3,
+      useCORS: true,
+      allowTaint: false,
+      backgroundColor: "#ffffff",
+      logging: false,
+      foreignObjectRendering: true,
+      windowWidth: target.scrollWidth || 794,
+      windowHeight: target.scrollHeight || target.offsetHeight || 1123,
+    });
+
+    if (isCanvasBlank(canvas)) throw new Error("blank-canvas");
+    return canvas;
+  } finally {
+    wrapper.remove();
+  }
+}
+
+async function renderInIframe(html: string): Promise<HTMLCanvasElement> {
   const fontUrls = await getFontDataUrls();
   const fontFaceCss = buildFontFaceCss(fontUrls);
 
@@ -1240,12 +1338,7 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
   try {
     await new Promise<void>((resolve, reject) => {
       let settled = false;
-      const finish = (cb: () => void) => {
-        if (settled) return;
-        settled = true;
-        cb();
-      };
-
+      const finish = (cb: () => void) => { if (settled) return; settled = true; cb(); };
       iframe.onload = () => finish(() => resolve());
       iframe.onerror = () => finish(() => reject(new Error("تعذّر تجهيز ملف العقد قبل التنزيل.")));
       iframe.srcdoc = html;
@@ -1256,26 +1349,19 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
     if (!frameDoc) throw new Error("تعذّر تجهيز صفحة العقد للتنزيل.");
 
     stripExternalRenderResources(frameDoc);
-
-    // Inject embedded data-URL fonts directly into the iframe document
     const fontStyle = frameDoc.getElementById("pdf-fonts") || frameDoc.createElement("style");
     fontStyle.id = "pdf-fonts";
     fontStyle.textContent = fontFaceCss;
     if (!fontStyle.parentNode) frameDoc.head.appendChild(fontStyle);
-
-    // Also register via FontFace API for reliable readiness signal
     await registerFontsInDocument(frameDoc, fontUrls);
 
     const target = (frameDoc.querySelector(".page") as HTMLElement) || frameDoc.body;
     target.style.background = "#ffffff";
-    // Inline images as data URLs so foreignObjectRendering / CORS never produce a blank canvas
     await inlineImages(target);
     await waitForWebFonts(target);
-    // Extra settle time so layout reflows with the newly-loaded Arabic font
     await new Promise((r) => setTimeout(r, 350));
 
     const hasArabic = /[\u0600-\u06FF]/.test(target.innerText || target.textContent || "");
-    // Higher scale for Arabic so Noto Kufi joining strokes stay sharp after rasterization
     const renderScale = hasArabic ? 3 : 2;
 
     const renderOnce = (useForeignObject: boolean, allowTaint: boolean) =>
@@ -1292,13 +1378,9 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
 
     let canvas: HTMLCanvasElement;
     if (hasArabic) {
-      // Arabic text REQUIRES foreignObjectRendering for correct letter joining.
-      // The non-foreignObject path draws codepoints individually and produces
-      // disconnected letters. Never fall back to it when Arabic is present.
       try {
         canvas = await renderOnce(true, false);
-      } catch (e) {
-        console.warn("[pdf] foreignObject render failed, retrying once", e);
+      } catch {
         await new Promise((r) => setTimeout(r, 300));
         canvas = await renderOnce(true, false);
       }
@@ -1318,53 +1400,30 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
     if (isCanvasBlank(canvas)) {
       throw new Error("تعذّر إنشاء الـ PDF: الصفحة الناتجة فارغة. حاول مرة أخرى.");
     }
-
-
-    const pdf = new jsPDF({ unit: "mm", format: pageSize.toLowerCase() as "a4" | "a5" | "letter" });
-    const pageW = pdf.internal.pageSize.getWidth();
-    const pageH = pdf.internal.pageSize.getHeight();
-    const printableW = pageW - margins.left - margins.right;
-    const printableH = pageH - margins.top - margins.bottom;
-    let imgData: string;
-    try {
-      imgData = canvas.toDataURL("image/png");
-    } catch (err) {
-      throw new Error("تعذّر إنشاء الـ PDF بسبب قيود أمان المتصفح (CORS). أعد المحاولة.");
-    }
-
-    const imgW = printableW;
-    const imgH = (canvas.height * printableW) / canvas.width;
-
-    if (imgH <= printableH) {
-      pdf.addImage(imgData, "PNG", margins.left, margins.top, imgW, imgH, undefined, "SLOW");
-    } else {
-      const pageCanvas = document.createElement("canvas");
-      const pageCtx = pageCanvas.getContext("2d");
-      if (!pageCtx) throw new Error("Canvas rendering failed");
-
-      const sliceHeightPx = Math.floor((printableH * canvas.width) / printableW);
-      pageCanvas.width = canvas.width;
-      pageCanvas.height = sliceHeightPx;
-
-      let renderedHeight = 0;
-      let pageIndex = 0;
-      while (renderedHeight < canvas.height) {
-        const remaining = canvas.height - renderedHeight;
-        const currentSlice = Math.min(sliceHeightPx, remaining);
-        pageCanvas.height = currentSlice;
-        pageCtx.clearRect(0, 0, pageCanvas.width, currentSlice);
-        pageCtx.drawImage(canvas, 0, renderedHeight, canvas.width, currentSlice, 0, 0, canvas.width, currentSlice);
-        const sliceImg = pageCanvas.toDataURL("image/png");
-        if (pageIndex > 0) pdf.addPage();
-        const sliceH = (currentSlice * printableW) / canvas.width;
-        pdf.addImage(sliceImg, "PNG", margins.left, margins.top, printableW, sliceH, undefined, "SLOW");
-        renderedHeight += currentSlice;
-        pageIndex += 1;
-      }
-    }
-
-    pdf.save(filename);
+    return canvas;
   } finally {
     iframe.remove();
   }
+}
+
+export async function downloadHTMLAsPDF(html: string, filename: string, settings?: PdfSettings) {
+  const pageSize = settings?.pageSize || DEFAULT_PAGE_SIZE;
+  const margins = settings?.margins || DEFAULT_MARGINS;
+
+  let canvas: HTMLCanvasElement | null = null;
+
+  // Preferred path: render inside the main document so the app's already-loaded
+  // Arabic font produces correctly-joined letters (matches the manual download
+  // path used on the Payments page).
+  try {
+    canvas = await renderInMainDocument(html);
+  } catch (e) {
+    console.warn("[pdf] main-document render failed, falling back to iframe", e);
+  }
+
+  if (!canvas) {
+    canvas = await renderInIframe(html);
+  }
+
+  buildPdfFromCanvas(canvas, filename, pageSize, margins);
 }
