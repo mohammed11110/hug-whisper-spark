@@ -75,6 +75,8 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const [buildings, setBuildings] = useState<BuildingOpt[]>([]);
   const [buildingId, setBuildingId] = useState<string>("");
   const [unitId, setUnitId] = useState(presetUnitId || "");
+  const [expected, setExpected] = useState("");
+
 
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
