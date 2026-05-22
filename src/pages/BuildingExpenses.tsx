@@ -137,29 +137,19 @@ export default function BuildingExpenses() {
           ) : items.map((e) => {
             const c = CATEGORIES.find((x) => x.key === e.category) || CATEGORIES[4];
             const Icon = c.icon;
-            const cancelled = !!e.cancelled_at;
             return (
-              <div key={e.id} className={`bg-card border rounded-2xl p-3.5 flex items-center gap-2 shadow-soft ${cancelled ? "border-sage-200/40 opacity-60" : "border-sage-200/40"}`}>
+              <div key={e.id} className="bg-card border border-sage-200/40 rounded-2xl p-3.5 flex items-center gap-2 shadow-soft">
                 <div className="h-10 w-10 rounded-xl bg-sage-100 text-sage-500 flex items-center justify-center flex-shrink-0">
                   <Icon className="h-4 w-4" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className={`font-bold text-sm truncate ${cancelled ? "text-muted-foreground line-through" : "text-sage-600"}`}>
+                  <p className="font-bold text-sm truncate text-sage-600">
                     {lang === "ar" ? catLabelAr(e.category) : catLabelEn(e.category)}
                     {e.vendor ? ` · ${e.vendor}` : ""}
-                    {cancelled && <span className="ms-2 text-[10px] font-bold text-terracotta no-underline">{lang === "ar" ? "ملغى" : "Cancelled"}</span>}
                   </p>
                   <p className="text-[11px] text-muted-foreground truncate">{e.expense_date}{e.description ? ` · ${e.description}` : ""}</p>
                 </div>
-                <p className={`font-black whitespace-nowrap text-sm ${cancelled ? "text-muted-foreground line-through" : "text-burgundy"}`}>{format(Number(e.amount))}</p>
-                {!cancelled && (
-                  <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-sage-500" onClick={() => openEdit(e)} title={lang === "ar" ? "تعديل" : "Edit"}>
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                )}
-                <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-terracotta" onClick={() => toggleCancel(e)} title={cancelled ? (lang === "ar" ? "استرجاع" : "Restore") : (lang === "ar" ? "إلغاء" : "Cancel")}>
-                  {cancelled ? <RotateCcw className="h-3.5 w-3.5" /> : <Ban className="h-3.5 w-3.5" />}
-                </Button>
+                <p className="font-black whitespace-nowrap text-sm text-burgundy">{format(Number(e.amount))}</p>
                 <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-burgundy" onClick={() => setPendingDelete(e)} title={lang === "ar" ? "حذف" : "Delete"}>
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
