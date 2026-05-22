@@ -18,6 +18,7 @@ interface Req {
   priority: string; status: string;
   tenant_name: string | null; cost: number | null; vendor: string | null;
   photos: string[] | null;
+  cancelled_at: string | null;
   created_at: string;
   building_name?: string; unit_number?: string;
   expense?: { id: string; description: string | null } | null;
