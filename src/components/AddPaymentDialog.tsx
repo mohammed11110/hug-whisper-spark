@@ -127,6 +127,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
           return {
             id: u.id,
             unit_number: u.unit_number,
+            building_id: u.building_id,
             tenant_name: u.tenant_name || (isVacantWithArrears ? ar!.name : null),
             rent_amount: Number(u.rent_amount),
             building_name: bMap.get(u.building_id)?.name || bMap.get(u.building_id)?.name_en || "—",
@@ -136,19 +137,34 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
           };
         });
       setUnits(opts);
+      // Build buildings list from units the user can see (deduped)
+      const bSeen = new Set<string>();
+      const bList: BuildingOpt[] = [];
+      opts.forEach((o) => {
+        if (bSeen.has(o.building_id)) return;
+        bSeen.add(o.building_id);
+        bList.push({ id: o.building_id, name: o.building_name });
+      });
+      bList.sort((a, b) => a.name.localeCompare(b.name));
+      setBuildings(bList);
       if (presetUnitId) {
         setUnitId(presetUnitId);
         const u = opts.find((x) => x.id === presetUnitId);
         if (u) {
+          setBuildingId(u.building_id);
           setExpected(String(u.rent_amount));
           if (!amount) setAmount(String(u.rent_amount));
         }
+      } else {
+        setBuildingId("");
+        setUnitId("");
       }
       if (!receipt) setReceipt(formatReceipt(settings.receipt));
       const today = new Date();
       setPeriodYear(today.getFullYear());
       setPeriodMonthNum(today.getMonth() + 1);
     })();
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, presetUnitId]);
 
