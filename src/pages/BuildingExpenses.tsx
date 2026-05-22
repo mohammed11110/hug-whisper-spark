@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Plus, Trash2, Wrench, Zap, Droplet, Receipt, MoreHorizontal, Pencil, Ban, RotateCcw } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Wrench, Zap, Droplet, Receipt, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,7 +21,6 @@ interface Expense {
   expense_date: string;
   description: string | null;
   vendor: string | null;
-  cancelled_at: string | null;
 }
 
 const CATEGORIES = [
@@ -43,7 +42,6 @@ export default function BuildingExpenses() {
   const [items, setItems] = useState<Expense[]>([]);
   const [income, setIncome] = useState(0);
   const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<Expense | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [busy, setBusy] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Expense | null>(null);
@@ -64,12 +62,7 @@ export default function BuildingExpenses() {
 
   useEffect(() => { load(); }, [id]);
 
-  const openAdd = () => { setEditing(null); setForm(emptyForm); setOpen(true); };
-  const openEdit = (e: Expense) => {
-    setEditing(e);
-    setForm({ cat: e.category, amount: String(e.amount), date: e.expense_date, vendor: e.vendor || "", desc: e.description || "" });
-    setOpen(true);
-  };
+  const openAdd = () => { setForm(emptyForm); setOpen(true); };
 
   const save = async () => {
     const amt = Number(form.amount);
@@ -79,39 +72,18 @@ export default function BuildingExpenses() {
       category: form.cat, amount: amt, expense_date: form.date,
       vendor: form.vendor.trim() || null, description: form.desc.trim() || null,
     };
-    let error;
-    if (editing) {
-      ({ error } = await supabase.from("expenses").update(payload).eq("id", editing.id));
-    } else {
-      ({ error } = await supabase.from("expenses").insert({ ...payload, building_id: id }));
-    }
+    const { error } = await supabase.from("expenses").insert({ ...payload, building_id: id });
     setBusy(false);
     if (error) return toast.error(error.message);
     toast.success("✓");
     await logActivity({
-      entityType: "expense", action: editing ? "updated" : "created", buildingId: id || null,
+      entityType: "expense", action: "created", buildingId: id || null,
       entityLabel: `${form.cat} — ${amt}`,
-      descriptionAr: `${editing ? "تعديل" : "إضافة"} مصروف ${form.cat}: ${amt}`,
-      descriptionEn: `Expense ${editing ? "updated" : "added"} (${form.cat}): ${amt}`,
+      descriptionAr: `إضافة مصروف ${form.cat}: ${amt}`,
+      descriptionEn: `Expense added (${form.cat}): ${amt}`,
       changes: payload,
     });
-    setOpen(false); setEditing(null);
-    load();
-  };
-
-  const toggleCancel = async (e: Expense) => {
-    const cancelling = !e.cancelled_at;
-    const { error } = await supabase.from("expenses")
-      .update({ cancelled_at: cancelling ? new Date().toISOString() : null })
-      .eq("id", e.id);
-    if (error) return toast.error(error.message);
-    await logActivity({
-      entityType: "expense", action: cancelling ? "deleted" : "restored", buildingId: id || null,
-      entityLabel: `${e.category} — ${e.amount}`,
-      descriptionAr: cancelling ? `إلغاء مصروف: ${e.category} - ${e.amount}` : `استرجاع مصروف: ${e.category} - ${e.amount}`,
-      descriptionEn: cancelling ? `Expense cancelled: ${e.category} - ${e.amount}` : `Expense restored: ${e.category} - ${e.amount}`,
-    });
-    toast.success(cancelling ? (lang === "ar" ? "تم الإلغاء" : "Cancelled") : (lang === "ar" ? "تم الاسترجاع" : "Restored"));
+    setOpen(false);
     load();
   };
 
@@ -131,7 +103,7 @@ export default function BuildingExpenses() {
     load();
   };
 
-  const total = items.filter((x) => !x.cancelled_at).reduce((s, x) => s + Number(x.amount), 0);
+  const total = items.reduce((s, x) => s + Number(x.amount), 0);
   const net = income - total;
 
   return (
@@ -165,29 +137,19 @@ export default function BuildingExpenses() {
           ) : items.map((e) => {
             const c = CATEGORIES.find((x) => x.key === e.category) || CATEGORIES[4];
             const Icon = c.icon;
-            const cancelled = !!e.cancelled_at;
             return (
-              <div key={e.id} className={`bg-card border rounded-2xl p-3.5 flex items-center gap-2 shadow-soft ${cancelled ? "border-sage-200/40 opacity-60" : "border-sage-200/40"}`}>
+              <div key={e.id} className="bg-card border border-sage-200/40 rounded-2xl p-3.5 flex items-center gap-2 shadow-soft">
                 <div className="h-10 w-10 rounded-xl bg-sage-100 text-sage-500 flex items-center justify-center flex-shrink-0">
                   <Icon className="h-4 w-4" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className={`font-bold text-sm truncate ${cancelled ? "text-muted-foreground line-through" : "text-sage-600"}`}>
+                  <p className="font-bold text-sm truncate text-sage-600">
                     {lang === "ar" ? catLabelAr(e.category) : catLabelEn(e.category)}
                     {e.vendor ? ` · ${e.vendor}` : ""}
-                    {cancelled && <span className="ms-2 text-[10px] font-bold text-terracotta no-underline">{lang === "ar" ? "ملغى" : "Cancelled"}</span>}
                   </p>
                   <p className="text-[11px] text-muted-foreground truncate">{e.expense_date}{e.description ? ` · ${e.description}` : ""}</p>
                 </div>
-                <p className={`font-black whitespace-nowrap text-sm ${cancelled ? "text-muted-foreground line-through" : "text-burgundy"}`}>{format(Number(e.amount))}</p>
-                {!cancelled && (
-                  <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-sage-500" onClick={() => openEdit(e)} title={lang === "ar" ? "تعديل" : "Edit"}>
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                )}
-                <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-terracotta" onClick={() => toggleCancel(e)} title={cancelled ? (lang === "ar" ? "استرجاع" : "Restore") : (lang === "ar" ? "إلغاء" : "Cancel")}>
-                  {cancelled ? <RotateCcw className="h-3.5 w-3.5" /> : <Ban className="h-3.5 w-3.5" />}
-                </Button>
+                <p className="font-black whitespace-nowrap text-sm text-burgundy">{format(Number(e.amount))}</p>
                 <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-burgundy" onClick={() => setPendingDelete(e)} title={lang === "ar" ? "حذف" : "Delete"}>
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
@@ -197,10 +159,10 @@ export default function BuildingExpenses() {
         </div>
       </div>
 
-      <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}>
+      <Dialog open={open} onOpenChange={(o) => setOpen(o)}>
         <DialogContent className="rounded-2xl max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-sage-600">{editing ? (lang === "ar" ? "تعديل مصروف" : "Edit expense") : (lang === "ar" ? "إضافة مصروف" : "Add expense")}</DialogTitle>
+            <DialogTitle className="text-sage-600">{lang === "ar" ? "إضافة مصروف" : "Add expense"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div>
@@ -237,7 +199,7 @@ export default function BuildingExpenses() {
                 className="rounded-xl border-sage-200 bg-card mt-1.5" />
             </div>
             <div className="flex gap-2 pt-1">
-              <Button variant="outline" className="flex-1 rounded-xl" onClick={() => { setOpen(false); setEditing(null); }}>{t2("cancel")}</Button>
+              <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setOpen(false)}>{t2("cancel")}</Button>
               <Button onClick={save} disabled={busy} className="flex-1 rounded-xl bg-gradient-sage text-primary-foreground">{t2("save")}</Button>
             </div>
           </div>
