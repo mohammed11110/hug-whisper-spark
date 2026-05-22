@@ -241,6 +241,11 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const remaining = Math.max(0, (Number(expected) || 0) - (Number(amount) || 0));
   const isPartial = Number(amount) > 0 && Number(expected) > 0 && Number(amount) < Number(expected);
 
+  // Prior arrears = unpaid months STRICTLY before the selected period
+  const priorArrears = unpaidMonths.filter((m) => m.year < periodYear || (m.year === periodYear && m.month < periodMonthNum));
+  const priorArrearsTotal = priorArrears.reduce((s, m) => s + m.remaining, 0);
+  const grandCollected = Number(amount || 0) + (collectPriorArrears ? priorArrearsTotal : 0);
+
   // Detect "final installment of a partially-paid month"
   const currentMonthEntry = unpaidMonths.find((m) => m.year === periodYear && m.month === periodMonthNum);
   const hasPriorPartial = !!currentMonthEntry && activeRent > 0 && currentMonthEntry.remaining + 0.01 < activeRent;
