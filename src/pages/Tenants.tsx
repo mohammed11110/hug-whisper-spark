@@ -52,6 +52,14 @@ export default function Tenants() {
   const [collecting, setCollecting] = useState<string | null>(null);
 
   const quickCollect = async (r: TenantRow) => {
+    const priorArrears = Math.max(0, r.outstanding - r.rent_amount);
+    let collectArrears = false;
+    if (priorArrears > 0.009) {
+      const msg = lang === "ar"
+        ? `يوجد متأخرات سابقة بقيمة ${format(priorArrears)}.\n\nاضغط "موافق" لتحصيل الإيجار + المتأخرات (${format(r.rent_amount + priorArrears)})\nاضغط "إلغاء" لتحصيل إيجار الشهر فقط (${format(r.rent_amount)})`
+        : `Prior arrears: ${format(priorArrears)}.\n\nOK = Collect rent + arrears (${format(r.rent_amount + priorArrears)})\nCancel = Collect this month only (${format(r.rent_amount)})`;
+      collectArrears = window.confirm(msg);
+    }
     setCollecting(r.unit_id);
     const today = new Date();
     const y = today.getFullYear();
@@ -60,20 +68,36 @@ export default function Tenants() {
     const start = `${y}-${String(m + 1).padStart(2, "0")}-01`;
     const end = `${y}-${String(m + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
     const today_iso = today.toISOString().slice(0, 10);
-    const { error } = await supabase.from("payments").insert({
+    const receiptNo = `R-${Date.now()}`;
+    const rows: any[] = [{
       unit_id: r.unit_id,
       amount: r.rent_amount,
       expected_amount: r.rent_amount,
       payment_date: today_iso,
-      receipt_number: `R-${Date.now()}`,
+      receipt_number: receiptNo,
       payment_method: "cash",
       period_start: start,
       period_end: end,
-    });
+    }];
+    if (collectArrears && priorArrears > 0.009) {
+      rows.push({
+        unit_id: r.unit_id,
+        amount: priorArrears,
+        expected_amount: null,
+        payment_date: today_iso,
+        receipt_number: receiptNo,
+        payment_method: "cash",
+        notes: lang === "ar" ? "تحصيل متأخرات سابقة" : "Prior arrears collection",
+        period_start: null,
+        period_end: null,
+      });
+    }
+    const { error } = await supabase.from("payments").insert(rows);
     if (!error) {
+      const collected = r.rent_amount + (collectArrears ? priorArrears : 0);
       await supabase.from("units").update({ last_paid_date: today_iso, status: "paid" }).eq("id", r.unit_id);
       setRows((prev) => prev.map((x) => x.unit_id === r.unit_id
-        ? { ...x, status: "paid", last_paid_date: today_iso, total_paid: x.total_paid + r.rent_amount }
+        ? { ...x, status: "paid", last_paid_date: today_iso, total_paid: x.total_paid + collected, outstanding: Math.max(0, x.outstanding - collected) }
         : x));
       toast.success(lang === "ar" ? "تم تسجيل الدفعة ✓" : "Payment recorded ✓");
     } else {

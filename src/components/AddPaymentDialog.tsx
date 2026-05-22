@@ -90,6 +90,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const guard = useUnsavedGuard({ open, onOpenChange });
   const [unpaidMonths, setUnpaidMonths] = useState<{ year: number; month: number; remaining: number }[]>([]);
   const [includeArrears, setIncludeArrears] = useState(true);
+  const [collectPriorArrears, setCollectPriorArrears] = useState(false);
   const [showAllMonths, setShowAllMonths] = useState(false);
   const [allPaid, setAllPaid] = useState(false);
   const [activeRent, setActiveRent] = useState<number>(0);
@@ -240,6 +241,11 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const remaining = Math.max(0, (Number(expected) || 0) - (Number(amount) || 0));
   const isPartial = Number(amount) > 0 && Number(expected) > 0 && Number(amount) < Number(expected);
 
+  // Prior arrears = unpaid months STRICTLY before the selected period
+  const priorArrears = unpaidMonths.filter((m) => m.year < periodYear || (m.year === periodYear && m.month < periodMonthNum));
+  const priorArrearsTotal = priorArrears.reduce((s, m) => s + m.remaining, 0);
+  const grandCollected = Number(amount || 0) + (collectPriorArrears ? priorArrearsTotal : 0);
+
   // Detect "final installment of a partially-paid month"
   const currentMonthEntry = unpaidMonths.find((m) => m.year === periodYear && m.month === periodMonthNum);
   const hasPriorPartial = !!currentMonthEntry && activeRent > 0 && currentMonthEntry.remaining + 0.01 < activeRent;
@@ -265,20 +271,39 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     setSaving(true);
     const { data: activeT } = await supabase.from("tenancies").select("id").eq("unit_id", unitId).eq("status", "active").maybeSingle();
     const mergedNotes = [settlementNote, notes.trim()].filter(Boolean).join(" — ") || null;
-    const { error } = await supabase.from("payments").insert({
+    const sharedReceipt = receipt.trim() || null;
+    const rows: any[] = [{
       unit_id: unitId,
       tenancy_id: (activeT as any)?.id || null,
       amount: Number(amount),
       expected_amount: Number(expected) || null,
       payment_date: date,
-      receipt_number: receipt.trim() || null,
+      receipt_number: sharedReceipt,
       payment_method: method,
       notes: mergedNotes,
       period_start: periodStart || null,
       period_end: periodEnd || null,
-    });
+    }];
+    if (collectPriorArrears && priorArrears.length > 0) {
+      for (const m of priorArrears) {
+        const { start: ps, end: pe } = monthRange(m.year, m.month);
+        rows.push({
+          unit_id: unitId,
+          tenancy_id: (activeT as any)?.id || null,
+          amount: m.remaining,
+          expected_amount: activeRent || null,
+          payment_date: date,
+          receipt_number: sharedReceipt,
+          payment_method: method,
+          notes: (lang === "ar" ? "تحصيل متأخرات" : "Arrears collection") + ` — ${monthNames[m.month - 1]} ${m.year}`,
+          period_start: ps,
+          period_end: pe,
+        });
+      }
+    }
+    const { error } = await supabase.from("payments").insert(rows);
     if (!error) {
-      const newStatus = isPartial ? "soon" : "paid";
+      const newStatus = isPartial && !collectPriorArrears ? "soon" : "paid";
       await supabase.from("units").update({ last_paid_date: date, status: newStatus }).eq("id", unitId);
     }
     setSaving(false);
@@ -309,7 +334,10 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         .filter((m) => m.year < periodYear || (m.year === periodYear && m.month <= periodMonthNum))
         .map((m) => {
           const isCurrent = m.year === periodYear && m.month === periodMonthNum;
-          const remaining = isCurrent ? Math.max(0, m.remaining - Number(amount)) : m.remaining;
+          const isPriorPaidNow = collectPriorArrears && !isCurrent;
+          const remaining = isCurrent
+            ? Math.max(0, m.remaining - Number(amount))
+            : (isPriorPaidNow ? 0 : m.remaining);
           return {
             label: `${(lang === "ar" ? AR_MONTHS : EN_MONTHS)[m.month - 1]} ${m.year}`,
             remaining,
@@ -317,11 +345,18 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         })
         .filter((m) => m.remaining > 0.009);
       const unpaidTotal = upTo.reduce((s, m) => s + m.remaining, 0);
+      const collectedArrearsList = collectPriorArrears
+        ? priorArrears.map((m) => ({
+            label: `${(lang === "ar" ? AR_MONTHS : EN_MONTHS)[m.month - 1]} ${m.year}`,
+            amount: m.remaining,
+          }))
+        : [];
+      const grandTotal = Number(amount) + collectedArrearsList.reduce((s, a) => s + a.amount, 0);
       const html = buildReceiptHTML({
         brand: settings.brand,
         receiptNumber: receipt.trim() || formatReceipt(settings.receipt),
         paymentDate: date,
-        amount: Number(amount),
+        amount: collectedArrearsList.length ? grandTotal : Number(amount),
         expectedAmount: Number(expected) || null,
         method: methodLabel(method, lang),
         periodLabel: monthLabel,
@@ -335,12 +370,14 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         unpaidTotal: includeArrears ? unpaidTotal : 0,
         unpaidUpToLabel: includeArrears ? monthLabel : undefined,
         settlementNote,
+        collectedArrears: collectedArrearsList,
+        grandTotal: collectedArrearsList.length ? grandTotal : null,
       });
       await downloadHTMLAsPDF(html, `receipt-${(receipt.trim() || formatReceipt(settings.receipt))}.pdf`, settings);
     } catch (e: any) {
       console.warn("receipt PDF failed", e);
     }
-    setAmount(""); setReceipt(""); setNotes(""); if (!presetUnitId) setUnitId("");
+    setAmount(""); setReceipt(""); setNotes(""); setCollectPriorArrears(false); if (!presetUnitId) setUnitId("");
     guard.markSaved();
     onOpenChange(false);
     onSaved?.();
@@ -540,6 +577,28 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
             <Label className="text-xs text-sage-500">{t2("notes")}</Label>
             <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="rounded-xl border-sage-200 bg-card" />
           </div>
+          {unitId && priorArrears.length > 0 && (
+            <label className="flex items-start gap-2 rounded-xl border border-terracotta/30 bg-terracotta/5 px-3 py-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={collectPriorArrears}
+                onChange={(e) => setCollectPriorArrears(e.target.checked)}
+                className="h-4 w-4 mt-0.5 rounded border-sage-300 accent-[hsl(var(--primary))]"
+              />
+              <span className="text-xs font-semibold flex-1">
+                <span className="text-terracotta">
+                  {lang === "ar"
+                    ? `تحصيل المتأخرات السابقة مع هذه الدفعة (${priorArrears.length} ${priorArrears.length === 1 ? "شهر" : "أشهر"} · ${format(priorArrearsTotal)})`
+                    : `Collect prior arrears with this payment (${priorArrears.length} months · ${format(priorArrearsTotal)})`}
+                </span>
+                {collectPriorArrears && (
+                  <span className="block text-sage-600 mt-1">
+                    {lang === "ar" ? "الإجمالي المحصَّل" : "Total to collect"}: <b>{format(grandCollected)}</b>
+                  </span>
+                )}
+              </span>
+            </label>
+          )}
           {unitId && unpaidMonths.length > 0 && (
             <label className="flex items-center gap-2 rounded-xl border border-sage-200 bg-card px-3 py-2.5 cursor-pointer select-none">
               <input
