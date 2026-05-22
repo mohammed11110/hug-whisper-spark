@@ -528,6 +528,7 @@ export type Database = {
         Row: {
           amount: number
           building_id: string
+          cancelled_at: string | null
           category: string
           created_at: string
           description: string | null
@@ -540,6 +541,7 @@ export type Database = {
         Insert: {
           amount?: number
           building_id: string
+          cancelled_at?: string | null
           category?: string
           created_at?: string
           description?: string | null
@@ -552,6 +554,7 @@ export type Database = {
         Update: {
           amount?: number
           building_id?: string
+          cancelled_at?: string | null
           category?: string
           created_at?: string
           description?: string | null
