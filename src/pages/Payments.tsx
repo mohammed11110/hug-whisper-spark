@@ -241,7 +241,7 @@ export default function Payments() {
         .row b{color:#3a4f3a}
         .total{margin-top:18px;padding:18px 22px;background:linear-gradient(135deg,#eef3ea,#dcebd2);border-radius:18px;display:flex;justify-content:space-between;align-items:center;font-weight:900;font-size:22px;color:#3a6b3a}
         .footer{margin-top:18px;text-align:center;color:#9aa898;font-size:10px;letter-spacing:1px}
-        .unit-pill{display:inline-block;padding:4px 10px;border-radius:8px;background:#5a7359;color:#fff;font-weight:800;font-size:13px;margin-inline-end:6px}
+        
       </style></head><body>
         <div class="card" id="receipt-card">
           ${showStatus ? `<div class="watermark">${us.label}</div>` : ""}
@@ -257,7 +257,7 @@ export default function Payments() {
             <div><span>${esc(L.payment_date)}</span><b>${esc(r.payment_date)}</b></div>
             <div><span>${esc(L.building_name)}</span><b>${esc(r.building_name)}</b></div>
           </div>
-          <div class="row"><span>${esc(L.unit_number)}</span><b><span class="unit-pill">#${esc(r.unit_number)}</span></b></div>
+          <div class="row"><span>${esc(L.unit_number)}</span><b>#${esc(r.unit_number)}</b></div>
           
           <div class="row"><span>${esc(L.tenant_name)}</span><b>${esc(r.tenant_name || "—")}</b></div>
           ${r.period_start ? `<div class="row"><span>${esc(L.rent_month)}</span><b>${esc(monthLabel(r.period_start, lng))}</b></div>` : ""}
