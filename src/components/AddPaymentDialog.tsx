@@ -331,9 +331,9 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         notes: mergedNotes,
         currency: format(0).replace(/[\d.,\s]/g, "").trim() || "",
         lang: lang === "ar" ? "ar" : "en",
-        unpaidMonths: upTo,
-        unpaidTotal,
-        unpaidUpToLabel: monthLabel,
+        unpaidMonths: includeArrears ? upTo : [],
+        unpaidTotal: includeArrears ? unpaidTotal : 0,
+        unpaidUpToLabel: includeArrears ? monthLabel : undefined,
         settlementNote,
       });
       await downloadHTMLAsPDF(html, `receipt-${(receipt.trim() || formatReceipt(settings.receipt))}.pdf`, settings);
