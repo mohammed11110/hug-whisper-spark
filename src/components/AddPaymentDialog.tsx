@@ -577,6 +577,28 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
             <Label className="text-xs text-sage-500">{t2("notes")}</Label>
             <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="rounded-xl border-sage-200 bg-card" />
           </div>
+          {unitId && priorArrears.length > 0 && (
+            <label className="flex items-start gap-2 rounded-xl border border-terracotta/30 bg-terracotta/5 px-3 py-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={collectPriorArrears}
+                onChange={(e) => setCollectPriorArrears(e.target.checked)}
+                className="h-4 w-4 mt-0.5 rounded border-sage-300 accent-[hsl(var(--primary))]"
+              />
+              <span className="text-xs font-semibold flex-1">
+                <span className="text-terracotta">
+                  {lang === "ar"
+                    ? `تحصيل المتأخرات السابقة مع هذه الدفعة (${priorArrears.length} ${priorArrears.length === 1 ? "شهر" : "أشهر"} · ${format(priorArrearsTotal)})`
+                    : `Collect prior arrears with this payment (${priorArrears.length} months · ${format(priorArrearsTotal)})`}
+                </span>
+                {collectPriorArrears && (
+                  <span className="block text-sage-600 mt-1">
+                    {lang === "ar" ? "الإجمالي المحصَّل" : "Total to collect"}: <b>{format(grandCollected)}</b>
+                  </span>
+                )}
+              </span>
+            </label>
+          )}
           {unitId && unpaidMonths.length > 0 && (
             <label className="flex items-center gap-2 rounded-xl border border-sage-200 bg-card px-3 py-2.5 cursor-pointer select-none">
               <input
