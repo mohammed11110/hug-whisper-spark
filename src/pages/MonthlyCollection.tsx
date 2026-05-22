@@ -193,18 +193,18 @@ export default function MonthlyCollection() {
           <div className="bg-sage-300/15 border border-sage-300/30 rounded-2xl p-3 text-center">
             <CheckCircle2 className="h-5 w-5 text-sage-600 mx-auto mb-1" />
             <p className="text-2xl font-black text-sage-600">{paidRows.length}</p>
-            <p className="text-[11px] text-muted-foreground font-semibold">{t2("paid_tenants")}</p>
+            <p className="text-[11px] text-muted-foreground font-semibold">{lang === "ar" ? "مسدِّدون" : t2("paid_tenants")}</p>
           </div>
           <div className="bg-burgundy/10 border border-burgundy/20 rounded-2xl p-3 text-center">
             <AlertCircle className="h-5 w-5 text-burgundy mx-auto mb-1" />
             <p className="text-2xl font-black text-burgundy">{lateRows.length}</p>
-            <p className="text-[11px] text-muted-foreground font-semibold">{t2("late_tenants")}</p>
+            <p className="text-[11px] text-muted-foreground font-semibold">{lang === "ar" ? "متأخرون" : t2("late_tenants")}</p>
           </div>
         </div>
 
         {/* Late list */}
         {lateRows.length > 0 && (
-          <Section title={`⚠️ ${t2("late_tenants")} (${lateRows.length})`} accent="burgundy">
+          <Section title={`${t2("late_tenants")} · ${lateRows.length}`} accent="burgundy">
             {lateRows.map((r) => (
               <RowCard
                 key={r.unit.id}
@@ -213,8 +213,8 @@ export default function MonthlyCollection() {
                 building={buildings[r.unit.building_id] || ""}
                 phone={r.unit.tenant_phone}
                 primary={format(r.remaining)}
-                primaryLabel={lang === "ar" ? "متبقي إيجار هذا الشهر" : "Remaining this month"}
-                secondary={r.status === "partial" ? `${t2("partial_payment")}: ${format(r.paid)}` : undefined}
+                primaryLabel={lang === "ar" ? "المتبقي لهذا الشهر" : "Remaining this month"}
+                secondary={r.status === "partial" ? (lang === "ar" ? `سُدِّد جزئياً: ${format(r.paid)}` : `${t2("partial_payment")}: ${format(r.paid)}`) : undefined}
                 tone="danger"
                 action={
                   <Button size="sm" onClick={() => { setPresetUnit(r.unit.id); setPayOpen(true); }}
@@ -229,7 +229,7 @@ export default function MonthlyCollection() {
 
         {/* Paid list */}
         {paidRows.length > 0 && (
-          <Section title={`✅ ${t2("paid_tenants")} (${paidRows.length})`} accent="sage">
+          <Section title={`${t2("paid_tenants")} · ${paidRows.length}`} accent="sage">
             {paidRows.map((r) => (
               <RowCard
                 key={r.unit.id}
@@ -247,7 +247,7 @@ export default function MonthlyCollection() {
 
         {/* Payment details list */}
         {dialogPayments.length > 0 && (
-          <Section title={`📋 ${t2("payments")} (${dialogPayments.length})`} accent="sage">
+          <Section title={`${lang === "ar" ? "الدفعات المُستلمة" : t2("payments")} · ${dialogPayments.length}`} accent="sage">
             {dialogPayments.map((p) => {
               const unit = units.find((u) => u.id === p.unit_id);
               const buildingName = unit ? (buildings[unit.building_id] || "") : "";
