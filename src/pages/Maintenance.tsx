@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Wrench } from "lucide-react";
+import { Plus, Wrench, Pencil, Ban, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
@@ -8,6 +8,8 @@ import { useI18n } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
 import { AddMaintenanceDialog } from "@/components/AddMaintenanceDialog";
+import { EditMaintenanceDialog } from "@/components/EditMaintenanceDialog";
+import { logActivity } from "@/lib/activityLogger";
 import { toast } from "sonner";
 
 interface Req {
@@ -16,6 +18,7 @@ interface Req {
   priority: string; status: string;
   tenant_name: string | null; cost: number | null; vendor: string | null;
   photos: string[] | null;
+  cancelled_at: string | null;
   created_at: string;
   building_name?: string; unit_number?: string;
   expense?: { id: string; description: string | null } | null;
@@ -44,6 +47,7 @@ export default function Maintenance() {
   const [rows, setRows] = useState<Req[]>([]);
   const [filter, setFilter] = useState<string>("all");
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Req | null>(null);
 
   const load = async () => {
     const { data, error } = await (supabase as any)
@@ -90,6 +94,26 @@ export default function Maintenance() {
     load();
   };
 
+  const toggleCancel = async (r: Req) => {
+    const cancelling = !r.cancelled_at;
+    const patch: any = cancelling
+      ? { cancelled_at: new Date().toISOString(), status: "cancelled" }
+      : { cancelled_at: null, status: "open" };
+    const { error } = await (supabase as any).from("maintenance_requests").update(patch).eq("id", r.id);
+    if (error) return toast.error(error.message);
+    await logActivity({
+      entityType: "maintenance",
+      action: cancelling ? "deleted" : "restored",
+      buildingId: r.building_id,
+      entityId: r.id,
+      entityLabel: r.title,
+      descriptionAr: cancelling ? `إلغاء طلب الصيانة: ${r.title}` : `استرجاع طلب الصيانة: ${r.title}`,
+      descriptionEn: cancelling ? `Cancelled maintenance request: ${r.title}` : `Restored maintenance request: ${r.title}`,
+    });
+    toast.success(cancelling ? (lang === "ar" ? "تم الإلغاء" : "Cancelled") : (lang === "ar" ? "تم الاسترجاع" : "Restored"));
+    load();
+  };
+
   const filtered = filter === "all" ? rows : rows.filter((r) => r.status === filter);
 
   return (
@@ -124,10 +148,10 @@ export default function Maintenance() {
             <p className="text-xs text-muted-foreground">{t2("no_maintenance_msg")}</p>
           </div>
         ) : filtered.map((r) => (
-          <div key={r.id} className="rounded-2xl bg-card border border-sage-200/50 shadow-soft p-4 space-y-2.5">
+          <div key={r.id} className={`rounded-2xl bg-card border border-sage-200/50 shadow-soft p-4 space-y-2.5 ${r.cancelled_at ? "opacity-60" : ""}`}>
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1 min-w-0">
-                <h3 className="font-bold text-sage-600 text-sm">{r.title}</h3>
+                <h3 className={`font-bold text-sage-600 text-sm ${r.cancelled_at ? "line-through text-muted-foreground" : ""}`}>{r.title}</h3>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
                   {r.building_name || "—"}{r.unit_number ? ` · #${r.unit_number}` : ""} · {new Date(r.created_at).toLocaleDateString(lang === "ar" ? "ar" : "en")}
                 </p>
@@ -137,14 +161,14 @@ export default function Maintenance() {
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUS_COLOR[r.status]}`}>{t2(`status_${r.status}` as any)}</span>
               </div>
             </div>
-            {r.description && <p className="text-xs text-muted-foreground leading-relaxed">{r.description}</p>}
+            {r.description && <p className={`text-xs text-muted-foreground leading-relaxed ${r.cancelled_at ? "line-through" : ""}`}>{r.description}</p>}
             {(r.cost || r.vendor) && (
               <div className="flex justify-between items-center text-[11px] text-sage-600 bg-sage-100/40 rounded-lg px-3 py-1.5">
                 {r.vendor && <span>{t2("vendor")}: <b>{r.vendor}</b></span>}
                 {r.cost ? <span>{t2("cost")}: <b>{format(Number(r.cost))}</b></span> : null}
               </div>
             )}
-            {r.status === "done" && r.expense && (
+            {r.status === "done" && r.expense && !r.cancelled_at && (
               <div className="space-y-1">
                 <div className="text-[10px] font-bold text-sage-600 bg-sage-200/40 rounded-full px-2 py-1 inline-flex items-center gap-1.5 w-fit">
                   ↗ {lang === "ar" ? "مصروف مُسجّل" : "Expense logged"}
@@ -171,19 +195,32 @@ export default function Maintenance() {
                 ))}
               </div>
             )}
-            <div className="flex gap-1.5">
-              {STATUSES.filter((s) => s !== r.status).map((s) => (
-                <button key={s} onClick={() => setStatus(r.id, s)}
-                  className="flex-1 text-[10px] font-bold py-1.5 rounded-lg border border-sage-200 text-sage-600 hover:bg-sage-100/40">
-                  → {t2(`status_${s}` as any)}
-                </button>
-              ))}
+            {!r.cancelled_at && (
+              <div className="flex gap-1.5">
+                {STATUSES.filter((s) => s !== r.status && s !== "cancelled").map((s) => (
+                  <button key={s} onClick={() => setStatus(r.id, s)}
+                    className="flex-1 text-[10px] font-bold py-1.5 rounded-lg border border-sage-200 text-sage-600 hover:bg-sage-100/40">
+                    → {t2(`status_${s}` as any)}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-1.5 pt-1 border-t border-sage-200/40">
+              <button onClick={() => setEditing(r)} disabled={!!r.cancelled_at}
+                className="flex-1 text-[11px] font-bold py-1.5 rounded-lg border border-sage-200 text-sage-600 hover:bg-sage-100/40 flex items-center justify-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed">
+                <Pencil className="h-3 w-3" />{lang === "ar" ? "تعديل" : "Edit"}
+              </button>
+              <button onClick={() => toggleCancel(r)}
+                className={`flex-1 text-[11px] font-bold py-1.5 rounded-lg border flex items-center justify-center gap-1 ${r.cancelled_at ? "border-sage-200 text-sage-600 hover:bg-sage-100/40" : "border-burgundy/30 text-burgundy hover:bg-burgundy/10"}`}>
+                {r.cancelled_at ? <><RotateCcw className="h-3 w-3" />{lang === "ar" ? "استرجاع" : "Restore"}</> : <><Ban className="h-3 w-3" />{lang === "ar" ? "إلغاء" : "Cancel"}</>}
+              </button>
             </div>
           </div>
         ))}
       </div>
 
       <AddMaintenanceDialog open={open} onOpenChange={setOpen} onCreated={load} />
+      <EditMaintenanceDialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)} request={editing} onSaved={load} />
       <BottomNav />
     </div>
   );
