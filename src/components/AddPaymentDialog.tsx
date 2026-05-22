@@ -22,11 +22,15 @@ import { z } from "zod";
 interface UnitOpt {
   id: string;
   unit_number: string;
+  building_id: string;
   building_name: string;
   rent_amount: number;
   tenant_name: string | null;
   arrears_note?: string | null;
 }
+
+interface BuildingOpt { id: string; name: string; }
+
 
 interface Props {
   open: boolean;
@@ -68,8 +72,12 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const { format } = useCurrency();
   const { settings, bumpReceiptNumber } = useAppSettings();
   const [units, setUnits] = useState<UnitOpt[]>([]);
+  const [buildings, setBuildings] = useState<BuildingOpt[]>([]);
+  const [buildingId, setBuildingId] = useState<string>("");
   const [unitId, setUnitId] = useState(presetUnitId || "");
   const [expected, setExpected] = useState("");
+
+
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [receipt, setReceipt] = useState("");
@@ -119,6 +127,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
           return {
             id: u.id,
             unit_number: u.unit_number,
+            building_id: u.building_id,
             tenant_name: u.tenant_name || (isVacantWithArrears ? ar!.name : null),
             rent_amount: Number(u.rent_amount),
             building_name: bMap.get(u.building_id)?.name || bMap.get(u.building_id)?.name_en || "—",
@@ -128,19 +137,34 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
           };
         });
       setUnits(opts);
+      // Build buildings list from units the user can see (deduped)
+      const bSeen = new Set<string>();
+      const bList: BuildingOpt[] = [];
+      opts.forEach((o) => {
+        if (bSeen.has(o.building_id)) return;
+        bSeen.add(o.building_id);
+        bList.push({ id: o.building_id, name: o.building_name });
+      });
+      bList.sort((a, b) => a.name.localeCompare(b.name));
+      setBuildings(bList);
       if (presetUnitId) {
         setUnitId(presetUnitId);
         const u = opts.find((x) => x.id === presetUnitId);
         if (u) {
+          setBuildingId(u.building_id);
           setExpected(String(u.rent_amount));
           if (!amount) setAmount(String(u.rent_amount));
         }
+      } else {
+        setBuildingId("");
+        setUnitId("");
       }
       if (!receipt) setReceipt(formatReceipt(settings.receipt));
       const today = new Date();
       setPeriodYear(today.getFullYear());
       setPeriodMonthNum(today.getMonth() + 1);
     })();
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, presetUnitId]);
 
@@ -331,18 +355,43 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         </DialogHeader>
         <div className="space-y-3" {...guard.formProps}>
           <div className="space-y-1.5">
-            <Label className="text-xs text-sage-500">{t2("unit_number")}</Label>
+            <Label className="text-xs text-sage-500">{lang === "ar" ? "المبنى" : "Building"}</Label>
+            <Select
+              value={buildingId}
+              onValueChange={(v) => {
+                setBuildingId(v);
+                setUnitId("");
+                setExpected("");
+                setAmount("");
+              }}
+              disabled={!!presetUnitId}
+            >
+              <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11 disabled:opacity-50">
+                <SelectValue placeholder={lang === "ar" ? "اختر المبنى" : "Select building"} />
+              </SelectTrigger>
+              <SelectContent className="max-h-72">
+                {buildings.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-sage-500">{lang === "ar" ? "الوحدة" : "Unit"}</Label>
             {(() => {
+              const filtered = buildingId
+                ? units.filter((u) => u.building_id === buildingId && !!u.tenant_name)
+                : [];
               const selected = units.find((u) => u.id === unitId);
               const label = selected
-                ? `${selected.building_name} · ${selected.unit_number}${selected.tenant_name ? ` — ${selected.tenant_name}` : ""}`
-                : "—";
+                ? `${selected.unit_number}${selected.tenant_name ? ` — ${selected.tenant_name}` : ""}`
+                : (buildingId ? (lang === "ar" ? "اختر الوحدة" : "Select unit") : (lang === "ar" ? "اختر المبنى أولاً" : "Select a building first"));
               return (
                 <Popover open={unitOpen} onOpenChange={setUnitOpen}>
                   <PopoverTrigger asChild>
                     <button
                       type="button"
-                      disabled={!!presetUnitId}
+                      disabled={!!presetUnitId || !buildingId}
                       className="flex h-11 w-full items-center justify-between rounded-xl border border-sage-200 bg-card px-3 text-sm disabled:opacity-50"
                     >
                       <span className={selected ? "" : "text-muted-foreground"}>{label}</span>
@@ -357,10 +406,10 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                     >
                       <CommandInput placeholder={lang === "ar" ? "ابحث..." : "Search..."} />
                       <CommandList>
-                        <CommandEmpty>{lang === "ar" ? "لا توجد نتائج" : "No results"}</CommandEmpty>
+                        <CommandEmpty>{lang === "ar" ? "لا توجد وحدات مؤجَّرة" : "No occupied units"}</CommandEmpty>
                         <CommandGroup>
-                          {units.map((u) => {
-                            const text = `${u.building_name} ${u.unit_number} ${u.tenant_name || ""}`;
+                          {filtered.map((u) => {
+                            const text = `${u.unit_number} ${u.tenant_name || ""}`;
                             return (
                               <CommandItem
                                 key={u.id}
@@ -368,12 +417,13 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                                 onSelect={() => { onPickUnit(u.id); setUnitOpen(false); }}
                               >
                                 <Check className={`me-2 h-4 w-4 ${unitId === u.id ? "opacity-100" : "opacity-0"}`} />
-                                {u.building_name} · {u.unit_number}{u.tenant_name ? ` — ${u.tenant_name}` : ""}{u.arrears_note ? ` · ${u.arrears_note}` : ""}
+                                {u.unit_number}{u.tenant_name ? ` — ${u.tenant_name}` : ""}{u.arrears_note ? ` · ${u.arrears_note}` : ""}
                               </CommandItem>
                             );
                           })}
                         </CommandGroup>
                       </CommandList>
+
                     </Command>
                   </PopoverContent>
                 </Popover>
