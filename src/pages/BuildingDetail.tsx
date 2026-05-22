@@ -36,6 +36,7 @@ export default function BuildingDetail() {
   const [units, setUnits] = useState<Unit[]>([]);
   const [payments, setPayments] = useState<PaymentForBalance[]>([]);
   const [collectedMonth, setCollectedMonth] = useState(0);
+  const [totalExpenses, setTotalExpenses] = useState(0);
   const [filter, setFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>(() => {
     try { return localStorage.getItem("amlaki.units.sortBy") || "smart"; } catch { return "smart"; }
@@ -65,6 +66,8 @@ export default function BuildingDetail() {
         .reduce((s: number, p: any) => s + Number(p.amount), 0);
       setCollectedMonth(monthSum);
     } else { setPayments([]); setCollectedMonth(0); }
+    const { data: exs } = await supabase.from("expenses").select("amount,cancelled_at").eq("building_id", id).is("cancelled_at", null);
+    setTotalExpenses((exs || []).reduce((s: number, e: any) => s + Number(e.amount || 0), 0));
   };
 
   useEffect(() => { load(); }, [id]);
@@ -183,7 +186,10 @@ export default function BuildingDetail() {
             </div>
             <span className="font-bold text-sage-600 text-sm">المصروفات / Expenses</span>
           </div>
-          <span className="text-sage-400 rtl:rotate-180">›</span>
+          <div className="flex items-center gap-2">
+            <span className="font-black text-burgundy text-sm">{format(totalExpenses)}</span>
+            <span className="text-sage-400 rtl:rotate-180">›</span>
+          </div>
         </Link>
 
 
