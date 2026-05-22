@@ -1296,17 +1296,30 @@ async function renderInMainDocument(html: string): Promise<HTMLCanvasElement> {
   try {
     const target = (wrapper.querySelector(".page") as HTMLElement) || bodyHost;
     target.style.background = "#ffffff";
+    const hasArabic = /[\u0600-\u06FF]/.test(target.innerText || target.textContent || "");
+    if (hasArabic) {
+      // Force Arabic font + RTL on the receipt root itself (not just body) so
+      // html2canvas captures correctly-shaped (connected) Arabic letters,
+      // matching the manual download path on the Payments page.
+      target.setAttribute("dir", "rtl");
+      target.style.fontFamily = '"Noto Kufi Arabic", "Noto Naskh Arabic", "Segoe UI", Tahoma, Arial, sans-serif';
+      (target.style as any).fontFeatureSettings = '"kern","liga","calt","init","medi","fina","isol"';
+      (target.style as any).textRendering = 'geometricPrecision';
+      (target.style as any).fontSynthesis = 'none';
+    }
     await inlineImages(target);
     await waitForWebFonts(target);
     await new Promise((r) => setTimeout(r, 400));
 
+    // IMPORTANT: do NOT use foreignObjectRendering for Arabic — it breaks
+    // letter joining in modern Chrome. Match the manual Payments path.
     const canvas = await html2canvas(target, {
-      scale: 3,
+      scale: 2,
       useCORS: true,
       allowTaint: false,
       backgroundColor: "#ffffff",
       logging: false,
-      foreignObjectRendering: true,
+      foreignObjectRendering: false,
       windowWidth: target.scrollWidth || 794,
       windowHeight: target.scrollHeight || target.offsetHeight || 1123,
     });
@@ -1317,6 +1330,7 @@ async function renderInMainDocument(html: string): Promise<HTMLCanvasElement> {
     wrapper.remove();
   }
 }
+
 
 async function renderInIframe(html: string): Promise<HTMLCanvasElement> {
   const fontUrls = await getFontDataUrls();
