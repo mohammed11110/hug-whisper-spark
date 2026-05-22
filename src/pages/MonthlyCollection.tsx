@@ -247,7 +247,7 @@ export default function MonthlyCollection() {
 
         {/* Payment details list */}
         {dialogPayments.length > 0 && (
-          <Section title={`📋 ${t2("payments")} (${dialogPayments.length})`} accent="sage">
+          <Section title={`${lang === "ar" ? "الدفعات المُستلمة" : t2("payments")} · ${dialogPayments.length}`} accent="sage">
             {dialogPayments.map((p) => {
               const unit = units.find((u) => u.id === p.unit_id);
               const buildingName = unit ? (buildings[unit.building_id] || "") : "";
