@@ -613,6 +613,7 @@ export type Database = {
       maintenance_requests: {
         Row: {
           building_id: string
+          cancelled_at: string | null
           cost: number | null
           created_at: string
           description: string | null
@@ -629,6 +630,7 @@ export type Database = {
         }
         Insert: {
           building_id: string
+          cancelled_at?: string | null
           cost?: number | null
           created_at?: string
           description?: string | null
@@ -645,6 +647,7 @@ export type Database = {
         }
         Update: {
           building_id?: string
+          cancelled_at?: string | null
           cost?: number | null
           created_at?: string
           description?: string | null
