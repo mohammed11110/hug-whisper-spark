@@ -540,6 +540,8 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+            )}
           </div>
 
           {unitId && arrearsUpToTotal > 0.009 && (
@@ -560,8 +562,6 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
             </div>
           )}
 
-            )}
-          </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
