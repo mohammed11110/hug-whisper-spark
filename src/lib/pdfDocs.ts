@@ -182,6 +182,8 @@ export interface ReceiptData {
   unpaidTotal?: number | null;
   unpaidUpToLabel?: string | null;
   settlementNote?: string | null;
+  collectedArrears?: Array<{ label: string; amount: number }>;
+  grandTotal?: number | null;
 }
 
 export interface Lease {
