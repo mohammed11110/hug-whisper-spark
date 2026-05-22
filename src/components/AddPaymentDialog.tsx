@@ -89,6 +89,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const [unitOpen, setUnitOpen] = useState(false);
   const guard = useUnsavedGuard({ open, onOpenChange });
   const [unpaidMonths, setUnpaidMonths] = useState<{ year: number; month: number; remaining: number }[]>([]);
+  const [includeArrears, setIncludeArrears] = useState(true);
   const [showAllMonths, setShowAllMonths] = useState(false);
   const [allPaid, setAllPaid] = useState(false);
   const [activeRent, setActiveRent] = useState<number>(0);
@@ -330,9 +331,9 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         notes: mergedNotes,
         currency: format(0).replace(/[\d.,\s]/g, "").trim() || "",
         lang: lang === "ar" ? "ar" : "en",
-        unpaidMonths: upTo,
-        unpaidTotal,
-        unpaidUpToLabel: monthLabel,
+        unpaidMonths: includeArrears ? upTo : [],
+        unpaidTotal: includeArrears ? unpaidTotal : 0,
+        unpaidUpToLabel: includeArrears ? monthLabel : undefined,
         settlementNote,
       });
       await downloadHTMLAsPDF(html, `receipt-${(receipt.trim() || formatReceipt(settings.receipt))}.pdf`, settings);
@@ -539,6 +540,19 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
             <Label className="text-xs text-sage-500">{t2("notes")}</Label>
             <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="rounded-xl border-sage-200 bg-card" />
           </div>
+          {unitId && unpaidMonths.length > 0 && (
+            <label className="flex items-center gap-2 rounded-xl border border-sage-200 bg-card px-3 py-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={includeArrears}
+                onChange={(e) => setIncludeArrears(e.target.checked)}
+                className="h-4 w-4 rounded border-sage-300 accent-[hsl(var(--primary))]"
+              />
+              <span className="text-xs text-sage-600 font-semibold">
+                {lang === "ar" ? "إظهار إجمالي المتأخرات في الفاتورة" : "Show total arrears on receipt"}
+              </span>
+            </label>
+          )}
         </div>
         <DialogFooter className="gap-2 sm:gap-2">
           <Button data-guard-ignore variant="outline" onClick={() => guard.handleOpenChange(false)} className="rounded-xl">{t2("cancel")}</Button>
