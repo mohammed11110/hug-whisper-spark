@@ -599,6 +599,36 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
               </span>
             </label>
           )}
+          {unitId && priorArrears.length > 0 && (
+            <div className="rounded-xl border border-terracotta/25 bg-terracotta/[0.04] p-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-terracotta">
+                  {lang === "ar" ? "تفاصيل المتأخرات" : "Arrears details"}
+                </span>
+                <span className="text-[10px] text-sage-500 font-semibold">
+                  {lang === "ar"
+                    ? `${priorArrears.length} ${priorArrears.length === 1 ? "شهر" : "أشهر"}`
+                    : `${priorArrears.length} ${priorArrears.length === 1 ? "month" : "months"}`}
+                </span>
+              </div>
+              <div className="divide-y divide-terracotta/15">
+                {priorArrears.map((m) => (
+                  <div key={`${m.year}-${m.month}`} className="flex items-center justify-between py-1.5 text-xs">
+                    <span className="text-sage-700 font-semibold">
+                      {monthNames[m.month - 1]} {m.year}
+                    </span>
+                    <span className="text-terracotta font-bold tabular-nums">{format(m.remaining)}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-between pt-2 mt-1 border-t border-terracotta/25 text-xs">
+                <span className="text-sage-700 font-bold">
+                  {lang === "ar" ? "الإجمالي" : "Total"}
+                </span>
+                <span className="text-terracotta font-extrabold tabular-nums">{format(priorArrearsTotal)}</span>
+              </div>
+            </div>
+          )}
           {unitId && unpaidMonths.length > 0 && (
             <label className="flex items-center gap-2 rounded-xl border border-sage-200 bg-card px-3 py-2.5 cursor-pointer select-none">
               <input
