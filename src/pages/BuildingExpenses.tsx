@@ -21,7 +21,6 @@ interface Expense {
   expense_date: string;
   description: string | null;
   vendor: string | null;
-  cancelled_at: string | null;
 }
 
 const CATEGORIES = [
