@@ -377,7 +377,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     } catch (e: any) {
       console.warn("receipt PDF failed", e);
     }
-    setAmount(""); setReceipt(""); setNotes(""); if (!presetUnitId) setUnitId("");
+    setAmount(""); setReceipt(""); setNotes(""); setCollectPriorArrears(false); if (!presetUnitId) setUnitId("");
     guard.markSaved();
     onOpenChange(false);
     onSaved?.();
