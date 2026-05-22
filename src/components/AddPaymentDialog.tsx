@@ -355,18 +355,43 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         </DialogHeader>
         <div className="space-y-3" {...guard.formProps}>
           <div className="space-y-1.5">
-            <Label className="text-xs text-sage-500">{t2("unit_number")}</Label>
+            <Label className="text-xs text-sage-500">{lang === "ar" ? "المبنى" : "Building"}</Label>
+            <Select
+              value={buildingId}
+              onValueChange={(v) => {
+                setBuildingId(v);
+                setUnitId("");
+                setExpected("");
+                setAmount("");
+              }}
+              disabled={!!presetUnitId}
+            >
+              <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11 disabled:opacity-50">
+                <SelectValue placeholder={lang === "ar" ? "اختر المبنى" : "Select building"} />
+              </SelectTrigger>
+              <SelectContent className="max-h-72">
+                {buildings.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-sage-500">{lang === "ar" ? "الوحدة" : "Unit"}</Label>
             {(() => {
+              const filtered = buildingId
+                ? units.filter((u) => u.building_id === buildingId && !!u.tenant_name)
+                : [];
               const selected = units.find((u) => u.id === unitId);
               const label = selected
-                ? `${selected.building_name} · ${selected.unit_number}${selected.tenant_name ? ` — ${selected.tenant_name}` : ""}`
-                : "—";
+                ? `${selected.unit_number}${selected.tenant_name ? ` — ${selected.tenant_name}` : ""}`
+                : (buildingId ? (lang === "ar" ? "اختر الوحدة" : "Select unit") : (lang === "ar" ? "اختر المبنى أولاً" : "Select a building first"));
               return (
                 <Popover open={unitOpen} onOpenChange={setUnitOpen}>
                   <PopoverTrigger asChild>
                     <button
                       type="button"
-                      disabled={!!presetUnitId}
+                      disabled={!!presetUnitId || !buildingId}
                       className="flex h-11 w-full items-center justify-between rounded-xl border border-sage-200 bg-card px-3 text-sm disabled:opacity-50"
                     >
                       <span className={selected ? "" : "text-muted-foreground"}>{label}</span>
@@ -381,10 +406,10 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                     >
                       <CommandInput placeholder={lang === "ar" ? "ابحث..." : "Search..."} />
                       <CommandList>
-                        <CommandEmpty>{lang === "ar" ? "لا توجد نتائج" : "No results"}</CommandEmpty>
+                        <CommandEmpty>{lang === "ar" ? "لا توجد وحدات مؤجَّرة" : "No occupied units"}</CommandEmpty>
                         <CommandGroup>
-                          {units.map((u) => {
-                            const text = `${u.building_name} ${u.unit_number} ${u.tenant_name || ""}`;
+                          {filtered.map((u) => {
+                            const text = `${u.unit_number} ${u.tenant_name || ""}`;
                             return (
                               <CommandItem
                                 key={u.id}
@@ -392,12 +417,13 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                                 onSelect={() => { onPickUnit(u.id); setUnitOpen(false); }}
                               >
                                 <Check className={`me-2 h-4 w-4 ${unitId === u.id ? "opacity-100" : "opacity-0"}`} />
-                                {u.building_name} · {u.unit_number}{u.tenant_name ? ` — ${u.tenant_name}` : ""}{u.arrears_note ? ` · ${u.arrears_note}` : ""}
+                                {u.unit_number}{u.tenant_name ? ` — ${u.tenant_name}` : ""}{u.arrears_note ? ` · ${u.arrears_note}` : ""}
                               </CommandItem>
                             );
                           })}
                         </CommandGroup>
                       </CommandList>
+
                     </Command>
                   </PopoverContent>
                 </Popover>
