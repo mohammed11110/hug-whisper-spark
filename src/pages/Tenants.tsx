@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Search, Phone, Users, ChevronLeft, MessageCircle, CheckCircle2 } from "lucide-react";
+import { Search, Phone, Users, ChevronLeft, MessageCircle, CheckCircle2, AlertTriangle, Clock, TrendingDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
