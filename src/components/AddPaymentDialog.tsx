@@ -477,7 +477,52 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
               );
             })()}
           </div>
+          {/* Prominent arrears alert — visible immediately after unit selection */}
+          {unitId && unpaidMonths.length > 0 && (
+            <div className="rounded-2xl border-2 border-burgundy/40 bg-burgundy/10 px-4 py-3.5 shadow-[0_4px_16px_-8px_rgba(168,93,93,0.3)]">
+              <div className="flex items-start gap-2.5">
+                <span className="text-burgundy text-lg leading-none mt-0.5">⚠</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[12px] font-extrabold text-burgundy uppercase tracking-wide">
+                    {lang === "ar" ? "هذه الوحدة عليها متأخرات" : "This unit has outstanding arrears"}
+                  </div>
+                  <div className="mt-1.5 flex items-baseline justify-between gap-2">
+                    <span className="text-2xl font-extrabold text-burgundy tabular-nums">
+                      {format(unpaidMonths.reduce((s, m) => s + m.remaining, 0))}
+                    </span>
+                    <span className="text-[11px] text-burgundy/80 font-semibold whitespace-nowrap">
+                      {lang === "ar"
+                        ? `${unpaidMonths.length} ${unpaidMonths.length === 1 ? "شهر غير مسدد" : "أشهر غير مسددة"}`
+                        : `${unpaidMonths.length} unpaid ${unpaidMonths.length === 1 ? "month" : "months"}`}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowArrearsList((s) => !s)}
+                    className="mt-2 text-[11px] font-bold text-burgundy/90 hover:text-burgundy underline underline-offset-2"
+                  >
+                    {showArrearsList
+                      ? (lang === "ar" ? "إخفاء التفاصيل ▴" : "Hide details ▴")
+                      : (lang === "ar" ? "عرض التفاصيل ▾" : "Show details ▾")}
+                  </button>
+                  {showArrearsList && (
+                    <div className="mt-2 divide-y divide-burgundy/15 border-t border-burgundy/20 pt-1">
+                      {unpaidMonths.map((m) => (
+                        <div key={`${m.year}-${m.month}`} className="flex items-center justify-between py-1.5 text-xs">
+                          <span className="text-burgundy/85 font-semibold">
+                            {monthNames[m.month - 1]} {m.year}
+                          </span>
+                          <span className="text-burgundy font-extrabold tabular-nums">{format(m.remaining)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
           {/* Rent month — unpaid only by default */}
+
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <Label className="text-xs text-sage-500">{t2("rent_month")}</Label>
