@@ -318,7 +318,12 @@ export default function Tenants() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="font-bold text-sage-600 truncate">{r.tenant_name}</p>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`h-2 w-2 rounded-full flex-shrink-0 ${
+                        r.outstanding > 0.009 ? "bg-burgundy" : r.status === "paid" ? "bg-sage-500" : "bg-terracotta"
+                      }`} />
+                      <p className="font-bold text-sage-600 truncate">{r.tenant_name}</p>
+                    </div>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${STATUS_STYLES[r.status] || "bg-muted text-muted-foreground"}`}>{t2(r.status as any)}</span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5 truncate">
@@ -335,10 +340,25 @@ export default function Tenants() {
                     {r.outstanding > 0 && (
                       <span className="text-burgundy font-bold">{lang === "ar" ? "الديون" : "Debt"}: {format(r.outstanding)}</span>
                     )}
-                    {r.contract_end_date && (
-                      <span>{t2("contract_end")}: {r.contract_end_date}</span>
-                    )}
+                    {r.contract_end_date && (() => {
+                      const d = daysUntil(r.contract_end_date);
+                      if (d !== null && d >= 0 && d <= 30) {
+                        return (
+                          <span className="inline-flex items-center gap-1 text-[hsl(var(--gold))] font-bold bg-[hsl(var(--gold))]/10 px-1.5 py-0.5 rounded">
+                            <Clock className="h-3 w-3" />
+                            {lang === "ar" ? `ينتهي خلال ${d} يوم` : `Expires in ${d}d`}
+                          </span>
+                        );
+                      }
+                      return <span>{t2("contract_end")}: {r.contract_end_date}</span>;
+                    })()}
                   </div>
+                  {r.outstanding > 0.009 && (
+                    <div className="mt-2 h-1.5 rounded-full bg-sage-100 overflow-hidden">
+                      <div className="h-full bg-burgundy/70"
+                        style={{ width: `${Math.min(100, (r.outstanding / Math.max(r.rent_amount, 1)) * 100)}%` }} />
+                    </div>
+                  )}
                   <div className="flex flex-wrap gap-1.5 mt-2">
                     {r.status !== "paid" && (
                       <button
