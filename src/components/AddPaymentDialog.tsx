@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -89,7 +90,8 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const [unitOpen, setUnitOpen] = useState(false);
   const guard = useUnsavedGuard({ open, onOpenChange });
   const [unpaidMonths, setUnpaidMonths] = useState<{ year: number; month: number; remaining: number }[]>([]);
-  const [includeArrears, setIncludeArrears] = useState(true);
+  const [arrearsPromptOpen, setArrearsPromptOpen] = useState(false);
+  const [pendingReceipt, setPendingReceipt] = useState<any>(null);
   const [collectPriorArrears, setCollectPriorArrears] = useState(false);
   const [showAllMonths, setShowAllMonths] = useState(false);
   const [allPaid, setAllPaid] = useState(false);
@@ -353,12 +355,10 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
       changes: { amount: Number(amount), expected: Number(expected) || null, partial: isPartial },
     });
     bumpReceiptNumber();
-    // Auto-generate branded PDF receipt
+    // Prepare receipt args; ask user whether to include arrears if any remain
     try {
       const u = units.find((x) => x.id === unitId);
       const monthLabel = `${(lang === "ar" ? AR_MONTHS : EN_MONTHS)[periodMonthNum - 1]} ${periodYear}`;
-      // Remaining unpaid months up to and including the selected month
-      // (subtract the amount just paid from the chosen month's remaining)
       const upTo = unpaidMonths
         .filter((m) => m.year < periodYear || (m.year === periodYear && m.month <= periodMonthNum))
         .map((m) => {
@@ -381,7 +381,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
           }))
         : [];
       const grandTotal = Number(amount) + collectedArrearsList.reduce((s, a) => s + a.amount, 0);
-      const html = buildReceiptHTML({
+      const baseArgs = {
         brand: settings.brand,
         receiptNumber: receipt.trim() || formatReceipt(settings.receipt),
         paymentDate: date,
@@ -394,22 +394,53 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         tenantName: u?.tenant_name || "—",
         notes: mergedNotes,
         currency: format(0).replace(/[\d.,\s]/g, "").trim() || "",
-        lang: lang === "ar" ? "ar" : "en",
-        unpaidMonths: includeArrears ? upTo : [],
-        unpaidTotal: includeArrears ? unpaidTotal : 0,
-        unpaidUpToLabel: includeArrears ? monthLabel : undefined,
+        lang: (lang === "ar" ? "ar" : "en") as "ar" | "en",
         settlementNote,
         collectedArrears: collectedArrearsList,
         grandTotal: collectedArrearsList.length ? grandTotal : null,
-      });
-      await downloadHTMLAsPDF(html, `receipt-${(receipt.trim() || formatReceipt(settings.receipt))}.pdf`, settings);
+      };
+      const filename = `receipt-${(receipt.trim() || formatReceipt(settings.receipt))}.pdf`;
+      const payload = { baseArgs, upTo, unpaidTotal, monthLabel, filename };
+      if (upTo.length > 0) {
+        // Defer: ask the user before generating the receipt
+        setPendingReceipt(payload);
+        setArrearsPromptOpen(true);
+        return;
+      }
+      await emitReceipt(payload, false);
     } catch (e: any) {
       console.warn("receipt PDF failed", e);
     }
+    finishAndClose();
+  };
+
+  const emitReceipt = async (payload: any, includeArrears: boolean) => {
+    try {
+      const html = buildReceiptHTML({
+        ...payload.baseArgs,
+        unpaidMonths: includeArrears ? payload.upTo : [],
+        unpaidTotal: includeArrears ? payload.unpaidTotal : 0,
+        unpaidUpToLabel: includeArrears ? payload.monthLabel : undefined,
+      });
+      await downloadHTMLAsPDF(html, payload.filename, settings);
+    } catch (e: any) {
+      console.warn("receipt PDF failed", e);
+    }
+  };
+
+  const finishAndClose = () => {
     setAmount(""); setReceipt(""); setNotes(""); setCollectPriorArrears(false); if (!presetUnitId) setUnitId("");
     guard.markSaved();
     onOpenChange(false);
     onSaved?.();
+  };
+
+  const handleArrearsChoice = async (include: boolean) => {
+    const payload = pendingReceipt;
+    setArrearsPromptOpen(false);
+    if (payload) await emitReceipt(payload, include);
+    setPendingReceipt(null);
+    finishAndClose();
   };
 
   const years = yearOptions();
@@ -676,19 +707,6 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
               </span>
             </label>
           )}
-          {unitId && unpaidMonths.length > 0 && (
-            <label className="flex items-center gap-2 rounded-xl border border-sage-200 bg-card px-3 py-2.5 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={includeArrears}
-                onChange={(e) => setIncludeArrears(e.target.checked)}
-                className="h-4 w-4 rounded border-sage-300 accent-[hsl(var(--primary))]"
-              />
-              <span className="text-xs text-sage-600 font-semibold">
-                {lang === "ar" ? "إظهار إجمالي المتأخرات في الفاتورة" : "Show total arrears on receipt"}
-              </span>
-            </label>
-          )}
         </div>
         <DialogFooter className="gap-2 sm:gap-2">
           <Button data-guard-ignore variant="outline" onClick={() => guard.handleOpenChange(false)} className="rounded-xl">{t2("cancel")}</Button>
@@ -696,6 +714,34 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         </DialogFooter>
         {guard.ConfirmDiscardUI}
       </DialogContent>
+      <AlertDialog open={arrearsPromptOpen} onOpenChange={setArrearsPromptOpen}>
+        <AlertDialogContent className="rounded-2xl max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-sage-700">
+              {lang === "ar" ? "إظهار المتأخرات في الإيصال؟" : "Show arrears on the receipt?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-sage-600">
+              {pendingReceipt && (lang === "ar"
+                ? `هذا المستأجر عليه متأخرات بقيمة ${format(pendingReceipt.unpaidTotal)}. هل ترغب بإدراجها في الإيصال المطبوع؟`
+                : `This tenant has outstanding arrears of ${format(pendingReceipt.unpaidTotal)}. Include them in the printed receipt?`)}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-2">
+            <AlertDialogCancel
+              onClick={() => handleArrearsChoice(false)}
+              className="rounded-xl"
+            >
+              {lang === "ar" ? "بدون متأخرات" : "Without arrears"}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => handleArrearsChoice(true)}
+              className="rounded-xl bg-gradient-sage text-primary-foreground"
+            >
+              {lang === "ar" ? "نعم، أدرجها" : "Yes, include"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
