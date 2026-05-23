@@ -355,12 +355,10 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
       changes: { amount: Number(amount), expected: Number(expected) || null, partial: isPartial },
     });
     bumpReceiptNumber();
-    // Auto-generate branded PDF receipt
+    // Prepare receipt args; ask user whether to include arrears if any remain
     try {
       const u = units.find((x) => x.id === unitId);
       const monthLabel = `${(lang === "ar" ? AR_MONTHS : EN_MONTHS)[periodMonthNum - 1]} ${periodYear}`;
-      // Remaining unpaid months up to and including the selected month
-      // (subtract the amount just paid from the chosen month's remaining)
       const upTo = unpaidMonths
         .filter((m) => m.year < periodYear || (m.year === periodYear && m.month <= periodMonthNum))
         .map((m) => {
@@ -383,7 +381,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
           }))
         : [];
       const grandTotal = Number(amount) + collectedArrearsList.reduce((s, a) => s + a.amount, 0);
-      const html = buildReceiptHTML({
+      const baseArgs = {
         brand: settings.brand,
         receiptNumber: receipt.trim() || formatReceipt(settings.receipt),
         paymentDate: date,
@@ -396,22 +394,53 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         tenantName: u?.tenant_name || "—",
         notes: mergedNotes,
         currency: format(0).replace(/[\d.,\s]/g, "").trim() || "",
-        lang: lang === "ar" ? "ar" : "en",
-        unpaidMonths: includeArrears ? upTo : [],
-        unpaidTotal: includeArrears ? unpaidTotal : 0,
-        unpaidUpToLabel: includeArrears ? monthLabel : undefined,
+        lang: (lang === "ar" ? "ar" : "en") as "ar" | "en",
         settlementNote,
         collectedArrears: collectedArrearsList,
         grandTotal: collectedArrearsList.length ? grandTotal : null,
-      });
-      await downloadHTMLAsPDF(html, `receipt-${(receipt.trim() || formatReceipt(settings.receipt))}.pdf`, settings);
+      };
+      const filename = `receipt-${(receipt.trim() || formatReceipt(settings.receipt))}.pdf`;
+      const payload = { baseArgs, upTo, unpaidTotal, monthLabel, filename };
+      if (upTo.length > 0) {
+        // Defer: ask the user before generating the receipt
+        setPendingReceipt(payload);
+        setArrearsPromptOpen(true);
+        return;
+      }
+      await emitReceipt(payload, false);
     } catch (e: any) {
       console.warn("receipt PDF failed", e);
     }
+    finishAndClose();
+  };
+
+  const emitReceipt = async (payload: any, includeArrears: boolean) => {
+    try {
+      const html = buildReceiptHTML({
+        ...payload.baseArgs,
+        unpaidMonths: includeArrears ? payload.upTo : [],
+        unpaidTotal: includeArrears ? payload.unpaidTotal : 0,
+        unpaidUpToLabel: includeArrears ? payload.monthLabel : undefined,
+      });
+      await downloadHTMLAsPDF(html, payload.filename, settings);
+    } catch (e: any) {
+      console.warn("receipt PDF failed", e);
+    }
+  };
+
+  const finishAndClose = () => {
     setAmount(""); setReceipt(""); setNotes(""); setCollectPriorArrears(false); if (!presetUnitId) setUnitId("");
     guard.markSaved();
     onOpenChange(false);
     onSaved?.();
+  };
+
+  const handleArrearsChoice = async (include: boolean) => {
+    const payload = pendingReceipt;
+    setArrearsPromptOpen(false);
+    if (payload) await emitReceipt(payload, include);
+    setPendingReceipt(null);
+    finishAndClose();
   };
 
   const years = yearOptions();
