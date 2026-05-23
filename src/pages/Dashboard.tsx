@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Building2, Users, AlertCircle, Clock, TrendingUp, Sparkles } from "lucide-react";
+import { Plus, Building2, Users, TrendingUp, Sparkles } from "lucide-react";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { BotanicalDecor } from "@/components/BotanicalDecor";
@@ -15,18 +15,18 @@ import { RecentActivityCard } from "@/components/dashboard/RecentActivityCard";
 interface Stats {
   buildings: number;
   units: number;
-  overdue: number;
-  expiring: number;
   collected: number;
-  pending: number;
+  expected: number;
+  paidUnits: number;
+  occupiedUnits: number;
 }
 
 export default function Dashboard() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { format } = useCurrency();
   const { user } = useAuth();
   const { settings } = useAppSettings();
-  const [stats, setStats] = useState<Stats>({ buildings: 0, units: 0, overdue: 0, expiring: 0, collected: 0, pending: 0 });
+  const [stats, setStats] = useState<Stats>({ buildings: 0, units: 0, collected: 0, expected: 0, paidUnits: 0, occupiedUnits: 0 });
   const [profileName, setProfileName] = useState("");
 
   useEffect(() => {
@@ -35,46 +35,33 @@ export default function Dashboard() {
       const { data: profile } = await supabase.from("profiles").select("name").eq("id", user.id).maybeSingle();
       setProfileName(profile?.name || user.email?.split("@")[0] || "");
 
-      // Buildings owned by this user
       const { data: bRows } = await supabase.from("buildings").select("id").eq("user_id", user.id);
       const bIds = (bRows || []).map((b: any) => b.id);
       const buildings = bIds.length;
 
       if (!bIds.length) {
-        setStats({ buildings: 0, units: 0, overdue: 0, expiring: 0, collected: 0, pending: 0 });
+        setStats({ buildings: 0, units: 0, collected: 0, expected: 0, paidUnits: 0, occupiedUnits: 0 });
         return;
       }
 
-      // Units in those buildings
-      const { data: uRows } = await supabase.from("units").select("id, status, rent_amount, contract_end_date").in("building_id", bIds);
+      const { data: uRows } = await supabase.from("units").select("id, status, rent_amount").in("building_id", bIds);
       const units = uRows?.length ?? 0;
-      const overdue = (uRows || []).filter((u: any) => u.status === "late").length;
+      const occupied = (uRows || []).filter((u: any) => u.status !== "vacant");
+      const expected = occupied.reduce((s: number, u: any) => s + Number(u.rent_amount || 0), 0);
 
       const today = new Date();
-      const warnUntil = new Date(); warnUntil.setDate(today.getDate() + 30);
-      const expiring = (uRows || []).filter((u: any) => {
-        if (!u.contract_end_date) return false;
-        const d = new Date(u.contract_end_date);
-        return d >= today && d <= warnUntil;
-      }).length;
-
-      // Pending = sum of rents on non-paid units
-      const pending = (uRows || [])
-        .filter((u: any) => u.status !== "paid")
-        .reduce((s: number, u: any) => s + Number(u.rent_amount || 0), 0);
-
-      // Collected this month — by rent month (period_start), fallback to payment_date for legacy
       const unitIds = (uRows || []).map((u: any) => u.id);
       let collected = 0;
+      let paidUnits = 0;
       if (unitIds.length) {
         const monthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
-        const { data: pays } = await supabase.from("payments").select("amount, payment_date, period_start").in("unit_id", unitIds).is("deleted_at", null);
-        collected = (pays || [])
-          .filter((p: any) => ((p.period_start || p.payment_date) || "").slice(0, 7) === monthKey)
-          .reduce((s: number, p: any) => s + Number(p.amount), 0);
+        const { data: pays } = await supabase.from("payments").select("amount, unit_id, payment_date, period_start").in("unit_id", unitIds).is("deleted_at", null);
+        const thisMonth = (pays || []).filter((p: any) => ((p.period_start || p.payment_date) || "").slice(0, 7) === monthKey);
+        collected = thisMonth.reduce((s: number, p: any) => s + Number(p.amount), 0);
+        paidUnits = new Set(thisMonth.map((p: any) => p.unit_id)).size;
       }
 
-      setStats({ buildings, units, overdue, expiring, collected, pending });
+      setStats({ buildings, units, collected, expected, paidUnits, occupiedUnits: occupied.length });
     })();
   }, [user]);
 
@@ -86,10 +73,11 @@ export default function Dashboard() {
   })();
 
   const isEmpty = stats.buildings === 0;
+  const collectionPct = stats.expected > 0 ? Math.min(100, Math.round((stats.collected / stats.expected) * 100)) : 0;
 
   return (
     <div className="mobile-shell pb-24">
-      <TopBar hasAlerts={stats.overdue > 0} />
+      <TopBar />
 
       <div className="px-5 md:px-8 lg:px-12 pt-5 space-y-5 md:space-y-6">
         <div className="animate-float-up">
@@ -120,24 +108,47 @@ export default function Dashboard() {
         </button>
 
         {/* Mini stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 animate-float-up" style={{ animationDelay: "0.15s" }}>
+        <div className="grid grid-cols-2 gap-3 md:gap-4 animate-float-up" style={{ animationDelay: "0.15s" }}>
           <StatCard icon={<Building2 className="h-4 w-4" />} label={t("buildings")} value={stats.buildings} color="sage-400" />
           <StatCard icon={<Users className="h-4 w-4" />} label={t("units")} value={stats.units} color="sage-500" />
-          <StatCard icon={<AlertCircle className="h-4 w-4" />} label={t("overdue")} value={stats.overdue} color="burgundy" />
-          <StatCard icon={<Clock className="h-4 w-4" />} label={t("expiring")} value={stats.expiring} color="terracotta" />
         </div>
 
-        {/* Pending */}
-        <Link to="/collection" className="block bg-terracotta/10 border border-terracotta/20 rounded-2xl p-4 flex items-center gap-3 animate-float-up shadow-soft hover:shadow-elev transition-all" style={{ animationDelay: "0.2s" }}>
-          <div className="h-10 w-10 rounded-xl bg-terracotta/20 flex items-center justify-center">
-            <Clock className="h-5 w-5 text-terracotta" />
-          </div>
-          <div className="flex-1">
-            <p className="text-xs text-terracotta/80 font-semibold">{t("pending")}</p>
-            <p className="text-lg font-bold text-terracotta">{format(stats.pending)}</p>
-          </div>
-          <span className="text-terracotta rtl:rotate-180 text-xl">›</span>
-        </Link>
+        {/* Monthly Collection Snapshot */}
+        {!isEmpty && (
+          <Link
+            to="/collection"
+            className="relative block overflow-hidden bg-card border border-sage-200/60 rounded-2xl p-5 shadow-soft hover:shadow-elev transition-all animate-float-up"
+            style={{ animationDelay: "0.2s" }}
+          >
+            <BotanicalDecor className="absolute -end-8 -bottom-8 w-32 h-32 text-sage-400 opacity-10" />
+            <div className="relative z-10">
+              <div className="flex items-baseline justify-between mb-1">
+                <p className="text-xs uppercase tracking-wider text-sage-600 font-bold">
+                  {lang === "ar" ? "نسبة التحصيل لهذا الشهر" : "This month's collection"}
+                </p>
+                <span className="text-2xl font-black text-sage-600 tabular-nums">{collectionPct}%</span>
+              </div>
+              <div className="h-2.5 rounded-full bg-sage-100 overflow-hidden mt-2">
+                <div
+                  className="h-full bg-gradient-sage transition-all duration-700"
+                  style={{ width: `${collectionPct}%` }}
+                />
+              </div>
+              <div className="mt-3 flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">
+                  {lang === "ar"
+                    ? `${format(stats.collected)} من ${format(stats.expected)}`
+                    : `${format(stats.collected)} of ${format(stats.expected)}`}
+                </span>
+                <span className="text-sage-600 font-semibold">
+                  {lang === "ar"
+                    ? `${stats.paidUnits} / ${stats.occupiedUnits} وحدة`
+                    : `${stats.paidUnits} / ${stats.occupiedUnits} units`}
+                </span>
+              </div>
+            </div>
+          </Link>
+        )}
 
         {/* Recent Activity */}
         <RecentActivityCard limit={8} />
@@ -159,7 +170,6 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Floating AI assistant FAB (opt-in via settings) */}
       {settings.showAiFab && (
         <Link
           to="/assistant"
@@ -178,8 +188,6 @@ export default function Dashboard() {
 const colorMap: Record<string, string> = {
   "sage-400": "bg-sage-400/10 text-sage-400",
   "sage-500": "bg-sage-500/10 text-sage-500",
-  burgundy: "bg-burgundy/10 text-burgundy",
-  terracotta: "bg-terracotta/10 text-terracotta",
 };
 
 function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: number; color: string }) {
