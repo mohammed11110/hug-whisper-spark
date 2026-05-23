@@ -376,7 +376,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         currency: format(0).replace(/[\d.,\s]/g, "").trim() || "",
         lang: lang === "ar" ? "ar" : "en",
         unpaidMonths: includeArrears ? upTo : [],
-        unpaidTotal: includeArrears ? arrearsUpToTotal : 0,
+        unpaidTotal: includeArrears ? unpaidTotal : 0,
         unpaidUpToLabel: includeArrears ? monthLabel : undefined,
         settlementNote,
         collectedArrears: collectedArrearsList,
