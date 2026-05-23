@@ -46,14 +46,18 @@ export function AppSidebar() {
     { to: "/tenants", label: t("tenants"), icon: Users },
     { to: "/payments", label: t("payments"), icon: Wallet },
     { to: "/collection", label: t2("monthly_collection"), icon: CalendarCheck },
-    { to: "/daily", label: "الإيجارات اليومية", icon: CalendarRange },
+  ];
+  const ops = [
+    { to: "/daily", label: rtl ? "الإيجارات اليومية" : "Daily rentals", icon: CalendarRange },
+    { to: "/maintenance", label: t2("maintenance_requests"), icon: Wrench },
+  ];
+  const analysis = [
+    { to: "/reports", label: t("reports"), icon: BarChart3 },
   ];
   const tools = [
-    { to: "/reports", label: t("reports"), icon: BarChart3 },
-    { to: "/maintenance", label: t2("maintenance_requests"), icon: Wrench },
     { to: "/notifications", label: t("notifications"), icon: Bell },
-    { to: "/activity", label: t2("activity_log"), icon: ActivityIcon },
     { to: "/assistant", label: "AI", icon: Sparkles },
+    { to: "/activity", label: t2("activity_log"), icon: ActivityIcon },
   ];
   const manage = [
     { to: "/team", label: "Team", icon: UsersRound },
@@ -75,9 +79,11 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent>
         {[
-          { label: t("dashboard"), items: main },
-          { label: t("reports"), items: tools },
-          { label: t("settings"), items: manage },
+          { label: rtl ? "الرئيسية" : "Main", items: main },
+          { label: rtl ? "العمليات" : "Operations", items: ops },
+          { label: rtl ? "التحليل" : "Analysis", items: analysis },
+          { label: rtl ? "الأدوات" : "Tools", items: tools },
+          { label: rtl ? "الإدارة" : "Management", items: manage },
         ].map((group, i) => (
           <SidebarGroup key={i}>
             {!collapsed && <SidebarGroupLabel>{group.label}</SidebarGroupLabel>}

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Search, Phone, Users, ChevronLeft, MessageCircle, CheckCircle2 } from "lucide-react";
+import { Search, Phone, Users, ChevronLeft, MessageCircle, CheckCircle2, AlertTriangle, Clock, TrendingDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
@@ -44,6 +44,7 @@ export default function Tenants() {
   const { settings } = useAppSettings();
   const [rows, setRows] = useState<TenantRow[]>([]);
   const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<"all" | "overdue" | "expiring" | "no_phone">("all");
   const [sortBy, setSortBy] = useState<"name" | "debt_desc" | "building_unit">(() => {
     try { return (localStorage.getItem("amlaki.tenants.sortBy") as any) || "name"; } catch { return "name"; }
   });
@@ -146,15 +147,44 @@ export default function Tenants() {
   }, [user]);
 
   const numOf = (s: string) => { const m = String(s || "").match(/\d+/); return m ? parseInt(m[0], 10) : Number.MAX_SAFE_INTEGER; };
+  const daysUntil = (iso: string | null) => {
+    if (!iso) return null;
+    const d = new Date(iso).getTime();
+    if (isNaN(d)) return null;
+    return Math.ceil((d - Date.now()) / 86400000);
+  };
+
+  const kpis = useMemo(() => {
+    const overdue = rows.filter((r) => r.outstanding > 0.009);
+    const totalDebt = overdue.reduce((s, r) => s + r.outstanding, 0);
+    const expiring = rows.filter((r) => {
+      const d = daysUntil(r.contract_end_date);
+      return d !== null && d >= 0 && d <= 30;
+    }).length;
+    return { total: rows.length, overdue: overdue.length, totalDebt, expiring };
+  }, [rows]);
+
+  const attention = useMemo(() =>
+    [...rows]
+      .filter((r) => r.outstanding > 0.009)
+      .sort((a, b) => b.outstanding - a.outstanding)
+      .slice(0, 3),
+  [rows]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const base = !q ? rows : rows.filter((r) =>
+    let base = !q ? rows : rows.filter((r) =>
       r.tenant_name.toLowerCase().includes(q) ||
       r.tenant_phone?.toLowerCase().includes(q) ||
       r.building_name.toLowerCase().includes(q) ||
       r.unit_number.toLowerCase().includes(q)
     );
+    if (filter === "overdue") base = base.filter((r) => r.outstanding > 0.009);
+    else if (filter === "expiring") base = base.filter((r) => {
+      const d = daysUntil(r.contract_end_date);
+      return d !== null && d >= 0 && d <= 30;
+    });
+    else if (filter === "no_phone") base = base.filter((r) => !r.tenant_phone);
     const sorted = [...base];
     if (sortBy === "debt_desc") {
       sorted.sort((a, b) => b.outstanding - a.outstanding || a.tenant_name.localeCompare(b.tenant_name));
@@ -168,7 +198,7 @@ export default function Tenants() {
       sorted.sort((a, b) => a.tenant_name.localeCompare(b.tenant_name));
     }
     return sorted;
-  }, [rows, search, sortBy]);
+  }, [rows, search, sortBy, filter]);
 
   return (
     <div className="mobile-shell pb-24">
@@ -177,6 +207,55 @@ export default function Tenants() {
         <h1 className="text-2xl font-black text-sage-600 tracking-tight">{t("tenants")}</h1>
         <p className="text-xs text-muted-foreground mt-0.5">{filtered.length} {t("tenants")}</p>
       </div>
+
+      {/* KPI bar */}
+      <div className="px-5 md:px-8 lg:px-12 mt-4 grid grid-cols-2 md:grid-cols-4 gap-2">
+        {[
+          { label: lang === "ar" ? "إجمالي المستأجرين" : "Total tenants", value: String(kpis.total), tone: "sage" as const, icon: Users },
+          { label: lang === "ar" ? "متأخرون" : "Overdue", value: String(kpis.overdue), tone: "burgundy" as const, icon: AlertTriangle },
+          { label: lang === "ar" ? "إجمالي الديون" : "Total debt", value: format(kpis.totalDebt), tone: "terracotta" as const, icon: TrendingDown },
+          { label: lang === "ar" ? "عقود تنتهي ≤ 30 يوم" : "Expiring ≤ 30d", value: String(kpis.expiring), tone: "gold" as const, icon: Clock },
+        ].map((k) => {
+          const toneCls = k.tone === "burgundy" ? "text-burgundy bg-burgundy/10"
+            : k.tone === "terracotta" ? "text-terracotta bg-terracotta/10"
+            : k.tone === "gold" ? "text-[hsl(var(--gold))] bg-[hsl(var(--gold))]/10"
+            : "text-sage-600 bg-sage-100";
+          return (
+            <div key={k.label} className="bg-card border border-sage-200/40 rounded-2xl p-3 shadow-soft">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-bold text-sage-500 uppercase tracking-wide truncate">{k.label}</p>
+                <span className={`inline-flex h-6 w-6 items-center justify-center rounded-lg ${toneCls}`}>
+                  <k.icon className="h-3 w-3" />
+                </span>
+              </div>
+              <p className="mt-1 text-lg font-black text-sage-600 truncate">{k.value}</p>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Smart "needs attention" row */}
+      {attention.length > 0 && (
+        <div className="px-5 md:px-8 lg:px-12 mt-4">
+          <div className="bg-gradient-to-br from-burgundy/8 to-terracotta/8 border border-burgundy/20 rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertTriangle className="h-4 w-4 text-burgundy" />
+              <p className="text-xs font-black text-burgundy">{lang === "ar" ? "يستحق الانتباه" : "Needs attention"}</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              {attention.map((r) => (
+                <Link key={r.unit_id} to={`/units/${r.unit_id}`} className="bg-card/70 rounded-xl px-3 py-2 flex items-center justify-between gap-2 hover:bg-card transition-colors">
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-sage-600 truncate">{r.tenant_name}</p>
+                    <p className="text-[10px] text-muted-foreground truncate">{r.building_name} · {r.unit_number}</p>
+                  </div>
+                  <span className="text-xs font-black text-burgundy flex-shrink-0">{format(r.outstanding)}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="px-5 md:px-8 lg:px-12 mt-4 flex gap-2">
         <div className="relative flex-1">
@@ -195,6 +274,28 @@ export default function Tenants() {
           </SelectContent>
         </Select>
       </div>
+
+      {/* Quick filter chips */}
+      <div className="px-5 md:px-8 lg:px-12 mt-3 flex gap-1.5 overflow-x-auto no-scrollbar">
+        {([
+          { key: "all", label: lang === "ar" ? "الكل" : "All", count: rows.length },
+          { key: "overdue", label: lang === "ar" ? "متأخرون" : "Overdue", count: kpis.overdue },
+          { key: "expiring", label: lang === "ar" ? "ينتهي قريباً" : "Expiring", count: kpis.expiring },
+          { key: "no_phone", label: lang === "ar" ? "بدون هاتف" : "No phone", count: rows.filter((r) => !r.tenant_phone).length },
+        ] as const).map((c) => {
+          const active = filter === c.key;
+          return (
+            <button key={c.key} onClick={() => setFilter(c.key as any)}
+              className={`flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold border transition-colors ${
+                active ? "bg-sage-500 text-primary-foreground border-sage-500" : "bg-card text-sage-600 border-sage-200 hover:border-sage-300"
+              }`}>
+              <span>{c.label}</span>
+              <span className={`text-[10px] px-1.5 rounded-full ${active ? "bg-primary-foreground/20" : "bg-sage-100"}`}>{c.count}</span>
+            </button>
+          );
+        })}
+      </div>
+
 
       <div className="px-5 md:px-8 lg:px-12 mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 md:gap-4">
         {loading ? (
@@ -217,7 +318,12 @@ export default function Tenants() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="font-bold text-sage-600 truncate">{r.tenant_name}</p>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`h-2 w-2 rounded-full flex-shrink-0 ${
+                        r.outstanding > 0.009 ? "bg-burgundy" : r.status === "paid" ? "bg-sage-500" : "bg-terracotta"
+                      }`} />
+                      <p className="font-bold text-sage-600 truncate">{r.tenant_name}</p>
+                    </div>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${STATUS_STYLES[r.status] || "bg-muted text-muted-foreground"}`}>{t2(r.status as any)}</span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5 truncate">
@@ -234,10 +340,25 @@ export default function Tenants() {
                     {r.outstanding > 0 && (
                       <span className="text-burgundy font-bold">{lang === "ar" ? "الديون" : "Debt"}: {format(r.outstanding)}</span>
                     )}
-                    {r.contract_end_date && (
-                      <span>{t2("contract_end")}: {r.contract_end_date}</span>
-                    )}
+                    {r.contract_end_date && (() => {
+                      const d = daysUntil(r.contract_end_date);
+                      if (d !== null && d >= 0 && d <= 30) {
+                        return (
+                          <span className="inline-flex items-center gap-1 text-[hsl(var(--gold))] font-bold bg-[hsl(var(--gold))]/10 px-1.5 py-0.5 rounded">
+                            <Clock className="h-3 w-3" />
+                            {lang === "ar" ? `ينتهي خلال ${d} يوم` : `Expires in ${d}d`}
+                          </span>
+                        );
+                      }
+                      return <span>{t2("contract_end")}: {r.contract_end_date}</span>;
+                    })()}
                   </div>
+                  {r.outstanding > 0.009 && (
+                    <div className="mt-2 h-1.5 rounded-full bg-sage-100 overflow-hidden">
+                      <div className="h-full bg-burgundy/70"
+                        style={{ width: `${Math.min(100, (r.outstanding / Math.max(r.rent_amount, 1)) * 100)}%` }} />
+                    </div>
+                  )}
                   <div className="flex flex-wrap gap-1.5 mt-2">
                     {r.status !== "paid" && (
                       <button
