@@ -44,6 +44,7 @@ export default function Tenants() {
   const { settings } = useAppSettings();
   const [rows, setRows] = useState<TenantRow[]>([]);
   const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<"all" | "overdue" | "expiring" | "no_phone">("all");
   const [sortBy, setSortBy] = useState<"name" | "debt_desc" | "building_unit">(() => {
     try { return (localStorage.getItem("amlaki.tenants.sortBy") as any) || "name"; } catch { return "name"; }
   });
