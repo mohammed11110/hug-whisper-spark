@@ -147,15 +147,44 @@ export default function Tenants() {
   }, [user]);
 
   const numOf = (s: string) => { const m = String(s || "").match(/\d+/); return m ? parseInt(m[0], 10) : Number.MAX_SAFE_INTEGER; };
+  const daysUntil = (iso: string | null) => {
+    if (!iso) return null;
+    const d = new Date(iso).getTime();
+    if (isNaN(d)) return null;
+    return Math.ceil((d - Date.now()) / 86400000);
+  };
+
+  const kpis = useMemo(() => {
+    const overdue = rows.filter((r) => r.outstanding > 0.009);
+    const totalDebt = overdue.reduce((s, r) => s + r.outstanding, 0);
+    const expiring = rows.filter((r) => {
+      const d = daysUntil(r.contract_end_date);
+      return d !== null && d >= 0 && d <= 30;
+    }).length;
+    return { total: rows.length, overdue: overdue.length, totalDebt, expiring };
+  }, [rows]);
+
+  const attention = useMemo(() =>
+    [...rows]
+      .filter((r) => r.outstanding > 0.009)
+      .sort((a, b) => b.outstanding - a.outstanding)
+      .slice(0, 3),
+  [rows]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const base = !q ? rows : rows.filter((r) =>
+    let base = !q ? rows : rows.filter((r) =>
       r.tenant_name.toLowerCase().includes(q) ||
       r.tenant_phone?.toLowerCase().includes(q) ||
       r.building_name.toLowerCase().includes(q) ||
       r.unit_number.toLowerCase().includes(q)
     );
+    if (filter === "overdue") base = base.filter((r) => r.outstanding > 0.009);
+    else if (filter === "expiring") base = base.filter((r) => {
+      const d = daysUntil(r.contract_end_date);
+      return d !== null && d >= 0 && d <= 30;
+    });
+    else if (filter === "no_phone") base = base.filter((r) => !r.tenant_phone);
     const sorted = [...base];
     if (sortBy === "debt_desc") {
       sorted.sort((a, b) => b.outstanding - a.outstanding || a.tenant_name.localeCompare(b.tenant_name));
@@ -169,7 +198,7 @@ export default function Tenants() {
       sorted.sort((a, b) => a.tenant_name.localeCompare(b.tenant_name));
     }
     return sorted;
-  }, [rows, search, sortBy]);
+  }, [rows, search, sortBy, filter]);
 
   return (
     <div className="mobile-shell pb-24">
