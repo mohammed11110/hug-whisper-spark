@@ -707,19 +707,6 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
               </span>
             </label>
           )}
-          {unitId && unpaidMonths.length > 0 && (
-            <label className="flex items-center gap-2 rounded-xl border border-sage-200 bg-card px-3 py-2.5 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={includeArrears}
-                onChange={(e) => setIncludeArrears(e.target.checked)}
-                className="h-4 w-4 rounded border-sage-300 accent-[hsl(var(--primary))]"
-              />
-              <span className="text-xs text-sage-600 font-semibold">
-                {lang === "ar" ? "إظهار إجمالي المتأخرات في الفاتورة" : "Show total arrears on receipt"}
-              </span>
-            </label>
-          )}
         </div>
         <DialogFooter className="gap-2 sm:gap-2">
           <Button data-guard-ignore variant="outline" onClick={() => guard.handleOpenChange(false)} className="rounded-xl">{t2("cancel")}</Button>
@@ -727,6 +714,34 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         </DialogFooter>
         {guard.ConfirmDiscardUI}
       </DialogContent>
+      <AlertDialog open={arrearsPromptOpen} onOpenChange={setArrearsPromptOpen}>
+        <AlertDialogContent className="rounded-2xl max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-sage-700">
+              {lang === "ar" ? "إظهار المتأخرات في الإيصال؟" : "Show arrears on the receipt?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-sage-600">
+              {pendingReceipt && (lang === "ar"
+                ? `هذا المستأجر عليه متأخرات بقيمة ${format(pendingReceipt.unpaidTotal)}. هل ترغب بإدراجها في الإيصال المطبوع؟`
+                : `This tenant has outstanding arrears of ${format(pendingReceipt.unpaidTotal)}. Include them in the printed receipt?`)}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-2">
+            <AlertDialogCancel
+              onClick={() => handleArrearsChoice(false)}
+              className="rounded-xl"
+            >
+              {lang === "ar" ? "بدون متأخرات" : "Without arrears"}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => handleArrearsChoice(true)}
+              className="rounded-xl bg-gradient-sage text-primary-foreground"
+            >
+              {lang === "ar" ? "نعم، أدرجها" : "Yes, include"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
