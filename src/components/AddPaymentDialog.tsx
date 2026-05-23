@@ -102,7 +102,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   useEffect(() => {
     if (!open) return;
     (async () => {
-      const { data: us } = await supabase.from("units").select("id, unit_number, tenant_name, rent_amount, building_id").order("unit_number");
+      const { data: us } = await supabase.from("units").select("id, unit_number, tenant_name, rent_amount, rent_type, building_id, contract_start_date, opening_balance, opening_balance_date").order("unit_number");
       const ids = Array.from(new Set((us || []).map((u: any) => u.building_id)));
       const { data: bs } = ids.length
         ? await supabase.from("buildings").select("id, name, name_en").in("id", ids)
@@ -114,19 +114,41 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
             .select("unit_id, status, tenant_name, outstanding_at_end, ended_at")
             .in("unit_id", unitIds)
         : { data: [] as any[] };
-      const arrearsMap = new Map<string, { name: string; amount: number }>();
+      const { data: pays } = unitIds.length
+        ? await supabase.from("payments")
+            .select("unit_id, amount, deleted_at")
+            .in("unit_id", unitIds)
+            .is("deleted_at", null)
+        : { data: [] as any[] };
+      const endedArrearsMap = new Map<string, { name: string; amount: number }>();
       (ts || []).forEach((t: any) => {
         if (t.status === "ended" && Number(t.outstanding_at_end) > 0) {
-          const cur = arrearsMap.get(t.unit_id);
+          const cur = endedArrearsMap.get(t.unit_id);
           const amt = Number(t.outstanding_at_end);
-          if (!cur || amt > cur.amount) arrearsMap.set(t.unit_id, { name: t.tenant_name || "—", amount: amt });
+          if (!cur || amt > cur.amount) endedArrearsMap.set(t.unit_id, { name: t.tenant_name || "—", amount: amt });
         }
       });
+      // compute outstanding per active unit using shared balance helper
+      const { computeBalance } = await import("@/lib/balance");
+      const outstandingMap = new Map<string, number>();
+      (us || []).forEach((u: any) => {
+        if (!u.tenant_name) return;
+        const { outstanding } = computeBalance(u as any, (pays || []) as any);
+        if (outstanding > 0) outstandingMap.set(u.id, outstanding);
+      });
+      const fmtAmt = (n: number) => n.toLocaleString(lang === "ar" ? "ar" : "en", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
       const opts: UnitOpt[] = (us || [])
-        .filter((u: any) => !!u.tenant_name || arrearsMap.has(u.id) || u.id === presetUnitId)
+        .filter((u: any) => !!u.tenant_name || endedArrearsMap.has(u.id) || u.id === presetUnitId)
         .map((u: any) => {
-          const ar = arrearsMap.get(u.id);
+          const ar = endedArrearsMap.get(u.id);
           const isVacantWithArrears = !u.tenant_name && !!ar;
+          const activeOut = outstandingMap.get(u.id) || 0;
+          let note: string | null = null;
+          if (isVacantWithArrears) {
+            note = lang === "ar" ? `متأخرات سابقة: ${fmtAmt(ar!.amount)}` : `Prior arrears: ${fmtAmt(ar!.amount)}`;
+          } else if (activeOut > 0) {
+            note = lang === "ar" ? `متأخرات: ${fmtAmt(activeOut)}` : `Arrears: ${fmtAmt(activeOut)}`;
+          }
           return {
             id: u.id,
             unit_number: u.unit_number,
@@ -134,9 +156,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
             tenant_name: u.tenant_name || (isVacantWithArrears ? ar!.name : null),
             rent_amount: Number(u.rent_amount),
             building_name: bMap.get(u.building_id)?.name || bMap.get(u.building_id)?.name_en || "—",
-            arrears_note: isVacantWithArrears
-              ? (lang === "ar" ? `متأخرات سابقة: ${ar!.amount}` : `Prior arrears: ${ar!.amount}`)
-              : null,
+            arrears_note: note,
           };
         });
       setUnits(opts);
