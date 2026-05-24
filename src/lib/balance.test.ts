@@ -254,7 +254,7 @@ describe("overdueCyclesCount & isUnitOverdue", () => {
       contract_start_date: "2026-01-01",
       opening_balance_date: "2026-04-01",
     });
-    const marchPayment = mkPayment(200, { payment_date: "2026-05-04" } as any);
+    const marchPayment = mkPayment(200, { payment_date: "2026-05-04", period_start: "2026-03-01", period_end: "2026-03-31" } as any);
     expect(overdueCyclesCount(u, [marchPayment], new Date("2026-05-24"))).toBe(1);
     expect(isUnitOverdue(u, [marchPayment], new Date("2026-05-24"))).toBe(true);
     setNow("2026-05-24T12:00:00");
