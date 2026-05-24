@@ -109,6 +109,10 @@ export default function PaymentsTrash() {
     setPendingPurge(null);
     if (error) return toast.error(error.message);
     if (target) {
+      const { recomputeUnitStateFromPayments } = await import("@/lib/unitState");
+      await recomputeUnitStateFromPayments(target.unit_id);
+    }
+    if (target) {
       logActivity({
         entityType: "payment",
         action: "deleted",
