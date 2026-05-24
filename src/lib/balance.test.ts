@@ -6,6 +6,7 @@ import {
   overdueCyclesCount,
   isUnitOverdue,
   getNextDueInfo,
+  getUnitArrears,
   type UnitForBalance,
   type PaymentForBalance,
 } from "./balance";
