@@ -1069,6 +1069,7 @@ export type Database = {
           photo_kinds: Json
           photo_labels: Json
           rent_amount: number
+          rent_timing: string
           rent_type: string
           security_deposit: number
           status: string
@@ -1108,6 +1109,7 @@ export type Database = {
           photo_kinds?: Json
           photo_labels?: Json
           rent_amount?: number
+          rent_timing?: string
           rent_type?: string
           security_deposit?: number
           status?: string
@@ -1147,6 +1149,7 @@ export type Database = {
           photo_kinds?: Json
           photo_labels?: Json
           rent_amount?: number
+          rent_timing?: string
           rent_type?: string
           security_deposit?: number
           status?: string
