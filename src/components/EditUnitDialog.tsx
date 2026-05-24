@@ -45,6 +45,7 @@ export function EditUnitDialog({
   onSaved?: () => void;
 }) {
   const t2 = useT2();
+  const { lang } = useI18n();
   const [unitNumber, setUnitNumber] = useState("");
   const [floor, setFloor] = useState("1");
   const [type, setType] = useState<string>("apartment");
@@ -60,6 +61,10 @@ export function EditUnitDialog({
   const [contractType, setContractType] = useState<string>("yearly");
   const [contractStart, setContractStart] = useState<string>("");
   const [arrears, setArrears] = useState("0");
+  const [hasPrevPay, setHasPrevPay] = useState(false);
+  const [prevPayMonth, setPrevPayMonth] = useState("");
+  const [prevPayAmount, setPrevPayAmount] = useState("");
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [busy, setBusy] = useState(false);
   const guard = useUnsavedGuard({ open, onOpenChange });
 
