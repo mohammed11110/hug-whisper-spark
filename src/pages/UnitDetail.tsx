@@ -18,6 +18,7 @@ import { NewTenancyDialog } from "@/components/NewTenancyDialog";
 import { AddMaintenanceDialog } from "@/components/AddMaintenanceDialog";
 import { FileUpload } from "@/components/FileUpload";
 import { computeBalance, type PaymentForBalance } from "@/lib/balance";
+import { ArrearsBadge } from "@/components/ArrearsBadge";
 
 interface Unit {
   id: string; building_id: string; unit_number: string; floor: number; type: string;
