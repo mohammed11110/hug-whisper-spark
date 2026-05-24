@@ -52,6 +52,7 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
   const [hasPeriod, setHasPeriod] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [paidMonthsKeys, setPaidMonthsKeys] = useState<Set<string>>(new Set());
   const guard = useUnsavedGuard({ open, onOpenChange });
 
   const { start: periodStart, end: periodEnd } = monthRange(periodYear, periodMonthNum);
@@ -63,7 +64,7 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
     (async () => {
       const { data, error } = await supabase
         .from("payments")
-        .select("amount, expected_amount, payment_date, receipt_number, payment_method, notes, period_start, period_end")
+        .select("amount, expected_amount, payment_date, receipt_number, payment_method, notes, period_start, period_end, unit_id")
         .eq("id", paymentId)
         .maybeSingle();
       setLoading(false);
@@ -80,6 +81,27 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
         setPeriodMonthNum(Number(ref.slice(5, 7)));
       }
       setHasPeriod(true);
+
+      // Load fully-paid months for this unit (excluding the payment being edited)
+      const unitId = (data as any).unit_id;
+      if (unitId) {
+        const [{ data: tn }, { data: ps }] = await Promise.all([
+          supabase.from("tenancies").select("rent_amount").eq("unit_id", unitId).eq("status", "active").maybeSingle(),
+          supabase.from("payments").select("id, amount, period_start").eq("unit_id", unitId).is("deleted_at", null),
+        ]);
+        const rentAmt = Number((tn as any)?.rent_amount) || 0;
+        const byMonth = new Map<string, number>();
+        (ps || []).forEach((p: any) => {
+          if (!p.period_start || p.id === paymentId) return;
+          const k = String(p.period_start).slice(0, 7);
+          byMonth.set(k, (byMonth.get(k) || 0) + Number(p.amount));
+        });
+        const fullyPaid = new Set<string>();
+        byMonth.forEach((paid, k) => {
+          if (rentAmt > 0 ? paid + 0.01 >= rentAmt : paid > 0) fullyPaid.add(k);
+        });
+        setPaidMonthsKeys(fullyPaid);
+      }
     })();
   }, [open, paymentId]);
 
