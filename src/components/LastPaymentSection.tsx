@@ -18,6 +18,7 @@ const iso = (d: Date) =>
 export interface MonthBounds {
   start: string;            // first day of date's month (YYYY-MM-DD)
   end: string;              // last day of date's month
+  startLabel: string;       // localized label of date's month
   nextMonthStart: string;   // first day of the month AFTER date's month
   nextMonthLabel: string;
 }
@@ -31,10 +32,12 @@ export function monthBoundsFromDate(date: Date, lang = "en"): MonthBounds {
   return {
     start: `${y}-${String(m + 1).padStart(2, "0")}-01`,
     end:   `${y}-${String(m + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`,
+    startLabel: `${names[m]} ${y}`,
     nextMonthStart: iso(new Date(next.getFullYear(), next.getMonth(), 1)),
     nextMonthLabel: `${names[next.getMonth()]} ${next.getFullYear()}`,
   };
 }
+
 
 interface Props {
   enabled: boolean;
