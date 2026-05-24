@@ -116,6 +116,13 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const [activeRent, setActiveRent] = useState<number>(0);
   const [showArrearsList, setShowArrearsList] = useState(false);
   const [paidMonthsKeys, setPaidMonthsKeys] = useState<Set<string>>(new Set());
+  // Smart payment modes: "auto" (distribute amount oldest→newest, spill into advance)
+  // or "manual" (pick a specific cycle from the dropdown).
+  const [payMode, setPayMode] = useState<"auto" | "manual">("auto");
+  const [distribution, setDistribution] = useState<import("@/lib/balance").PaymentDistribution | null>(null);
+  const [cachedArrears, setCachedArrears] = useState<import("@/lib/balance").UnitArrears | null>(null);
+  const [cachedUnit, setCachedUnit] = useState<any>(null);
+
 
   const { start: periodStart, end: periodEnd } = monthRange(periodYear, periodMonthNum);
   const monthNames = lang === "ar" ? AR_MONTHS : EN_MONTHS;
@@ -249,6 +256,8 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
 
       setActiveRent(rentAmt);
       setArrearsBefore(arr.totalShortfall);
+      setCachedArrears(arr);
+      setCachedUnit(u);
 
       const priorLabel = lang === "ar" ? "متأخرات سابقة" : "Prior arrears";
       const entries: UnpaidEntry[] = arr.cycles
@@ -276,6 +285,8 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
 
       setUnpaidMonths(entries);
       setAllPaid(entries.length === 0);
+      // Default mode: auto-distribute when arrears exist, manual otherwise.
+      setPayMode(entries.length > 0 ? "auto" : "manual");
       // Auto-select the oldest unpaid entry and prefill amount/expected.
       const first = entries[0];
       if (first) {
@@ -283,7 +294,8 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         setPeriodYear(first.year);
         setPeriodMonthNum(first.month);
         if (rentAmt > 0) setExpected(String(first.isPrior ? first.remaining : rentAmt));
-        setAmount(String(first.remaining));
+        // Auto mode default: full arrears (covers all unpaid cycles).
+        setAmount(String(arr.totalShortfall));
       } else {
         setSelectedEntry(null);
       }
@@ -291,11 +303,28 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     return () => { cancelled = true; };
   }, [open, unitId, lang]);
 
+
   const onPickUnit = (id: string) => {
     setUnitId(id);
     const u = units.find((x) => x.id === id);
     if (u) { setAmount(String(u.rent_amount)); setExpected(String(u.rent_amount)); }
   };
+
+  // Live distribution preview (auto mode only).
+  useEffect(() => {
+    if (payMode !== "auto" || !cachedArrears || !cachedUnit) { setDistribution(null); return; }
+    const amt = Number(amount) || 0;
+    if (amt <= 0) { setDistribution(null); return; }
+    let cancelled = false;
+    (async () => {
+      const { distributePayment } = await import("@/lib/balance");
+      const dist = distributePayment(cachedUnit, cachedArrears, amt, lang as "ar" | "en");
+      if (!cancelled) setDistribution(dist);
+    })();
+    return () => { cancelled = true; };
+  }, [amount, payMode, cachedArrears, cachedUnit, lang]);
+
+
 
 
   const remaining = Math.max(0, (Number(expected) || 0) - (Number(amount) || 0));
@@ -345,38 +374,82 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     const { data: activeT } = await supabase.from("tenancies").select("id").eq("unit_id", unitId).eq("status", "active").maybeSingle();
     const mergedNotes = [settlementNote, notes.trim()].filter(Boolean).join(" — ") || null;
     const sharedReceipt = receipt.trim() || null;
-    const rows: any[] = [{
-      unit_id: unitId,
-      tenancy_id: (activeT as any)?.id || null,
-      amount: Number(amount),
-      expected_amount: Number(expected) || null,
-      payment_date: date,
-      receipt_number: sharedReceipt,
-      payment_method: method,
-      notes: mergedNotes,
-      period_start: submitPeriodStartIso || null,
-      period_end: submitPeriodEndIso || null,
+    const rows: any[] = [];
 
-    }];
-    if (collectPriorArrears && priorArrears.length > 0) {
-      for (const m of priorArrears) {
+    if (payMode === "auto" && distribution && distribution.allocations.length > 0) {
+      // Build one row per allocation cycle (single source of truth for arrears link).
+      for (const a of distribution.allocations) {
+        const noteParts: string[] = [];
+        if (a.isAdvance) noteParts.push(lang === "ar" ? "دفعة مقدمة" : "Advance");
+        else if (a.isPrior) noteParts.push(lang === "ar" ? "متأخرات سابقة" : "Prior arrears");
+        else if (a.amount + 0.009 < a.expected) noteParts.push(lang === "ar" ? "دفعة جزئية" : "Partial");
+        noteParts.push(a.label);
+        if (notes.trim()) noteParts.push(notes.trim());
         rows.push({
           unit_id: unitId,
           tenancy_id: (activeT as any)?.id || null,
-          amount: m.remaining,
-          expected_amount: activeRent || null,
+          amount: a.amount,
+          expected_amount: a.expected || null,
           payment_date: date,
           receipt_number: sharedReceipt,
           payment_method: method,
-          notes: (lang === "ar" ? "تحصيل متأخرات" : "Arrears collection") + ` — ${m.label}`,
-          period_start: m.periodStartIso,
-          period_end: m.periodEndIso,
+          notes: noteParts.join(" — "),
+          period_start: a.periodStartIso,
+          period_end: a.periodEndIso,
         });
       }
+      // If user typed more than distribution could absorb, attach the remainder
+      // as an unallocated credit on the latest period (rare; only when no rent).
+      if (distribution.remainder > 0.009) {
+        rows.push({
+          unit_id: unitId,
+          tenancy_id: (activeT as any)?.id || null,
+          amount: distribution.remainder,
+          expected_amount: null,
+          payment_date: date,
+          receipt_number: sharedReceipt,
+          payment_method: method,
+          notes: (lang === "ar" ? "رصيد دائن" : "Credit balance") + (notes.trim() ? ` — ${notes.trim()}` : ""),
+          period_start: null,
+          period_end: null,
+        });
+      }
+    } else {
+      // Manual mode — single row tied to the chosen cycle.
+      rows.push({
+        unit_id: unitId,
+        tenancy_id: (activeT as any)?.id || null,
+        amount: Number(amount),
+        expected_amount: Number(expected) || null,
+        payment_date: date,
+        receipt_number: sharedReceipt,
+        payment_method: method,
+        notes: mergedNotes,
+        period_start: submitPeriodStartIso || null,
+        period_end: submitPeriodEndIso || null,
+      });
+      if (collectPriorArrears && priorArrears.length > 0) {
+        for (const m of priorArrears) {
+          rows.push({
+            unit_id: unitId,
+            tenancy_id: (activeT as any)?.id || null,
+            amount: m.remaining,
+            expected_amount: activeRent || null,
+            payment_date: date,
+            receipt_number: sharedReceipt,
+            payment_method: method,
+            notes: (lang === "ar" ? "تحصيل متأخرات" : "Arrears collection") + ` — ${m.label}`,
+            period_start: m.periodStartIso,
+            period_end: m.periodEndIso,
+          });
+        }
+      }
     }
+
     const { error } = await supabase.from("payments").insert(rows);
     if (!error) {
-      const newStatus = isPartial && !collectPriorArrears ? "soon" : "paid";
+      const newStatus = isPartial && !collectPriorArrears && payMode !== "auto" ? "soon" : "paid";
+
       // Advance the unit anchor (opening_balance_date) to the day AFTER the
       // latest covered period among the just-inserted rows. This keeps the
       // "next due cycle" accurate without requiring the user to edit the unit.
@@ -394,16 +467,24 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
 
     setSaving(false);
     if (error) return toast.error(error.message);
-    // Show before→after arrears so the user sees the badge update reflected.
-    const collectedNow = Number(amount) + (collectPriorArrears ? priorArrearsTotal : 0);
-    const arrearsAfter = Math.max(0, arrearsBefore - collectedNow);
+    // Show before→after arrears + advance hint.
+    const totalSaved = rows.reduce((s, r) => s + Number(r.amount || 0), 0);
+    const advanceTotal = payMode === "auto" && distribution
+      ? distribution.allocations.filter((a) => a.isAdvance).reduce((s, a) => s + a.amount, 0)
+      : 0;
+    const arrearsCollected = totalSaved - advanceTotal;
+    const arrearsAfter = Math.max(0, arrearsBefore - arrearsCollected);
+    const advanceMsg = advanceTotal > 0
+      ? (lang === "ar" ? `  ·  دفعة مقدمة: ${format(advanceTotal)}` : `  ·  Advance: ${format(advanceTotal)}`)
+      : "";
     toast.success(
-      arrearsBefore > 0
+      arrearsBefore > 0 || advanceTotal > 0
         ? (lang === "ar"
-            ? `تم الحفظ ✓  المتأخرات: ${format(arrearsBefore)} ← ${format(arrearsAfter)}`
-            : `Saved ✓  Arrears: ${format(arrearsBefore)} → ${format(arrearsAfter)}`)
+            ? `تم الحفظ ✓  المتأخرات: ${format(arrearsBefore)} ← ${format(arrearsAfter)}${advanceMsg}`
+            : `Saved ✓  Arrears: ${format(arrearsBefore)} → ${format(arrearsAfter)}${advanceMsg}`)
         : "✓",
     );
+
     const _u = units.find((x) => x.id === unitId);
     const _tenant = _u?.tenant_name || "";
     const _unitNum = _u?.unit_number || "";
@@ -427,30 +508,53 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         : (lang === "ar"
             ? `إيجار الفترة من ${cycleStart.getDate()}/${cycleStart.getMonth() + 1}/${cycleStart.getFullYear()} إلى ${cycleEnd.getDate()}/${cycleEnd.getMonth() + 1}/${cycleEnd.getFullYear()}`
             : `Rent ${cycleStart.getDate()}/${cycleStart.getMonth() + 1}/${cycleStart.getFullYear()} – ${cycleEnd.getDate()}/${cycleEnd.getMonth() + 1}/${cycleEnd.getFullYear()}`);
-      const upTo = unpaidMonths
-        .filter((m) => m.periodStartIso <= submitPeriodStartIso)
-        .map((m) => {
-          const isCurrent = m.periodStartIso === submitPeriodStartIso;
-          const isPriorPaidNow = collectPriorArrears && !isCurrent;
-          const remaining = isCurrent
-            ? Math.max(0, m.remaining - Number(amount))
-            : (isPriorPaidNow ? 0 : m.remaining);
-          return { label: m.label, remaining };
-        })
-        .filter((m) => m.remaining > 0.009);
+      // Build receipt breakdown.
+      let collectedArrearsList: Array<{ label: string; amount: number }> = [];
+      let primaryAmount = Number(amount);
+      let primaryPeriodLabel = monthLabel;
+      let upTo: Array<{ label: string; remaining: number }>;
+
+      if (payMode === "auto" && distribution && distribution.allocations.length > 0) {
+        // First allocation is shown as the "main" line; rest go into breakdown.
+        const allocs = distribution.allocations;
+        primaryAmount = allocs[0].amount;
+        primaryPeriodLabel = allocs[0].label;
+        collectedArrearsList = allocs.slice(1).map((a) => ({
+          label: (a.isAdvance ? (lang === "ar" ? "دفعة مقدمة — " : "Advance — ") : "") + a.label,
+          amount: a.amount,
+        }));
+        // After distribution, remaining unpaid = original total - allocated to non-advance.
+        const arrearsCovered = allocs.filter((a) => !a.isAdvance).reduce((s, a) => s + a.amount, 0);
+        const remainingArrears = Math.max(0, arrearsBefore - arrearsCovered);
+        upTo = remainingArrears > 0.009
+          ? [{ label: lang === "ar" ? "متأخرات متبقية" : "Remaining arrears", remaining: remainingArrears }]
+          : [];
+      } else {
+        upTo = unpaidMonths
+          .filter((m) => m.periodStartIso <= submitPeriodStartIso)
+          .map((m) => {
+            const isCurrent = m.periodStartIso === submitPeriodStartIso;
+            const isPriorPaidNow = collectPriorArrears && !isCurrent;
+            const remaining = isCurrent
+              ? Math.max(0, m.remaining - Number(amount))
+              : (isPriorPaidNow ? 0 : m.remaining);
+            return { label: m.label, remaining };
+          })
+          .filter((m) => m.remaining > 0.009);
+        collectedArrearsList = collectPriorArrears
+          ? priorArrears.map((m) => ({ label: m.label, amount: m.remaining }))
+          : [];
+      }
       const unpaidTotal = upTo.reduce((s, m) => s + m.remaining, 0);
-      const collectedArrearsList = collectPriorArrears
-        ? priorArrears.map((m) => ({ label: m.label, amount: m.remaining }))
-        : [];
-      const grandTotal = Number(amount) + collectedArrearsList.reduce((s, a) => s + a.amount, 0);
+      const grandTotal = primaryAmount + collectedArrearsList.reduce((s, a) => s + a.amount, 0);
       const baseArgs = {
         brand: settings.brand,
         receiptNumber: receipt.trim() || formatReceipt(settings.receipt),
         paymentDate: date,
-        amount: collectedArrearsList.length ? grandTotal : Number(amount),
+        amount: collectedArrearsList.length ? grandTotal : primaryAmount,
         expectedAmount: Number(expected) || null,
         method: methodLabel(method, lang),
-        periodLabel: monthLabel,
+        periodLabel: primaryPeriodLabel,
         building: u?.building_name || "—",
         unitNumber: u?.unit_number || "—",
         tenantName: u?.tenant_name || "—",
@@ -462,7 +566,8 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         grandTotal: collectedArrearsList.length ? grandTotal : null,
       };
       const filename = `receipt-${(receipt.trim() || formatReceipt(settings.receipt))}.pdf`;
-      const payload = { baseArgs, upTo, unpaidTotal, monthLabel, filename };
+      const payload = { baseArgs, upTo, unpaidTotal, monthLabel: primaryPeriodLabel, filename };
+
       if (upTo.length > 0) {
         // Defer: ask the user before generating the receipt
         setPendingReceipt(payload);
@@ -609,10 +714,27 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                         : `${unpaidMonths.length} unpaid ${unpaidMonths.length === 1 ? "item" : "items"}`}
                     </span>
                   </div>
+                  {/* Mode toggle: auto distribution vs manual cycle pick */}
+                  <div className="mt-3 inline-flex rounded-xl border border-burgundy/25 bg-card p-0.5 text-[11px] font-bold">
+                    <button
+                      type="button"
+                      onClick={() => { setPayMode("auto"); setAmount(String(arrearsBefore)); }}
+                      className={`px-3 py-1.5 rounded-lg transition ${payMode === "auto" ? "bg-burgundy text-primary-foreground" : "text-burgundy/80 hover:text-burgundy"}`}
+                    >
+                      {lang === "ar" ? "توزيع تلقائي" : "Auto-distribute"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPayMode("manual")}
+                      className={`px-3 py-1.5 rounded-lg transition ${payMode === "manual" ? "bg-burgundy text-primary-foreground" : "text-burgundy/80 hover:text-burgundy"}`}
+                    >
+                      {lang === "ar" ? "اختيار يدوي" : "Manual pick"}
+                    </button>
+                  </div>
                   <button
                     type="button"
                     onClick={() => setShowArrearsList((s) => !s)}
-                    className="mt-2 text-[11px] font-bold text-burgundy/90 hover:text-burgundy underline underline-offset-2"
+                    className="mt-2 ms-3 text-[11px] font-bold text-burgundy/90 hover:text-burgundy underline underline-offset-2"
                   >
                     {showArrearsList
                       ? (lang === "ar" ? "إخفاء التفاصيل ▴" : "Hide details ▴")
@@ -632,7 +754,10 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
               </div>
             </div>
           )}
-          {/* Rent month — unpaid only by default */}
+
+          {/* Rent month — manual mode only (auto mode distributes automatically) */}
+          {payMode === "manual" && (
+
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
@@ -770,6 +895,12 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
               })()
             )}
           </div>
+          )}
+
+
+
+
+
 
 
 
@@ -784,12 +915,82 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
               <Input type="number" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} className="rounded-xl border-sage-200 bg-card h-11" />
             </div>
           </div>
-          {isPartial && (
+
+          {/* Quick-fill chips */}
+          {unitId && (arrearsBefore > 0 || activeRent > 0) && (
+            <div className="flex flex-wrap gap-1.5">
+              {arrearsBefore > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setAmount(String(arrearsBefore))}
+                  className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-burgundy/10 text-burgundy border border-burgundy/25 hover:bg-burgundy/15"
+                >
+                  {lang === "ar" ? "= كامل المتأخرات" : "= Full arrears"} ({format(arrearsBefore)})
+                </button>
+              )}
+              {activeRent > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setAmount(String(activeRent))}
+                  className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-sage-100 text-sage-700 border border-sage-200 hover:bg-sage-200/50"
+                >
+                  {lang === "ar" ? "= إيجار شهر" : "= 1 month rent"} ({format(activeRent)})
+                </button>
+              )}
+              {unpaidMonths[0] && unpaidMonths[0].remaining < (activeRent || Infinity) && (
+                <button
+                  type="button"
+                  onClick={() => setAmount(String(unpaidMonths[0].remaining))}
+                  className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-terracotta/10 text-terracotta border border-terracotta/25 hover:bg-terracotta/15"
+                >
+                  {lang === "ar" ? "= متبقي الأقدم" : "= Oldest remaining"} ({format(unpaidMonths[0].remaining)})
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Live distribution preview (auto mode) */}
+          {payMode === "auto" && distribution && distribution.allocations.length > 0 && (
+            <div className="rounded-2xl border border-sage-200 bg-sage-100/30 px-3.5 py-3">
+              <div className="text-[11px] font-extrabold text-sage-600 uppercase tracking-wide mb-2 flex items-center justify-between">
+                <span>{lang === "ar" ? "توزيع الدفعة" : "Payment distribution"}</span>
+                <span className="text-sage-500">
+                  {distribution.allocations.length} {lang === "ar" ? (distribution.allocations.length === 1 ? "بند" : "بنود") : (distribution.allocations.length === 1 ? "item" : "items")}
+                </span>
+              </div>
+              <div className="space-y-1">
+                {distribution.allocations.map((a, i) => {
+                  const full = a.amount + 0.009 >= a.expected;
+                  return (
+                    <div key={i} className="flex items-center justify-between text-xs">
+                      <span className="flex items-center gap-1.5 min-w-0">
+                        {a.isAdvance && <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-gold/15 text-gold border border-gold/30">{lang === "ar" ? "مقدمة" : "ADV"}</span>}
+                        {a.isPrior && <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-burgundy/15 text-burgundy border border-burgundy/30">{lang === "ar" ? "سابق" : "PRIOR"}</span>}
+                        <span className="font-semibold text-sage-700 truncate">{a.label}</span>
+                      </span>
+                      <span className={`tabular-nums font-bold ${full ? "text-sage-600" : "text-terracotta"}`}>
+                        {format(a.amount)}{!full && <span className="text-[10px] opacity-70"> / {format(a.expected)}</span>}
+                        {full && <span className="ms-1">✓</span>}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              {distribution.remainder > 0.009 && (
+                <div className="mt-2 pt-2 border-t border-sage-200 flex items-center justify-between text-xs text-slate">
+                  <span className="font-semibold">{lang === "ar" ? "رصيد دائن غير موزَّع" : "Unallocated credit"}</span>
+                  <span className="font-extrabold tabular-nums">{format(distribution.remainder)}</span>
+                </div>
+              )}
+            </div>
+          )}
+          {isPartial && payMode === "manual" && (
             <div className="bg-terracotta/10 border border-terracotta/30 rounded-xl px-3 py-2 text-xs text-terracotta font-semibold flex justify-between">
               <span>{lang === "ar" ? "متبقي" : "Remaining"}</span>
               <span>{format(remaining)}</span>
             </div>
           )}
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs text-sage-500">{t2("payment_date")}</Label>
@@ -815,7 +1016,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
             <Label className="text-xs text-sage-500">{t2("notes")}</Label>
             <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="rounded-xl border-sage-200 bg-card" />
           </div>
-          {unitId && priorArrears.length > 0 && (
+          {payMode === "manual" && unitId && priorArrears.length > 0 && (
             <label className="flex items-start gap-2 rounded-xl border border-terracotta/30 bg-terracotta/5 px-3 py-2.5 cursor-pointer select-none">
               <input
                 type="checkbox"

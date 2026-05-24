@@ -396,5 +396,32 @@ describe("getUnitArrears — partial-payment month tracking", () => {
   });
 });
 
+describe("distributePayment", () => {
+  it("توزع المبلغ على الأقدم أولاً ثم يفيض كدفعة مقدمة", async () => {
+    const { getUnitArrears, distributePayment } = await import("./balance");
+    setNow("2026-05-24");
+    const u = mkUnit({ rent_amount: 100, contract_start_date: "2026-01-01" });
+    const arr = getUnitArrears(u, [], new Date("2026-05-24"));
+    // 5 cycles unpaid × 100 = 500. Pay 650 → 5 cycles full + 150 advance (full June + 50 of July).
+    const d = distributePayment(u, arr, 650);
+    expect(d.allocations.length).toBe(7);
+    expect(d.allocations.filter((a) => a.isAdvance).length).toBe(2);
+    expect(d.totalAllocated).toBeCloseTo(650, 3);
+    expect(d.remainder).toBe(0);
+  });
+
+  it("تغطية جزئية للأقدم بدون فائض", async () => {
+    const { getUnitArrears, distributePayment } = await import("./balance");
+    setNow("2026-03-24");
+    const u = mkUnit({ rent_amount: 100, contract_start_date: "2026-01-01" });
+    const arr = getUnitArrears(u, [], new Date("2026-03-24"));
+    const d = distributePayment(u, arr, 150);
+    expect(d.allocations[0].amount).toBe(100);
+    expect(d.allocations[1].amount).toBe(50);
+    expect(d.allocations.every((a) => !a.isAdvance)).toBe(true);
+  });
+});
+
+
 
 
