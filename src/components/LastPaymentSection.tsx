@@ -189,13 +189,28 @@ export function LastPaymentSection({
                 <Label className="text-[10px] text-sage-500 font-semibold">
                   {lang === "ar" ? "من" : "From"}
                 </Label>
-                <DateField date={periodFrom} onChange={onPeriodFromChange} locale={locale} lang={lang} />
+                <DateField
+                  date={periodFrom}
+                  onChange={onPeriodFromChange}
+                  locale={locale}
+                  lang={lang}
+                  open={openPopover === "from"}
+                  onOpenChange={(o) => setOpenPopover(o ? "from" : (openPopover === "from" ? null : openPopover))}
+                />
               </div>
               <div className="space-y-1">
                 <Label className="text-[10px] text-sage-500 font-semibold">
                   {lang === "ar" ? "إلى" : "To"}
                 </Label>
-                <DateField date={periodTo} onChange={onPeriodToChange} locale={locale} lang={lang} />
+                <DateField
+                  date={periodTo}
+                  onChange={onPeriodToChange}
+                  locale={locale}
+                  lang={lang}
+                  open={openPopover === "to"}
+                  onOpenChange={(o) => setOpenPopover(o ? "to" : (openPopover === "to" ? null : openPopover))}
+                />
+
               </div>
             </div>
           </div>
@@ -227,16 +242,19 @@ export function LastPaymentSection({
 }
 
 function DateField({
-  date, onChange, locale, lang, disableFuture,
+  date, onChange, locale, lang, disableFuture, open, onOpenChange,
 }: {
   date: Date | undefined;
   onChange: (d: Date | undefined) => void;
   locale: any;
   lang: string;
   disableFuture?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={onOpenChange}>
+
       <PopoverTrigger asChild>
         <Button
           type="button"
