@@ -159,7 +159,7 @@ export function EditUnitDialog({
     toast.success("✓");
     onSaved?.();
     guard.markSaved();
-    onOpenChange(false);
+    setBusy(false);
   };
 
   return (
