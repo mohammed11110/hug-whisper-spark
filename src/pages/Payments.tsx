@@ -15,7 +15,7 @@ import { useI18n, docLang } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
 import { useAppSettings, readFilters, writeFilters } from "@/lib/appSettings";
-import { computeBalance } from "@/lib/balance";
+import { getUnitArrears } from "@/lib/balance";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
@@ -116,8 +116,8 @@ export default function Payments() {
     const bMap = new Map((builds || []).map((b: any) => [b.id, b]));
     const remainingMap = new Map<string, number>();
     (units || []).forEach((u: any) => {
-      const { outstanding } = computeBalance(u, allPays || []);
-      remainingMap.set(u.id, outstanding);
+      const { totalShortfall } = getUnitArrears(u, allPays || [], new Date(), lang as "ar" | "en");
+      remainingMap.set(u.id, totalShortfall);
     });
     const mapped: Row[] = (pays || []).map((p: any) => {
       const u: any = uMap.get(p.unit_id);
