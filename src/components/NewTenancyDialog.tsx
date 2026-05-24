@@ -248,16 +248,11 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-sage-500">{t2("due_day")}</Label>
-              <Input type="number" min={1} max={31} value={dueDay} onChange={(e) => setDueDay(e.target.value)} className="rounded-xl border-sage-200 h-11" />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-sage-500">{lang === "ar" ? "تأمين" : "Deposit"}</Label>
-              <Input type="number" inputMode="decimal" value={deposit} onChange={(e) => setDeposit(e.target.value)} className="rounded-xl border-sage-200 h-11" />
-            </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-sage-500">{lang === "ar" ? "تأمين" : "Deposit"}</Label>
+            <Input type="number" inputMode="decimal" value={deposit} onChange={(e) => setDeposit(e.target.value)} className="rounded-xl border-sage-200 h-11" />
           </div>
+
 
           <div className="space-y-1.5">
             <Label className="text-xs text-sage-500">{t2("rent_timing")}</Label>
@@ -272,8 +267,11 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
             <p className="text-[11px] text-sage-500 leading-relaxed">
               {t2(rentTiming === "advance" ? "rent_timing_advance_hint" : "rent_timing_arrears_hint")}
             </p>
-
+            <p className="text-[11px] text-sage-400 leading-relaxed">
+              ⓘ {t2("due_auto_hint")}
+            </p>
           </div>
+
 
           <LastPaymentSection
             enabled={hasPrevPay}
