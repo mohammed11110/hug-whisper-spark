@@ -508,30 +508,53 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         : (lang === "ar"
             ? `إيجار الفترة من ${cycleStart.getDate()}/${cycleStart.getMonth() + 1}/${cycleStart.getFullYear()} إلى ${cycleEnd.getDate()}/${cycleEnd.getMonth() + 1}/${cycleEnd.getFullYear()}`
             : `Rent ${cycleStart.getDate()}/${cycleStart.getMonth() + 1}/${cycleStart.getFullYear()} – ${cycleEnd.getDate()}/${cycleEnd.getMonth() + 1}/${cycleEnd.getFullYear()}`);
-      const upTo = unpaidMonths
-        .filter((m) => m.periodStartIso <= submitPeriodStartIso)
-        .map((m) => {
-          const isCurrent = m.periodStartIso === submitPeriodStartIso;
-          const isPriorPaidNow = collectPriorArrears && !isCurrent;
-          const remaining = isCurrent
-            ? Math.max(0, m.remaining - Number(amount))
-            : (isPriorPaidNow ? 0 : m.remaining);
-          return { label: m.label, remaining };
-        })
-        .filter((m) => m.remaining > 0.009);
+      // Build receipt breakdown.
+      let collectedArrearsList: Array<{ label: string; amount: number }> = [];
+      let primaryAmount = Number(amount);
+      let primaryPeriodLabel = monthLabel;
+      let upTo: Array<{ label: string; remaining: number }>;
+
+      if (payMode === "auto" && distribution && distribution.allocations.length > 0) {
+        // First allocation is shown as the "main" line; rest go into breakdown.
+        const allocs = distribution.allocations;
+        primaryAmount = allocs[0].amount;
+        primaryPeriodLabel = allocs[0].label;
+        collectedArrearsList = allocs.slice(1).map((a) => ({
+          label: (a.isAdvance ? (lang === "ar" ? "دفعة مقدمة — " : "Advance — ") : "") + a.label,
+          amount: a.amount,
+        }));
+        // After distribution, remaining unpaid = original total - allocated to non-advance.
+        const arrearsCovered = allocs.filter((a) => !a.isAdvance).reduce((s, a) => s + a.amount, 0);
+        const remainingArrears = Math.max(0, arrearsBefore - arrearsCovered);
+        upTo = remainingArrears > 0.009
+          ? [{ label: lang === "ar" ? "متأخرات متبقية" : "Remaining arrears", remaining: remainingArrears }]
+          : [];
+      } else {
+        upTo = unpaidMonths
+          .filter((m) => m.periodStartIso <= submitPeriodStartIso)
+          .map((m) => {
+            const isCurrent = m.periodStartIso === submitPeriodStartIso;
+            const isPriorPaidNow = collectPriorArrears && !isCurrent;
+            const remaining = isCurrent
+              ? Math.max(0, m.remaining - Number(amount))
+              : (isPriorPaidNow ? 0 : m.remaining);
+            return { label: m.label, remaining };
+          })
+          .filter((m) => m.remaining > 0.009);
+        collectedArrearsList = collectPriorArrears
+          ? priorArrears.map((m) => ({ label: m.label, amount: m.remaining }))
+          : [];
+      }
       const unpaidTotal = upTo.reduce((s, m) => s + m.remaining, 0);
-      const collectedArrearsList = collectPriorArrears
-        ? priorArrears.map((m) => ({ label: m.label, amount: m.remaining }))
-        : [];
-      const grandTotal = Number(amount) + collectedArrearsList.reduce((s, a) => s + a.amount, 0);
+      const grandTotal = primaryAmount + collectedArrearsList.reduce((s, a) => s + a.amount, 0);
       const baseArgs = {
         brand: settings.brand,
         receiptNumber: receipt.trim() || formatReceipt(settings.receipt),
         paymentDate: date,
-        amount: collectedArrearsList.length ? grandTotal : Number(amount),
+        amount: collectedArrearsList.length ? grandTotal : primaryAmount,
         expectedAmount: Number(expected) || null,
         method: methodLabel(method, lang),
-        periodLabel: monthLabel,
+        periodLabel: primaryPeriodLabel,
         building: u?.building_name || "—",
         unitNumber: u?.unit_number || "—",
         tenantName: u?.tenant_name || "—",
@@ -543,7 +566,8 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         grandTotal: collectedArrearsList.length ? grandTotal : null,
       };
       const filename = `receipt-${(receipt.trim() || formatReceipt(settings.receipt))}.pdf`;
-      const payload = { baseArgs, upTo, unpaidTotal, monthLabel, filename };
+      const payload = { baseArgs, upTo, unpaidTotal, monthLabel: primaryPeriodLabel, filename };
+
       if (upTo.length > 0) {
         // Defer: ask the user before generating the receipt
         setPendingReceipt(payload);
