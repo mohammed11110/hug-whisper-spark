@@ -16,7 +16,9 @@ export interface PaymentForBalance {
   unit_id: string;
   amount: number | string;
   deleted_at?: string | null;
+  payment_date?: string | null;
 }
+
 
 const num = (v: any) => Number(v) || 0;
 
@@ -144,11 +146,17 @@ export function getNextDueInfo(
   const timing = (unit.rent_timing || "advance") === "arrears" ? "arrears" : "advance";
 
   const rent = num(unit.rent_amount);
+  const anchorIso = unit.opening_balance_date || unit.contract_start_date || null;
+  // Only count payments at/after the anchor — older payments are already
+  // baked into opening_balance_date (= first unpaid cycle); counting them
+  // again would double-advance the next-due cycle.
   const totalPaid = payments
-    .filter((p) => p.unit_id === unit.id && !p.deleted_at)
+    .filter((p) => p.unit_id === unit.id && !p.deleted_at
+      && (!anchorIso || !p.payment_date || p.payment_date >= anchorIso))
     .reduce((s, p) => s + num(p.amount), 0);
   const paidCycles = rent > 0 ? Math.floor(totalPaid / rent) : 0;
   const due = cyclesDue(unit, new Date());
+
 
   // Next billable cycle index (0-based from anchor): whichever is greater
   // between cycles already paid and cycles due.
