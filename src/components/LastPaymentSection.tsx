@@ -46,12 +46,15 @@ interface Props {
   onDateChange: (d: Date | undefined) => void;
   amount: string;
   onAmountChange: (v: string) => void;
+  rentTiming?: "advance" | "arrears";
 }
 
-export function LastPaymentSection({ enabled, onEnabledChange, date, onDateChange, amount, onAmountChange }: Props) {
+export function LastPaymentSection({ enabled, onEnabledChange, date, onDateChange, amount, onAmountChange, rentTiming = "advance" }: Props) {
   const { lang } = useI18n();
   const locale = lang === "ar" ? ar : enUS;
   const bounds = date ? monthBoundsFromDate(date, lang) : null;
+  const arrearsFromLabel = bounds ? (rentTiming === "arrears" ? bounds.startLabel : bounds.nextMonthLabel) : "";
+
 
   return (
     <div className="pt-2 border-t border-sage-100">
