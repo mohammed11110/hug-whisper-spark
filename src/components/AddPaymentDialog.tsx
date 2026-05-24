@@ -940,7 +940,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                   setSelectedEntry(entry);
                   setPeriodYear(entry.year);
                   setPeriodMonthNum(entry.month);
-                  if (activeRent > 0) setExpected(String(entry.isPrior ? entry.remaining : activeRent));
+                  if (payMode === "manual" && activeRent > 0) setExpected(String(entry.isPrior ? entry.remaining : activeRent));
                   setAmount(String(entry.remaining));
                 }}
               >
