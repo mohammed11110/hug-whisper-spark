@@ -221,73 +221,75 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, presetUnitId]);
 
-  // Load unpaid months for the selected unit (based on contract + prior payments)
+  // Unified arrears for the selected unit — single source of truth via getUnitArrears.
   useEffect(() => {
-    if (!open || !unitId) { setUnpaidMonths([]); setAllPaid(false); setPaidMonthsKeys(new Set()); return; }
+    if (!open || !unitId) {
+      setUnpaidMonths([]); setAllPaid(false); setPaidMonthsKeys(new Set());
+      setArrearsBefore(0); setSelectedEntry(null);
+      return;
+    }
     let cancelled = false;
     (async () => {
-      const { data: tn } = await supabase
-        .from("tenancies")
-        .select("contract_start_date, contract_end_date, rent_amount, rent_type, status")
-        .eq("unit_id", unitId)
-        .eq("status", "active")
+      const { data: u } = await supabase
+        .from("units")
+        .select("id, rent_amount, rent_type, rent_timing, contract_start_date, opening_balance, opening_balance_date")
+        .eq("id", unitId)
         .maybeSingle();
-      if (cancelled) return;
-      const rentAmt = Number((tn as any)?.rent_amount) || 0;
-      const rentType = (tn as any)?.rent_type as string | undefined;
-      setActiveRent(rentAmt);
-
       const { data: ps } = await supabase
         .from("payments")
-        .select("amount, period_start")
+        .select("unit_id, amount, deleted_at, payment_date, period_start, period_end")
         .eq("unit_id", unitId)
         .is("deleted_at", null);
-      const paidByMonth = new Map<string, number>();
-      (ps || []).forEach((p: any) => {
-        if (!p.period_start) return;
-        const k = String(p.period_start).slice(0, 7);
-        paidByMonth.set(k, (paidByMonth.get(k) || 0) + Number(p.amount));
-      });
-      // Build set of fully-paid month keys for fallback dropdown filtering
-      const fullyPaid = new Set<string>();
-      paidByMonth.forEach((paid, k) => {
-        if (rentAmt > 0 ? paid + 0.01 >= rentAmt : paid > 0) fullyPaid.add(k);
-      });
-      if (!cancelled) setPaidMonthsKeys(fullyPaid);
+      if (cancelled || !u) return;
 
-      if (!tn) { setUnpaidMonths([]); setAllPaid(false); return; }
-      const startStr = (tn as any).contract_start_date as string | null;
-      const endStr = (tn as any).contract_end_date as string | null;
-      if (!startStr || rentAmt <= 0) { setUnpaidMonths([]); setAllPaid(false); return; }
-
-      const today = new Date();
-      const start = new Date(startStr);
-      const horizonByToday = new Date(today.getFullYear(), today.getMonth() + 2, 1);
-      const horizonByContract = endStr ? new Date(endStr) : horizonByToday;
-      const horizon = horizonByContract < horizonByToday ? horizonByContract : horizonByToday;
-      const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
-      const out: { year: number; month: number; remaining: number }[] = [];
-      while (cursor <= horizon) {
-        const y = cursor.getFullYear();
-        const m = cursor.getMonth() + 1;
-        const k = `${y}-${String(m).padStart(2, "0")}`;
-        const paid = paidByMonth.get(k) || 0;
-        const isContractAnchor = rentType !== "yearly" || m === start.getMonth() + 1;
-        if (isContractAnchor && paid + 0.01 < rentAmt) {
-          out.push({ year: y, month: m, remaining: rentAmt - paid });
-        }
-        cursor.setMonth(cursor.getMonth() + 1);
-      }
+      const { getUnitArrears } = await import("@/lib/balance");
+      const arr = getUnitArrears(u as any, (ps || []) as any, new Date(), lang as "ar" | "en");
+      const rentAmt = Number((u as any).rent_amount) || 0;
       if (cancelled) return;
-      setUnpaidMonths(out);
-      setAllPaid(out.length === 0);
-      if (out.length > 0) {
-        setPeriodYear(out[0].year);
-        setPeriodMonthNum(out[0].month);
+
+      setActiveRent(rentAmt);
+      setArrearsBefore(arr.totalShortfall);
+
+      const priorLabel = lang === "ar" ? "متأخرات سابقة" : "Prior arrears";
+      const entries: UnpaidEntry[] = arr.cycles
+        .filter((c) => c.shortfall > 0.009)
+        .map((c) => ({
+          year: c.periodStart.getFullYear(),
+          month: c.periodStart.getMonth() + 1,
+          remaining: c.shortfall,
+          periodStartIso: c.periodStartIso,
+          periodEndIso: c.periodEndIso,
+          label: c.label,
+          isPrior: c.label === priorLabel,
+        }));
+
+      // Set of fully-paid month keys for "show all" fallback dropdown filtering.
+      const fullyPaid = new Set<string>();
+      arr.cycles.forEach((c) => {
+        if (c.status === "paid" && c.label !== priorLabel) {
+          fullyPaid.add(
+            `${c.periodStart.getFullYear()}-${String(c.periodStart.getMonth() + 1).padStart(2, "0")}`,
+          );
+        }
+      });
+      setPaidMonthsKeys(fullyPaid);
+
+      setUnpaidMonths(entries);
+      setAllPaid(entries.length === 0);
+      // Auto-select the oldest unpaid entry and prefill amount/expected.
+      const first = entries[0];
+      if (first) {
+        setSelectedEntry(first);
+        setPeriodYear(first.year);
+        setPeriodMonthNum(first.month);
+        if (rentAmt > 0) setExpected(String(first.isPrior ? first.remaining : rentAmt));
+        setAmount(String(first.remaining));
+      } else {
+        setSelectedEntry(null);
       }
     })();
     return () => { cancelled = true; };
-  }, [open, unitId]);
+  }, [open, unitId, lang]);
 
   const onPickUnit = (id: string) => {
     setUnitId(id);
