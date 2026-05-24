@@ -28,6 +28,8 @@ interface UnitInput {
   rent_amount: number;
   rent_type: string;
   due_day: number;
+  rent_timing?: string | null;
+
   security_deposit?: number;
   deposit_status?: string;
   contract_type?: string;
@@ -57,6 +59,8 @@ export function EditUnitDialog({
   const [rentType, setRentType] = useState<string>("monthly");
   const [dueDay, setDueDay] = useState("1");
   const [securityDeposit, setSecurityDeposit] = useState("0");
+  const [rentTiming, setRentTiming] = useState<"advance" | "arrears">("advance");
+
   const [depositStatus, setDepositStatus] = useState<string>("none");
   const [contractType, setContractType] = useState<string>("yearly");
   const [contractStart, setContractStart] = useState<string>("");
@@ -80,6 +84,8 @@ export function EditUnitDialog({
     setRentAmount(String(unit.rent_amount ?? 0));
     setRentType(unit.rent_type);
     setDueDay(String(unit.due_day ?? 1));
+    setRentTiming(((unit as any).rent_timing === "arrears" ? "arrears" : "advance"));
+
     setSecurityDeposit(String(unit.security_deposit ?? 0));
     setDepositStatus(unit.deposit_status || "none");
     setContractType(unit.contract_type || "yearly");
@@ -108,6 +114,8 @@ export function EditUnitDialog({
       rent_amount: parseFloat(rentAmount) || 0,
       rent_type: rentType,
       due_day: Math.min(31, Math.max(1, parseInt(dueDay) || 1)),
+      rent_timing: rentTiming,
+
       security_deposit: parseFloat(securityDeposit) || 0,
       deposit_status: depositStatus,
       deposit_refunded_at: depositStatus === "refunded" ? new Date().toISOString().slice(0, 10) : null,
@@ -220,6 +228,20 @@ export function EditUnitDialog({
                 className="rounded-xl border-sage-200 bg-card" />
             </Field>
           </div>
+          <Field label={t2("rent_timing")}>
+            <div className="flex gap-1.5">
+              {(["advance", "arrears"] as const).map((m) => (
+                <button key={m} type="button" onClick={() => setRentTiming(m)}
+                  className={`flex-1 px-3 py-2 rounded-xl text-xs font-semibold ${
+                    rentTiming === m ? "bg-gradient-sage text-primary-foreground shadow-soft" : "bg-muted text-muted-foreground"
+                  }`}>{t2(m === "advance" ? "rent_timing_advance" : "rent_timing_arrears")}</button>
+              ))}
+            </div>
+            <p className="text-[11px] text-sage-500 mt-1.5 leading-relaxed">
+              {t2(rentTiming === "advance" ? "rent_timing_advance_hint" : "rent_timing_arrears_hint")}
+            </p>
+          </Field>
+
           <Field label="نوع العقد / Contract type">
             <div className="flex gap-1.5">
               {CONTRACT_TYPES.map((ct) => (

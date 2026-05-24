@@ -5,10 +5,12 @@ export interface UnitForBalance {
   id: string;
   rent_amount: number | string;
   rent_type: string; // monthly | daily | yearly
+  rent_timing?: string | null; // 'advance' (default) | 'arrears'
   contract_start_date?: string | null;
   opening_balance?: number | string | null;
   opening_balance_date?: string | null;
 }
+
 
 export interface PaymentForBalance {
   unit_id: string;
@@ -46,9 +48,15 @@ export function computeBalance(unit: UnitForBalance, payments: PaymentForBalance
   const start = startStr ? new Date(startStr) : null;
   const now = new Date();
 
-  const periods = start ? periodsElapsed(start, now, unit.rent_type) : 0;
+  let periods = start ? periodsElapsed(start, now, unit.rent_type) : 0;
+  // In "arrears" mode, the rent of a given period only becomes due AFTER that period ends.
+  // So we discount the most recent (still-running) period from the due count.
+  if ((unit.rent_timing || "advance") === "arrears" && periods > 0) {
+    periods -= 1;
+  }
   const accrued = rent * periods;
   const totalDue = opening + accrued;
+
 
   const paid = payments
     .filter((p) => p.unit_id === unit.id && !p.deleted_at)

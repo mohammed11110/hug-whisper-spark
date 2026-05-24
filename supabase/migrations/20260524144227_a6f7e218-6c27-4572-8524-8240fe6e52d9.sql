@@ -1,0 +1,1 @@
+ALTER TABLE public.units ADD COLUMN IF NOT EXISTS rent_timing text NOT NULL DEFAULT 'advance' CHECK (rent_timing IN ('advance','arrears'));

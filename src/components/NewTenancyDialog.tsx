@@ -35,6 +35,8 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
   const [rent, setRent] = useState("");
   const [rentType, setRentType] = useState("monthly");
   const [dueDay, setDueDay] = useState("1");
+  const [rentTiming, setRentTiming] = useState<"advance" | "arrears">("advance");
+
   const [deposit, setDeposit] = useState("0");
   const [idImageUrl, setIdImageUrl] = useState<string | null>(null);
   const [contractFileUrl, setContractFileUrl] = useState<string | null>(null);
@@ -79,6 +81,8 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
     setRent(String(unit.rent_amount || ""));
     setRentType(unit.rent_type || "monthly");
     setDueDay(String(unit.due_day || 1));
+    setRentTiming(((unit as any).rent_timing === "arrears" ? "arrears" : "advance"));
+
     setDeposit("0");
     setIdImageUrl(null);
     setContractFileUrl(null);
@@ -123,6 +127,7 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
       rent_type: rentType,
       due_day: dueNum,
       security_deposit: depositNum,
+
       deposit_status: depositNum > 0 ? "held" : "none",
       status: "active",
     });
@@ -139,6 +144,8 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
       rent_amount: rentNum,
       rent_type: rentType,
       due_day: dueNum,
+      rent_timing: rentTiming,
+
       security_deposit: depositNum,
       deposit_status: depositNum > 0 ? "held" : "none",
       status: "soon",
@@ -250,6 +257,22 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
               <Label className="text-xs text-sage-500">{lang === "ar" ? "تأمين" : "Deposit"}</Label>
               <Input type="number" inputMode="decimal" value={deposit} onChange={(e) => setDeposit(e.target.value)} className="rounded-xl border-sage-200 h-11" />
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs text-sage-500">{t2("rent_timing")}</Label>
+            <div className="flex gap-1.5">
+              {(["advance", "arrears"] as const).map((m) => (
+                <button key={m} type="button" onClick={() => setRentTiming(m)}
+                  className={`flex-1 px-3 py-2 rounded-xl text-xs font-semibold ${
+                    rentTiming === m ? "bg-gradient-sage text-primary-foreground shadow-soft" : "bg-muted text-muted-foreground"
+                  }`}>{t2(m === "advance" ? "rent_timing_advance" : "rent_timing_arrears")}</button>
+              ))}
+            </div>
+            <p className="text-[11px] text-sage-500 leading-relaxed">
+              {t2(rentTiming === "advance" ? "rent_timing_advance_hint" : "rent_timing_arrears_hint")}
+            </p>
+
           </div>
 
           <LastPaymentSection

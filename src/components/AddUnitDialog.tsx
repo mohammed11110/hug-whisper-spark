@@ -55,6 +55,8 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
   const [contractType, setContractType] = useState<typeof CONTRACT_TYPES[number]>("yearly");
   const [contractStart, setContractStart] = useState<string>("");
   const [dueDay, setDueDay] = useState<string>("1");
+  const [rentTiming, setRentTiming] = useState<"advance" | "arrears">("advance");
+
   const [arrears, setArrears] = useState<string>("0");
   const [recordPay, setRecordPay] = useState(false);
   const monthOpts = useMemo(() => getMonthOptions(lang), [lang]);
@@ -71,7 +73,7 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
   const reset = () => {
     setUnitNumber(""); setFloor("1"); setType("apartment"); setOccupied(false);
     setTenantName(""); setTenantNameEn(""); setTenantPhone(""); setTenantEmail(""); setRentAmount("0"); setRentType("monthly");
-    setContractType("yearly"); setContractStart(""); setDueDay("1");
+    setContractType("yearly"); setContractStart(""); setDueDay("1"); setRentTiming("advance");
     setArrears("0"); setRecordPay(false); setPayAmount("0"); setPayMethod("cash");
   };
 
@@ -98,6 +100,8 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
       rent_amount: occupied ? rentN : 0,
       rent_type: rentType,
       due_day: Math.min(31, Math.max(1, parseInt(dueDay) || 1)),
+      rent_timing: rentTiming,
+
       status: occupied ? "soon" : "vacant",
       contract_type: contractType,
       contract_start_date: contractStart || null,
@@ -230,6 +234,20 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
                     className="rounded-xl border-sage-200 bg-card" />
                 </Field>
               </div>
+              <Field label={t2("rent_timing")}>
+                <div className="flex gap-1.5">
+                  {(["advance", "arrears"] as const).map((m) => (
+                    <button key={m} type="button" onClick={() => setRentTiming(m)}
+                      className={`flex-1 px-3 py-2 rounded-xl text-xs font-semibold ${
+                        rentTiming === m ? "bg-gradient-sage text-primary-foreground shadow-soft" : "bg-muted text-muted-foreground"
+                      }`}>{t2(m === "advance" ? "rent_timing_advance" : "rent_timing_arrears")}</button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-sage-500 mt-1.5 leading-relaxed">
+                  {t2(rentTiming === "advance" ? "rent_timing_advance_hint" : "rent_timing_arrears_hint")}
+                </p>
+              </Field>
+
               <Field label="نوع العقد / Contract type">
                 <div className="flex gap-1.5">
                   {CONTRACT_TYPES.map((ct) => (
