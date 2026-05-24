@@ -47,6 +47,8 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
   const [hasPrevPay, setHasPrevPay] = useState(false);
   const [prevPayDate, setPrevPayDate] = useState<Date | undefined>(undefined);
   const [prevPayAmount, setPrevPayAmount] = useState<string>("");
+  const [periodFrom, setPeriodFrom] = useState<Date | undefined>(undefined);
+  const [periodTo, setPeriodTo] = useState<Date | undefined>(undefined);
   const guard = useUnsavedGuard({ open, onOpenChange });
 
   const extractFromId = async () => {
