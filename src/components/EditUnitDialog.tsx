@@ -97,7 +97,7 @@ export function EditUnitDialog({
     if (!unitNumber.trim()) return;
     if (occupied && !tenantName.trim()) return toast.error(t2("tenant_required"));
     setBusy(true);
-    const { error } = await supabase.from("units").update({
+    const updatePayload: any = {
       unit_number: unitNumber.trim(),
       floor: Math.max(1, parseInt(floor) || 1),
       type,
@@ -114,9 +114,38 @@ export function EditUnitDialog({
       contract_type: contractType,
       contract_start_date: contractStart || null,
       opening_balance: parseFloat(arrears) || 0,
-    }).eq("id", unit.id);
+    };
+
+    let prevPayPayload: any = null;
+    if (hasPrevPay && prevPayMonth) {
+      const opts = getLastPaidMonthOptions(lang);
+      const sel = opts.find((o) => o.value === prevPayMonth);
+      if (sel) {
+        updatePayload.opening_balance = 0;
+        updatePayload.opening_balance_date = nextMonthStartISO(prevPayMonth);
+        const amt = Number(prevPayAmount) || 0;
+        if (amt > 0) {
+          updatePayload.last_paid_date = sel.end;
+          prevPayPayload = {
+            unit_id: unit.id,
+            amount: amt,
+            expected_amount: parseFloat(rentAmount) || 0,
+            payment_method: "cash",
+            payment_date: new Date().toISOString().slice(0, 10),
+            period_start: sel.start,
+            period_end: sel.end,
+            notes: lang === "ar" ? "دفعة سابقة مُسجّلة من شاشة التعديل" : "Prior payment recorded from edit screen",
+          };
+        }
+      }
+    }
+
+    const { error } = await supabase.from("units").update(updatePayload).eq("id", unit.id);
+    if (error) { setBusy(false); return toast.error(error.message); }
+    if (prevPayPayload) {
+      await supabase.from("payments").insert(prevPayPayload);
+    }
     setBusy(false);
-    if (error) return toast.error(error.message);
     const tenantChanged =
       (unit.tenant_name || "") !== tenantName.trim() ||
       (unit.tenant_phone || "") !== tenantPhone.trim() ||
