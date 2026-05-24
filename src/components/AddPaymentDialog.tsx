@@ -298,7 +298,14 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         setSelectedEntry(first);
         setPeriodYear(first.year);
         setPeriodMonthNum(first.month);
-        if (rentAmt > 0) setExpected(String(first.isPrior ? first.remaining : rentAmt));
+        // In auto mode (default when arrears exist) المتوقع = إجمالي المتأخرات
+        // المستحقة لأن الدفعة ستوزَّع على كل البنود غير المسددة. في الوضع
+        // اليدوي يقتصر المتوقع على الدورة المختارة.
+        if (entries.length > 0) {
+          setExpected(String(arr.totalShortfall));
+        } else if (rentAmt > 0) {
+          setExpected(String(rentAmt));
+        }
         // Auto mode default: full arrears (covers all unpaid cycles).
         setAmount(String(arr.totalShortfall));
       } else {
@@ -307,6 +314,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     })();
     return () => { cancelled = true; };
   }, [open, unitId, lang]);
+
 
 
   const onPickUnit = (id: string) => {
