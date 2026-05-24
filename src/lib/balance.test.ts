@@ -154,6 +154,29 @@ describe("computeBalance — accrued amount differs by payment timing", () => {
       opening_balance: 50,
       opening_balance_date: "2026-04-01",
     });
+    expect(cyclesDue(u, new Date("2026-05-15"))).toBe(1);
+  });
+
+  it("regression: arrears anchored at last-paid month → April overdue on 24/5", () => {
+    // Tenant pays on 5/4/2026; in arrears that payment covers MARCH.
+    // After fix, opening_balance_date is set to 2026-04-01 (not 2026-05-01).
+    const u = mkUnit({
+      rent_timing: "arrears",
+      contract_start_date: "2025-03-01",
+      opening_balance_date: "2026-04-01",
+    });
+    setNow("2026-05-24T12:00:00");
+    expect(cyclesDue(u, new Date("2026-05-24"))).toBe(1);
+    expect(computeBalance(u, []).outstanding).toBe(80);
+    expect(isUnitOverdue(u, [], new Date("2026-05-24"))).toBe(true);
+  });
+
+  it("placeholder", () => {
+    const u = mkUnit({
+      rent_timing: "arrears",
+      contract_start_date: "2026-01-01",
+
+    });
     const bal = computeBalance(u, []);
     expect(bal.opening).toBe(50);
     expect(bal.accrued).toBe(80);
