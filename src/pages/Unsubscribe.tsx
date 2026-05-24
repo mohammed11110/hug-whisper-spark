@@ -75,7 +75,7 @@ export default function Unsubscribe() {
         {state === "success" && (
           <div className="py-4">
             <CheckCircle2 className="h-10 w-10 text-sage-400 mx-auto mb-3" />
-            <p className="text-sage-600 font-semibold">تم إلغاء اشتراكك بنجاح.</p>
+            <p className="text-sage-600 font-semibold">تم إلغاء اشتراكك.</p>
             <p className="text-sm text-muted-foreground mt-2">لن تصلك رسائل من أملاكي بعد الآن.</p>
           </div>
         )}
