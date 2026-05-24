@@ -29,6 +29,9 @@ interface TenantRow {
   contract_end_date: string | null;
   total_paid: number;
   outstanding: number;
+  arrears_label: string | null;
+  arrears_count: number;
+  arrears_total: number;
 }
 
 const STATUS_STYLES: Record<string, string> = {
