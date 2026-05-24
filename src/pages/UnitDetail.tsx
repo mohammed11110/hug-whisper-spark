@@ -451,7 +451,7 @@ function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLea
       )}
       <div className="grid grid-cols-2 gap-2.5">
         <Button variant="outline" onClick={onLeasePDF} className="rounded-xl border-sage-300 text-sage-600 h-12 font-semibold">
-          <FileSignature className="h-4 w-4 me-1.5" />{lang === "ar" ? "عقد PDF" : "Lease PDF"}
+          <FileSignature className="h-4 w-4 me-1.5" />{lang === "ar" ? "تنزيل العقد" : "Lease PDF"}
         </Button>
         <Button onClick={onPay} className="rounded-xl bg-gradient-sage text-primary-foreground h-12 font-semibold shadow-soft">
           <Plus className="h-4 w-4 me-1.5" />{t2("register_payment")}
@@ -461,7 +461,7 @@ function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLea
         <Receipt className="h-4 w-4 me-1.5" />{t2("tenant_statement")} PDF
       </Button>
       <Button variant="ghost" onClick={onLeasePrint} className="w-full rounded-xl text-sage-500 h-10 text-xs">
-        {lang === "ar" ? "🖨️ طباعة العقد" : "🖨️ Print contract"}
+        {lang === "ar" ? "طباعة العقد" : "Print contract"}
       </Button>
       <Button variant="outline" onClick={onEnd} className="w-full rounded-xl border-burgundy/40 text-burgundy hover:bg-burgundy/10 h-11">
         {t2("end_tenancy")}
