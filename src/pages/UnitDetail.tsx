@@ -945,7 +945,7 @@ function PhotosTab({ unit, reload }: any) {
               ))}
             </ul>
           ) : (
-            <div className="text-xs text-sage-600 font-semibold">{ar ? "لا توجد أضرار ملحوظة" : "No notable damage"}</div>
+            <div className="text-xs text-sage-600 font-semibold">{ar ? "لا توجد أضرار مسجّلة" : "No notable damage"}</div>
           )}
         </div>
       )}
