@@ -84,6 +84,7 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
     setContractFileUrl(null);
     setUnitPhotos([]);
     setPendingPhoto(null);
+    setHasPrevPay(false); setPrevPayMonth(""); setPrevPayAmount("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, unit?.id]);
 
