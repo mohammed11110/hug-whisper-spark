@@ -167,17 +167,30 @@ export function EditUnitDialog({
       opening_balance: parseFloat(arrears) || 0,
     };
 
-    // Last payment → set opening_balance_date as the FIRST DAY of the first
-    // unpaid cycle (= day after periodTo). Works identically for advance and
-    // arrears because the user picks the covered period explicitly.
+    // Only update last-payment-derived fields when the user TOUCHED the
+    // "آخر دفعة سابقة" section. Auto-loaded values must not silently zero
+    // out opening_balance on every save — that was wiping arrears.
     if (hasPrevPay && prevPayDate && periodTo) {
       const dateIso = `${prevPayDate.getFullYear()}-${String(prevPayDate.getMonth() + 1).padStart(2, "0")}-${String(prevPayDate.getDate()).padStart(2, "0")}`;
-      const nextDay = new Date(periodTo.getFullYear(), periodTo.getMonth(), periodTo.getDate() + 1);
-      const nextIso = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, "0")}-${String(nextDay.getDate()).padStart(2, "0")}`;
-      updatePayload.opening_balance = 0;
-      updatePayload.opening_balance_date = nextIso;
-      updatePayload.last_paid_date = dateIso;
+      const periodToIso = `${periodTo.getFullYear()}-${String(periodTo.getMonth() + 1).padStart(2, "0")}-${String(periodTo.getDate()).padStart(2, "0")}`;
+      const userTouchedPrevPay =
+        !initialPrevPaySnapshot.hasPrevPay ||
+        initialPrevPaySnapshot.prevPayDateIso !== dateIso ||
+        initialPrevPaySnapshot.periodToIso !== periodToIso ||
+        (prevPayAmount.trim() !== "" && parseFloat(prevPayAmount) > 0);
+
+      if (userTouchedPrevPay) {
+        const nextDay = new Date(periodTo.getFullYear(), periodTo.getMonth(), periodTo.getDate() + 1);
+        const nextIso = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, "0")}-${String(nextDay.getDate()).padStart(2, "0")}`;
+        updatePayload.opening_balance = parseFloat(arrears) || 0;
+        updatePayload.opening_balance_date = nextIso;
+        updatePayload.last_paid_date = dateIso;
+      } else {
+        // User didn't touch the section → never overwrite opening_balance_date.
+        delete updatePayload.opening_balance_date;
+      }
     }
+
 
 
     const { error } = await supabase.from("units").update(updatePayload).eq("id", unit.id);
