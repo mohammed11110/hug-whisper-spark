@@ -317,3 +317,52 @@ describe("getNextDueInfo", () => {
   });
 });
 
+describe("getUnitArrears — partial-payment month tracking", () => {
+  it("partial payment leaves shortfall labeled for that month", () => {
+    const u = mkUnit({
+      rent_amount: 200,
+      rent_timing: "advance",
+      contract_start_date: "2026-04-01",
+      opening_balance_date: "2026-04-01",
+    });
+    // Partial 150 on April, nothing for May
+    const pays: PaymentForBalance[] = [
+      mkPayment(150, { period_start: "2026-04-01", period_end: "2026-04-30", payment_date: "2026-04-05" } as any),
+    ];
+    const arr = getUnitArrears(u, pays, new Date("2026-05-24"), "ar");
+    expect(arr.unpaidCount).toBe(2);
+    expect(arr.totalShortfall).toBe(250); // 50 + 200
+    expect(arr.oldestUnpaid?.periodStartIso).toBe("2026-04-01");
+    expect(arr.oldestUnpaid?.status).toBe("partial");
+    expect(arr.cycles[1].status).toBe("unpaid");
+  });
+
+  it("returns no arrears when everything is paid", () => {
+    const u = mkUnit({
+      rent_amount: 80,
+      rent_timing: "advance",
+      contract_start_date: "2026-04-01",
+      opening_balance_date: "2026-04-01",
+    });
+    const pays: PaymentForBalance[] = [
+      mkPayment(80, { period_start: "2026-04-01", period_end: "2026-04-30" } as any),
+      mkPayment(80, { period_start: "2026-05-01", period_end: "2026-05-31" } as any),
+    ];
+    const arr = getUnitArrears(u, pays, new Date("2026-05-24"));
+    expect(arr.unpaidCount).toBe(0);
+    expect(arr.oldestUnpaid).toBeNull();
+  });
+
+  it("arrears mode: current cycle not counted until it ends", () => {
+    const u = mkUnit({
+      rent_amount: 80,
+      rent_timing: "arrears",
+      contract_start_date: "2026-04-01",
+      opening_balance_date: "2026-04-01",
+    });
+    const arr = getUnitArrears(u, [], new Date("2026-04-15"));
+    expect(arr.cycles.length).toBe(0);
+  });
+});
+
+
