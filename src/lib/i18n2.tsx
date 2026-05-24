@@ -6,7 +6,7 @@ type Key =
   | "building_name" | "building_name_en" | "building_type" | "floors" | "address" | "city"
   | "save" | "cancel" | "delete" | "delete_confirm" | "delete_building_msg"
   | "add_unit" | "unit_number" | "unit_type" | "tenant_name" | "tenant_phone"
-  | "rent_amount" | "rent_type" | "due_day" | "monthly" | "daily" | "yearly"
+  | "rent_amount" | "rent_type" | "due_day" | "monthly" | "daily" | "yearly" | "rent_timing" | "rent_timing_advance" | "rent_timing_arrears" | "rent_timing_advance_hint" | "rent_timing_arrears_hint"
   | "occupancy" | "monthly_income" | "no_units" | "no_units_msg"
   | "details" | "maintenance" | "utilities" | "legal" | "photos"
   | "contract_end" | "last_payment" | "issue_receipt" | "register_payment"
