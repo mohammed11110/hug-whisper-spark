@@ -154,12 +154,16 @@ describe("computeBalance — accrued amount differs by payment timing", () => {
       opening_balance: 50,
       opening_balance_date: "2026-04-01",
     });
-    expect(cyclesDue(u, new Date("2026-05-15"))).toBe(1);
+    const bal = computeBalance(u, []);
+    expect(bal.opening).toBe(50);
+    expect(bal.accrued).toBe(80);
+    expect(bal.totalDue).toBe(130);
   });
 
   it("regression: arrears anchored at last-paid month → April overdue on 24/5", () => {
     // Tenant pays on 5/4/2026; in arrears that payment covers MARCH.
-    // After fix, opening_balance_date is set to 2026-04-01 (not 2026-05-01).
+    // After fix, opening_balance_date is set to 2026-04-01 (not 2026-05-01),
+    // so April's cycle (ends 30/4) is overdue on 24/5.
     const u = mkUnit({
       rent_timing: "arrears",
       contract_start_date: "2025-03-01",
@@ -171,17 +175,6 @@ describe("computeBalance — accrued amount differs by payment timing", () => {
     expect(isUnitOverdue(u, [], new Date("2026-05-24"))).toBe(true);
   });
 
-  it("placeholder", () => {
-    const u = mkUnit({
-      rent_timing: "arrears",
-      contract_start_date: "2026-01-01",
-
-    });
-    const bal = computeBalance(u, []);
-    expect(bal.opening).toBe(50);
-    expect(bal.accrued).toBe(80);
-    expect(bal.totalDue).toBe(130);
-  });
 
   it("difference between advance and arrears equals one rent across many months", () => {
     const months = ["2026-04-01", "2026-05-01", "2026-06-15", "2026-08-01", "2026-12-01"];
