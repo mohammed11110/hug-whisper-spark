@@ -35,6 +35,8 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
   const [rent, setRent] = useState("");
   const [rentType, setRentType] = useState("monthly");
   const [dueDay, setDueDay] = useState("1");
+  const [rentTiming, setRentTiming] = useState<"advance" | "arrears">("advance");
+
   const [deposit, setDeposit] = useState("0");
   const [idImageUrl, setIdImageUrl] = useState<string | null>(null);
   const [contractFileUrl, setContractFileUrl] = useState<string | null>(null);
