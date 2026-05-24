@@ -1,39 +1,69 @@
-# تحديث "آخر شهر مدفوع" → تاريخ كامل (يوم/شهر/سنة)
+# إصلاح خلل احتساب المتأخرات
 
-## التغيير
-بدّل قائمة الشهر المنسدلة في `LastPaymentSection` بمنتقي تاريخ كامل (يوم + شهر + سنة) باستخدام Shadcn DatePicker (Calendar داخل Popover) مع المحافظة على حقل المبلغ كما هو.
+## السبب الجذري
 
-## السلوك الجديد
-- المستخدم يختار **تاريخ آخر دفعة** (مثلاً 15 مارس 2025) + **المبلغ**.
-- نحدد الشهر الذي ينتمي إليه التاريخ → نستخدم بدايته ونهايته كـ `period_start`/`period_end` للدفعة في جدول `payments`.
-- `opening_balance_date` = أول يوم في الشهر التالي للتاريخ المختار.
-- `last_paid_date` على الوحدة = التاريخ المختار بالضبط (بدل آخر يوم في الشهر).
-- `payment_date` = اليوم (تاريخ التسجيل الفعلي في النظام).
+بعد فحص بيانات B2/F4 و B2/F8 في القاعدة، اتضح أن:
 
-## الواجهة
+- `opening_balance_date = 2026-04-01` و `opening_balance = 0` (صحيح — يعني "كل ما قبل أبريل مسوّى")
+- `last_paid_date = 2026-03-05` (صحيح)
+- **لكن** تم أيضاً إدراج صف في جدول `payments` بمبلغ 80 ر.ع. لشهر مارس (period_start=2026-03-01)
+
+دالة `computeBalance` في `src/lib/balance.ts` تحتسب:
 ```
-☑ المستأجر دفع إيجار شهور سابقة
-   تاريخ آخر دفعة:  [📅 15 مارس 2025]      المبلغ:  [150]
-   ⓘ المتأخرات ستُحسب تلقائياً من أبريل 2025
+المتراكم = الإيجار × عدد الأشهر من opening_balance_date إلى اليوم
+المتأخرات = (opening_balance + المتراكم) − مجموع كل المدفوعات
 ```
+
+المشكلة: `مجموع كل المدفوعات` لا يفلتر حسب التاريخ، فالدفعة التاريخية لشهر مارس (80 ر.ع.) تُطرح من متراكم أبريل (80 ر.ع.) → الناتج صفر بدلاً من 80.
+
+وفي B2/F8 تم حفظ التعديل 3 مرات → 3 دفعات وهمية = 240 ر.ع. تطرح من المتراكمات.
+
+## الحل
+
+`opening_balance_date` + `last_paid_date` يكفيان لتمثيل "كل ما قبل هذا التاريخ مسوّى" — لا حاجة لإدراج صف دفعة وهمي للشهر التاريخي.
+
+### التعديلات
+
+**1. `src/components/EditUnitDialog.tsx`** (السطور 119–145):
+- حذف إنشاء `prevPayPayload` وإدراجه في جدول `payments`.
+- الإبقاء فقط على تحديث `last_paid_date` و `opening_balance_date` و `opening_balance=0` على صف `units`.
+- متغير `prevPayAmount` يبقى للعرض فقط (يساعد المستخدم في تأكيد المبلغ، لكن لا يُحفظ كدفعة).
+
+**2. `src/components/NewTenancyDialog.tsx`** (السطور 155 وما حولها):
+- نفس التغيير: لا إدراج دفعة تاريخية، فقط ضبط `opening_balance_date` على بداية الشهر التالي و `last_paid_date` على التاريخ المُختار.
+
+**3. (اختياري) `src/components/LastPaymentSection.tsx`**:
+- تعديل نص التلميح: "سيتم احتساب المتأخرات تلقائياً من بداية الشهر الذي يلي تاريخ الدفعة" — بدون ذكر "تسجيل دفعة".
+- يمكن إزالة حقل المبلغ أو تركه كحقل اختياري للتأكيد البصري فقط.
+
+**4. تنظيف البيانات الموجودة**:
+سيتم تشغيل migration لتعليم الدفعات الوهمية الحالية كمحذوفة (soft delete) للوحدات المتأثرة:
+
+```sql
+UPDATE public.payments
+SET deleted_at = now()
+WHERE deleted_at IS NULL
+  AND notes IN (
+    'دفعة سابقة مُسجّلة من شاشة التعديل',
+    'دفعة سابقة مُسجّلة عند إضافة المستأجر',
+    'Prior payment recorded from edit screen',
+    'Prior payment recorded at tenant creation'
+  );
+```
+
+هذا سيُصلح فوراً B2/F4 و B2/F8 وأي وحدة أخرى أُدخل لها "آخر دفعة" عبر هذه الشاشات.
+
+## النتيجة المتوقعة
+
+بعد التطبيق، B2/F4 و B2/F8 (إيجار 80 ر.ع.، opening_balance_date=2026-04-01، اليوم 2026-05-24):
+- متراكم أبريل = 80 ر.ع.
+- متراكم مايو = 80 ر.ع. (لأن due_day=5 وقد مضى)
+- المدفوعات بعد أبريل = 0
+- **المتأخرات = 160 ر.ع.** ✓
 
 ## الملفات المعدّلة
-- `src/components/LastPaymentSection.tsx`
-  - تغيير `month: string` → `date: Date | undefined` في الواجهة.
-  - استبدال `<Select>` بـ `<Popover>` + `<Calendar mode="single">` مع `className="p-3 pointer-events-auto"`.
-  - تصدير دالتين مساعدتين: `monthBoundsFromDate(date)` ترجع `{start, end, nextMonthStart, label}`.
-  - حذف `getLastPaidMonthOptions` و `nextMonthStartISO` (لم تعد لازمة).
-  - تعطيل التواريخ المستقبلية في الـ Calendar.
-
-- `src/components/NewTenancyDialog.tsx`
-  - تبديل `prevPayMonth: string` بـ `prevPayDate: Date | undefined`.
-  - عند الحفظ: استخدم `monthBoundsFromDate(prevPayDate)` بدل lookup من القائمة.
-  - `last_paid_date` = `prevPayDate.toISOString().slice(0,10)`.
 
 - `src/components/EditUnitDialog.tsx`
-  - نفس التعديل.
-
-## ملاحظات تقنية
-- استخدام `date-fns` (موجود بالمشروع) لتنسيق العرض حسب اللغة (ar/en).
-- لا تغيير في قاعدة البيانات.
-- باقي المنطق (`computeBalance`, صفحة المستأجرين) يبقى كما هو.
+- `src/components/NewTenancyDialog.tsx`
+- `src/components/LastPaymentSection.tsx` (تعديل نصي طفيف)
+- migration واحد لتنظيف الدفعات الوهمية
