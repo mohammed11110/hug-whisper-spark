@@ -64,6 +64,7 @@ function monthOptions(lang: string) {
  * يستبعد الوحدات التي لم يبدأ عقدها بعد بحلول تلك الدورة.
  */
 function computeMonthRows(units: UnitRow[], payments: PaymentRow[], year: number, month1to12: number) {
+  const today = new Date();
   return units
     .map((u) => {
       const anchor = getAnchorDate(u);
@@ -80,13 +81,18 @@ function computeMonthRows(units: UnitRow[], payments: PaymentRow[], year: number
       const paid = paidPays.reduce((s, p) => s + Number(p.amount || 0), 0);
       const rent = Number(u.rent_amount || 0);
       const lastDate = paidPays.sort((a, b) => (a.payment_date < b.payment_date ? 1 : -1))[0]?.payment_date;
-      let status: "paid" | "partial" | "unpaid" = "unpaid";
+      // تاريخ استحقاق هذه الدورة: المؤخّر يُستحقّ في نهاية الدورة، المقدّم في بدايتها
+      const timing = ((u as any).rent_timing || "advance") === "arrears" ? "arrears" : "advance";
+      const dueDate = timing === "arrears" ? cycle.end : cycle.start;
+      let status: "paid" | "partial" | "unpaid" | "upcoming" = "unpaid";
       if (paid >= rent && rent > 0) status = "paid";
       else if (paid > 0) status = "partial";
+      else if (today < dueDate) status = "upcoming";
       return { unit: u, rent, paid, remaining: Math.max(0, rent - paid), status, lastDate, cycleStart: cycle.start, cycleEnd: cycle.end };
     })
     .filter((r): r is NonNullable<typeof r> => r !== null);
 }
+
 
 export default function MonthlyCollection() {
   const { t, lang } = useI18n();
