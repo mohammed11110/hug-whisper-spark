@@ -127,10 +127,11 @@ export function LastPaymentSection({ enabled, onEnabledChange, date, onDateChang
           {bounds && (
             <p className="text-[11px] text-muted-foreground bg-sage-50 rounded-lg px-2 py-1.5 border border-sage-200/60">
               {lang === "ar"
-                ? `ⓘ المتأخرات ستُحسب تلقائياً من ${bounds.nextMonthLabel}`
-                : `ⓘ Arrears will be calculated automatically from ${bounds.nextMonthLabel}`}
+                ? `ⓘ المتأخرات ستُحسب تلقائياً من ${arrearsFromLabel}`
+                : `ⓘ Arrears will be calculated automatically from ${arrearsFromLabel}`}
             </p>
           )}
+
         </div>
       )}
     </div>
