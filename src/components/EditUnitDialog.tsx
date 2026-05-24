@@ -278,12 +278,36 @@ export function EditUnitDialog({
             </Field>
           </div>
 
-          <Field label={t2("arrears_amount")}>
-            <Input type="number" inputMode="decimal" min={0} step="0.001" value={arrears}
-              onChange={(e) => setArrears(e.target.value)}
-              className="rounded-xl border-sage-200 bg-card" />
-            <p className="text-[11px] text-muted-foreground mt-1">{t2("arrears_hint")}</p>
-          </Field>
+          {occupied && (
+            <LastPaymentSection
+              enabled={hasPrevPay}
+              onEnabledChange={setHasPrevPay}
+              month={prevPayMonth}
+              onMonthChange={setPrevPayMonth}
+              amount={prevPayAmount}
+              onAmountChange={setPrevPayAmount}
+            />
+          )}
+
+          <div className="pt-2 border-t border-sage-100">
+            <button type="button" onClick={() => setShowAdvanced((s) => !s)}
+              className="text-[11px] font-semibold text-sage-500 hover:text-sage-600">
+              {showAdvanced
+                ? (lang === "ar" ? "− إخفاء الإعدادات المتقدمة" : "− Hide advanced")
+                : (lang === "ar" ? "+ إعدادات متقدمة (إدخال متأخرات يدوياً)" : "+ Advanced (manual arrears)")}
+            </button>
+            {showAdvanced && (
+              <div className="mt-2">
+                <Field label={t2("arrears_amount")}>
+                  <Input type="number" inputMode="decimal" min={0} step="0.001" value={arrears}
+                    onChange={(e) => setArrears(e.target.value)}
+                    className="rounded-xl border-sage-200 bg-card" />
+                  <p className="text-[11px] text-muted-foreground mt-1">{t2("arrears_hint")}</p>
+                </Field>
+              </div>
+            )}
+          </div>
+
 
           <div className="flex gap-2 pt-2">
             <Button data-guard-ignore variant="outline" className="flex-1 rounded-xl border-sage-200" onClick={() => guard.handleOpenChange(false)}>{t2("cancel")}</Button>
