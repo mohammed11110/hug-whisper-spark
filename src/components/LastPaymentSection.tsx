@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
 import { ar, enUS } from "date-fns/locale";
 import { CalendarIcon, AlertTriangle, CheckCircle2 } from "lucide-react";
@@ -80,6 +80,8 @@ export function LastPaymentSection({
 }: Props) {
   const { lang } = useI18n();
   const locale = lang === "ar" ? ar : enUS;
+  const [openPopover, setOpenPopover] = useState<"from" | "to" | null>(null);
+  const prevPeriodFromRef = useRef<Date | undefined>(periodFrom);
 
   // Auto-fill period range when payment date or timing changes.
   useEffect(() => {
@@ -98,6 +100,18 @@ export function LastPaymentSection({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date, rentTiming, enabled]);
+
+  // Auto-open "To" popover after user picks "From" manually (and "To" is empty).
+  useEffect(() => {
+    const prev = prevPeriodFromRef.current;
+    prevPeriodFromRef.current = periodFrom;
+    if (!periodFrom) return;
+    const justPicked = !prev || prev.getTime() !== periodFrom.getTime();
+    if (justPicked && openPopover === "from" && !periodTo) {
+      const t = setTimeout(() => setOpenPopover("to"), 150);
+      return () => clearTimeout(t);
+    }
+  }, [periodFrom, periodTo, openPopover]);
 
   // Live arrears preview.
   let preview: { kind: "due" | "ok"; cycles: number; total: number; nextMonth: string } | null = null;
