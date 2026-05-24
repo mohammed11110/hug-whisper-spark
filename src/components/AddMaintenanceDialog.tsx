@@ -15,7 +15,7 @@ import { Camera, X, Loader2 } from "lucide-react";
 
 const PRIORITIES = ["low", "normal", "high", "urgent"] as const;
 
-export function AddMaintenanceDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (o: boolean) => void; onCreated?: () => void }) {
+export function AddMaintenanceDialog({ open, onOpenChange, onCreated, presetBuildingId, presetUnitId }: { open: boolean; onOpenChange: (o: boolean) => void; onCreated?: () => void; presetBuildingId?: string; presetUnitId?: string }) {
   const t2 = useT2();
   const { lang } = useI18n();
   const isAr = lang === "ar";
@@ -41,8 +41,10 @@ export function AddMaintenanceDialog({ open, onOpenChange, onCreated }: { open: 
       setBuildings(((bs || []) as any[]).map((b) => ({ id: b.id, name: b.name || b.name_en })));
       const { data: us } = await supabase.from("units").select("id, unit_number, building_id, tenant_name");
       setUnits((us || []) as any);
+      if (presetBuildingId) setBuildingId(presetBuildingId);
+      if (presetUnitId) setUnitId(presetUnitId);
     })();
-  }, [open]);
+  }, [open, presetBuildingId, presetUnitId]);
 
   const filteredUnits = buildingId ? units.filter((u) => u.building_id === buildingId) : [];
 
