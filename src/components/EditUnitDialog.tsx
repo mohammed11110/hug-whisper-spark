@@ -296,7 +296,17 @@ export function EditUnitDialog({
             <p className="text-[11px] text-sage-400 mt-1 leading-relaxed">
               ⓘ {t2("due_auto_hint")}
             </p>
+            {rentTiming !== initialRentTiming && (
+              <div className="mt-2 rounded-xl border border-terracotta/40 bg-terracotta/10 px-3 py-2">
+                <p className="text-[11px] font-semibold text-terracotta leading-relaxed">
+                  {lang === "ar"
+                    ? "⚠ تغيير نمط الدفع سيُعيد احتساب المتأخرات الظاهرة فوراً (دورة الشهر الحالية ستُضاف أو تُحذف). الإيصالات السابقة لن تتأثر."
+                    : "⚠ Changing rent timing will immediately recompute visible arrears (current month cycle added/removed). Past receipts are unaffected."}
+                </p>
+              </div>
+            )}
           </Field>
+
 
 
           <Field label="نوع العقد / Contract type">
