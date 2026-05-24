@@ -72,6 +72,14 @@ export function EditUnitDialog({
   const [periodTo, setPeriodTo] = useState<Date | undefined>(undefined);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Snapshot of auto-loaded "آخر دفعة سابقة" fields. Used to detect
+  // whether the user actually TOUCHED them before zeroing opening_balance.
+  const [initialPrevPaySnapshot, setInitialPrevPaySnapshot] = useState<{
+    hasPrevPay: boolean;
+    prevPayDateIso: string | null;
+    periodToIso: string | null;
+  }>({ hasPrevPay: false, prevPayDateIso: null, periodToIso: null });
+  const [initialRentTiming, setInitialRentTiming] = useState<"advance" | "arrears">("advance");
   const guard = useUnsavedGuard({ open, onOpenChange });
 
   useEffect(() => {
