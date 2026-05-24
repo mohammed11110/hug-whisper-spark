@@ -277,4 +277,23 @@ describe("getNextDueInfo", () => {
     // April paid → next billable is May
     expect(info.periodStartIso).toBe("2026-05-01");
   });
+
+  it("regression B2#06: arrears with anchor already advanced past paid period", () => {
+    // Payment 27/4 covered 1/4→30/4; anchor moved to 1/5. Today 24/5.
+    // Next due must be May (not June) — the historical payment must not
+    // double-advance the next-due cycle.
+    const u = mkUnit({
+      rent_timing: "arrears",
+      contract_start_date: "2026-01-01",
+      opening_balance_date: "2026-05-01",
+    });
+    setNow("2026-05-24T12:00:00");
+    const info = getNextDueInfo(
+      u,
+      [mkPayment(80, { payment_date: "2026-04-27" })],
+    )!;
+    expect(info.periodStartIso).toBe("2026-05-01");
+    expect(info.periodEndIso).toBe("2026-05-31");
+  });
 });
+
