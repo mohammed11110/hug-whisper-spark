@@ -893,8 +893,9 @@ function PhotosTab({ unit, reload }: any) {
           );
         })}
         {photos.length === 0 && (
-          <div className="col-span-2 aspect-[2/1] rounded-2xl border-2 border-dashed border-sage-200 bg-muted/40 grid place-items-center text-sage-400">
+          <div className="col-span-2 aspect-[2/1] rounded-2xl border-2 border-dashed border-sage-200 bg-muted/40 grid place-items-center text-sage-400 flex-col gap-2">
             <Camera className="h-6 w-6" />
+            <span className="text-[11px] text-muted-foreground">{ar ? "لم تُضَف صور للوحدة بعد" : "No photos added yet"}</span>
           </div>
         )}
       </div>
@@ -903,7 +904,7 @@ function PhotosTab({ unit, reload }: any) {
         <div className="mt-3 space-y-2">
           <div className="text-[11px] text-muted-foreground text-center">
             {ar
-              ? `حدّد كل صورة كـ "تسليم" أو "استلام" — الحالي: ${handoverCount} تسليم / ${returnCount} استلام`
+              ? `صنّف كل صورة: تسليم أو استلام — الحالي: ${handoverCount} تسليم / ${returnCount} استلام`
               : `Mark each photo as Handover or Return — current: ${handoverCount} handover / ${returnCount} return`}
           </div>
           <Button
