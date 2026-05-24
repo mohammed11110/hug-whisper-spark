@@ -89,7 +89,8 @@ export function computeBalance(unit: UnitForBalance, payments: PaymentForBalance
   const anchorIso = unit.opening_balance_date || unit.contract_start_date || null;
   const paid = payments
     .filter((p) => p.unit_id === unit.id && !p.deleted_at)
-    .filter((p) => !anchorIso || !p.payment_date || p.payment_date >= anchorIso)
+    .filter((p) => isPostAnchorPayment(p, anchorIso))
+
     .reduce((s, p) => s + num(p.amount), 0);
 
   const outstanding = Math.max(0, totalDue - paid);
