@@ -1,45 +1,21 @@
-# إصلاح احتساب المتأخرات (off-by-one في وضعَي المقدّم والمؤخّر)
+## عرض نمط الدفع (مُقدّم/مُؤخّر) في واجهة المستخدم
 
-## المشكلة المُثبتة
-الدالة `periodsElapsed` في `src/lib/balance.ts` تُرجع عدد "الذكريات المنقضية" منذ المرساة، وهذا لا يطابق "عدد الدورات المستحقة الدفع":
+### الملخص
+إظهار قيمة `rent_timing` (مُقدّم advance / مُؤخّر arrears) بجانب بيانات كل وحدة في قائمة شقق المبنى، وفي صفحة تفاصيل المستأجر (تبويب التفاصيل) ضمن بيانات الإيجار.
 
-- **مقدّم (advance)**: دورة 1 تبدأ عند المرساة نفسها وإيجارها مستحق فور `now ≥ anchor`. الكود الحالي يَعُدّ 0 عند المرساة → نقص دورة واحدة دائماً.
-- **مؤخّر (arrears)**: دورة 1 تنتهي بعد شهر وإيجارها مستحق عند نهايتها. الكود يَطرح 1 إضافية → نقص دورة واحدة دائماً.
+### التغييرات
 
-تحقّق على B2/#4 و B2/#8 (anchor 1/4/2026، إيجار 80، مؤخّر، لا مدفوعات): النظام يُظهر **0** والصحيح **80** بتاريخ 24/5/2026.
+1. **صفحة تفاصيل المبنى (`src/pages/BuildingDetail.tsx`)**
+   - الموقع: داخل بطاقة الوحدة في قائمة الشقق، بجانب سطر نوع الإيجار والمبلغ.
+   - التنفيذ: إضافة `· {t2(u.rent_timing === "arrears" ? "rent_timing_arrears" : "rent_timing_advance")}` إلى النص الفرعي الذي يعرض نوع الإيجار (`u.rent_type`).
+   - الموقع المحدد: السطر 281 تقريباً ضمن `<p className="text-xs text-muted-foreground">`.
 
-## الإصلاح
+2. **صفحة تفاصيل الوحدة/المستأجر (`src/pages/UnitDetail.tsx`)**
+   - الموقع: داخل بطاقة "مبلغ الإيجار" (DetailsTab → Card الثالث) بجانب `rent_amount` و `rent_type`.
+   - التنفيذ: إضافة صف `Row` جديد داخل البطاقة يعرض `t2("rent_timing")` مع القيمة المناسبة (`rent_timing_advance` أو `rent_timing_arrears`).
+   - الموقع المحدد: بين السطر 394 (rent_amount) والسطر 395 (DueDateRow).
 
-### `src/lib/balance.ts`
-إضافة دالة جديدة `cyclesDue(unit, asOf)` تُرجع عدد الدورات المستحقة فعلياً:
-
-```ts
-function cyclesDue(unit, asOf): number {
-  const anchor = getAnchorDate(unit); if (!anchor || asOf < anchor) return 0;
-  const elapsed = periodsElapsed(anchor, asOf, unit.rent_type || "monthly");
-  const timing = (unit.rent_timing || "advance") === "arrears" ? "arrears" : "advance";
-  // advance: دورة المرساة + كل ذكرى منقضية بعدها = elapsed + 1
-  // arrears: كل دورة كاملة منقضية = elapsed
-  return timing === "advance" ? elapsed + 1 : elapsed;
-}
-```
-
-ثم تعديل كل من:
-- `computeBalance` → `periods = cyclesDue(unit, now)` بدل المنطق الحالي.
-- `overdueCyclesCount` → نفس الشيء.
-- `getNextDueInfo` → `dueIdx = max(paidCycles, cyclesDue(unit, now))` (مع تبسيط منطق advance/arrears لأن الإزاحة باتت داخل `cyclesDue`).
-
-### عدم الكسر في باقي الشاشات
-الملفات التي تستهلك هذه الدوال (`UnitDetail`, `BuildingDetail`, `MonthlyCollection`, `Payments`, `Notifications`, `Tenants`, `EndTenancyDialog`, `AddPaymentDialog`) لا تحتاج تعديل — تستدعي الدوال نفسها وستتلقّى القيم الصحيحة تلقائياً.
-
-### حالة حدّية: `last_paid_date` و opening
-لا تغيير على دلالة `opening_balance_date` (يبقى "مُسوّى حتى هذا التاريخ"). البيانات الموجودة لا تتأثر — فقط حساب المتأخرات يُصحَّح.
-
-## التحقّق المتوقّع بعد الإصلاح (24/5/2026)
-
-| الوحدة | النمط | anchor | متوقّع |
-|---|---|---|---|
-| B2/#4 | مؤخّر | 1/4/2026 | **80 ر.ع** (دورة أبريل) |
-| B2/#8 | مؤخّر | 1/4/2026 | **80 ر.ع** (دورة أبريل) |
-
-لا تغيير في قاعدة البيانات.
+### ملاحظات
+- الحقل `rent_timing` مُحمل مسبقاً في كلا الملفين (`rent_timing` في `BuildingDetail`، و`*` في `UnitDetail`).
+- الترجمات موجودة مسبقاً في `i18n2.tsx`: `rent_timing_advance` / `rent_timing_arrears`.
+- لا حاجة لتعديل قاعدة البيانات أو API.

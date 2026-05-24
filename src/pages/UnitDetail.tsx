@@ -392,6 +392,7 @@ function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLea
       <Card>
         <h3 className="text-sage-600 font-bold mb-3 text-sm">{t2("rent_amount")}</h3>
         <Row icon={Wallet} label={t2("rent_amount")} value={`${format(Number(unit.rent_amount))} / ${t2(unit.rent_type)}`} />
+        <Row icon={Calendar} label={t2("rent_timing")} value={t2((unit as any).rent_timing === "arrears" ? "rent_timing_arrears" : "rent_timing_advance")} />
         <DueDateRow unit={unit} t2={t2} lang={lang} />
         <Row icon={Receipt} label={t2("last_payment")} value={unit.last_paid_date || "—"} />
         <Row icon={Calendar} label={t2("contract_end")} value={unit.contract_end_date || "—"} />
