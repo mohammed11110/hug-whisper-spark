@@ -657,23 +657,22 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
               </div>
             ) : unitId && !showAllMonths && unpaidMonths.length > 0 ? (
               <Select
-                value={`${periodYear}-${periodMonthNum}`}
+                value={selectedEntry?.periodStartIso || ""}
                 onValueChange={(v) => {
-                  const [y, m] = v.split("-").map(Number);
-                  setPeriodYear(y);
-                  setPeriodMonthNum(m);
-                  const entry = unpaidMonths.find((u) => u.year === y && u.month === m);
-                  if (entry) {
-                    if (activeRent > 0) setExpected(String(activeRent));
-                    setAmount(String(entry.remaining));
-                  }
+                  const entry = unpaidMonths.find((u) => u.periodStartIso === v);
+                  if (!entry) return;
+                  setSelectedEntry(entry);
+                  setPeriodYear(entry.year);
+                  setPeriodMonthNum(entry.month);
+                  if (activeRent > 0) setExpected(String(entry.isPrior ? entry.remaining : activeRent));
+                  setAmount(String(entry.remaining));
                 }}
               >
                 <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11"><SelectValue /></SelectTrigger>
                 <SelectContent className="max-h-72">
                   {unpaidMonths.map((u) => (
-                    <SelectItem key={`${u.year}-${u.month}`} value={`${u.year}-${u.month}`}>
-                      {monthNames[u.month - 1]} {u.year} · {format(u.remaining)}
+                    <SelectItem key={u.periodStartIso + (u.isPrior ? "-prior" : "")} value={u.periodStartIso}>
+                      {u.label} · {format(u.remaining)}
                     </SelectItem>
                   ))}
                 </SelectContent>
