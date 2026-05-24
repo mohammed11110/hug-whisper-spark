@@ -26,12 +26,24 @@ interface UnitOpt {
   building_id: string;
   building_name: string;
   rent_amount: number;
+  rent_type?: string;
   tenant_name: string | null;
   arrears_note?: string | null;
   anchor_day?: number;
   rent_timing?: "advance" | "arrears";
   contract_start_date?: string | null;
+  opening_balance?: number;
   opening_balance_date?: string | null;
+}
+
+interface UnpaidEntry {
+  year: number;
+  month: number;
+  remaining: number;
+  periodStartIso: string;
+  periodEndIso: string;
+  label: string;
+  isPrior: boolean;
 }
 
 interface BuildingOpt { id: string; name: string; }
