@@ -20,6 +20,7 @@ interface Row {
   payment_date: string;
   receipt_number: string | null;
   deleted_at: string;
+  unit_id: string;
   unit_number: string;
   building_name: string;
   tenant_name: string | null;
