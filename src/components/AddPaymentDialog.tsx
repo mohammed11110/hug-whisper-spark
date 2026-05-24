@@ -1051,9 +1051,30 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs text-sage-500">{lang === "ar" ? "المتوقع" : "Expected"}</Label>
-              <Input type="number" inputMode="decimal" value={expected} onChange={(e) => setExpected(e.target.value)} className="rounded-xl border-sage-200 bg-card h-11" />
+              <Label className="text-xs text-sage-500 flex items-center gap-1.5">
+                <span>
+                  {payMode === "auto"
+                    ? (lang === "ar" ? "المستحق لهذه العملية" : "Operation due")
+                    : (lang === "ar" ? "المتوقع" : "Expected")}
+                </span>
+                {payMode === "auto" && (
+                  <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-sage-100 text-sage-600 border border-sage-200">
+                    {lang === "ar" ? "محسوب" : "AUTO"}
+                  </span>
+                )}
+              </Label>
+              <Input
+                type="number"
+                inputMode="decimal"
+                value={expected}
+                onChange={(e) => setExpected(e.target.value)}
+                readOnly={payMode === "auto"}
+                aria-readonly={payMode === "auto"}
+                className={`rounded-xl border-sage-200 bg-card h-11 ${payMode === "auto" ? "opacity-80 cursor-not-allowed" : ""}`}
+                title={payMode === "auto" ? (lang === "ar" ? "محسوب تلقائياً من إجمالي المتأخرات. للتعديل اليدوي بدّل إلى \"اختيار يدوي\"." : "Computed automatically from total arrears. Switch to Manual to edit.") : undefined}
+              />
             </div>
+
             <div className="space-y-1.5">
               <Label className="text-xs text-sage-500">{lang === "ar" ? "المدفوع" : "Paid"}</Label>
               <Input type="number" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} className="rounded-xl border-sage-200 bg-card h-11" />
