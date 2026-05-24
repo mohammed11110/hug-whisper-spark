@@ -714,10 +714,27 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                         : `${unpaidMonths.length} unpaid ${unpaidMonths.length === 1 ? "item" : "items"}`}
                     </span>
                   </div>
+                  {/* Mode toggle: auto distribution vs manual cycle pick */}
+                  <div className="mt-3 inline-flex rounded-xl border border-burgundy/25 bg-card p-0.5 text-[11px] font-bold">
+                    <button
+                      type="button"
+                      onClick={() => { setPayMode("auto"); setAmount(String(arrearsBefore)); }}
+                      className={`px-3 py-1.5 rounded-lg transition ${payMode === "auto" ? "bg-burgundy text-primary-foreground" : "text-burgundy/80 hover:text-burgundy"}`}
+                    >
+                      {lang === "ar" ? "توزيع تلقائي" : "Auto-distribute"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPayMode("manual")}
+                      className={`px-3 py-1.5 rounded-lg transition ${payMode === "manual" ? "bg-burgundy text-primary-foreground" : "text-burgundy/80 hover:text-burgundy"}`}
+                    >
+                      {lang === "ar" ? "اختيار يدوي" : "Manual pick"}
+                    </button>
+                  </div>
                   <button
                     type="button"
                     onClick={() => setShowArrearsList((s) => !s)}
-                    className="mt-2 text-[11px] font-bold text-burgundy/90 hover:text-burgundy underline underline-offset-2"
+                    className="mt-2 ms-3 text-[11px] font-bold text-burgundy/90 hover:text-burgundy underline underline-offset-2"
                   >
                     {showArrearsList
                       ? (lang === "ar" ? "إخفاء التفاصيل ▴" : "Hide details ▴")
@@ -737,6 +754,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
               </div>
             </div>
           )}
+
           {/* Rent month — unpaid only by default */}
 
           <div className="space-y-1.5">
