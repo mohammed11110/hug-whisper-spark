@@ -1,59 +1,54 @@
-import { useMemo } from "react";
+import { format } from "date-fns";
+import { ar, enUS } from "date-fns/locale";
+import { CalendarIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 
 const AR_MONTHS = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
 const EN_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-export interface MonthOpt { label: string; value: string; start: string; end: string; }
+const iso = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
-export function getLastPaidMonthOptions(lang: string, monthsBack = 24): MonthOpt[] {
-  const names = lang === "ar" ? AR_MONTHS : EN_MONTHS;
-  const opts: MonthOpt[] = [];
-  const today = new Date();
-  for (let i = 0; i < monthsBack; i++) {
-    const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-    const y = d.getFullYear();
-    const m = d.getMonth();
-    const lastDay = new Date(y, m + 1, 0).getDate();
-    opts.push({
-      label: `${names[m]} ${y}`,
-      value: `${y}-${String(m + 1).padStart(2, "0")}`,
-      start: `${y}-${String(m + 1).padStart(2, "0")}-01`,
-      end: `${y}-${String(m + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`,
-    });
-  }
-  return opts;
+export interface MonthBounds {
+  start: string;            // first day of date's month (YYYY-MM-DD)
+  end: string;              // last day of date's month
+  nextMonthStart: string;   // first day of the month AFTER date's month
+  nextMonthLabel: string;
 }
 
-/** First day of the month AFTER the given YYYY-MM. */
-export function nextMonthStartISO(yyyyMm: string): string {
-  const [y, m] = yyyyMm.split("-").map(Number);
-  const d = new Date(y, m, 1); // m is 0-indexed in Date, but m here is 1-indexed → next month
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+export function monthBoundsFromDate(date: Date, lang = "en"): MonthBounds {
+  const y = date.getFullYear();
+  const m = date.getMonth();
+  const lastDay = new Date(y, m + 1, 0).getDate();
+  const next = new Date(y, m + 1, 1);
+  const names = lang === "ar" ? AR_MONTHS : EN_MONTHS;
+  return {
+    start: `${y}-${String(m + 1).padStart(2, "0")}-01`,
+    end:   `${y}-${String(m + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`,
+    nextMonthStart: iso(new Date(next.getFullYear(), next.getMonth(), 1)),
+    nextMonthLabel: `${names[next.getMonth()]} ${next.getFullYear()}`,
+  };
 }
 
 interface Props {
   enabled: boolean;
   onEnabledChange: (b: boolean) => void;
-  month: string;
-  onMonthChange: (v: string) => void;
+  date: Date | undefined;
+  onDateChange: (d: Date | undefined) => void;
   amount: string;
   onAmountChange: (v: string) => void;
 }
 
-export function LastPaymentSection({ enabled, onEnabledChange, month, onMonthChange, amount, onAmountChange }: Props) {
+export function LastPaymentSection({ enabled, onEnabledChange, date, onDateChange, amount, onAmountChange }: Props) {
   const { lang } = useI18n();
-  const opts = useMemo(() => getLastPaidMonthOptions(lang), [lang]);
-  const selected = opts.find((o) => o.value === month);
-  const nextMonthLabel = selected ? (() => {
-    const [y, m] = selected.value.split("-").map(Number);
-    const next = new Date(y, m, 1);
-    const names = lang === "ar" ? AR_MONTHS : EN_MONTHS;
-    return `${names[next.getMonth()]} ${next.getFullYear()}`;
-  })() : null;
+  const locale = lang === "ar" ? ar : enUS;
+  const bounds = date ? monthBoundsFromDate(date, lang) : null;
 
   return (
     <div className="pt-2 border-t border-sage-100">
@@ -73,14 +68,35 @@ export function LastPaymentSection({ enabled, onEnabledChange, month, onMonthCha
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
               <Label className="text-xs text-sage-600 font-semibold">
-                {lang === "ar" ? "آخر شهر مدفوع عنه" : "Last month paid for"}
+                {lang === "ar" ? "تاريخ آخر دفعة" : "Last payment date"}
               </Label>
-              <Select value={month} onValueChange={onMonthChange}>
-                <SelectTrigger className="rounded-xl border-sage-200 bg-card h-10"><SelectValue /></SelectTrigger>
-                <SelectContent className="max-h-64">
-                  {opts.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className={cn(
+                      "w-full h-10 rounded-xl border-sage-200 bg-card justify-start text-start font-normal",
+                      !date && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="h-4 w-4 me-2 opacity-60" />
+                    {date
+                      ? format(date, "PPP", { locale })
+                      : (lang === "ar" ? "اختر التاريخ" : "Pick a date")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={date}
+                    onSelect={onDateChange}
+                    disabled={(d) => d > new Date()}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-1">
               <Label className="text-xs text-sage-600 font-semibold">
@@ -97,11 +113,11 @@ export function LastPaymentSection({ enabled, onEnabledChange, month, onMonthCha
               />
             </div>
           </div>
-          {nextMonthLabel && (
+          {bounds && (
             <p className="text-[11px] text-muted-foreground bg-sage-50 rounded-lg px-2 py-1.5 border border-sage-200/60">
               {lang === "ar"
-                ? `ⓘ المتأخرات ستُحسب تلقائياً من ${nextMonthLabel}`
-                : `ⓘ Arrears will be calculated automatically from ${nextMonthLabel}`}
+                ? `ⓘ المتأخرات ستُحسب تلقائياً من ${bounds.nextMonthLabel}`
+                : `ⓘ Arrears will be calculated automatically from ${bounds.nextMonthLabel}`}
             </p>
           )}
         </div>
