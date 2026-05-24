@@ -1052,6 +1052,50 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
               </span>
             </label>
           )}
+
+          {/* Include arrears in printed receipt — explicit pre-save choice */}
+          {unitId && unpaidMonths.length > 0 && (
+            <label className="flex items-start gap-2.5 rounded-xl border border-sage-200 bg-sage-100/30 px-3 py-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={includeArrearsInReceipt}
+                onChange={(e) => setIncludeArrearsInReceipt(e.target.checked)}
+                className="h-4 w-4 mt-0.5 rounded border-sage-300 accent-[hsl(var(--primary))]"
+              />
+              <span className="text-xs flex-1">
+                <span className="font-extrabold text-sage-700 block">
+                  {lang === "ar" ? "أدرج تفاصيل المتأخرات في الإيصال" : "Include arrears details on the receipt"}
+                </span>
+                <span className="text-sage-500 block mt-0.5 text-[11px] leading-relaxed">
+                  {lang === "ar"
+                    ? "عند التفعيل، سيظهر جدول الأشهر المتأخرة في الإيصال المطبوع."
+                    : "When enabled, the unpaid months table will appear on the printed receipt."}
+                </span>
+              </span>
+            </label>
+          )}
+
+          {/* Pre-save summary */}
+          {unitId && (
+            <div className="text-[11px] text-sage-500 bg-sage-100/40 border border-sage-200/60 rounded-xl px-3 py-2 leading-relaxed">
+              <span className="font-bold text-sage-600">{lang === "ar" ? "ملخّص الحفظ:" : "Summary:"}</span>{" "}
+              {lang === "ar" ? "الإيصال" : "Receipt"}: <b className="text-sage-700">{lang === "ar" ? "سند استلام" : "Receipt voucher"}</b>
+              {" · "}
+              {lang === "ar" ? "المتأخرات في الإيصال" : "Arrears on receipt"}:{" "}
+              <b className={includeArrearsInReceipt && unpaidMonths.length > 0 ? "text-burgundy" : "text-sage-700"}>
+                {unpaidMonths.length === 0
+                  ? (lang === "ar" ? "لا توجد" : "none")
+                  : includeArrearsInReceipt
+                  ? (lang === "ar" ? "ستُدرج" : "will be included")
+                  : (lang === "ar" ? "لن تُدرج" : "will not be included")}
+              </b>
+              {" · "}
+              {lang === "ar" ? "عدد البنود" : "Items"}:{" "}
+              <b className="text-sage-700">
+                {payMode === "auto" && distribution ? distribution.allocations.length : (collectPriorArrears ? 1 + priorArrears.length : 1)}
+              </b>
+            </div>
+          )}
         </div>
         <DialogFooter className="gap-2 sm:gap-2">
           <Button data-guard-ignore variant="outline" onClick={() => guard.handleOpenChange(false)} className="rounded-xl">{t2("cancel")}</Button>
