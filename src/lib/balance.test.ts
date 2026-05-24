@@ -363,6 +363,38 @@ describe("getUnitArrears — partial-payment month tracking", () => {
     const arr = getUnitArrears(u, [], new Date("2026-04-15"));
     expect(arr.cycles.length).toBe(0);
   });
+
+  it("opening_balance is included as a virtual prior-arrears cycle", () => {
+    // opening 100 + April partial 150/200 + May unpaid 200 = 350 across 3 unpaid cycles
+    const u = mkUnit({
+      rent_amount: 200,
+      rent_timing: "advance",
+      contract_start_date: "2026-04-01",
+      opening_balance: 100,
+      opening_balance_date: "2026-04-01",
+    });
+    const pays: PaymentForBalance[] = [
+      mkPayment(150, { period_start: "2026-04-01", period_end: "2026-04-30" } as any),
+    ];
+    const arr = getUnitArrears(u, pays, new Date("2026-05-24"), "ar");
+    expect(arr.openingBalance).toBe(100);
+    expect(arr.unpaidCount).toBe(3);
+    expect(arr.totalShortfall).toBe(350);
+    expect(arr.oldestUnpaid?.label).toBe("متأخرات سابقة");
+  });
+
+  it("opening_balance alone with no rent still surfaces as arrears", () => {
+    const u = mkUnit({
+      rent_amount: 0,
+      contract_start_date: "2026-04-01",
+      opening_balance: 75,
+      opening_balance_date: "2026-04-01",
+    });
+    const arr = getUnitArrears(u, [], new Date("2026-05-24"));
+    expect(arr.totalShortfall).toBe(75);
+    expect(arr.unpaidCount).toBe(1);
+  });
 });
+
 
 
