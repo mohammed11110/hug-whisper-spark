@@ -47,7 +47,7 @@ export default function Notifications() {
 
       const unitIds = (us || []).map((u: any) => u.id);
       const { data: pays } = unitIds.length
-        ? await supabase.from("payments").select("unit_id, amount, deleted_at").in("unit_id", unitIds).is("deleted_at", null)
+        ? await supabase.from("payments").select("unit_id, amount, deleted_at, payment_date, period_start, period_end").in("unit_id", unitIds).is("deleted_at", null)
         : { data: [] as any[] };
 
       const today = new Date();
