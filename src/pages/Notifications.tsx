@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/auth";
 import { useAppSettings } from "@/lib/appSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { openWhatsApp, fillTemplate } from "@/lib/whatsapp";
-import { computeBalance } from "@/lib/balance";
+import { computeBalance, getNextDueInfo, isUnitOverdue } from "@/lib/balance";
 
 interface AlertItem {
   kind: "late" | "upcoming" | "contract";
