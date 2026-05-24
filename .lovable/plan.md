@@ -1,32 +1,45 @@
-# مزامنة "تاريخ آخر دفعة" تلقائياً مع إيصالات الاستلام
+# إصلاح احتساب المتأخرات (off-by-one في وضعَي المقدّم والمؤخّر)
 
-## الهدف
-الحقل `last_paid_date` للوحدة (الذي يظهر في «المستأجر دفع إيجار شهور سابقة» داخل حوار «تعديل الوحدة») يجب أن يتحدّث تلقائياً بناءً على إيصالات الدفع المسجّلة للوحدة — دون الحاجة لإدخاله يدوياً.
+## المشكلة المُثبتة
+الدالة `periodsElapsed` في `src/lib/balance.ts` تُرجع عدد "الذكريات المنقضية" منذ المرساة، وهذا لا يطابق "عدد الدورات المستحقة الدفع":
 
-## التغييرات
+- **مقدّم (advance)**: دورة 1 تبدأ عند المرساة نفسها وإيجارها مستحق فور `now ≥ anchor`. الكود الحالي يَعُدّ 0 عند المرساة → نقص دورة واحدة دائماً.
+- **مؤخّر (arrears)**: دورة 1 تنتهي بعد شهر وإيجارها مستحق عند نهايتها. الكود يَطرح 1 إضافية → نقص دورة واحدة دائماً.
 
-### 1) قاعدة البيانات — Trigger على جدول `payments`
-- إنشاء دالة `public.sync_unit_last_paid_date()` تُعيد حساب:
-  ```
-  units.last_paid_date = MAX(payments.payment_date)
-  WHERE payments.unit_id = <الوحدة> AND payments.deleted_at IS NULL
-  ```
-  ثم تحدّث صف الوحدة المعنية (أو الوحدتين عند تغيّر `unit_id`).
-- ربط Trigger `AFTER INSERT OR UPDATE OR DELETE` على `payments` يستدعي الدالة.
-- يضمن ذلك التحديث تلقائياً عند: إضافة دفعة جديدة، تعديل دفعة، حذف ناعم (`deleted_at`)، أو استرجاعها.
+تحقّق على B2/#4 و B2/#8 (anchor 1/4/2026، إيجار 80، مؤخّر، لا مدفوعات): النظام يُظهر **0** والصحيح **80** بتاريخ 24/5/2026.
 
-### 2) واجهة المستخدم — `src/components/EditUnitDialog.tsx` (تعديل خفيف فقط)
-- قسم «المستأجر دفع إيجار شهور سابقة» يصبح **للقراءة + تعديل اختياري**:
-  - يُعبَّأ تلقائياً من `unit.last_paid_date` (تم في الخطوة السابقة).
-  - إضافة سطر توضيحي صغير أسفل الحقل:
-    «يُحدَّث تلقائياً عند تسجيل إيصال جديد» / "Updates automatically when a payment receipt is recorded".
-  - يبقى للمستخدم خيار التعديل اليدوي عند الحاجة (للحالات التاريخية قبل وجود إيصالات).
+## الإصلاح
 
-### 3) لا تغيير على `AddPaymentDialog`
-- يكفي الـ Trigger ليُغطي كل المسارات (إضافة/تعديل/حذف) دون اعتماد على كود الواجهة.
-- يمكن لاحقاً إزالة سطر التحديث اليدوي في `AddPaymentDialog` (سطر 382)، لكن الإبقاء عليه آمن (الـ Trigger سيُصحّح أي اختلاف).
+### `src/lib/balance.ts`
+إضافة دالة جديدة `cyclesDue(unit, asOf)` تُرجع عدد الدورات المستحقة فعلياً:
 
-## ملاحظات تقنية
-- الـ Trigger يعمل على مستوى الصف، ويتعامل مع تغيّر `unit_id` بتحديث الوحدتين القديمة والجديدة.
-- يحترم `deleted_at` (الحذف الناعم) فلا يُحتسب الدفعات المحذوفة.
-- لا حاجة لتغييرات في RLS — الـ Trigger يعمل بصلاحية `SECURITY DEFINER` على جدول `units`.
+```ts
+function cyclesDue(unit, asOf): number {
+  const anchor = getAnchorDate(unit); if (!anchor || asOf < anchor) return 0;
+  const elapsed = periodsElapsed(anchor, asOf, unit.rent_type || "monthly");
+  const timing = (unit.rent_timing || "advance") === "arrears" ? "arrears" : "advance";
+  // advance: دورة المرساة + كل ذكرى منقضية بعدها = elapsed + 1
+  // arrears: كل دورة كاملة منقضية = elapsed
+  return timing === "advance" ? elapsed + 1 : elapsed;
+}
+```
+
+ثم تعديل كل من:
+- `computeBalance` → `periods = cyclesDue(unit, now)` بدل المنطق الحالي.
+- `overdueCyclesCount` → نفس الشيء.
+- `getNextDueInfo` → `dueIdx = max(paidCycles, cyclesDue(unit, now))` (مع تبسيط منطق advance/arrears لأن الإزاحة باتت داخل `cyclesDue`).
+
+### عدم الكسر في باقي الشاشات
+الملفات التي تستهلك هذه الدوال (`UnitDetail`, `BuildingDetail`, `MonthlyCollection`, `Payments`, `Notifications`, `Tenants`, `EndTenancyDialog`, `AddPaymentDialog`) لا تحتاج تعديل — تستدعي الدوال نفسها وستتلقّى القيم الصحيحة تلقائياً.
+
+### حالة حدّية: `last_paid_date` و opening
+لا تغيير على دلالة `opening_balance_date` (يبقى "مُسوّى حتى هذا التاريخ"). البيانات الموجودة لا تتأثر — فقط حساب المتأخرات يُصحَّح.
+
+## التحقّق المتوقّع بعد الإصلاح (24/5/2026)
+
+| الوحدة | النمط | anchor | متوقّع |
+|---|---|---|---|
+| B2/#4 | مؤخّر | 1/4/2026 | **80 ر.ع** (دورة أبريل) |
+| B2/#8 | مؤخّر | 1/4/2026 | **80 ر.ع** (دورة أبريل) |
+
+لا تغيير في قاعدة البيانات.
