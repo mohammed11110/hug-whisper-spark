@@ -196,7 +196,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
 
   // Load unpaid months for the selected unit (based on contract + prior payments)
   useEffect(() => {
-    if (!open || !unitId) { setUnpaidMonths([]); setAllPaid(false); return; }
+    if (!open || !unitId) { setUnpaidMonths([]); setAllPaid(false); setPaidMonthsKeys(new Set()); return; }
     let cancelled = false;
     (async () => {
       const { data: tn } = await supabase
@@ -206,13 +206,9 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         .eq("status", "active")
         .maybeSingle();
       if (cancelled) return;
-      if (!tn) { setUnpaidMonths([]); setAllPaid(false); setActiveRent(0); return; }
-      const startStr = (tn as any).contract_start_date as string | null;
-      const endStr = (tn as any).contract_end_date as string | null;
-      const rentAmt = Number((tn as any).rent_amount) || 0;
-      const rentType = (tn as any).rent_type as string;
+      const rentAmt = Number((tn as any)?.rent_amount) || 0;
+      const rentType = (tn as any)?.rent_type as string | undefined;
       setActiveRent(rentAmt);
-      if (!startStr || rentAmt <= 0) { setUnpaidMonths([]); setAllPaid(false); return; }
 
       const { data: ps } = await supabase
         .from("payments")
@@ -225,6 +221,17 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         const k = String(p.period_start).slice(0, 7);
         paidByMonth.set(k, (paidByMonth.get(k) || 0) + Number(p.amount));
       });
+      // Build set of fully-paid month keys for fallback dropdown filtering
+      const fullyPaid = new Set<string>();
+      paidByMonth.forEach((paid, k) => {
+        if (rentAmt > 0 ? paid + 0.01 >= rentAmt : paid > 0) fullyPaid.add(k);
+      });
+      if (!cancelled) setPaidMonthsKeys(fullyPaid);
+
+      if (!tn) { setUnpaidMonths([]); setAllPaid(false); return; }
+      const startStr = (tn as any).contract_start_date as string | null;
+      const endStr = (tn as any).contract_end_date as string | null;
+      if (!startStr || rentAmt <= 0) { setUnpaidMonths([]); setAllPaid(false); return; }
 
       const today = new Date();
       const start = new Date(startStr);
