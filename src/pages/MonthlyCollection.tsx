@@ -266,13 +266,16 @@ export default function MonthlyCollection() {
       late: lateRows.map((r) => ({
         tenant: r.unit.tenant_name || "—", building: buildingsMap[r.unit.building_id] || "",
         unit: r.unit.unit_number, rent: r.rent, paid: r.paid, remaining: r.remaining,
-        status: r.status, overdueMonths: r.overdueMonths, lastDate: r.lastDate,
+        status: (r.status === "upcoming" ? "unpaid" : r.status) as "paid" | "partial" | "unpaid",
+        overdueMonths: r.overdueMonths, lastDate: r.lastDate,
       })),
       paid: paidRows.map((r) => ({
         tenant: r.unit.tenant_name || "—", building: buildingsMap[r.unit.building_id] || "",
         unit: r.unit.unit_number, rent: r.rent, paid: r.paid, remaining: 0,
-        status: r.status, lastDate: r.lastDate,
+        status: (r.status === "upcoming" ? "unpaid" : r.status) as "paid" | "partial" | "unpaid",
+        lastDate: r.lastDate,
       })),
+
     };
     await downloadHTMLAsPDF(buildCollectionHTML(data), `collection-${selected}.pdf`, { pageSize: settings.pageSize, margins: settings.margins });
   };
