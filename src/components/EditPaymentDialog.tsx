@@ -146,9 +146,12 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
                 <Select value={String(periodMonthNum)} onValueChange={(v) => setPeriodMonthNum(Number(v))}>
                   <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11"><SelectValue /></SelectTrigger>
                   <SelectContent className="max-h-72">
-                    {monthNames.map((n, i) => (
-                      <SelectItem key={i} value={String(i + 1)}>{n}</SelectItem>
-                    ))}
+                    {monthNames.map((n, i) => {
+                      const k = `${periodYear}-${String(i + 1).padStart(2, "0")}`;
+                      const isPaid = paidMonthsKeys.has(k) && (i + 1) !== periodMonthNum;
+                      if (isPaid) return null;
+                      return <SelectItem key={i} value={String(i + 1)}>{n}</SelectItem>;
+                    })}
                   </SelectContent>
                 </Select>
                 <Select value={String(periodYear)} onValueChange={(v) => setPeriodYear(Number(v))}>
