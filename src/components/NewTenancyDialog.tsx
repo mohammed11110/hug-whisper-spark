@@ -268,8 +268,8 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
           <LastPaymentSection
             enabled={hasPrevPay}
             onEnabledChange={setHasPrevPay}
-            month={prevPayMonth}
-            onMonthChange={setPrevPayMonth}
+            date={prevPayDate}
+            onDateChange={setPrevPayDate}
             amount={prevPayAmount}
             onAmountChange={setPrevPayAmount}
           />
