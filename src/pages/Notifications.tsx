@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/auth";
 import { useAppSettings } from "@/lib/appSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { openWhatsApp, fillTemplate } from "@/lib/whatsapp";
-import { computeBalance, getNextDueInfo, isUnitOverdue } from "@/lib/balance";
+import { computeBalance, getNextDueInfo, isUnitOverdue, getUnitArrears } from "@/lib/balance";
 
 interface AlertItem {
   kind: "late" | "upcoming" | "contract";
@@ -22,6 +22,8 @@ interface AlertItem {
   remaining: number;
   due_in_days?: number;
   contract_end?: string;
+  arrears_label?: string | null;
+  arrears_count?: number;
 }
 
 export default function Notifications() {
@@ -65,7 +67,15 @@ export default function Notifications() {
         };
         // متأخّر: استحقاق قد مضى ومازال هناك رصيد غير مدفوع (يحترم نمط الدفع)
         const overdue = outstanding > 0.009 && isUnitOverdue(u, pays || [], today);
-        if (overdue) out.push({ ...base, kind: "late" });
+        if (overdue) {
+          const arr = getUnitArrears(u, pays || [], today, lang as "ar" | "en");
+          out.push({
+            ...base,
+            kind: "late",
+            arrears_label: arr.oldestUnpaid?.label || null,
+            arrears_count: arr.unpaidCount,
+          });
+        }
         // قريب الاستحقاق: نعتمد على تاريخ الاستحقاق التالي من الدورة
         const info = getNextDueInfo(u, pays || []);
         if (!overdue && info) {
@@ -195,6 +205,12 @@ export default function Notifications() {
                   {it.remaining > 0 && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-burgundy/10 text-burgundy font-bold">
                       {lang === "ar" ? "المتبقي" : "Remaining"}: {format(it.remaining)}
+                    </span>
+                  )}
+                  {it.kind === "late" && it.arrears_label && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-burgundy/10 text-burgundy font-bold">
+                      {lang === "ar" ? "منذ" : "Since"}: {it.arrears_label}
+                      {(it.arrears_count || 0) > 1 ? ` +${(it.arrears_count || 1) - 1}` : ""}
                     </span>
                   )}
                   {it.contract_end && <span>{lang === "ar" ? "ينتهي" : "ends"}: {it.contract_end}</span>}

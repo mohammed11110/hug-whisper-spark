@@ -11,7 +11,7 @@ import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useAppSettings } from "@/lib/appSettings";
 import { openWhatsApp, fillTemplate } from "@/lib/whatsapp";
-import { computeBalance, type PaymentForBalance } from "@/lib/balance";
+import { computeBalance, getUnitArrears, type PaymentForBalance } from "@/lib/balance";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 
@@ -29,6 +29,9 @@ interface TenantRow {
   contract_end_date: string | null;
   total_paid: number;
   outstanding: number;
+  arrears_label: string | null;
+  arrears_count: number;
+  arrears_total: number;
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -116,7 +119,7 @@ export default function Tenants() {
       if (!ids.length) { setRows([]); setLoading(false); return; }
       const bMap = new Map((bs || []).map((b: any) => [b.id, b.name || b.name_en || "—"]));
       const { data: us } = await supabase.from("units")
-        .select("id, unit_number, building_id, tenant_name, tenant_phone, rent_amount, rent_type, status, last_paid_date, contract_end_date, contract_start_date, opening_balance, opening_balance_date")
+        .select("id, unit_number, building_id, tenant_name, tenant_phone, rent_amount, rent_type, rent_timing, status, last_paid_date, contract_end_date, contract_start_date, opening_balance, opening_balance_date")
         .in("building_id", ids)
         .not("tenant_name", "is", null);
       const unitIds = (us || []).map((u: any) => u.id);
@@ -134,6 +137,7 @@ export default function Tenants() {
       });
       const mapped: TenantRow[] = (us || []).map((u: any) => {
         const bal = computeBalance(u as any, (ps || []) as PaymentForBalance[]);
+        const arr = getUnitArrears(u as any, (ps || []) as PaymentForBalance[], new Date(), lang as "ar" | "en");
         const lp = lastPay.get(u.id);
         return {
           unit_id: u.id,
@@ -149,6 +153,9 @@ export default function Tenants() {
           contract_end_date: u.contract_end_date,
           total_paid: totals.get(u.id) || 0,
           outstanding: bal.outstanding,
+          arrears_label: arr.oldestUnpaid?.label || null,
+          arrears_count: arr.unpaidCount,
+          arrears_total: arr.totalShortfall,
         };
       });
       setRows(mapped);
@@ -339,6 +346,13 @@ export default function Tenants() {
                   <p className="text-xs text-muted-foreground mt-0.5 truncate">
                     {r.building_name} · {t2("unit_number")} {r.unit_number}
                   </p>
+                  {r.arrears_label && r.arrears_count > 0 && (
+                    <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-burgundy bg-burgundy/10 border border-burgundy/25 rounded-full px-2 py-0.5">
+                      <span aria-hidden className="text-[9px] leading-none">⚠</span>
+                      {lang === "ar" ? "متأخر" : "Overdue"}: {r.arrears_label}
+                      {r.arrears_count > 1 ? ` +${r.arrears_count - 1}` : ""} − {format(r.arrears_total)}
+                    </span>
+                  )}
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-[11px] text-sage-500">
                     {r.tenant_phone && (
                       <a href={`tel:${r.tenant_phone}`} onClick={(e) => e.stopPropagation()} className="flex items-center gap-1 hover:text-sage-600">

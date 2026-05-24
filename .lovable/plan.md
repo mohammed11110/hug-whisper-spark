@@ -1,33 +1,62 @@
-## السبب
-دالّتا `computeBalance` و`overdueCyclesCount` في `src/lib/balance.ts` تجمعان **كل** الدفعات (بما فيها ما تمّ قبل الـ anchor)، بينما المتراكم (`accrued`) يُحسب فقط من الـ anchor. النتيجة: الدفعات القديمة تسدّد دورات مستقبلية وهميّاً، فتختفي المتأخرات الحقيقيّة.
 
-`getNextDueInfo` يطبّق الفلتر الصحيح بالفعل (يستثني الدفعات الأقدم من `opening_balance_date`). سنطبّق نفس المبدأ في الدالّتين الأخريين.
+## الهدف
+عند تسجيل دفعة جزئية لشهر سابق (المدفوع < إيجار الشهر)، يجب أن يظهر الفرق كمتأخر **لذلك الشهر تحديداً**، مع شارة موجزة بجانب اسم المستأجر تذكر الشهر الأقدم غير المسدَّد والمبلغ، وتُحدَّث تلقائياً مع بداية كل شهر جديد.
 
 ## التغييرات
 
-### 1) `src/lib/balance.ts` — `computeBalance`
-- قراءة `anchorIso = unit.opening_balance_date || unit.contract_start_date`.
-- عند جمع `paid`: استثناء أي دفعة `payment_date < anchorIso` (نفس الفلتر الموجود في `getNextDueInfo`).
-- بقيّة المنطق بدون تغيير. `opening_balance` يبقى كما هو ويمثّل الرصيد المتبقّي عند الـ anchor.
+### 1) منطق الحساب (مصدر الحقيقة) — `src/lib/balance.ts`
+أضف دالّة جديدة `getUnitArrears(unit, payments, asOf)` تُرجع:
+- `cycles[]`: لكل دورة مستحقة منذ المرسى حتى تاريخ اليوم → `{ periodStart, periodEnd, label, rent, paid, shortfall, status: 'paid'|'partial'|'unpaid' }`
+- `oldestUnpaid`: أول دورة فيها `shortfall > 0` (سواء كانت `unpaid` أو `partial`)
+- `totalShortfall`: مجموع `shortfall` لكل الدورات المستحقّة
+- `unpaidCount`: عدد الدورات التي بها متبقٍّ
 
-### 2) `src/lib/balance.ts` — `overdueCyclesCount`
-نفس الفلتر على `paid`، حتى يعطي `isUnitOverdue` و`Notifications` نتيجة صحيحة.
+طريقة التجميع: لكل دورة (محسوبة عبر `getCycleByStartMonth` ابتداءً من `anchor`)، نجمع `amount` لكل الدفعات التي تقع `period_start` فيها داخل نطاق الدورة. الدورة المستحقّة فقط (`advance`: بدأت ≤ اليوم؛ `arrears`: انتهت < اليوم) تُدرج في المتأخرات.
 
-### 3) اختبارات `src/lib/balance.test.ts`
-حالة جديدة مطابقة لـ V1:
-- وحدة `arrears`، إيجار 200، `opening_balance_date=2026-04-01`
-- دفعة فترتها مارس (`period_end=2026-03-31`، `payment_date=2026-05-04`)
-- لا توجد دفعة لأبريل
-- في 24/5: `outstanding=200`، `overdueCyclesCount=1`، `isUnitOverdue=true`
+لا نغيّر `computeBalance` ولا `overdueCyclesCount`؛ نُبنى عليهما.
 
-### 4) لا تغييرات في صفحات العرض
-كلّها تعتمد على هذه الدوال — ستظهر المتأخرات تلقائياً.
+### 2) شارة المتأخرات بجانب اسم المستأجر
+مكوّن جديد `src/components/ArrearsBadge.tsx`:
+- إدخال: `unit` + `payments`
+- يعرض شارة موجزة باللون البرغندي:
+  - دورة واحدة: «متأخر: مايو 2026 − 50 ر.ع»
+  - أكثر من دورة: «متأخر: مايو 2026 +N − 120 ر.ع»
+- صامتة (لا تُعرض) إذا لا يوجد متبقٍّ.
 
-## النتيجة المتوقّعة للـ V1
-- بطاقة الوحدة في `/buildings/V2`: «الرصيد المستحق: 200 ر.ع.»، وشارة «متأخر».
-- Tenants / Notifications: تظهر ضمن «متأخرون».
-- B2 #06 السابقة تبقى صحيحة (outstanding=0) لأنّ دفعتها تغطّي أبريل والـ anchor مايو 1.
+يُستعمل في:
+- `src/pages/BuildingDetail.tsx` (بطاقة الوحدة، بجانب اسم المستأجر)
+- `src/pages/UnitDetail.tsx` (تحت اسم المستأجر مباشرة)
+- `src/pages/Tenants.tsx` (صفّ المستأجر)
 
-## الملفات المتأثّرة
-- `src/lib/balance.ts`
-- `src/lib/balance.test.ts`
+### 3) حوار إضافة دفعة جديدة — `src/components/AddPaymentDialog.tsx`
+- جلب الدفعات الحالية للوحدة (مع `period_start, period_end, amount`) عند الفتح.
+- استدعاء `getUnitArrears` لحساب الأشهر الناقصة.
+- بانر إعلامي أعلى الحوار (برغندي خفيف) يعرض:
+  - «متأخرات سابقة: مايو 2026 − نقص 50 ر.ع» (وإن وُجد أكثر، قائمة قصيرة بأول 3 + «و N أخرى»).
+- في قائمة الشهور المنسدلة، نُضيف وسماً صغيراً «جزئي − نقص X» للأشهر التي فيها دفعة سابقة لكن أقل من الإيجار، حتى يفهم المستخدم سياق اختياره.
+- إزالة أي تحقق يمنع `amount < rent` (إن وُجد)، والسماح صراحةً بحفظ دفعة جزئية لشهر مختار.
+
+نفس البانر يُضاف في `src/components/EditPaymentDialog.tsx` للسياق.
+
+### 4) الإشعارات / المتأخرات الشهرية
+- `src/pages/Notifications.tsx` و `src/pages/MonthlyCollection.tsx`: اعتماد `getUnitArrears` لإظهار الشهر تحديداً (مايو 2026 − نقص 50 ر.ع) بدل «متأخر» المجرّد. تحديث تلقائي مع بداية كل شهر بالاعتماد على `asOf = new Date()`.
+
+### 5) الاختبارات — `src/lib/balance.test.ts`
+- وحدة إيجار 200 شهرياً، مرسى 2026‑04‑01، دفعة جزئية 150 على فترة أبريل، تاريخ اليوم 2026‑05‑24 → `unpaidCount = 2` (أبريل نقص 50 + مايو 200)، `oldestUnpaid = أبريل`، `totalShortfall = 250`.
+- وحدة بدفعة كاملة لشهر سابق ودفعة جزئية لشهر تالٍ → الشهر التالي يظهر بشارة جزئية.
+- بدون متأخرات → `unpaidCount = 0` ولا شارة.
+
+## ملفات متأثرة
+- `src/lib/balance.ts` (إضافة `getUnitArrears`)
+- `src/lib/balance.test.ts` (اختبارات جديدة)
+- `src/components/ArrearsBadge.tsx` (جديد)
+- `src/components/AddPaymentDialog.tsx`
+- `src/components/EditPaymentDialog.tsx`
+- `src/pages/BuildingDetail.tsx`
+- `src/pages/UnitDetail.tsx`
+- `src/pages/Tenants.tsx`
+- `src/pages/Notifications.tsx`
+- `src/pages/MonthlyCollection.tsx`
+
+## بدون تغييرات على قاعدة البيانات
+كل المنطق مشتقّ من جدول `payments` الحالي عبر `period_start`/`amount`، لا حاجة لمايجريشن.

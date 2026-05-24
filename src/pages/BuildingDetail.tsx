@@ -12,7 +12,8 @@ import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { computeBalance, getNextDueInfo, type PaymentForBalance } from "@/lib/balance";
+import { computeBalance, getNextDueInfo, getUnitArrears, type PaymentForBalance } from "@/lib/balance";
+import { ArrearsBadge } from "@/components/ArrearsBadge";
 
 interface Building { id: string; name: string; name_en: string | null; type: string; floors: number; city: string | null; address: string | null; }
 interface Unit { id: string; unit_number: string; floor: number; type: string; tenant_name: string | null; tenant_phone: string | null; rent_amount: number; rent_type: string; rent_timing?: string | null; status: string; due_day: number; security_deposit?: number; deposit_status?: string; opening_balance?: number; opening_balance_date?: string | null; contract_start_date?: string | null; last_paid_date?: string | null; }
@@ -255,19 +256,6 @@ export default function BuildingDetail() {
           ) : (
             visible.map((u, i) => {
               const bal = u.tenant_name ? computeBalance(u as any, payments) : null;
-              const today = new Date();
-              // Use anchor-aware next due cycle (respects rent_timing + opening_balance_date).
-              const info = u.tenant_name && u.rent_type === "monthly" ? getNextDueInfo(u as any, payments as any, lang as any) : null;
-              const isActive = u.status !== "soon" && u.status !== "vacant";
-              const cycleDue = info && isActive && today >= info.nextDueDate;
-              const cyclePaid = info
-                ? payments
-                    .filter((p: any) => p.unit_id === u.id && !p.deleted_at && p.period_start && p.period_start >= info.periodStartIso && p.period_start <= info.periodEndIso)
-                    .reduce((s: number, p: any) => s + Number(p.amount || 0), 0)
-                : 0;
-              const cycleRent = Number(u.rent_amount || 0);
-              const monthRemaining = cycleDue && cycleRent > 0 ? Math.max(0, cycleRent - cyclePaid) : 0;
-              const cycleLabel = info?.receiptLabel?.replace(/^إيجار\s+/, "").replace(/^Rent (?:for )?/, "") || "";
               return (
               <div key={u.id} className="relative animate-float-up" style={{ animationDelay: `${i * 0.03}s` }}>
                 <Link to={`/units/${u.id}`} className="block">
@@ -284,19 +272,16 @@ export default function BuildingDetail() {
                           {t2(u.rent_timing === "arrears" ? "rent_timing_arrears" : "rent_timing_advance")}
                         </span>
                       )}
-                      {bal && bal.outstanding > 0 && (
-                        <p className="text-[11px] font-bold text-burgundy mt-0.5">{t2("outstanding_balance")}: {format(bal.outstanding)}</p>
+                      {u.tenant_name && (
+                        <div className="mt-0.5">
+                          <ArrearsBadge unit={u as any} payments={payments} />
+                        </div>
                       )}
-                      {monthRemaining > 0 && (
-                        <p className="text-[11px] font-bold text-destructive mt-0.5">
-                          {lang === "ar" ? `متبقي ${cycleLabel}: ${format(monthRemaining)}` : `Remaining ${cycleLabel}: ${format(monthRemaining)}`}
-                        </p>
-                      )}
-
                     </div>
                     <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase ${STATUS_STYLES[u.status] || ""}`}>{t2(u.status as any)}</span>
                   </div>
                 </Link>
+
                 <button
                   type="button"
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditUnit(u); }}
