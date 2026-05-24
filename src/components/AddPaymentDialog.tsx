@@ -1200,8 +1200,18 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
             </div>
           )}
         </div>
-        <DialogFooter className="gap-2 sm:gap-2">
+        <DialogFooter className="gap-2 sm:gap-2 flex-wrap">
           <Button data-guard-ignore variant="outline" onClick={() => guard.handleOpenChange(false)} className="rounded-xl">{t2("cancel")}</Button>
+          <Button
+            data-guard-ignore
+            type="button"
+            variant="outline"
+            onClick={openPreview}
+            disabled={!unitId || !(Number(amount) > 0)}
+            className="rounded-xl border-sage-300 text-sage-700 hover:bg-sage-100/50"
+          >
+            {lang === "ar" ? "معاينة الإيصال" : "Preview receipt"}
+          </Button>
           <Button data-guard-ignore onClick={submit} disabled={saving} className="rounded-xl bg-gradient-sage text-primary-foreground">{t2("save")}</Button>
         </DialogFooter>
         {guard.ConfirmDiscardUI}
