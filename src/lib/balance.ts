@@ -17,7 +17,24 @@ export interface PaymentForBalance {
   amount: number | string;
   deleted_at?: string | null;
   payment_date?: string | null;
+  period_start?: string | null;
+  period_end?: string | null;
 }
+
+/**
+ * A payment belongs to the *current* settlement window (i.e. should offset
+ * accrued rent from the anchor onward) only if the cycle it covers ends
+ * at/after the anchor. Falls back to payment_date for legacy rows without
+ * period_end.
+ */
+const isPostAnchorPayment = (p: PaymentForBalance, anchorIso: string | null): boolean => {
+  if (!anchorIso) return true;
+  if (p.period_end) return p.period_end >= anchorIso;
+  if (p.period_start) return p.period_start >= anchorIso;
+  if (p.payment_date) return p.payment_date >= anchorIso;
+  return true;
+};
+
 
 
 const num = (v: any) => Number(v) || 0;
@@ -66,13 +83,20 @@ export function computeBalance(unit: UnitForBalance, payments: PaymentForBalance
   const accrued = rent * periods;
   const totalDue = opening + accrued;
 
+  // Only count payments that belong to the current settlement window
+  // (i.e. on/after opening_balance_date). Payments older than the anchor
+  // already settled past cycles and must not offset new accrued rent.
+  const anchorIso = unit.opening_balance_date || unit.contract_start_date || null;
   const paid = payments
     .filter((p) => p.unit_id === unit.id && !p.deleted_at)
+    .filter((p) => isPostAnchorPayment(p, anchorIso))
+
     .reduce((s, p) => s + num(p.amount), 0);
 
   const outstanding = Math.max(0, totalDue - paid);
   return { opening, accrued, totalDue, paid, outstanding };
 }
+
 
 // =====================================================================
 // Cycle helpers — anchor-aware periods + smart receipt labels.
@@ -151,9 +175,9 @@ export function getNextDueInfo(
   // baked into opening_balance_date (= first unpaid cycle); counting them
   // again would double-advance the next-due cycle.
   const totalPaid = payments
-    .filter((p) => p.unit_id === unit.id && !p.deleted_at
-      && (!anchorIso || !p.payment_date || p.payment_date >= anchorIso))
+    .filter((p) => p.unit_id === unit.id && !p.deleted_at && isPostAnchorPayment(p, anchorIso))
     .reduce((s, p) => s + num(p.amount), 0);
+
   const paidCycles = rent > 0 ? Math.floor(totalPaid / rent) : 0;
   const due = cyclesDue(unit, new Date());
 
@@ -195,12 +219,15 @@ export function overdueCyclesCount(
   const rent = num(unit.rent_amount);
   if (rent <= 0) return 0;
   const due = cyclesDue(unit, asOf);
+  const anchorIso = unit.opening_balance_date || unit.contract_start_date || null;
   const paid = payments
-    .filter((p) => p.unit_id === unit.id && !p.deleted_at)
+    .filter((p) => p.unit_id === unit.id && !p.deleted_at && isPostAnchorPayment(p, anchorIso))
     .reduce((s, p) => s + num(p.amount), 0);
+
   const paidCycles = Math.floor(paid / rent);
   return Math.max(0, due - paidCycles);
 }
+
 
 /**
  * هل تاريخ الاستحقاق التالي لهذه الوحدة قد مضى (= فعلاً متأخّر الآن)؟

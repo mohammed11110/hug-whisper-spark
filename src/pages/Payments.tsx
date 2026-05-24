@@ -110,7 +110,7 @@ export default function Payments() {
       : { data: [] as any[] };
     // All non-deleted payments for involved units (used for outstanding balance)
     const { data: allPays } = unitIds.length
-      ? await supabase.from("payments").select("unit_id, amount, deleted_at").in("unit_id", unitIds).is("deleted_at", null)
+      ? await supabase.from("payments").select("unit_id, amount, deleted_at, payment_date, period_start, period_end").in("unit_id", unitIds).is("deleted_at", null)
       : { data: [] as any[] };
     const uMap = new Map((units || []).map((u: any) => [u.id, u]));
     const bMap = new Map((builds || []).map((b: any) => [b.id, b]));

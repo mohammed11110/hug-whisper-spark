@@ -57,7 +57,7 @@ export default function BuildingDetail() {
     setUnits((us || []) as any);
     const ids = (us || []).map((u: any) => u.id);
     if (ids.length) {
-      const { data: ps } = await supabase.from("payments").select("unit_id,amount,deleted_at,payment_date,period_start").in("unit_id", ids).is("deleted_at", null);
+      const { data: ps } = await supabase.from("payments").select("unit_id,amount,deleted_at,payment_date,period_start,period_end").in("unit_id", ids).is("deleted_at", null);
       setPayments((ps || []) as any);
       const today = new Date();
       const monthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
