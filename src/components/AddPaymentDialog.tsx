@@ -337,6 +337,25 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     return () => { cancelled = true; };
   }, [amount, payMode, cachedArrears, cachedUnit, lang]);
 
+  // Keep `expected` in sync with the active pay mode:
+  // - auto   → إجمالي المتأخرات (مصدر الحقيقة الوحيد)
+  // - manual → قيمة الدورة المختارة فقط
+  useEffect(() => {
+    if (!unitId) return;
+    if (payMode === "auto") {
+      if (arrearsBefore > 0) setExpected(String(arrearsBefore));
+      else if (activeRent > 0) setExpected(String(activeRent));
+    } else {
+      if (selectedEntry) {
+        setExpected(String(selectedEntry.isPrior ? selectedEntry.remaining : (activeRent || selectedEntry.remaining)));
+      } else if (activeRent > 0) {
+        setExpected(String(activeRent));
+      }
+    }
+  }, [payMode, arrearsBefore, activeRent, selectedEntry, unitId]);
+
+
+
 
 
 
