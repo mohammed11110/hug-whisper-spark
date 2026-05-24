@@ -9,7 +9,7 @@ import { useT2 } from "@/lib/i18n2";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
-import { computeBalance } from "@/lib/balance";
+import { getUnitArrears } from "@/lib/balance";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
 import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
@@ -48,11 +48,11 @@ export function EndTenancyDialog({ open, onOpenChange, unit, tenancyId, onDone }
     (async () => {
       const { data: ps } = await supabase
         .from("payments")
-        .select("unit_id,amount,deleted_at")
+        .select("unit_id,amount,deleted_at,payment_date,period_start,period_end")
         .eq("unit_id", unit.id)
         .is("deleted_at", null);
-      const bal = computeBalance(unit, (ps || []) as any);
-      setOutstanding(bal.outstanding);
+      const arr = getUnitArrears(unit, (ps || []) as any, new Date(), lang as "ar" | "en");
+      setOutstanding(arr.totalShortfall);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, unit?.id]);
