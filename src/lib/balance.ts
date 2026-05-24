@@ -178,3 +178,36 @@ export function getNextDueInfo(
     timing,
   };
 }
+
+/**
+ * عدد الدورات المستحقة وغير المدفوعة حتى تاريخ معيّن (افتراضياً الآن).
+ * يحترم نمط الدفع: في المؤخّر تُخصم الدورة الجارية، وفي المقدّم تُحتسب فور بدايتها.
+ */
+export function overdueCyclesCount(
+  unit: UnitForBalance,
+  payments: PaymentForBalance[] = [],
+  asOf: Date = new Date(),
+): number {
+  const anchor = getAnchorDate(unit);
+  if (!anchor) return 0;
+  const rent = num(unit.rent_amount);
+  if (rent <= 0) return 0;
+  let periods = periodsElapsed(anchor, asOf, unit.rent_type || "monthly");
+  if ((unit.rent_timing || "advance") === "arrears" && periods > 0) periods -= 1;
+  const paid = payments
+    .filter((p) => p.unit_id === unit.id && !p.deleted_at)
+    .reduce((s, p) => s + num(p.amount), 0);
+  const paidCycles = Math.floor(paid / rent);
+  return Math.max(0, periods - paidCycles);
+}
+
+/**
+ * هل تاريخ الاستحقاق التالي لهذه الوحدة قد مضى (= فعلاً متأخّر الآن)؟
+ */
+export function isUnitOverdue(
+  unit: UnitForBalance,
+  payments: PaymentForBalance[] = [],
+  asOf: Date = new Date(),
+): boolean {
+  return overdueCyclesCount(unit, payments, asOf) > 0;
+}

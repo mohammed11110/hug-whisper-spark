@@ -12,10 +12,10 @@ import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { computeBalance, type PaymentForBalance } from "@/lib/balance";
+import { computeBalance, getNextDueInfo, type PaymentForBalance } from "@/lib/balance";
 
 interface Building { id: string; name: string; name_en: string | null; type: string; floors: number; city: string | null; address: string | null; }
-interface Unit { id: string; unit_number: string; floor: number; type: string; tenant_name: string | null; tenant_phone: string | null; rent_amount: number; rent_type: string; status: string; due_day: number; security_deposit?: number; deposit_status?: string; opening_balance?: number; opening_balance_date?: string | null; contract_start_date?: string | null; }
+interface Unit { id: string; unit_number: string; floor: number; type: string; tenant_name: string | null; tenant_phone: string | null; rent_amount: number; rent_type: string; rent_timing?: string | null; status: string; due_day: number; security_deposit?: number; deposit_status?: string; opening_balance?: number; opening_balance_date?: string | null; contract_start_date?: string | null; }
 
 const UNIT_FILTERS = ["all", "apartment", "shop", "room", "villa"] as const;
 
@@ -53,7 +53,7 @@ export default function BuildingDetail() {
     if (!id) return;
     const { data: b } = await supabase.from("buildings").select("*").eq("id", id).maybeSingle();
     setBuilding(b);
-    const { data: us } = await supabase.from("units").select("id,unit_number,floor,type,tenant_name,tenant_phone,rent_amount,rent_type,status,due_day,security_deposit,deposit_status,opening_balance,opening_balance_date,contract_start_date").eq("building_id", id).order("floor").order("unit_number");
+    const { data: us } = await supabase.from("units").select("id,unit_number,floor,type,tenant_name,tenant_phone,rent_amount,rent_type,rent_timing,status,due_day,security_deposit,deposit_status,opening_balance,opening_balance_date,contract_start_date").eq("building_id", id).order("floor").order("unit_number");
     setUnits((us || []) as any);
     const ids = (us || []).map((u: any) => u.id);
     if (ids.length) {
@@ -88,6 +88,13 @@ export default function BuildingDetail() {
   const dueDayDistance = (u: Unit) => {
     if (u.status === "vacant") return Number.MAX_SAFE_INTEGER;
     const today = new Date();
+    const info = getNextDueInfo(u as any, payments as any);
+    if (info) {
+      const diff = Math.ceil((info.nextDueDate.getTime() - today.getTime()) / 86400000);
+      // المتأخّر يأتي أولاً (قيمة سالبة → نُعيدها 0 لأقصى أولوية)
+      return Math.max(0, diff);
+    }
+    // fallback to legacy due_day
     const day = today.getDate();
     const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
     const due = Math.min(Math.max(1, u.due_day || 1), lastDay);

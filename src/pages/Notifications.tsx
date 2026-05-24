@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/auth";
 import { useAppSettings } from "@/lib/appSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { openWhatsApp, fillTemplate } from "@/lib/whatsapp";
-import { computeBalance } from "@/lib/balance";
+import { computeBalance, getNextDueInfo, isUnitOverdue } from "@/lib/balance";
 
 interface AlertItem {
   kind: "late" | "upcoming" | "contract";
@@ -41,7 +41,7 @@ export default function Notifications() {
       if (!ids.length) { setItems([]); setLoading(false); return; }
       const bMap = new Map((bs || []).map((b: any) => [b.id, b.name || b.name_en || "—"]));
       const { data: us } = await supabase.from("units")
-        .select("id, unit_number, building_id, tenant_name, tenant_phone, rent_amount, rent_type, status, due_day, contract_end_date, contract_start_date, opening_balance, opening_balance_date")
+        .select("id, unit_number, building_id, tenant_name, tenant_phone, rent_amount, rent_type, rent_timing, status, due_day, contract_end_date, contract_start_date, opening_balance, opening_balance_date")
         .in("building_id", ids)
         .not("tenant_name", "is", null);
 
@@ -63,13 +63,16 @@ export default function Notifications() {
           amount: Number(u.rent_amount),
           remaining: outstanding,
         };
-        if (u.status === "late") out.push({ ...base, kind: "late" });
-        // upcoming: due_day within next N days
-        const due = new Date(today.getFullYear(), today.getMonth(), Math.min(u.due_day, 28));
-        if (due < today) due.setMonth(due.getMonth() + 1);
-        const days = Math.ceil((due.getTime() - today.getTime()) / 86400000);
-        if (u.status !== "late" && days >= 0 && days <= settings.upcomingDays) {
-          out.push({ ...base, kind: "upcoming", due_in_days: days });
+        // متأخّر: استحقاق قد مضى ومازال هناك رصيد غير مدفوع (يحترم نمط الدفع)
+        const overdue = outstanding > 0.009 && isUnitOverdue(u, pays || [], today);
+        if (overdue) out.push({ ...base, kind: "late" });
+        // قريب الاستحقاق: نعتمد على تاريخ الاستحقاق التالي من الدورة
+        const info = getNextDueInfo(u, pays || []);
+        if (!overdue && info) {
+          const days = Math.ceil((info.nextDueDate.getTime() - today.getTime()) / 86400000);
+          if (days >= 0 && days <= settings.upcomingDays) {
+            out.push({ ...base, kind: "upcoming", due_in_days: days });
+          }
         }
         // contract end approaching
         if (u.contract_end_date) {
