@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
 import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
 import { X, Image as ImageIcon, Sparkles, Loader2 } from "lucide-react";
-import { LastPaymentSection, getLastPaidMonthOptions, nextMonthStartISO } from "@/components/LastPaymentSection";
+import { LastPaymentSection, monthBoundsFromDate } from "@/components/LastPaymentSection";
 
 interface Props {
   open: boolean;
