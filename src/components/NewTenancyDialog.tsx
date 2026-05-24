@@ -110,7 +110,7 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
     if (!name.trim()) return toast.error(lang === "ar" ? "اسم المستأجر مطلوب" : "Tenant name required");
     setSaving(true);
     const rentNum = Number(rent) || 0;
-    const dueNum = Math.min(31, Math.max(1, Number(dueDay) || 1));
+    const dueNum = startDate ? Math.min(28, Math.max(1, new Date(startDate).getDate() || 1)) : Math.min(31, Math.max(1, Number(dueDay) || 1));
     const depositNum = Number(deposit) || 0;
     const { error: tErr } = await supabase.from("tenancies").insert({
       building_id: unit.building_id,
