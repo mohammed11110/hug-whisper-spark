@@ -256,18 +256,18 @@ export default function BuildingDetail() {
             visible.map((u, i) => {
               const bal = u.tenant_name ? computeBalance(u as any, payments) : null;
               const today = new Date();
-              const monthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
-              const monthPaid = u.tenant_name && u.rent_type === "monthly"
+              // Use anchor-aware next due cycle (respects rent_timing + opening_balance_date).
+              const info = u.tenant_name && u.rent_type === "monthly" ? getNextDueInfo(u as any, payments as any, lang as any) : null;
+              const isActive = u.status !== "soon" && u.status !== "vacant";
+              const cycleDue = info && isActive && today >= info.nextDueDate;
+              const cyclePaid = info
                 ? payments
-                    .filter((p: any) => p.unit_id === u.id && ((p.period_start || p.payment_date) || "").slice(0, 7) === monthKey)
+                    .filter((p: any) => p.unit_id === u.id && !p.deleted_at && p.period_start && p.period_start >= info.periodStartIso && p.period_start <= info.periodEndIso)
                     .reduce((s: number, p: any) => s + Number(p.amount || 0), 0)
                 : 0;
-              const monthRent = Number(u.rent_amount || 0);
-              const contractStarted = !!u.contract_start_date && new Date(u.contract_start_date) <= today;
-              const isActive = u.status !== "soon" && u.status !== "vacant";
-              const monthRemaining = u.tenant_name && u.rent_type === "monthly" && monthRent > 0 && contractStarted && isActive
-                ? Math.max(0, monthRent - monthPaid)
-                : 0;
+              const cycleRent = Number(u.rent_amount || 0);
+              const monthRemaining = cycleDue && cycleRent > 0 ? Math.max(0, cycleRent - cyclePaid) : 0;
+              const cycleLabel = info?.receiptLabel?.replace(/^إيجار\s+/, "").replace(/^Rent (?:for )?/, "") || "";
               return (
               <div key={u.id} className="relative animate-float-up" style={{ animationDelay: `${i * 0.03}s` }}>
                 <Link to={`/units/${u.id}`} className="block">
@@ -289,9 +289,10 @@ export default function BuildingDetail() {
                       )}
                       {monthRemaining > 0 && (
                         <p className="text-[11px] font-bold text-destructive mt-0.5">
-                          {lang === "ar" ? `متبقي إيجار هذا الشهر: ${format(monthRemaining)}` : `Remaining this month: ${format(monthRemaining)}`}
+                          {lang === "ar" ? `متبقي ${cycleLabel}: ${format(monthRemaining)}` : `Remaining ${cycleLabel}: ${format(monthRemaining)}`}
                         </p>
                       )}
+
                     </div>
                     <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase ${STATUS_STYLES[u.status] || ""}`}>{t2(u.status as any)}</span>
                   </div>
