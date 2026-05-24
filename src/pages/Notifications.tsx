@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/auth";
 import { useAppSettings } from "@/lib/appSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { openWhatsApp, fillTemplate } from "@/lib/whatsapp";
-import { computeBalance, getNextDueInfo, isUnitOverdue } from "@/lib/balance";
+import { computeBalance, getNextDueInfo, isUnitOverdue, getUnitArrears } from "@/lib/balance";
 
 interface AlertItem {
   kind: "late" | "upcoming" | "contract";
@@ -22,6 +22,8 @@ interface AlertItem {
   remaining: number;
   due_in_days?: number;
   contract_end?: string;
+  arrears_label?: string | null;
+  arrears_count?: number;
 }
 
 export default function Notifications() {
