@@ -298,7 +298,14 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         setSelectedEntry(first);
         setPeriodYear(first.year);
         setPeriodMonthNum(first.month);
-        if (rentAmt > 0) setExpected(String(first.isPrior ? first.remaining : rentAmt));
+        // In auto mode (default when arrears exist) المتوقع = إجمالي المتأخرات
+        // المستحقة لأن الدفعة ستوزَّع على كل البنود غير المسددة. في الوضع
+        // اليدوي يقتصر المتوقع على الدورة المختارة.
+        if (entries.length > 0) {
+          setExpected(String(arr.totalShortfall));
+        } else if (rentAmt > 0) {
+          setExpected(String(rentAmt));
+        }
         // Auto mode default: full arrears (covers all unpaid cycles).
         setAmount(String(arr.totalShortfall));
       } else {
@@ -307,6 +314,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     })();
     return () => { cancelled = true; };
   }, [open, unitId, lang]);
+
 
 
   const onPickUnit = (id: string) => {
@@ -328,6 +336,25 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     })();
     return () => { cancelled = true; };
   }, [amount, payMode, cachedArrears, cachedUnit, lang]);
+
+  // Keep `expected` in sync with the active pay mode:
+  // - auto   → إجمالي المتأخرات (مصدر الحقيقة الوحيد)
+  // - manual → قيمة الدورة المختارة فقط
+  useEffect(() => {
+    if (!unitId) return;
+    if (payMode === "auto") {
+      if (arrearsBefore > 0) setExpected(String(arrearsBefore));
+      else if (activeRent > 0) setExpected(String(activeRent));
+    } else {
+      if (selectedEntry) {
+        setExpected(String(selectedEntry.isPrior ? selectedEntry.remaining : (activeRent || selectedEntry.remaining)));
+      } else if (activeRent > 0) {
+        setExpected(String(activeRent));
+      }
+    }
+  }, [payMode, arrearsBefore, activeRent, selectedEntry, unitId]);
+
+
 
 
 
@@ -913,7 +940,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                   setSelectedEntry(entry);
                   setPeriodYear(entry.year);
                   setPeriodMonthNum(entry.month);
-                  if (activeRent > 0) setExpected(String(entry.isPrior ? entry.remaining : activeRent));
+                  if (payMode === "manual" && activeRent > 0) setExpected(String(entry.isPrior ? entry.remaining : activeRent));
                   setAmount(String(entry.remaining));
                 }}
               >
@@ -1024,9 +1051,30 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs text-sage-500">{lang === "ar" ? "المتوقع" : "Expected"}</Label>
-              <Input type="number" inputMode="decimal" value={expected} onChange={(e) => setExpected(e.target.value)} className="rounded-xl border-sage-200 bg-card h-11" />
+              <Label className="text-xs text-sage-500 flex items-center gap-1.5">
+                <span>
+                  {payMode === "auto"
+                    ? (lang === "ar" ? "المستحق لهذه العملية" : "Operation due")
+                    : (lang === "ar" ? "المتوقع" : "Expected")}
+                </span>
+                {payMode === "auto" && (
+                  <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-sage-100 text-sage-600 border border-sage-200">
+                    {lang === "ar" ? "محسوب" : "AUTO"}
+                  </span>
+                )}
+              </Label>
+              <Input
+                type="number"
+                inputMode="decimal"
+                value={expected}
+                onChange={(e) => setExpected(e.target.value)}
+                readOnly={payMode === "auto"}
+                aria-readonly={payMode === "auto"}
+                className={`rounded-xl border-sage-200 bg-card h-11 ${payMode === "auto" ? "opacity-80 cursor-not-allowed" : ""}`}
+                title={payMode === "auto" ? (lang === "ar" ? "محسوب تلقائياً من إجمالي المتأخرات. للتعديل اليدوي بدّل إلى \"اختيار يدوي\"." : "Computed automatically from total arrears. Switch to Manual to edit.") : undefined}
+              />
             </div>
+
             <div className="space-y-1.5">
               <Label className="text-xs text-sage-500">{lang === "ar" ? "المدفوع" : "Paid"}</Label>
               <Input type="number" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} className="rounded-xl border-sage-200 bg-card h-11" />
