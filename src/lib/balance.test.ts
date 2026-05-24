@@ -241,7 +241,10 @@ describe("overdueCyclesCount & isUnitOverdue", () => {
     const u = mkUnit({ rent_timing: "advance", contract_start_date: "2026-04-01" });
     const pays = [mkPayment(80, { deleted_at: "2026-04-10" })];
     expect(overdueCyclesCount(u, pays, new Date("2026-04-15"))).toBe(1);
+  });
+
   it("payments before opening_balance_date are NOT counted (legacy March payment, anchor April 1)", () => {
+
     // Mirrors real bug: V2 unit V1 — arrears 200/mo, anchor 2026-04-01, only
     // payment is for March (period_end=2026-03-31, payment_date=2026-05-04, amount=200).
     // April rent is still unpaid; on 24/5 we must show 1 overdue cycle.
