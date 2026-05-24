@@ -204,13 +204,14 @@ describe("overdueCyclesCount & isUnitOverdue", () => {
 });
 
 describe("getNextDueInfo", () => {
-  it("advance: next due date is the start of the current cycle", () => {
+  it("advance: with no payments, next billable jumps to the upcoming cycle", () => {
     const u = mkUnit({ rent_timing: "advance", contract_start_date: "2026-04-01" });
     setNow("2026-04-10T12:00:00");
     const info = getNextDueInfo(u, [])!;
     expect(info.timing).toBe("advance");
-    expect(info.periodStartIso).toBe("2026-04-01");
-    expect(info.nextDueDate.toISOString().slice(0, 10)).toBe("2026-04-01");
+    // April already counts as due (cyclesDue=1), so the *next* billable cycle is May.
+    expect(info.periodStartIso).toBe("2026-05-01");
+    expect(info.nextDueDate.toISOString().slice(0, 10)).toBe("2026-05-01");
   });
 
   it("arrears: next due date is the END of the current cycle", () => {
