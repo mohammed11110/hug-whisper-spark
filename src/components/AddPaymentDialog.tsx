@@ -1244,6 +1244,75 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="rounded-2xl max-w-3xl w-[95vw] max-h-[92vh] overflow-hidden flex flex-col p-4 sm:p-6">
+          <DialogHeader>
+            <DialogTitle className="text-sage-700 flex items-center justify-between gap-2">
+              <span>{lang === "ar" ? "معاينة الإيصال" : "Receipt preview"}</span>
+              {unpaidMonths.length > 0 && (
+                <span
+                  className={
+                    "text-[11px] font-bold rounded-full px-2.5 py-1 " +
+                    (includeArrearsInReceipt
+                      ? "bg-burgundy/10 text-burgundy"
+                      : "bg-sage-100 text-sage-600")
+                  }
+                >
+                  {includeArrearsInReceipt
+                    ? (lang === "ar" ? "المتأخرات مُدرجة" : "Arrears included")
+                    : (lang === "ar" ? "المتأخرات غير مُدرجة" : "Arrears hidden")}
+                </span>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden rounded-xl border border-sage-200 bg-sage-100/30">
+            <iframe
+              title="receipt-preview"
+              srcDoc={previewHtml}
+              className="w-full h-[70vh] bg-white"
+            />
+          </div>
+          <DialogFooter className="gap-2 sm:gap-2 flex-wrap">
+            {unpaidMonths.length > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIncludeArrearsInReceipt((v) => {
+                    const next = !v;
+                    // re-render preview with the new flag
+                    setTimeout(() => {
+                      const args = buildReceiptArgs();
+                      if (!args) return;
+                      const html = buildReceiptHTML({
+                        ...args.baseArgs,
+                        unpaidMonths: next ? args.upTo : [],
+                        unpaidTotal: next ? args.unpaidTotal : 0,
+                        unpaidUpToLabel: next ? args.monthLabel : undefined,
+                      });
+                      setPreviewHtml(html);
+                    }, 0);
+                    return next;
+                  });
+                }}
+                className="rounded-xl border-sage-300 text-sage-700"
+              >
+                {includeArrearsInReceipt
+                  ? (lang === "ar" ? "إخفاء المتأخرات" : "Hide arrears")
+                  : (lang === "ar" ? "إظهار المتأخرات" : "Show arrears")}
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setPreviewOpen(false)}
+              className="rounded-xl"
+            >
+              {lang === "ar" ? "إغلاق" : "Close"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
