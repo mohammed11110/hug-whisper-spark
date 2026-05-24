@@ -67,7 +67,15 @@ export default function Notifications() {
         };
         // متأخّر: استحقاق قد مضى ومازال هناك رصيد غير مدفوع (يحترم نمط الدفع)
         const overdue = outstanding > 0.009 && isUnitOverdue(u, pays || [], today);
-        if (overdue) out.push({ ...base, kind: "late" });
+        if (overdue) {
+          const arr = getUnitArrears(u, pays || [], today, lang as "ar" | "en");
+          out.push({
+            ...base,
+            kind: "late",
+            arrears_label: arr.oldestUnpaid?.label || null,
+            arrears_count: arr.unpaidCount,
+          });
+        }
         // قريب الاستحقاق: نعتمد على تاريخ الاستحقاق التالي من الدورة
         const info = getNextDueInfo(u, pays || []);
         if (!overdue && info) {
