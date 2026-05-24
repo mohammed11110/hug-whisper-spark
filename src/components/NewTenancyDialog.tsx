@@ -152,26 +152,24 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
 
     // Last payment → set opening_balance_date to the month after, so arrears auto-compute
     let prevPayPayload: any = null;
-    if (hasPrevPay && prevPayMonth) {
-      const opts = getLastPaidMonthOptions(lang);
-      const sel = opts.find((o) => o.value === prevPayMonth);
-      if (sel) {
-        updatePayload.opening_balance = 0;
-        updatePayload.opening_balance_date = nextMonthStartISO(prevPayMonth);
-        const amt = Number(prevPayAmount) || 0;
-        if (amt > 0) {
-          updatePayload.last_paid_date = sel.end;
-          prevPayPayload = {
-            unit_id: unit.id,
-            amount: amt,
-            expected_amount: rentNum,
-            payment_method: "cash",
-            payment_date: new Date().toISOString().slice(0, 10),
-            period_start: sel.start,
-            period_end: sel.end,
-            notes: lang === "ar" ? "دفعة سابقة مُسجّلة عند إضافة المستأجر" : "Prior payment recorded at tenant creation",
-          };
-        }
+    if (hasPrevPay && prevPayDate) {
+      const b = monthBoundsFromDate(prevPayDate, lang);
+      const dateIso = `${prevPayDate.getFullYear()}-${String(prevPayDate.getMonth() + 1).padStart(2, "0")}-${String(prevPayDate.getDate()).padStart(2, "0")}`;
+      updatePayload.opening_balance = 0;
+      updatePayload.opening_balance_date = b.nextMonthStart;
+      const amt = Number(prevPayAmount) || 0;
+      if (amt > 0) {
+        updatePayload.last_paid_date = dateIso;
+        prevPayPayload = {
+          unit_id: unit.id,
+          amount: amt,
+          expected_amount: rentNum,
+          payment_method: "cash",
+          payment_date: new Date().toISOString().slice(0, 10),
+          period_start: b.start,
+          period_end: b.end,
+          notes: lang === "ar" ? "دفعة سابقة مُسجّلة عند إضافة المستأجر" : "Prior payment recorded at tenant creation",
+        };
       }
     }
 
