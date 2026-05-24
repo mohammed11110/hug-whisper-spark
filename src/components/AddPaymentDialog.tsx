@@ -26,12 +26,24 @@ interface UnitOpt {
   building_id: string;
   building_name: string;
   rent_amount: number;
+  rent_type?: string;
   tenant_name: string | null;
   arrears_note?: string | null;
   anchor_day?: number;
   rent_timing?: "advance" | "arrears";
   contract_start_date?: string | null;
+  opening_balance?: number;
   opening_balance_date?: string | null;
+}
+
+interface UnpaidEntry {
+  year: number;
+  month: number;
+  remaining: number;
+  periodStartIso: string;
+  periodEndIso: string;
+  label: string;
+  isPrior: boolean;
 }
 
 interface BuildingOpt { id: string; name: string; }
@@ -93,7 +105,9 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const [saving, setSaving] = useState(false);
   const [unitOpen, setUnitOpen] = useState(false);
   const guard = useUnsavedGuard({ open, onOpenChange });
-  const [unpaidMonths, setUnpaidMonths] = useState<{ year: number; month: number; remaining: number }[]>([]);
+  const [unpaidMonths, setUnpaidMonths] = useState<UnpaidEntry[]>([]);
+  const [arrearsBefore, setArrearsBefore] = useState(0);
+  const [selectedEntry, setSelectedEntry] = useState<UnpaidEntry | null>(null);
   const [arrearsPromptOpen, setArrearsPromptOpen] = useState(false);
   const [pendingReceipt, setPendingReceipt] = useState<any>(null);
   const [collectPriorArrears, setCollectPriorArrears] = useState(false);
@@ -165,11 +179,13 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
             building_id: u.building_id,
             tenant_name: u.tenant_name,
             rent_amount: Number(u.rent_amount),
+            rent_type: u.rent_type || "monthly",
             building_name: bMap.get(u.building_id)?.name || bMap.get(u.building_id)?.name_en || "—",
             arrears_note: note,
             anchor_day: anchorDay,
             rent_timing: (u.rent_timing === "arrears" ? "arrears" : "advance") as "advance" | "arrears",
             contract_start_date: u.contract_start_date,
+            opening_balance: Number(u.opening_balance) || 0,
             opening_balance_date: u.opening_balance_date,
           };
         });
@@ -205,73 +221,75 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, presetUnitId]);
 
-  // Load unpaid months for the selected unit (based on contract + prior payments)
+  // Unified arrears for the selected unit — single source of truth via getUnitArrears.
   useEffect(() => {
-    if (!open || !unitId) { setUnpaidMonths([]); setAllPaid(false); setPaidMonthsKeys(new Set()); return; }
+    if (!open || !unitId) {
+      setUnpaidMonths([]); setAllPaid(false); setPaidMonthsKeys(new Set());
+      setArrearsBefore(0); setSelectedEntry(null);
+      return;
+    }
     let cancelled = false;
     (async () => {
-      const { data: tn } = await supabase
-        .from("tenancies")
-        .select("contract_start_date, contract_end_date, rent_amount, rent_type, status")
-        .eq("unit_id", unitId)
-        .eq("status", "active")
+      const { data: u } = await supabase
+        .from("units")
+        .select("id, rent_amount, rent_type, rent_timing, contract_start_date, opening_balance, opening_balance_date")
+        .eq("id", unitId)
         .maybeSingle();
-      if (cancelled) return;
-      const rentAmt = Number((tn as any)?.rent_amount) || 0;
-      const rentType = (tn as any)?.rent_type as string | undefined;
-      setActiveRent(rentAmt);
-
       const { data: ps } = await supabase
         .from("payments")
-        .select("amount, period_start")
+        .select("unit_id, amount, deleted_at, payment_date, period_start, period_end")
         .eq("unit_id", unitId)
         .is("deleted_at", null);
-      const paidByMonth = new Map<string, number>();
-      (ps || []).forEach((p: any) => {
-        if (!p.period_start) return;
-        const k = String(p.period_start).slice(0, 7);
-        paidByMonth.set(k, (paidByMonth.get(k) || 0) + Number(p.amount));
-      });
-      // Build set of fully-paid month keys for fallback dropdown filtering
-      const fullyPaid = new Set<string>();
-      paidByMonth.forEach((paid, k) => {
-        if (rentAmt > 0 ? paid + 0.01 >= rentAmt : paid > 0) fullyPaid.add(k);
-      });
-      if (!cancelled) setPaidMonthsKeys(fullyPaid);
+      if (cancelled || !u) return;
 
-      if (!tn) { setUnpaidMonths([]); setAllPaid(false); return; }
-      const startStr = (tn as any).contract_start_date as string | null;
-      const endStr = (tn as any).contract_end_date as string | null;
-      if (!startStr || rentAmt <= 0) { setUnpaidMonths([]); setAllPaid(false); return; }
-
-      const today = new Date();
-      const start = new Date(startStr);
-      const horizonByToday = new Date(today.getFullYear(), today.getMonth() + 2, 1);
-      const horizonByContract = endStr ? new Date(endStr) : horizonByToday;
-      const horizon = horizonByContract < horizonByToday ? horizonByContract : horizonByToday;
-      const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
-      const out: { year: number; month: number; remaining: number }[] = [];
-      while (cursor <= horizon) {
-        const y = cursor.getFullYear();
-        const m = cursor.getMonth() + 1;
-        const k = `${y}-${String(m).padStart(2, "0")}`;
-        const paid = paidByMonth.get(k) || 0;
-        const isContractAnchor = rentType !== "yearly" || m === start.getMonth() + 1;
-        if (isContractAnchor && paid + 0.01 < rentAmt) {
-          out.push({ year: y, month: m, remaining: rentAmt - paid });
-        }
-        cursor.setMonth(cursor.getMonth() + 1);
-      }
+      const { getUnitArrears } = await import("@/lib/balance");
+      const arr = getUnitArrears(u as any, (ps || []) as any, new Date(), lang as "ar" | "en");
+      const rentAmt = Number((u as any).rent_amount) || 0;
       if (cancelled) return;
-      setUnpaidMonths(out);
-      setAllPaid(out.length === 0);
-      if (out.length > 0) {
-        setPeriodYear(out[0].year);
-        setPeriodMonthNum(out[0].month);
+
+      setActiveRent(rentAmt);
+      setArrearsBefore(arr.totalShortfall);
+
+      const priorLabel = lang === "ar" ? "متأخرات سابقة" : "Prior arrears";
+      const entries: UnpaidEntry[] = arr.cycles
+        .filter((c) => c.shortfall > 0.009)
+        .map((c) => ({
+          year: c.periodStart.getFullYear(),
+          month: c.periodStart.getMonth() + 1,
+          remaining: c.shortfall,
+          periodStartIso: c.periodStartIso,
+          periodEndIso: c.periodEndIso,
+          label: c.label,
+          isPrior: c.label === priorLabel,
+        }));
+
+      // Set of fully-paid month keys for "show all" fallback dropdown filtering.
+      const fullyPaid = new Set<string>();
+      arr.cycles.forEach((c) => {
+        if (c.status === "paid" && c.label !== priorLabel) {
+          fullyPaid.add(
+            `${c.periodStart.getFullYear()}-${String(c.periodStart.getMonth() + 1).padStart(2, "0")}`,
+          );
+        }
+      });
+      setPaidMonthsKeys(fullyPaid);
+
+      setUnpaidMonths(entries);
+      setAllPaid(entries.length === 0);
+      // Auto-select the oldest unpaid entry and prefill amount/expected.
+      const first = entries[0];
+      if (first) {
+        setSelectedEntry(first);
+        setPeriodYear(first.year);
+        setPeriodMonthNum(first.month);
+        if (rentAmt > 0) setExpected(String(first.isPrior ? first.remaining : rentAmt));
+        setAmount(String(first.remaining));
+      } else {
+        setSelectedEntry(null);
       }
     })();
     return () => { cancelled = true; };
-  }, [open, unitId]);
+  }, [open, unitId, lang]);
 
   const onPickUnit = (id: string) => {
     setUnitId(id);
@@ -283,29 +301,34 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const remaining = Math.max(0, (Number(expected) || 0) - (Number(amount) || 0));
   const isPartial = Number(amount) > 0 && Number(expected) > 0 && Number(amount) < Number(expected);
 
-  // Other outstanding months besides the one this payment is for
-  const priorArrears = unpaidMonths.filter((m) => !(m.year === periodYear && m.month === periodMonthNum));
+  // Selected period (ISO) — prefer the cycle the user picked from the arrears
+  // dropdown so partial payments are linked to the exact cycle the badge shows.
+  const submitPeriodStartIso = selectedEntry?.periodStartIso || cycleStartIso;
+  const submitPeriodEndIso = selectedEntry?.periodEndIso || cycleEndIso;
+
+  // Other outstanding cycles besides the one this payment is for.
+  const priorArrears = unpaidMonths.filter(
+    (m) => m.periodStartIso !== submitPeriodStartIso,
+  );
   const priorArrearsTotal = priorArrears.reduce((s, m) => s + m.remaining, 0);
   const grandCollected = Number(amount || 0) + (collectPriorArrears ? priorArrearsTotal : 0);
 
-  // Total arrears up to and including the selected month (pre-payment)
+  // Total arrears up to and including the selected cycle (pre-payment).
   const arrearsUpToSelected = unpaidMonths.filter(
-    (m) => m.year < periodYear || (m.year === periodYear && m.month <= periodMonthNum)
+    (m) => m.periodStartIso <= submitPeriodStartIso,
   );
   const arrearsUpToTotal = arrearsUpToSelected.reduce((s, m) => s + m.remaining, 0);
-  const selectedMonthLabel = `${monthNames[periodMonthNum - 1]} ${periodYear}`;
+  const selectedMonthLabel = selectedEntry?.label || `${monthNames[periodMonthNum - 1]} ${periodYear}`;
 
-
-  // Detect "final installment of a partially-paid month"
-  const currentMonthEntry = unpaidMonths.find((m) => m.year === periodYear && m.month === periodMonthNum);
-  const hasPriorPartial = !!currentMonthEntry && activeRent > 0 && currentMonthEntry.remaining + 0.01 < activeRent;
+  // Detect "final installment of a partially-paid cycle".
+  const currentMonthEntry = unpaidMonths.find((m) => m.periodStartIso === submitPeriodStartIso);
+  const hasPriorPartial = !!currentMonthEntry && activeRent > 0 && !currentMonthEntry.isPrior && currentMonthEntry.remaining + 0.01 < activeRent;
   const settlesMonth = !!currentMonthEntry && Number(amount) + 0.01 >= currentMonthEntry.remaining;
   const isFinalSettlement = hasPriorPartial && settlesMonth;
-  const monthLabelForNote = `${monthNames[periodMonthNum - 1]} ${periodYear}`;
   const settlementNote = isFinalSettlement
     ? (lang === "ar"
-        ? `تم سداد الجزء الأخير من المبلغ المتبقي عن شهر ${monthLabelForNote}.`
-        : `Final installment of the outstanding balance for ${monthLabelForNote} has been settled.`)
+        ? `تم سداد الجزء الأخير من المبلغ المتبقي عن ${selectedMonthLabel}.`
+        : `Final installment of the outstanding balance for ${selectedMonthLabel} has been settled.`)
     : null;
 
   const submit = async () => {
@@ -331,19 +354,12 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
       receipt_number: sharedReceipt,
       payment_method: method,
       notes: mergedNotes,
-      period_start: cycleStartIso || null,
-      period_end: cycleEndIso || null,
+      period_start: submitPeriodStartIso || null,
+      period_end: submitPeriodEndIso || null,
 
     }];
     if (collectPriorArrears && priorArrears.length > 0) {
       for (const m of priorArrears) {
-        const ps = anchorDay === 1
-          ? monthRange(m.year, m.month).start
-          : `${m.year}-${String(m.month).padStart(2, "0")}-${String(anchorDay).padStart(2, "0")}`;
-        const peDate = anchorDay === 1
-          ? new Date(m.year, m.month, 0)
-          : new Date(m.year, m.month, anchorDay - 1);
-        const pe = `${peDate.getFullYear()}-${String(peDate.getMonth() + 1).padStart(2, "0")}-${String(peDate.getDate()).padStart(2, "0")}`;
         rows.push({
           unit_id: unitId,
           tenancy_id: (activeT as any)?.id || null,
@@ -352,9 +368,9 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
           payment_date: date,
           receipt_number: sharedReceipt,
           payment_method: method,
-          notes: (lang === "ar" ? "تحصيل متأخرات" : "Arrears collection") + ` — ${monthNames[m.month - 1]} ${m.year}`,
-          period_start: ps,
-          period_end: pe,
+          notes: (lang === "ar" ? "تحصيل متأخرات" : "Arrears collection") + ` — ${m.label}`,
+          period_start: m.periodStartIso,
+          period_end: m.periodEndIso,
         });
       }
     }
@@ -378,7 +394,16 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
 
     setSaving(false);
     if (error) return toast.error(error.message);
-    toast.success("✓");
+    // Show before→after arrears so the user sees the badge update reflected.
+    const collectedNow = Number(amount) + (collectPriorArrears ? priorArrearsTotal : 0);
+    const arrearsAfter = Math.max(0, arrearsBefore - collectedNow);
+    toast.success(
+      arrearsBefore > 0
+        ? (lang === "ar"
+            ? `تم الحفظ ✓  المتأخرات: ${format(arrearsBefore)} ← ${format(arrearsAfter)}`
+            : `Saved ✓  Arrears: ${format(arrearsBefore)} → ${format(arrearsAfter)}`)
+        : "✓",
+    );
     const _u = units.find((x) => x.id === unitId);
     const _tenant = _u?.tenant_name || "";
     const _unitNum = _u?.unit_number || "";
@@ -403,25 +428,19 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
             ? `إيجار الفترة من ${cycleStart.getDate()}/${cycleStart.getMonth() + 1}/${cycleStart.getFullYear()} إلى ${cycleEnd.getDate()}/${cycleEnd.getMonth() + 1}/${cycleEnd.getFullYear()}`
             : `Rent ${cycleStart.getDate()}/${cycleStart.getMonth() + 1}/${cycleStart.getFullYear()} – ${cycleEnd.getDate()}/${cycleEnd.getMonth() + 1}/${cycleEnd.getFullYear()}`);
       const upTo = unpaidMonths
-        .filter((m) => m.year < periodYear || (m.year === periodYear && m.month <= periodMonthNum))
+        .filter((m) => m.periodStartIso <= submitPeriodStartIso)
         .map((m) => {
-          const isCurrent = m.year === periodYear && m.month === periodMonthNum;
+          const isCurrent = m.periodStartIso === submitPeriodStartIso;
           const isPriorPaidNow = collectPriorArrears && !isCurrent;
           const remaining = isCurrent
             ? Math.max(0, m.remaining - Number(amount))
             : (isPriorPaidNow ? 0 : m.remaining);
-          return {
-            label: `${(lang === "ar" ? AR_MONTHS : EN_MONTHS)[m.month - 1]} ${m.year}`,
-            remaining,
-          };
+          return { label: m.label, remaining };
         })
         .filter((m) => m.remaining > 0.009);
       const unpaidTotal = upTo.reduce((s, m) => s + m.remaining, 0);
       const collectedArrearsList = collectPriorArrears
-        ? priorArrears.map((m) => ({
-            label: `${(lang === "ar" ? AR_MONTHS : EN_MONTHS)[m.month - 1]} ${m.year}`,
-            amount: m.remaining,
-          }))
+        ? priorArrears.map((m) => ({ label: m.label, amount: m.remaining }))
         : [];
       const grandTotal = Number(amount) + collectedArrearsList.reduce((s, a) => s + a.amount, 0);
       const baseArgs = {
@@ -582,12 +601,12 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                   </div>
                   <div className="mt-1.5 flex items-baseline justify-between gap-2">
                     <span className="text-2xl font-extrabold text-burgundy tabular-nums">
-                      {format(unpaidMonths.reduce((s, m) => s + m.remaining, 0))}
+                      {format(arrearsBefore)}
                     </span>
                     <span className="text-[11px] text-burgundy/80 font-semibold whitespace-nowrap">
                       {lang === "ar"
-                        ? `${unpaidMonths.length} ${unpaidMonths.length === 1 ? "شهر غير مسدد" : "أشهر غير مسددة"}`
-                        : `${unpaidMonths.length} unpaid ${unpaidMonths.length === 1 ? "month" : "months"}`}
+                        ? `${unpaidMonths.length} ${unpaidMonths.length === 1 ? "سطر غير مسدد" : "أسطر غير مسددة"}`
+                        : `${unpaidMonths.length} unpaid ${unpaidMonths.length === 1 ? "item" : "items"}`}
                     </span>
                   </div>
                   <button
@@ -602,10 +621,8 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                   {showArrearsList && (
                     <div className="mt-2 divide-y divide-burgundy/15 border-t border-burgundy/20 pt-1">
                       {unpaidMonths.map((m) => (
-                        <div key={`${m.year}-${m.month}`} className="flex items-center justify-between py-1.5 text-xs">
-                          <span className="text-burgundy/85 font-semibold">
-                            {monthNames[m.month - 1]} {m.year}
-                          </span>
+                        <div key={m.periodStartIso + (m.isPrior ? "-prior" : "")} className="flex items-center justify-between py-1.5 text-xs">
+                          <span className="text-burgundy/85 font-semibold">{m.label}</span>
                           <span className="text-burgundy font-extrabold tabular-nums">{format(m.remaining)}</span>
                         </div>
                       ))}
@@ -623,7 +640,13 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
               {unitId && unpaidMonths.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => setShowAllMonths((s) => !s)}
+                  onClick={() => {
+                    setShowAllMonths((s) => {
+                      const next = !s;
+                      if (next) setSelectedEntry(null);
+                      return next;
+                    });
+                  }}
                   className="text-[11px] text-sage-500 hover:text-sage-600 font-semibold"
                 >
                   {showAllMonths
@@ -641,23 +664,22 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
               </div>
             ) : unitId && !showAllMonths && unpaidMonths.length > 0 ? (
               <Select
-                value={`${periodYear}-${periodMonthNum}`}
+                value={selectedEntry?.periodStartIso || ""}
                 onValueChange={(v) => {
-                  const [y, m] = v.split("-").map(Number);
-                  setPeriodYear(y);
-                  setPeriodMonthNum(m);
-                  const entry = unpaidMonths.find((u) => u.year === y && u.month === m);
-                  if (entry) {
-                    if (activeRent > 0) setExpected(String(activeRent));
-                    setAmount(String(entry.remaining));
-                  }
+                  const entry = unpaidMonths.find((u) => u.periodStartIso === v);
+                  if (!entry) return;
+                  setSelectedEntry(entry);
+                  setPeriodYear(entry.year);
+                  setPeriodMonthNum(entry.month);
+                  if (activeRent > 0) setExpected(String(entry.isPrior ? entry.remaining : activeRent));
+                  setAmount(String(entry.remaining));
                 }}
               >
                 <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11"><SelectValue /></SelectTrigger>
                 <SelectContent className="max-h-72">
                   {unpaidMonths.map((u) => (
-                    <SelectItem key={`${u.year}-${u.month}`} value={`${u.year}-${u.month}`}>
-                      {monthNames[u.month - 1]} {u.year} · {format(u.remaining)}
+                    <SelectItem key={u.periodStartIso + (u.isPrior ? "-prior" : "")} value={u.periodStartIso}>
+                      {u.label} · {format(u.remaining)}
                     </SelectItem>
                   ))}
                 </SelectContent>
