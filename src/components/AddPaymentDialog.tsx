@@ -467,16 +467,24 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
 
     setSaving(false);
     if (error) return toast.error(error.message);
-    // Show before→after arrears so the user sees the badge update reflected.
-    const collectedNow = Number(amount) + (collectPriorArrears ? priorArrearsTotal : 0);
-    const arrearsAfter = Math.max(0, arrearsBefore - collectedNow);
+    // Show before→after arrears + advance hint.
+    const totalSaved = rows.reduce((s, r) => s + Number(r.amount || 0), 0);
+    const advanceTotal = payMode === "auto" && distribution
+      ? distribution.allocations.filter((a) => a.isAdvance).reduce((s, a) => s + a.amount, 0)
+      : 0;
+    const arrearsCollected = totalSaved - advanceTotal;
+    const arrearsAfter = Math.max(0, arrearsBefore - arrearsCollected);
+    const advanceMsg = advanceTotal > 0
+      ? (lang === "ar" ? `  ·  دفعة مقدمة: ${format(advanceTotal)}` : `  ·  Advance: ${format(advanceTotal)}`)
+      : "";
     toast.success(
-      arrearsBefore > 0
+      arrearsBefore > 0 || advanceTotal > 0
         ? (lang === "ar"
-            ? `تم الحفظ ✓  المتأخرات: ${format(arrearsBefore)} ← ${format(arrearsAfter)}`
-            : `Saved ✓  Arrears: ${format(arrearsBefore)} → ${format(arrearsAfter)}`)
+            ? `تم الحفظ ✓  المتأخرات: ${format(arrearsBefore)} ← ${format(arrearsAfter)}${advanceMsg}`
+            : `Saved ✓  Arrears: ${format(arrearsBefore)} → ${format(arrearsAfter)}${advanceMsg}`)
         : "✓",
     );
+
     const _u = units.find((x) => x.id === unitId);
     const _tenant = _u?.tenant_name || "";
     const _unitNum = _u?.unit_number || "";
