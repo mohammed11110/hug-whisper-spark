@@ -15,6 +15,7 @@ import { logActivity } from "@/lib/activityLogger";
 import { AddPaymentDialog } from "@/components/AddPaymentDialog";
 import { EndTenancyDialog } from "@/components/EndTenancyDialog";
 import { NewTenancyDialog } from "@/components/NewTenancyDialog";
+import { AddMaintenanceDialog } from "@/components/AddMaintenanceDialog";
 import { FileUpload } from "@/components/FileUpload";
 import { computeBalance, type PaymentForBalance } from "@/lib/balance";
 
