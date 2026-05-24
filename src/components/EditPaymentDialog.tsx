@@ -137,26 +137,23 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
     setSaving(false);
     if (error) return toast.error(error.message);
 
-    // Re-sync unit anchor from the latest remaining payment (if any).
+    // REGRESSION FIX: deliberately do NOT touch opening_balance or
+    // opening_balance_date here. The previous logic advanced the anchor and
+    // zeroed opening_balance on every edit, which wiped historical arrears.
+    // Editing a payment must not change the unit's prior-arrears state; only
+    // the payment row itself is updated. We still keep `last_paid_date` fresh.
     if (payRow?.unit_id) {
       const uid = payRow.unit_id as string;
       const { data: latest } = await supabase
         .from("payments")
-        .select("payment_date, period_end")
+        .select("payment_date")
         .eq("unit_id", uid)
         .is("deleted_at", null)
-        .order("period_end", { ascending: false })
+        .order("payment_date", { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (latest?.period_end) {
-        const [ly, lm, ld] = String(latest.period_end).split("-").map(Number);
-        const nd = new Date(ly, (lm || 1) - 1, (ld || 1) + 1);
-        const nextAnchor = `${nd.getFullYear()}-${String(nd.getMonth() + 1).padStart(2, "0")}-${String(nd.getDate()).padStart(2, "0")}`;
-        await supabase.from("units").update({
-          opening_balance_date: nextAnchor,
-          opening_balance: 0,
-          last_paid_date: latest.payment_date,
-        }).eq("id", uid);
+      if (latest?.payment_date) {
+        await supabase.from("units").update({ last_paid_date: latest.payment_date }).eq("id", uid);
       }
     }
 
