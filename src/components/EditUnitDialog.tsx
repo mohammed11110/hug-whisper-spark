@@ -72,6 +72,14 @@ export function EditUnitDialog({
   const [periodTo, setPeriodTo] = useState<Date | undefined>(undefined);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Snapshot of auto-loaded "آخر دفعة سابقة" fields. Used to detect
+  // whether the user actually TOUCHED them before zeroing opening_balance.
+  const [initialPrevPaySnapshot, setInitialPrevPaySnapshot] = useState<{
+    hasPrevPay: boolean;
+    prevPayDateIso: string | null;
+    periodToIso: string | null;
+  }>({ hasPrevPay: false, prevPayDateIso: null, periodToIso: null });
+  const [initialRentTiming, setInitialRentTiming] = useState<"advance" | "arrears">("advance");
   const guard = useUnsavedGuard({ open, onOpenChange });
 
   useEffect(() => {
@@ -105,17 +113,28 @@ export function EditUnitDialog({
     // Load covered period from opening_balance_date (= first unpaid cycle).
     // periodTo = opening_balance_date - 1 day; periodFrom = first of that month.
     const obd = (unit as any).opening_balance_date as string | null | undefined;
+    let loadedPrevPayDateIso: string | null = null;
+    let loadedPeriodToIso: string | null = null;
     if (obd && lpd) {
       const [oy, om, od] = obd.split("-").map(Number);
       const pt = new Date(oy, (om || 1) - 1, (od || 1) - 1);
       const pf = new Date(pt.getFullYear(), pt.getMonth(), 1);
       setPeriodFrom(pf);
       setPeriodTo(pt);
+      loadedPeriodToIso = `${pt.getFullYear()}-${String(pt.getMonth() + 1).padStart(2, "0")}-${String(pt.getDate()).padStart(2, "0")}`;
+      loadedPrevPayDateIso = lpd;
     } else {
       setPeriodFrom(undefined);
       setPeriodTo(undefined);
     }
+    setInitialPrevPaySnapshot({
+      hasPrevPay: !!(obd && lpd),
+      prevPayDateIso: loadedPrevPayDateIso,
+      periodToIso: loadedPeriodToIso,
+    });
+    setInitialRentTiming(((unit as any).rent_timing === "arrears" ? "arrears" : "advance"));
     setShowAdvanced(false);
+
 
   }, [unit]);
 
@@ -148,17 +167,30 @@ export function EditUnitDialog({
       opening_balance: parseFloat(arrears) || 0,
     };
 
-    // Last payment → set opening_balance_date as the FIRST DAY of the first
-    // unpaid cycle (= day after periodTo). Works identically for advance and
-    // arrears because the user picks the covered period explicitly.
+    // Only update last-payment-derived fields when the user TOUCHED the
+    // "آخر دفعة سابقة" section. Auto-loaded values must not silently zero
+    // out opening_balance on every save — that was wiping arrears.
     if (hasPrevPay && prevPayDate && periodTo) {
       const dateIso = `${prevPayDate.getFullYear()}-${String(prevPayDate.getMonth() + 1).padStart(2, "0")}-${String(prevPayDate.getDate()).padStart(2, "0")}`;
-      const nextDay = new Date(periodTo.getFullYear(), periodTo.getMonth(), periodTo.getDate() + 1);
-      const nextIso = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, "0")}-${String(nextDay.getDate()).padStart(2, "0")}`;
-      updatePayload.opening_balance = 0;
-      updatePayload.opening_balance_date = nextIso;
-      updatePayload.last_paid_date = dateIso;
+      const periodToIso = `${periodTo.getFullYear()}-${String(periodTo.getMonth() + 1).padStart(2, "0")}-${String(periodTo.getDate()).padStart(2, "0")}`;
+      const userTouchedPrevPay =
+        !initialPrevPaySnapshot.hasPrevPay ||
+        initialPrevPaySnapshot.prevPayDateIso !== dateIso ||
+        initialPrevPaySnapshot.periodToIso !== periodToIso ||
+        (prevPayAmount.trim() !== "" && parseFloat(prevPayAmount) > 0);
+
+      if (userTouchedPrevPay) {
+        const nextDay = new Date(periodTo.getFullYear(), periodTo.getMonth(), periodTo.getDate() + 1);
+        const nextIso = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, "0")}-${String(nextDay.getDate()).padStart(2, "0")}`;
+        updatePayload.opening_balance = parseFloat(arrears) || 0;
+        updatePayload.opening_balance_date = nextIso;
+        updatePayload.last_paid_date = dateIso;
+      } else {
+        // User didn't touch the section → never overwrite opening_balance_date.
+        delete updatePayload.opening_balance_date;
+      }
     }
+
 
 
     const { error } = await supabase.from("units").update(updatePayload).eq("id", unit.id);
@@ -264,7 +296,17 @@ export function EditUnitDialog({
             <p className="text-[11px] text-sage-400 mt-1 leading-relaxed">
               ⓘ {t2("due_auto_hint")}
             </p>
+            {rentTiming !== initialRentTiming && (
+              <div className="mt-2 rounded-xl border border-terracotta/40 bg-terracotta/10 px-3 py-2">
+                <p className="text-[11px] font-semibold text-terracotta leading-relaxed">
+                  {lang === "ar"
+                    ? "⚠ تغيير نمط الدفع سيُعيد احتساب المتأخرات الظاهرة فوراً (دورة الشهر الحالية ستُضاف أو تُحذف). الإيصالات السابقة لن تتأثر."
+                    : "⚠ Changing rent timing will immediately recompute visible arrears (current month cycle added/removed). Past receipts are unaffected."}
+                </p>
+              </div>
+            )}
           </Field>
+
 
 
           <Field label="نوع العقد / Contract type">
