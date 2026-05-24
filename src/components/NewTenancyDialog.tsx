@@ -165,9 +165,7 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
     const { error: uErr } = await supabase.from("units").update(updatePayload).eq("id", unit.id);
     setSaving(false);
     if (uErr) return toast.error(uErr.message);
-    if (prevPayPayload) {
-      await supabase.from("payments").insert(prevPayPayload);
-    }
+
     logActivity({
       entityType: "tenant",
       action: "created",
