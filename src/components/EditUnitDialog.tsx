@@ -113,17 +113,28 @@ export function EditUnitDialog({
     // Load covered period from opening_balance_date (= first unpaid cycle).
     // periodTo = opening_balance_date - 1 day; periodFrom = first of that month.
     const obd = (unit as any).opening_balance_date as string | null | undefined;
+    let loadedPrevPayDateIso: string | null = null;
+    let loadedPeriodToIso: string | null = null;
     if (obd && lpd) {
       const [oy, om, od] = obd.split("-").map(Number);
       const pt = new Date(oy, (om || 1) - 1, (od || 1) - 1);
       const pf = new Date(pt.getFullYear(), pt.getMonth(), 1);
       setPeriodFrom(pf);
       setPeriodTo(pt);
+      loadedPeriodToIso = `${pt.getFullYear()}-${String(pt.getMonth() + 1).padStart(2, "0")}-${String(pt.getDate()).padStart(2, "0")}`;
+      loadedPrevPayDateIso = lpd;
     } else {
       setPeriodFrom(undefined);
       setPeriodTo(undefined);
     }
+    setInitialPrevPaySnapshot({
+      hasPrevPay: !!(obd && lpd),
+      prevPayDateIso: loadedPrevPayDateIso,
+      periodToIso: loadedPeriodToIso,
+    });
+    setInitialRentTiming(((unit as any).rent_timing === "arrears" ? "arrears" : "advance"));
     setShowAdvanced(false);
+
 
   }, [unit]);
 
