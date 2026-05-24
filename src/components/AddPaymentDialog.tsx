@@ -915,12 +915,82 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
               <Input type="number" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} className="rounded-xl border-sage-200 bg-card h-11" />
             </div>
           </div>
-          {isPartial && (
+
+          {/* Quick-fill chips */}
+          {unitId && (arrearsBefore > 0 || activeRent > 0) && (
+            <div className="flex flex-wrap gap-1.5">
+              {arrearsBefore > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setAmount(String(arrearsBefore))}
+                  className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-burgundy/10 text-burgundy border border-burgundy/25 hover:bg-burgundy/15"
+                >
+                  {lang === "ar" ? "= كامل المتأخرات" : "= Full arrears"} ({format(arrearsBefore)})
+                </button>
+              )}
+              {activeRent > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setAmount(String(activeRent))}
+                  className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-sage-100 text-sage-700 border border-sage-200 hover:bg-sage-200/50"
+                >
+                  {lang === "ar" ? "= إيجار شهر" : "= 1 month rent"} ({format(activeRent)})
+                </button>
+              )}
+              {unpaidMonths[0] && unpaidMonths[0].remaining < (activeRent || Infinity) && (
+                <button
+                  type="button"
+                  onClick={() => setAmount(String(unpaidMonths[0].remaining))}
+                  className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-terracotta/10 text-terracotta border border-terracotta/25 hover:bg-terracotta/15"
+                >
+                  {lang === "ar" ? "= متبقي الأقدم" : "= Oldest remaining"} ({format(unpaidMonths[0].remaining)})
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Live distribution preview (auto mode) */}
+          {payMode === "auto" && distribution && distribution.allocations.length > 0 && (
+            <div className="rounded-2xl border border-sage-200 bg-sage-100/30 px-3.5 py-3">
+              <div className="text-[11px] font-extrabold text-sage-600 uppercase tracking-wide mb-2 flex items-center justify-between">
+                <span>{lang === "ar" ? "توزيع الدفعة" : "Payment distribution"}</span>
+                <span className="text-sage-500">
+                  {distribution.allocations.length} {lang === "ar" ? (distribution.allocations.length === 1 ? "بند" : "بنود") : (distribution.allocations.length === 1 ? "item" : "items")}
+                </span>
+              </div>
+              <div className="space-y-1">
+                {distribution.allocations.map((a, i) => {
+                  const full = a.amount + 0.009 >= a.expected;
+                  return (
+                    <div key={i} className="flex items-center justify-between text-xs">
+                      <span className="flex items-center gap-1.5 min-w-0">
+                        {a.isAdvance && <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-gold/15 text-gold border border-gold/30">{lang === "ar" ? "مقدمة" : "ADV"}</span>}
+                        {a.isPrior && <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-burgundy/15 text-burgundy border border-burgundy/30">{lang === "ar" ? "سابق" : "PRIOR"}</span>}
+                        <span className="font-semibold text-sage-700 truncate">{a.label}</span>
+                      </span>
+                      <span className={`tabular-nums font-bold ${full ? "text-sage-600" : "text-terracotta"}`}>
+                        {format(a.amount)}{!full && <span className="text-[10px] opacity-70"> / {format(a.expected)}</span>}
+                        {full && <span className="ms-1">✓</span>}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              {distribution.remainder > 0.009 && (
+                <div className="mt-2 pt-2 border-t border-sage-200 flex items-center justify-between text-xs text-slate">
+                  <span className="font-semibold">{lang === "ar" ? "رصيد دائن غير موزَّع" : "Unallocated credit"}</span>
+                  <span className="font-extrabold tabular-nums">{format(distribution.remainder)}</span>
+                </div>
+              )}
+            </div>
+          )}
+          {isPartial && payMode === "manual" && (
             <div className="bg-terracotta/10 border border-terracotta/30 rounded-xl px-3 py-2 text-xs text-terracotta font-semibold flex justify-between">
               <span>{lang === "ar" ? "متبقي" : "Remaining"}</span>
               <span>{format(remaining)}</span>
             </div>
           )}
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs text-sage-500">{t2("payment_date")}</Label>
