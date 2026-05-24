@@ -42,22 +42,27 @@ export function periodsElapsed(start: Date, now: Date, rentType: string): number
   return Math.max(0, m);
 }
 
+/**
+ * Number of rent cycles that are due-to-pay as of `asOf`.
+ * - advance: cycle 1 starts AT the anchor, due immediately → elapsed + 1
+ * - arrears: cycle 1 ends after one period, due at its end → elapsed
+ */
+export function cyclesDue(unit: UnitForBalance, asOf: Date = new Date()): number {
+  const startStr = unit.opening_balance_date || unit.contract_start_date || null;
+  if (!startStr) return 0;
+  const start = new Date(startStr);
+  if (Number.isNaN(start.getTime()) || asOf < start) return 0;
+  const elapsed = periodsElapsed(start, asOf, unit.rent_type || "monthly");
+  const timing = (unit.rent_timing || "advance") === "arrears" ? "arrears" : "advance";
+  return timing === "advance" ? elapsed + 1 : elapsed;
+}
+
 export function computeBalance(unit: UnitForBalance, payments: PaymentForBalance[]) {
   const rent = num(unit.rent_amount);
   const opening = num(unit.opening_balance);
-  const startStr = unit.opening_balance_date || unit.contract_start_date || null;
-  const start = startStr ? new Date(startStr) : null;
-  const now = new Date();
-
-  let periods = start ? periodsElapsed(start, now, unit.rent_type) : 0;
-  // In "arrears" mode, the rent of a given period only becomes due AFTER that period ends.
-  // So we discount the most recent (still-running) period from the due count.
-  if ((unit.rent_timing || "advance") === "arrears" && periods > 0) {
-    periods -= 1;
-  }
+  const periods = cyclesDue(unit, new Date());
   const accrued = rent * periods;
   const totalDue = opening + accrued;
-
 
   const paid = payments
     .filter((p) => p.unit_id === unit.id && !p.deleted_at)
@@ -136,29 +141,20 @@ export function getNextDueInfo(
   const anchor = getAnchorDate(unit);
   if (!anchor) return null;
   const anchorDay = getAnchorDay(unit);
-  const now = new Date();
   const timing = (unit.rent_timing || "advance") === "arrears" ? "arrears" : "advance";
 
-  // Index 0 = the cycle that starts at the anchor itself.
-  let periods = periodsElapsed(anchor, now, unit.rent_type || "monthly");
-  // Count fully-paid cycles by grouping payments by their period_start month.
-  // (Falls back to floor(paid/rent) when period_start isn't recorded.)
   const rent = num(unit.rent_amount);
   const totalPaid = payments
     .filter((p) => p.unit_id === unit.id && !p.deleted_at)
     .reduce((s, p) => s + num(p.amount), 0);
   const paidCycles = rent > 0 ? Math.floor(totalPaid / rent) : 0;
+  const due = cyclesDue(unit, new Date());
 
-  // The "next due" cycle index = max(paidCycles, periods elapsed - (1 for arrears))
-  let dueIdx = paidCycles;
-  if (timing === "arrears") {
-    // Only past cycles are due; current running cycle isn't yet
-    dueIdx = Math.max(paidCycles, Math.max(0, periods - 1));
-    // If nothing past-due, the next billable cycle is the one that just finished
-    if (dueIdx < paidCycles + 1) dueIdx = paidCycles;
-  }
+  // Next billable cycle index (0-based from anchor): whichever is greater
+  // between cycles already paid and cycles due.
+  const dueIdx = Math.max(paidCycles, due);
 
-  const cycleMonth = anchor.getMonth() + dueIdx; // JS Date handles overflow
+  const cycleMonth = anchor.getMonth() + dueIdx;
   const cycle = getCycleByStartMonth(
     anchor.getFullYear() + Math.floor(cycleMonth / 12),
     (cycleMonth % 12 + 12) % 12 + 1,
@@ -188,17 +184,14 @@ export function overdueCyclesCount(
   payments: PaymentForBalance[] = [],
   asOf: Date = new Date(),
 ): number {
-  const anchor = getAnchorDate(unit);
-  if (!anchor) return 0;
   const rent = num(unit.rent_amount);
   if (rent <= 0) return 0;
-  let periods = periodsElapsed(anchor, asOf, unit.rent_type || "monthly");
-  if ((unit.rent_timing || "advance") === "arrears" && periods > 0) periods -= 1;
+  const due = cyclesDue(unit, asOf);
   const paid = payments
     .filter((p) => p.unit_id === unit.id && !p.deleted_at)
     .reduce((s, p) => s + num(p.amount), 0);
   const paidCycles = Math.floor(paid / rent);
-  return Math.max(0, periods - paidCycles);
+  return Math.max(0, due - paidCycles);
 }
 
 /**
