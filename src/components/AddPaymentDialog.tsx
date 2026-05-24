@@ -156,6 +156,8 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
           } else if (activeOut > 0) {
             note = lang === "ar" ? `متأخرات: ${fmtAmt(activeOut)}` : `Arrears: ${fmtAmt(activeOut)}`;
           }
+          const anchorSrc = u.opening_balance_date || u.contract_start_date;
+          const anchorDay = anchorSrc ? Math.min(28, Math.max(1, new Date(anchorSrc).getDate() || 1)) : 1;
           return {
             id: u.id,
             unit_number: u.unit_number,
@@ -164,6 +166,10 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
             rent_amount: Number(u.rent_amount),
             building_name: bMap.get(u.building_id)?.name || bMap.get(u.building_id)?.name_en || "—",
             arrears_note: note,
+            anchor_day: anchorDay,
+            rent_timing: (u.rent_timing === "arrears" ? "arrears" : "advance") as "advance" | "arrears",
+            contract_start_date: u.contract_start_date,
+            opening_balance_date: u.opening_balance_date,
           };
         });
       setUnits(opts);
