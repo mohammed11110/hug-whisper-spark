@@ -394,7 +394,16 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
 
     setSaving(false);
     if (error) return toast.error(error.message);
-    toast.success("✓");
+    // Show before→after arrears so the user sees the badge update reflected.
+    const collectedNow = Number(amount) + (collectPriorArrears ? priorArrearsTotal : 0);
+    const arrearsAfter = Math.max(0, arrearsBefore - collectedNow);
+    toast.success(
+      arrearsBefore > 0
+        ? (lang === "ar"
+            ? `تم الحفظ ✓  المتأخرات: ${format(arrearsBefore)} ← ${format(arrearsAfter)}`
+            : `Saved ✓  Arrears: ${format(arrearsBefore)} → ${format(arrearsAfter)}`)
+        : "✓",
+    );
     const _u = units.find((x) => x.id === unitId);
     const _tenant = _u?.tenant_name || "";
     const _unitNum = _u?.unit_number || "";
