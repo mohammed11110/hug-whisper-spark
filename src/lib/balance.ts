@@ -327,15 +327,24 @@ export function getUnitArrears(
       (p) => p.unit_id === unit.id && !p.deleted_at && isPostAnchorPayment(p, anchorIso),
     );
 
+    // CRITICAL: استبعد دفعات «متأخرات سابقة» من تجميع دفعات الدورات الشهرية.
+    // هذه الدفعات تُسجَّل بنطاق يوم واحد (period_start == period_end == anchor)
+    // وقد تتطابق صدفةً مع بداية أوّل دورة شهرية، فتُخصم مرّتين (مرة من
+    // opening_balance ومرة كدفعة دورة). المنع هنا هو الحل الجذري.
+    const cyclePays = unitPays.filter(
+      (p) => !(p.period_start && p.period_end && p.period_start === p.period_end),
+    );
+
     const buildCycle = (i: number): ArrearsCycle => {
       const cycleMonthIdx = anchor.getMonth() + i;
       const cycleYear = anchor.getFullYear() + Math.floor(cycleMonthIdx / 12);
       const cycleMonth1to12 = ((cycleMonthIdx % 12) + 12) % 12 + 1;
       const c = getCycleByStartMonth(cycleYear, cycleMonth1to12, anchorDay);
 
-      const paid = unitPays
+      const paid = cyclePays
         .filter((p) => p.period_start && p.period_start >= c.startIso && p.period_start <= c.endIso)
         .reduce((s, p) => s + num(p.amount), 0);
+
 
       const shortfall = Math.max(0, rent - paid);
       const status: ArrearsCycle["status"] =

@@ -646,10 +646,8 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
       let collectedArrearsList: Array<{ label: string; amount: number }> = [];
       let primaryAmount = Number(amount);
       let primaryPeriodLabel = monthLabel;
-      let upTo: Array<{ label: string; remaining: number }>;
 
       if (payMode === "auto" && distribution && distribution.allocations.length > 0) {
-        // First allocation is shown as the "main" line; rest go into breakdown.
         const allocs = distribution.allocations;
         primaryAmount = allocs[0].amount;
         primaryPeriodLabel = allocs[0].label;
@@ -657,29 +655,35 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
           label: (a.isAdvance ? (lang === "ar" ? "دفعة مقدمة — " : "Advance — ") : "") + a.label,
           amount: a.amount,
         }));
-        // After distribution, remaining unpaid = original total - allocated to non-advance.
-        const arrearsCovered = allocs.filter((a) => !a.isAdvance).reduce((s, a) => s + a.amount, 0);
-        const remainingArrears = Math.max(0, arrearsBefore - arrearsCovered);
-        upTo = remainingArrears > 0.009
-          ? [{ label: lang === "ar" ? "متأخرات متبقية" : "Remaining arrears", remaining: remainingArrears }]
-          : [];
       } else {
-        upTo = unpaidMonths
-          .filter((m) => m.periodStartIso <= submitPeriodStartIso)
-          .map((m) => {
-            const isCurrent = m.periodStartIso === submitPeriodStartIso;
-            const isPriorPaidNow = collectPriorArrears && !isCurrent;
-            const remaining = isCurrent
-              ? Math.max(0, m.remaining - Number(amount))
-              : (isPriorPaidNow ? 0 : m.remaining);
-            return { label: m.label, remaining };
-          })
-          .filter((m) => m.remaining > 0.009);
         collectedArrearsList = collectPriorArrears
           ? priorArrears.map((m) => ({ label: m.label, amount: m.remaining }))
           : [];
       }
-      const unpaidTotal = upTo.reduce((s, m) => s + m.remaining, 0);
+
+      // ====== المصدر الواحد للمتبقي ======
+      // أعد القراءة من قاعدة البيانات وأعد حساب المتأخرات بنفس دالة العرض،
+      // حتى يتطابق رقم الإيصال مع شارة الوحدة دائمًا بدون أي اشتقاق جانبي.
+      const { data: freshUnit } = await supabase
+        .from("units")
+        .select("id, rent_amount, rent_type, rent_timing, contract_start_date, opening_balance, opening_balance_date")
+        .eq("id", unitId)
+        .maybeSingle();
+      const { data: freshPays } = await supabase
+        .from("payments")
+        .select("unit_id, amount, deleted_at, payment_date, period_start, period_end")
+        .eq("unit_id", unitId)
+        .is("deleted_at", null);
+      const { getUnitArrears } = await import("@/lib/balance");
+      const freshArr = freshUnit
+        ? getUnitArrears(freshUnit as any, (freshPays || []) as any, new Date(), lang as "ar" | "en")
+        : null;
+      const unpaidTotal = freshArr ? freshArr.totalShortfall : 0;
+      const upTo: Array<{ label: string; remaining: number }> = freshArr
+        ? freshArr.cycles
+            .filter((c) => c.shortfall > 0.009)
+            .map((c) => ({ label: c.label, remaining: c.shortfall }))
+        : [];
       const grandTotal = primaryAmount + collectedArrearsList.reduce((s, a) => s + a.amount, 0);
       const baseArgs = {
         brand: settings.brand,
@@ -713,6 +717,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     }
     finishAndClose();
   };
+
 
   const emitReceipt = async (payload: any, includeArrears: boolean) => {
     try {
