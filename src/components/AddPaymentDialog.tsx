@@ -698,17 +698,28 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
               );
             })()}
           </div>
-          {/* Prominent arrears alert — visible immediately after unit selection */}
+          {/* Prominent arrears alert — always visible after unit selection */}
+          {unitId && unpaidMonths.length === 0 && (
+            <div className="rounded-2xl border-2 border-sage-300 bg-sage-100/50 px-4 py-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <span className="text-sage-600 text-lg leading-none">✓</span>
+                <span className="text-sm font-extrabold text-sage-700">
+                  {lang === "ar" ? "لا توجد متأخرات على هذا المستأجر" : "No outstanding arrears for this tenant"}
+                </span>
+              </div>
+              <span className="text-lg font-extrabold text-sage-600 tabular-nums">{format(0)}</span>
+            </div>
+          )}
           {unitId && unpaidMonths.length > 0 && (
-            <div className="rounded-2xl border-2 border-burgundy/40 bg-burgundy/10 px-4 py-3.5 shadow-[0_4px_16px_-8px_rgba(168,93,93,0.3)]">
+            <div className="rounded-2xl border-2 border-burgundy/50 bg-burgundy/10 px-4 py-3.5 shadow-[0_4px_16px_-8px_rgba(168,93,93,0.35)]">
               <div className="flex items-start gap-2.5">
                 <span className="text-burgundy text-lg leading-none mt-0.5">⚠</span>
                 <div className="flex-1 min-w-0">
                   <div className="text-[12px] font-extrabold text-burgundy uppercase tracking-wide">
-                    {lang === "ar" ? "هذه الوحدة عليها متأخرات" : "This unit has outstanding arrears"}
+                    {lang === "ar" ? "إجمالي المتأخرات المستحقة" : "Total outstanding arrears"}
                   </div>
                   <div className="mt-1.5 flex items-baseline justify-between gap-2">
-                    <span className="text-2xl font-extrabold text-burgundy tabular-nums">
+                    <span className="text-3xl font-extrabold text-burgundy tabular-nums">
                       {format(arrearsBefore)}
                     </span>
                     <span className="text-[11px] text-burgundy/80 font-semibold whitespace-nowrap">
