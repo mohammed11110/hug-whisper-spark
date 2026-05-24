@@ -272,6 +272,36 @@ export interface ReportData {
   }>;
 }
 
+export interface CollectionRow {
+  tenant: string;
+  building: string;
+  unit: string;
+  rent: number;
+  paid: number;
+  remaining: number;
+  status: "paid" | "partial" | "unpaid";
+  overdueMonths?: number;
+  lastDate?: string;
+}
+export interface CollectionPdfData {
+  brand: BrandInfo;
+  currency: string;
+  lang?: "ar" | "en";
+  monthLabel: string;
+  generatedAt: string;
+  totals: {
+    expected: number;
+    collected: number;
+    remaining: number;
+    rate: number;
+    paidCount: number;
+    lateCount: number;
+  };
+  vsLastMonth?: { rateDelta: number; collectedDelta: number } | null;
+  late: CollectionRow[];
+  paid: CollectionRow[];
+}
+
 type PdfSettings = Pick<AppSettings, "pageSize" | "margins"> | { pageSize?: PageSize; margins?: Margins };
 
 const DEFAULT_MARGINS: Margins = { top: 16, right: 16, bottom: 16, left: 16 };
