@@ -175,6 +175,31 @@ describe("computeBalance — accrued amount differs by payment timing", () => {
     expect(isUnitOverdue(u, [], new Date("2026-05-24"))).toBe(true);
   });
 
+  it("3-field UI: arrears, periodTo=31/3 → anchor=1/4 → April overdue on 24/5", () => {
+    // New semantic: opening_balance_date = day AFTER periodTo (= first day of
+    // first unpaid cycle). For arrears w/ March covered, anchor=1/4.
+    const u = mkUnit({
+      rent_timing: "arrears",
+      contract_start_date: "2025-03-01",
+      opening_balance_date: "2026-04-01",
+    });
+    setNow("2026-05-24T12:00:00");
+    expect(cyclesDue(u, new Date("2026-05-24"))).toBe(1);
+    expect(computeBalance(u, []).outstanding).toBe(80);
+  });
+
+  it("3-field UI: advance, periodTo=30/4 → anchor=1/5 → May owed on 24/5", () => {
+    const u = mkUnit({
+      rent_timing: "advance",
+      contract_start_date: "2025-04-01",
+      opening_balance_date: "2026-05-01",
+    });
+    setNow("2026-05-24T12:00:00");
+    // advance: cycle starting 1/5 is owed immediately → 1 cycle due.
+    expect(cyclesDue(u, new Date("2026-05-24"))).toBe(1);
+    expect(computeBalance(u, []).outstanding).toBe(80);
+  });
+
 
   it("difference between advance and arrears equals one rent across many months", () => {
     const months = ["2026-04-01", "2026-05-01", "2026-06-15", "2026-08-01", "2026-12-01"];
