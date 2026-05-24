@@ -85,6 +85,8 @@ export function EditUnitDialog({
     setContractType(unit.contract_type || "yearly");
     setContractStart(unit.contract_start_date || "");
     setArrears(String((unit as any).opening_balance ?? 0));
+    setHasPrevPay(false); setPrevPayMonth(""); setPrevPayAmount("");
+    setShowAdvanced(false);
   }, [unit]);
 
   if (!unit) return null;
