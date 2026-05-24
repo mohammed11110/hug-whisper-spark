@@ -85,6 +85,10 @@ export default function PaymentsTrash() {
     const { error } = await supabase.from("payments").update({ deleted_at: null }).eq("id", id);
     if (error) return toast.error(error.message);
     if (target) {
+      const { recomputeUnitStateFromPayments } = await import("@/lib/unitState");
+      await recomputeUnitStateFromPayments(target.unit_id);
+    }
+    if (target) {
       logActivity({
         entityType: "payment",
         action: "restored",
