@@ -11,7 +11,7 @@ import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useAppSettings } from "@/lib/appSettings";
 import { openWhatsApp, fillTemplate } from "@/lib/whatsapp";
-import { computeBalance, type PaymentForBalance } from "@/lib/balance";
+import { computeBalance, getUnitArrears, type PaymentForBalance } from "@/lib/balance";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 
