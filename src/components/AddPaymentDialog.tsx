@@ -600,12 +600,12 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                   </div>
                   <div className="mt-1.5 flex items-baseline justify-between gap-2">
                     <span className="text-2xl font-extrabold text-burgundy tabular-nums">
-                      {format(unpaidMonths.reduce((s, m) => s + m.remaining, 0))}
+                      {format(arrearsBefore)}
                     </span>
                     <span className="text-[11px] text-burgundy/80 font-semibold whitespace-nowrap">
                       {lang === "ar"
-                        ? `${unpaidMonths.length} ${unpaidMonths.length === 1 ? "شهر غير مسدد" : "أشهر غير مسددة"}`
-                        : `${unpaidMonths.length} unpaid ${unpaidMonths.length === 1 ? "month" : "months"}`}
+                        ? `${unpaidMonths.length} ${unpaidMonths.length === 1 ? "سطر غير مسدد" : "أسطر غير مسددة"}`
+                        : `${unpaidMonths.length} unpaid ${unpaidMonths.length === 1 ? "item" : "items"}`}
                     </span>
                   </div>
                   <button
@@ -620,10 +620,8 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                   {showArrearsList && (
                     <div className="mt-2 divide-y divide-burgundy/15 border-t border-burgundy/20 pt-1">
                       {unpaidMonths.map((m) => (
-                        <div key={`${m.year}-${m.month}`} className="flex items-center justify-between py-1.5 text-xs">
-                          <span className="text-burgundy/85 font-semibold">
-                            {monthNames[m.month - 1]} {m.year}
-                          </span>
+                        <div key={m.periodStartIso + (m.isPrior ? "-prior" : "")} className="flex items-center justify-between py-1.5 text-xs">
+                          <span className="text-burgundy/85 font-semibold">{m.label}</span>
                           <span className="text-burgundy font-extrabold tabular-nums">{format(m.remaining)}</span>
                         </div>
                       ))}
