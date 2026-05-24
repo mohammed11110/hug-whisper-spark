@@ -810,7 +810,7 @@ function PhotosTab({ unit, reload }: any) {
     const handoverPaths = photos.filter((p) => kinds[p] === "handover");
     const returnPaths = photos.filter((p) => kinds[p] === "return");
     if (handoverPaths.length === 0 || returnPaths.length === 0) {
-      toast.error(ar ? "حدّد صور تسليم وصور استلام أولاً" : "Mark handover and return photos first");
+      toast.error(ar ? "صنّف صور التسليم وصور الاستلام أولاً" : "Mark handover and return photos first");
       return;
     }
     setDetecting(true);
