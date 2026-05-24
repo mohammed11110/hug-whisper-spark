@@ -160,15 +160,14 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
       updatePayload.handover_photos = [...existing, ...unitPhotos];
     }
 
-    // Last payment → set opening_balance_date so arrears auto-compute from the
-    // first unpaid cycle. We do NOT insert a payment row for the historical month.
-    // - advance: payment covers the month it was made in → next unpaid = next month.
-    // - arrears: payment covers the PREVIOUS month → next unpaid = same month.
-    if (hasPrevPay && prevPayDate) {
-      const b = monthBoundsFromDate(prevPayDate, lang);
+    // Last payment → set opening_balance_date as day AFTER periodTo (= first
+    // day of the first unpaid cycle). Works uniformly for advance and arrears.
+    if (hasPrevPay && prevPayDate && periodTo) {
       const dateIso = `${prevPayDate.getFullYear()}-${String(prevPayDate.getMonth() + 1).padStart(2, "0")}-${String(prevPayDate.getDate()).padStart(2, "0")}`;
+      const nextDay = new Date(periodTo.getFullYear(), periodTo.getMonth(), periodTo.getDate() + 1);
+      const nextIso = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, "0")}-${String(nextDay.getDate()).padStart(2, "0")}`;
       updatePayload.opening_balance = 0;
-      updatePayload.opening_balance_date = rentTiming === "arrears" ? b.start : b.nextMonthStart;
+      updatePayload.opening_balance_date = nextIso;
       updatePayload.last_paid_date = dateIso;
     }
 
