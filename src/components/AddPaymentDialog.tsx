@@ -755,7 +755,9 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
             </div>
           )}
 
-          {/* Rent month — unpaid only by default */}
+          {/* Rent month — manual mode only (auto mode distributes automatically) */}
+          {payMode === "manual" && (
+
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
