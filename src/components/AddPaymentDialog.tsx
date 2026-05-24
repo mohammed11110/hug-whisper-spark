@@ -28,6 +28,10 @@ interface UnitOpt {
   rent_amount: number;
   tenant_name: string | null;
   arrears_note?: string | null;
+  anchor_day?: number;
+  rent_timing?: "advance" | "arrears";
+  contract_start_date?: string | null;
+  opening_balance_date?: string | null;
 }
 
 interface BuildingOpt { id: string; name: string; }
