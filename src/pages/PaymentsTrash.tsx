@@ -20,6 +20,7 @@ interface Row {
   payment_date: string;
   receipt_number: string | null;
   deleted_at: string;
+  unit_id: string;
   unit_number: string;
   building_name: string;
   tenant_name: string | null;
@@ -58,6 +59,7 @@ export default function PaymentsTrash() {
       const b: any = u ? bMap.get(u.building_id) : null;
       return {
         id: p.id,
+        unit_id: p.unit_id,
         amount: Number(p.amount),
         payment_date: p.payment_date,
         receipt_number: p.receipt_number,
@@ -83,6 +85,10 @@ export default function PaymentsTrash() {
     const { error } = await supabase.from("payments").update({ deleted_at: null }).eq("id", id);
     if (error) return toast.error(error.message);
     if (target) {
+      const { recomputeUnitStateFromPayments } = await import("@/lib/unitState");
+      await recomputeUnitStateFromPayments(target.unit_id);
+    }
+    if (target) {
       logActivity({
         entityType: "payment",
         action: "restored",
@@ -102,6 +108,10 @@ export default function PaymentsTrash() {
     const { error } = await supabase.from("payments").delete().eq("id", pendingPurge);
     setPendingPurge(null);
     if (error) return toast.error(error.message);
+    if (target) {
+      const { recomputeUnitStateFromPayments } = await import("@/lib/unitState");
+      await recomputeUnitStateFromPayments(target.unit_id);
+    }
     if (target) {
       logActivity({
         entityType: "payment",

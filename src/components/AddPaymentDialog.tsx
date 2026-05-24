@@ -563,40 +563,12 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
 
     const { error } = await supabase.from("payments").insert(rows);
     if (!error) {
-      const newStatus = isPartial && !collectPriorArrears && payMode !== "auto" ? "soon" : "paid";
-
-      // REGRESSION FIX: previously the anchor was always advanced + opening_balance
-      // forced to 0, which wiped historical arrears on every partial payment.
-      // Now we only advance the anchor / zero opening_balance when the unit is
-      // FULLY settled by this payment. Otherwise leave both untouched so the
-      // remaining arrears continue to be tracked correctly.
-      const priorPaidNow = payMode === "auto" && distribution
-        ? distribution.allocations.filter((a) => a.isPrior).reduce((s, a) => s + a.amount, 0)
-        : (collectPriorArrears ? priorArrears.reduce((s, m) => s + m.remaining, 0) : 0);
-      const arrearsCollectedNow = payMode === "auto" && distribution
-        ? distribution.allocations.filter((a) => !a.isAdvance).reduce((s, a) => s + a.amount, 0)
-        : (collectPriorArrears ? priorArrears.reduce((s, m) => s + m.remaining, 0) : 0)
-          + Math.min(Number(amount) || 0, currentMonthEntry?.remaining || 0);
-      const isFullySettled = arrearsBefore <= 0.009 || arrearsCollectedNow + 0.009 >= arrearsBefore;
-
-      const ends = rows.map((r) => r.period_end).filter(Boolean) as string[];
-      const latestEnd = ends.length ? ends.slice().sort().pop()! : null;
-      const upd: any = { last_paid_date: date, status: newStatus };
-
-      // Reduce opening_balance by the portion of this payment that went toward
-      // prior arrears (so the "متأخرات سابقة" line shrinks correctly).
-      const currentOpening = Number(selectedUnit?.opening_balance) || 0;
-      if (priorPaidNow > 0.009 && currentOpening > 0) {
-        upd.opening_balance = Math.max(0, currentOpening - priorPaidNow);
-      }
-
-      if (isFullySettled && latestEnd) {
-        const [ly, lm, ld] = latestEnd.split("-").map(Number);
-        const nd = new Date(ly, (lm || 1) - 1, (ld || 1) + 1);
-        upd.opening_balance_date = `${nd.getFullYear()}-${String(nd.getMonth() + 1).padStart(2, "0")}-${String(nd.getDate()).padStart(2, "0")}`;
-        upd.opening_balance = 0;
-      }
-      await supabase.from("units").update(upd).eq("id", unitId);
+      // SINGLE SOURCE OF TRUTH: derive last_paid_date + status from live
+      // payment rows. We intentionally do NOT mutate opening_balance or
+      // opening_balance_date — that lets soft-delete/restore revert arrears
+      // automatically without any manual inverse logic.
+      const { recomputeUnitStateFromPayments } = await import("@/lib/unitState");
+      await recomputeUnitStateFromPayments(unitId);
     }
 
     setSaving(false);
