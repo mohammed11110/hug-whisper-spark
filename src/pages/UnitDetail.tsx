@@ -277,8 +277,8 @@ export default function UnitDetail() {
             <VacantState t2={t2} onAdd={() => setNewTenantOpen(true)} />
           )
         )}
-        {tab === "maintenance" && <MaintenanceTab />}
-        {tab === "utilities" && <UtilitiesTab unit={unit} reload={load} />}
+        {tab === "maintenance" && <MaintenanceTab unit={unit} lang={lang} t2={t2} format={format} />}
+        {tab === "utilities" && <UtilitiesTab unit={unit} reload={load} lang={lang} />}
         {tab === "legal" && <LegalTab unit={unit} reload={load} />}
         {tab === "photos" && <PhotosTab unit={unit} reload={load} />}
       </div>
