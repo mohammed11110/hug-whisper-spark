@@ -122,12 +122,12 @@ export default function MonthlyCollection() {
   );
 
   const rows = useMemo(
-    () => computeMonthRows(filteredUnits, payments, month.start, month.end),
+    () => computeMonthRows(filteredUnits, payments, month.year, month.month),
     [filteredUnits, payments, month]
   );
 
   const prevRows = useMemo(
-    () => prevMonth ? computeMonthRows(filteredUnits, payments, prevMonth.start, prevMonth.end) : [],
+    () => prevMonth ? computeMonthRows(filteredUnits, payments, prevMonth.year, prevMonth.month) : [],
     [filteredUnits, payments, prevMonth]
   );
 
@@ -142,18 +142,19 @@ export default function MonthlyCollection() {
   const rateDelta = rate - prevRate;
   const collectedDelta = prevTotalPaid > 0 ? Math.round(((totalPaid - prevTotalPaid) / prevTotalPaid) * 100) : 0;
 
-  // Overdue months helper
-  const overdueMonthsFor = (unitId: string, contractStart: string | null) => {
-    const unitPays = payments.filter((p) => p.unit_id === unitId);
-    if (unitPays.length === 0) {
-      if (!contractStart) return 0;
-      const start = new Date(contractStart);
-      const diff = (month.end.getFullYear() - start.getFullYear()) * 12 + (month.end.getMonth() - start.getMonth()) + 1;
-      return Math.max(0, diff);
-    }
-    const last = unitPays.map((p) => p.period_start ? new Date(p.period_start) : new Date(p.payment_date)).sort((a, b) => b.getTime() - a.getTime())[0];
-    const diff = (month.end.getFullYear() - last.getFullYear()) * 12 + (month.end.getMonth() - last.getMonth());
-    return Math.max(0, diff);
+  // عدد دورات التأخير لوحدة (يحترم نمط الدفع: المؤخّر يُخصم منه دورة جارية).
+  const overdueMonthsFor = (unit: UnitRow) => {
+    const anchor = getAnchorDate(unit);
+    if (!anchor) return 0;
+    const rent = Number(unit.rent_amount || 0);
+    if (rent <= 0) return 0;
+    let periods = periodsElapsed(anchor, month.end, unit.rent_type || "monthly");
+    if ((unit.rent_timing || "advance") === "arrears" && periods > 0) periods -= 1;
+    const paid = payments
+      .filter((p) => p.unit_id === unit.id && !p.deleted_at)
+      .reduce((s, p) => s + Number(p.amount || 0), 0);
+    const paidCycles = Math.floor(paid / rent);
+    return Math.max(0, periods - paidCycles);
   };
 
   const paidRows = rows.filter((r) => r.status === "paid");
@@ -161,7 +162,7 @@ export default function MonthlyCollection() {
   // Enrich + sort late by overdue months desc
   const lateRows = useMemo(
     () => lateRowsRaw
-      .map((r) => ({ ...r, overdueMonths: overdueMonthsFor(r.unit.id, r.unit.contract_start_date) }))
+      .map((r) => ({ ...r, overdueMonths: overdueMonthsFor(r.unit) }))
       .sort((a, b) => b.overdueMonths - a.overdueMonths || b.remaining - a.remaining),
     [lateRowsRaw, payments, month]
   );
@@ -169,7 +170,7 @@ export default function MonthlyCollection() {
   // 12-month heatmap
   const heatmap = useMemo(() => {
     return months.map((m) => {
-      const rs = computeMonthRows(filteredUnits, payments, m.start, m.end);
+      const rs = computeMonthRows(filteredUnits, payments, m.year, m.month);
       const due = rs.reduce((s, r) => s + r.rent, 0);
       const paid = rs.reduce((s, r) => s + r.paid, 0);
       const r = due > 0 ? Math.min(100, Math.round((paid / due) * 100)) : 0;
