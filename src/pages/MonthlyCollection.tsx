@@ -64,6 +64,7 @@ function monthOptions(lang: string) {
  * يستبعد الوحدات التي لم يبدأ عقدها بعد بحلول تلك الدورة.
  */
 function computeMonthRows(units: UnitRow[], payments: PaymentRow[], year: number, month1to12: number) {
+  const today = new Date();
   return units
     .map((u) => {
       const anchor = getAnchorDate(u);
@@ -80,13 +81,18 @@ function computeMonthRows(units: UnitRow[], payments: PaymentRow[], year: number
       const paid = paidPays.reduce((s, p) => s + Number(p.amount || 0), 0);
       const rent = Number(u.rent_amount || 0);
       const lastDate = paidPays.sort((a, b) => (a.payment_date < b.payment_date ? 1 : -1))[0]?.payment_date;
-      let status: "paid" | "partial" | "unpaid" = "unpaid";
+      // تاريخ استحقاق هذه الدورة: المؤخّر يُستحقّ في نهاية الدورة، المقدّم في بدايتها
+      const timing = ((u as any).rent_timing || "advance") === "arrears" ? "arrears" : "advance";
+      const dueDate = timing === "arrears" ? cycle.end : cycle.start;
+      let status: "paid" | "partial" | "unpaid" | "upcoming" = "unpaid";
       if (paid >= rent && rent > 0) status = "paid";
       else if (paid > 0) status = "partial";
+      else if (today < dueDate) status = "upcoming";
       return { unit: u, rent, paid, remaining: Math.max(0, rent - paid), status, lastDate, cycleStart: cycle.start, cycleEnd: cycle.end };
     })
     .filter((r): r is NonNullable<typeof r> => r !== null);
 }
+
 
 export default function MonthlyCollection() {
   const { t, lang } = useI18n();
@@ -158,7 +164,9 @@ export default function MonthlyCollection() {
   };
 
   const paidRows = rows.filter((r) => r.status === "paid");
-  const lateRowsRaw = rows.filter((r) => r.status !== "paid");
+  const upcomingRows = rows.filter((r) => r.status === "upcoming");
+  const lateRowsRaw = rows.filter((r) => r.status !== "paid" && r.status !== "upcoming");
+
   // Enrich + sort late by overdue months desc
   const lateRows = useMemo(
     () => lateRowsRaw
@@ -258,13 +266,16 @@ export default function MonthlyCollection() {
       late: lateRows.map((r) => ({
         tenant: r.unit.tenant_name || "—", building: buildingsMap[r.unit.building_id] || "",
         unit: r.unit.unit_number, rent: r.rent, paid: r.paid, remaining: r.remaining,
-        status: r.status, overdueMonths: r.overdueMonths, lastDate: r.lastDate,
+        status: (r.status === "upcoming" ? "unpaid" : r.status) as "paid" | "partial" | "unpaid",
+        overdueMonths: r.overdueMonths, lastDate: r.lastDate,
       })),
       paid: paidRows.map((r) => ({
         tenant: r.unit.tenant_name || "—", building: buildingsMap[r.unit.building_id] || "",
         unit: r.unit.unit_number, rent: r.rent, paid: r.paid, remaining: 0,
-        status: r.status, lastDate: r.lastDate,
+        status: (r.status === "upcoming" ? "unpaid" : r.status) as "paid" | "partial" | "unpaid",
+        lastDate: r.lastDate,
       })),
+
     };
     await downloadHTMLAsPDF(buildCollectionHTML(data), `collection-${selected}.pdf`, { pageSize: settings.pageSize, margins: settings.margins });
   };
