@@ -59,6 +59,8 @@ export function EditUnitDialog({
   const [rentType, setRentType] = useState<string>("monthly");
   const [dueDay, setDueDay] = useState("1");
   const [securityDeposit, setSecurityDeposit] = useState("0");
+  const [rentTiming, setRentTiming] = useState<"advance" | "arrears">("advance");
+
   const [depositStatus, setDepositStatus] = useState<string>("none");
   const [contractType, setContractType] = useState<string>("yearly");
   const [contractStart, setContractStart] = useState<string>("");
