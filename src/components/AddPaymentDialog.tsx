@@ -628,24 +628,43 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                 </SelectContent>
               </Select>
             ) : (
-              <div className="grid grid-cols-2 gap-2">
-                <Select value={String(periodMonthNum)} onValueChange={(v) => setPeriodMonthNum(Number(v))}>
-                  <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11"><SelectValue /></SelectTrigger>
-                  <SelectContent className="max-h-72">
-                    {monthNames.map((n, i) => (
-                      <SelectItem key={i} value={String(i + 1)}>{n}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={String(periodYear)} onValueChange={(v) => setPeriodYear(Number(v))}>
-                  <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11"><SelectValue /></SelectTrigger>
-                  <SelectContent className="max-h-72">
-                    {years.map((y) => (
-                      <SelectItem key={y} value={String(y)}>{y}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              (() => {
+                const availableMonths = monthNames
+                  .map((n, i) => ({ n, m: i + 1 }))
+                  .filter(({ m }) => {
+                    const k = `${periodYear}-${String(m).padStart(2, "0")}`;
+                    return !paidMonthsKeys.has(k);
+                  });
+                // Ensure current selection stays visible even if it's paid (escape hatch)
+                const hasSelected = availableMonths.some((x) => x.m === periodMonthNum);
+                const list = hasSelected
+                  ? availableMonths
+                  : [{ n: monthNames[periodMonthNum - 1], m: periodMonthNum }, ...availableMonths];
+                return (
+                  <div className="grid grid-cols-2 gap-2">
+                    <Select value={String(periodMonthNum)} onValueChange={(v) => setPeriodMonthNum(Number(v))}>
+                      <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11"><SelectValue /></SelectTrigger>
+                      <SelectContent className="max-h-72">
+                        {list.length === 0 ? (
+                          <div className="px-3 py-2 text-xs text-sage-500">
+                            {lang === "ar" ? "جميع أشهر هذه السنة مُسدَّدة" : "All months of this year are paid"}
+                          </div>
+                        ) : list.map(({ n, m }) => (
+                          <SelectItem key={m} value={String(m)}>{n}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={String(periodYear)} onValueChange={(v) => setPeriodYear(Number(v))}>
+                      <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11"><SelectValue /></SelectTrigger>
+                      <SelectContent className="max-h-72">
+                        {years.map((y) => (
+                          <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                );
+              })()
             )}
           </div>
 
