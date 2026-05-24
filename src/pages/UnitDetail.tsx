@@ -577,8 +577,9 @@ function MaintenanceTab({ unit, lang, t2, format }: any) {
   );
 }
 
-function UtilitiesTab({ unit, reload }: any) {
+function UtilitiesTab({ unit, reload, lang }: any) {
   const t2 = useT2();
+  const ar = lang === "ar";
   const utils = unit.utilities || {};
   const items = [
     { key: "water", label: t2("water"), icon: Droplets, accountKey: "water_account" },
@@ -594,6 +595,15 @@ function UtilitiesTab({ unit, reload }: any) {
   const updateAccount = async (col: string, val: string) => {
     await supabase.from("units").update({ [col]: val } as any).eq("id", unit.id);
   };
+  const updateMeta = async (k: string, field: "pays" | "provider", val: string) => {
+    const updated = { ...utils, [`${k}_${field}`]: val };
+    await supabase.from("units").update({ utilities: updated }).eq("id", unit.id);
+    reload();
+  };
+  const copy = async (val: string) => {
+    if (!val) return;
+    try { await navigator.clipboard.writeText(val); toast.success(ar ? "تم النسخ" : "Copied"); } catch {}
+  };
   return (
     <>
       <div className="grid grid-cols-2 gap-2.5">
@@ -607,21 +617,57 @@ function UtilitiesTab({ unit, reload }: any) {
               }`}>
               <Icon className="h-5 w-5 mb-2" />
               <p className="font-bold text-sm">{it.label}</p>
-              <p className="text-[10px] opacity-80 uppercase mt-0.5">{on ? t2("active") : t2("inactive")}</p>
+              <p className="text-[10px] opacity-80 mt-0.5">{on ? (ar ? "مفعّل" : "Active") : (ar ? "غير مفعّل" : "Inactive")}</p>
             </button>
           );
         })}
       </div>
       <Card>
-        <h3 className="text-sage-600 font-bold mb-3 text-sm">{t2("account_number")}</h3>
-        <div className="space-y-2.5">
-          {items.map((it) => (
-            <div key={it.key} className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-sage-500 w-16">{it.label}</span>
-              <Input defaultValue={unit[it.accountKey] || ""} onBlur={(e) => updateAccount(it.accountKey, e.target.value)}
-                className="rounded-xl border-sage-200 bg-card h-9 text-sm" placeholder="—" />
-            </div>
-          ))}
+        <h3 className="text-sage-600 font-bold mb-3 text-sm">{ar ? "تفاصيل الحسابات" : "Account details"}</h3>
+        <div className="space-y-4">
+          {items.map((it) => {
+            const acc = unit[it.accountKey] || "";
+            const pays = utils[`${it.key}_pays`] || "tenant";
+            const provider = utils[`${it.key}_provider`] || "";
+            const Icon = it.icon;
+            return (
+              <div key={it.key} className="space-y-2 pb-3 border-b border-sage-200/30 last:border-0 last:pb-0">
+                <div className="flex items-center gap-2">
+                  <Icon className="h-4 w-4 text-sage-500" />
+                  <span className="text-xs font-bold text-sage-600 flex-1">{it.label}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="relative">
+                    <Input defaultValue={acc} onBlur={(e) => updateAccount(it.accountKey, e.target.value)}
+                      placeholder={ar ? "رقم الحساب" : "Account no."}
+                      className="rounded-xl border-sage-200 bg-card h-9 text-sm pe-8" />
+                    {acc && (
+                      <button type="button" onClick={() => copy(acc)} title={ar ? "نسخ" : "Copy"}
+                        className="absolute end-1.5 top-1/2 -translate-y-1/2 h-6 w-6 grid place-items-center rounded-md text-sage-500 hover:bg-sage-100/60">
+                        <FileText className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  <Input defaultValue={provider} onBlur={(e) => updateMeta(it.key, "provider", e.target.value)}
+                    placeholder={ar ? "مزوّد الخدمة" : "Provider"}
+                    className="rounded-xl border-sage-200 bg-card h-9 text-sm" />
+                </div>
+                <div className="flex gap-1.5">
+                  {[
+                    { v: "tenant", l: ar ? "يدفعها المستأجر" : "Tenant pays" },
+                    { v: "owner", l: ar ? "يدفعها المالك" : "Owner pays" },
+                  ].map((opt) => (
+                    <button key={opt.v} type="button" onClick={() => updateMeta(it.key, "pays", opt.v)}
+                      className={`flex-1 text-[11px] font-semibold py-1.5 rounded-lg border transition ${
+                        pays === opt.v ? "bg-sage-500 text-primary-foreground border-transparent" : "bg-card text-sage-600 border-sage-200"
+                      }`}>
+                      {opt.l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </Card>
     </>
