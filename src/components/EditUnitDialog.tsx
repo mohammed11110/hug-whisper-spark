@@ -62,7 +62,7 @@ export function EditUnitDialog({
   const [contractStart, setContractStart] = useState<string>("");
   const [arrears, setArrears] = useState("0");
   const [hasPrevPay, setHasPrevPay] = useState(false);
-  const [prevPayMonth, setPrevPayMonth] = useState("");
+  const [prevPayDate, setPrevPayDate] = useState<Date | undefined>(undefined);
   const [prevPayAmount, setPrevPayAmount] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [busy, setBusy] = useState(false);
