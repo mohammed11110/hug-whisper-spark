@@ -81,6 +81,8 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
     setRent(String(unit.rent_amount || ""));
     setRentType(unit.rent_type || "monthly");
     setDueDay(String(unit.due_day || 1));
+    setRentTiming(((unit as any).rent_timing === "arrears" ? "arrears" : "advance"));
+
     setDeposit("0");
     setIdImageUrl(null);
     setContractFileUrl(null);
