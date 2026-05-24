@@ -122,6 +122,9 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const [distribution, setDistribution] = useState<import("@/lib/balance").PaymentDistribution | null>(null);
   const [cachedArrears, setCachedArrears] = useState<import("@/lib/balance").UnitArrears | null>(null);
   const [cachedUnit, setCachedUnit] = useState<any>(null);
+  // Whether to print the arrears table inside the PDF receipt. Default: off
+  // (privacy-friendly). User opts in via switch before saving.
+  const [includeArrearsInReceipt, setIncludeArrearsInReceipt] = useState(false);
 
 
   const { start: periodStart, end: periodEnd } = monthRange(periodYear, periodMonthNum);
