@@ -102,6 +102,8 @@ export function EditUnitDialog({
     } else {
       setHasPrevPay(false); setPrevPayDate(undefined); setPrevPayAmount("");
     }
+    setPeriodFrom(undefined);
+    setPeriodTo(undefined);
     setShowAdvanced(false);
   }, [unit]);
 
