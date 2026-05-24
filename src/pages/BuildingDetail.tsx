@@ -53,7 +53,7 @@ export default function BuildingDetail() {
     if (!id) return;
     const { data: b } = await supabase.from("buildings").select("*").eq("id", id).maybeSingle();
     setBuilding(b);
-    const { data: us } = await supabase.from("units").select("id,unit_number,floor,type,tenant_name,tenant_phone,rent_amount,rent_type,status,due_day,security_deposit,deposit_status,opening_balance,opening_balance_date,contract_start_date").eq("building_id", id).order("floor").order("unit_number");
+    const { data: us } = await supabase.from("units").select("id,unit_number,floor,type,tenant_name,tenant_phone,rent_amount,rent_type,rent_timing,status,due_day,security_deposit,deposit_status,opening_balance,opening_balance_date,contract_start_date").eq("building_id", id).order("floor").order("unit_number");
     setUnits((us || []) as any);
     const ids = (us || []).map((u: any) => u.id);
     if (ids.length) {
