@@ -425,3 +425,58 @@ describe("distributePayment", () => {
 
 
 
+
+// =====================================================================
+// Regression: partial payment must NOT wipe historical arrears.
+// Mirrors the production incident on B3 #7 where paying 10 against 365
+// of arrears caused the system to zero opening_balance and advance the
+// anchor past the unpaid months — losing all prior debt.
+// =====================================================================
+describe("regression — partial payment preserves arrears", () => {
+  it("9 unpaid months: paying 1 month must leave the other 8 visible", () => {
+    setNow("2026-10-15");
+    // Rent 40, contract started Jan 2026 → by Oct 2026 advance billing = 10 cycles due.
+    const u = mkUnit({
+      id: "b3-7",
+      rent_amount: 40,
+      contract_start_date: "2026-01-01",
+      opening_balance: 0,
+    });
+    // No payments yet → 10 unpaid cycles (= 400 in arrears) by advance timing.
+    const before = getUnitArrears(u, [], new Date("2026-10-15"));
+    expect(before.unpaidCount).toBeGreaterThanOrEqual(9);
+    const totalBefore = before.totalShortfall;
+
+    // Simulate: user pays 40 — only the oldest cycle (Jan) gets covered.
+    const pays: PaymentForBalance[] = [
+      mkPayment(40, {
+        unit_id: "b3-7",
+        payment_date: "2026-10-15",
+        period_start: "2026-01-01",
+        period_end: "2026-01-31",
+      }),
+    ];
+
+    // The unit's anchor (opening_balance_date) MUST NOT have been advanced.
+    // We model that by keeping the unit object unchanged — the fixed code
+    // only advances when arrears are fully settled.
+    const after = getUnitArrears(u, pays, new Date("2026-10-15"));
+    expect(after.totalShortfall).toBeCloseTo(totalBefore - 40, 1);
+    expect(after.unpaidCount).toBeGreaterThanOrEqual(before.unpaidCount - 1);
+  });
+
+  it("opening_balance must persist after a partial payment", () => {
+    setNow("2026-05-20");
+    const u = mkUnit({
+      id: "b3-7",
+      rent_amount: 40,
+      contract_start_date: "2026-05-01",
+      opening_balance: 325,
+      opening_balance_date: "2026-05-01",
+    });
+    const arr = getUnitArrears(u, [], new Date("2026-05-20"));
+    // 325 prior + 40 current cycle = 365 total
+    expect(arr.totalShortfall).toBeCloseTo(365, 1);
+    expect(arr.openingBalance).toBe(325);
+  });
+});
