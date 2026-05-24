@@ -68,6 +68,8 @@ export function EditUnitDialog({
   const [hasPrevPay, setHasPrevPay] = useState(false);
   const [prevPayDate, setPrevPayDate] = useState<Date | undefined>(undefined);
   const [prevPayAmount, setPrevPayAmount] = useState("");
+  const [periodFrom, setPeriodFrom] = useState<Date | undefined>(undefined);
+  const [periodTo, setPeriodTo] = useState<Date | undefined>(undefined);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [busy, setBusy] = useState(false);
   const guard = useUnsavedGuard({ open, onOpenChange });
