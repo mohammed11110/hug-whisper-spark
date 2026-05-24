@@ -5,10 +5,12 @@ export interface UnitForBalance {
   id: string;
   rent_amount: number | string;
   rent_type: string; // monthly | daily | yearly
+  rent_timing?: string | null; // 'advance' (default) | 'arrears'
   contract_start_date?: string | null;
   opening_balance?: number | string | null;
   opening_balance_date?: string | null;
 }
+
 
 export interface PaymentForBalance {
   unit_id: string;
