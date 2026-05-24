@@ -369,3 +369,92 @@ export function getUnitArrears(
   return { cycles, oldestUnpaid, totalShortfall, unpaidCount, openingBalance: opening };
 }
 
+// =====================================================================
+// Distribute a single payment amount across arrears cycles + optional
+// future cycles (treated as advance payments). Oldest → newest.
+// =====================================================================
+export interface PaymentAllocation {
+  periodStartIso: string;
+  periodEndIso: string;
+  label: string;
+  expected: number;
+  amount: number;
+  isAdvance: boolean;
+  isPrior: boolean;
+}
+
+export interface PaymentDistribution {
+  allocations: PaymentAllocation[];
+  remainder: number;
+  totalAllocated: number;
+}
+
+const EPS = 0.009;
+
+export function distributePayment(
+  unit: UnitForBalance,
+  arrears: UnitArrears,
+  totalAmount: number,
+  lang: "ar" | "en" = "ar",
+  maxAdvanceCycles: number = 24,
+): PaymentDistribution {
+  const priorLabel = lang === "ar" ? "متأخرات سابقة" : "Prior arrears";
+  const allocations: PaymentAllocation[] = [];
+  let remaining = Math.max(0, num(totalAmount));
+  const rent = num(unit.rent_amount);
+
+  // 1) Pay outstanding cycles oldest → newest.
+  const unpaid = arrears.cycles.filter((c) => c.shortfall > EPS);
+  for (const c of unpaid) {
+    if (remaining <= EPS) break;
+    const apply = Math.min(remaining, c.shortfall);
+    allocations.push({
+      periodStartIso: c.periodStartIso,
+      periodEndIso: c.periodEndIso,
+      label: c.label,
+      expected: c.label === priorLabel ? c.shortfall : rent,
+      amount: apply,
+      isAdvance: false,
+      isPrior: c.label === priorLabel,
+    });
+    remaining -= apply;
+  }
+
+  // 2) Spill leftover into future cycles (advance).
+  if (remaining > EPS && rent > 0 && (unit.rent_type || "monthly") === "monthly") {
+    const anchor = getAnchorDate(unit);
+    if (anchor) {
+      const anchorDay = getAnchorDay(unit);
+      const monthlyCycles = arrears.cycles.filter((c) => c.label !== priorLabel);
+      const startIdx = monthlyCycles.length;
+      for (let i = 0; i < maxAdvanceCycles; i++) {
+        if (remaining <= EPS) break;
+        const cycleMonthIdx = anchor.getMonth() + startIdx + i;
+        const cy = anchor.getFullYear() + Math.floor(cycleMonthIdx / 12);
+        const cm = ((cycleMonthIdx % 12) + 12) % 12 + 1;
+        const c = getCycleByStartMonth(cy, cm, anchorDay);
+        const apply = Math.min(remaining, rent);
+        const label = buildReceiptPeriodLabel(c.start, c.end, anchorDay, lang)
+          .replace(/^إيجار شهر\s+/, "")
+          .replace(/^إيجار الفترة\s+/, "")
+          .replace(/^Rent for\s+/, "")
+          .replace(/^Rent\s+/, "");
+        allocations.push({
+          periodStartIso: c.startIso,
+          periodEndIso: c.endIso,
+          label,
+          expected: rent,
+          amount: apply,
+          isAdvance: true,
+          isPrior: false,
+        });
+        remaining -= apply;
+      }
+    }
+  }
+
+  const totalAllocated = allocations.reduce((s, a) => s + a.amount, 0);
+  return { allocations, remainder: Math.max(0, remaining), totalAllocated };
+}
+
+
