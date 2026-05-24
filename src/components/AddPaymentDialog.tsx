@@ -572,9 +572,8 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
       const payload = { baseArgs, upTo, unpaidTotal, monthLabel: primaryPeriodLabel, filename };
 
       if (upTo.length > 0) {
-        // Defer: ask the user before generating the receipt
-        setPendingReceipt(payload);
-        setArrearsPromptOpen(true);
+        await emitReceipt(payload, includeArrearsInReceipt);
+        finishAndClose();
         return;
       }
       await emitReceipt(payload, false);
