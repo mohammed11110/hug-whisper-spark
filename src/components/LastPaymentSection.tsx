@@ -63,6 +63,11 @@ export function LastPaymentSection({ enabled, onEnabledChange, date, onDateChang
           {lang === "ar" ? "المستأجر دفع إيجار شهور سابقة" : "Tenant has paid previous months"}
         </span>
       </label>
+      <p className="text-[10px] text-sage-400 mt-1 leading-relaxed">
+        ⓘ {lang === "ar"
+          ? "يُحدَّث تلقائياً عند تسجيل إيصال استلام جديد"
+          : "Updates automatically when a payment receipt is recorded"}
+      </p>
       {enabled && (
         <div className="mt-2 space-y-2">
           <div className="grid grid-cols-2 gap-2">
