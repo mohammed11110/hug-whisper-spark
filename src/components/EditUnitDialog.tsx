@@ -84,6 +84,8 @@ export function EditUnitDialog({
     setRentAmount(String(unit.rent_amount ?? 0));
     setRentType(unit.rent_type);
     setDueDay(String(unit.due_day ?? 1));
+    setRentTiming(((unit as any).rent_timing === "arrears" ? "arrears" : "advance"));
+
     setSecurityDeposit(String(unit.security_deposit ?? 0));
     setDepositStatus(unit.deposit_status || "none");
     setContractType(unit.contract_type || "yearly");
