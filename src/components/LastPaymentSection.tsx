@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
 import { ar, enUS } from "date-fns/locale";
 import { CalendarIcon, AlertTriangle, CheckCircle2 } from "lucide-react";
@@ -80,6 +80,8 @@ export function LastPaymentSection({
 }: Props) {
   const { lang } = useI18n();
   const locale = lang === "ar" ? ar : enUS;
+  const [openPopover, setOpenPopover] = useState<"from" | "to" | null>(null);
+  const prevPeriodFromRef = useRef<Date | undefined>(periodFrom);
 
   // Auto-fill period range when payment date or timing changes.
   useEffect(() => {
@@ -98,6 +100,18 @@ export function LastPaymentSection({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date, rentTiming, enabled]);
+
+  // Auto-open "To" popover after user picks "From" manually (and "To" is empty).
+  useEffect(() => {
+    const prev = prevPeriodFromRef.current;
+    prevPeriodFromRef.current = periodFrom;
+    if (!periodFrom) return;
+    const justPicked = !prev || prev.getTime() !== periodFrom.getTime();
+    if (justPicked && openPopover === "from" && !periodTo) {
+      const t = setTimeout(() => setOpenPopover("to"), 150);
+      return () => clearTimeout(t);
+    }
+  }, [periodFrom, periodTo, openPopover]);
 
   // Live arrears preview.
   let preview: { kind: "due" | "ok"; cycles: number; total: number; nextMonth: string } | null = null;
@@ -175,13 +189,28 @@ export function LastPaymentSection({
                 <Label className="text-[10px] text-sage-500 font-semibold">
                   {lang === "ar" ? "من" : "From"}
                 </Label>
-                <DateField date={periodFrom} onChange={onPeriodFromChange} locale={locale} lang={lang} />
+                <DateField
+                  date={periodFrom}
+                  onChange={onPeriodFromChange}
+                  locale={locale}
+                  lang={lang}
+                  open={openPopover === "from"}
+                  onOpenChange={(o) => setOpenPopover(o ? "from" : (openPopover === "from" ? null : openPopover))}
+                />
               </div>
               <div className="space-y-1">
                 <Label className="text-[10px] text-sage-500 font-semibold">
                   {lang === "ar" ? "إلى" : "To"}
                 </Label>
-                <DateField date={periodTo} onChange={onPeriodToChange} locale={locale} lang={lang} />
+                <DateField
+                  date={periodTo}
+                  onChange={onPeriodToChange}
+                  locale={locale}
+                  lang={lang}
+                  open={openPopover === "to"}
+                  onOpenChange={(o) => setOpenPopover(o ? "to" : (openPopover === "to" ? null : openPopover))}
+                />
+
               </div>
             </div>
           </div>
@@ -213,16 +242,19 @@ export function LastPaymentSection({
 }
 
 function DateField({
-  date, onChange, locale, lang, disableFuture,
+  date, onChange, locale, lang, disableFuture, open, onOpenChange,
 }: {
   date: Date | undefined;
   onChange: (d: Date | undefined) => void;
   locale: any;
   lang: string;
   disableFuture?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={onOpenChange}>
+
       <PopoverTrigger asChild>
         <Button
           type="button"
