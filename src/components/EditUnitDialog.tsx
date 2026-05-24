@@ -302,7 +302,9 @@ export function EditUnitDialog({
               onDateChange={setPrevPayDate}
               amount={prevPayAmount}
               onAmountChange={setPrevPayAmount}
+              rentTiming={rentTiming}
             />
+
           )}
 
           <div className="pt-2 border-t border-sage-100">
