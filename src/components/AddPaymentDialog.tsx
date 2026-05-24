@@ -374,38 +374,82 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     const { data: activeT } = await supabase.from("tenancies").select("id").eq("unit_id", unitId).eq("status", "active").maybeSingle();
     const mergedNotes = [settlementNote, notes.trim()].filter(Boolean).join(" — ") || null;
     const sharedReceipt = receipt.trim() || null;
-    const rows: any[] = [{
-      unit_id: unitId,
-      tenancy_id: (activeT as any)?.id || null,
-      amount: Number(amount),
-      expected_amount: Number(expected) || null,
-      payment_date: date,
-      receipt_number: sharedReceipt,
-      payment_method: method,
-      notes: mergedNotes,
-      period_start: submitPeriodStartIso || null,
-      period_end: submitPeriodEndIso || null,
+    const rows: any[] = [];
 
-    }];
-    if (collectPriorArrears && priorArrears.length > 0) {
-      for (const m of priorArrears) {
+    if (payMode === "auto" && distribution && distribution.allocations.length > 0) {
+      // Build one row per allocation cycle (single source of truth for arrears link).
+      for (const a of distribution.allocations) {
+        const noteParts: string[] = [];
+        if (a.isAdvance) noteParts.push(lang === "ar" ? "دفعة مقدمة" : "Advance");
+        else if (a.isPrior) noteParts.push(lang === "ar" ? "متأخرات سابقة" : "Prior arrears");
+        else if (a.amount + 0.009 < a.expected) noteParts.push(lang === "ar" ? "دفعة جزئية" : "Partial");
+        noteParts.push(a.label);
+        if (notes.trim()) noteParts.push(notes.trim());
         rows.push({
           unit_id: unitId,
           tenancy_id: (activeT as any)?.id || null,
-          amount: m.remaining,
-          expected_amount: activeRent || null,
+          amount: a.amount,
+          expected_amount: a.expected || null,
           payment_date: date,
           receipt_number: sharedReceipt,
           payment_method: method,
-          notes: (lang === "ar" ? "تحصيل متأخرات" : "Arrears collection") + ` — ${m.label}`,
-          period_start: m.periodStartIso,
-          period_end: m.periodEndIso,
+          notes: noteParts.join(" — "),
+          period_start: a.periodStartIso,
+          period_end: a.periodEndIso,
         });
       }
+      // If user typed more than distribution could absorb, attach the remainder
+      // as an unallocated credit on the latest period (rare; only when no rent).
+      if (distribution.remainder > 0.009) {
+        rows.push({
+          unit_id: unitId,
+          tenancy_id: (activeT as any)?.id || null,
+          amount: distribution.remainder,
+          expected_amount: null,
+          payment_date: date,
+          receipt_number: sharedReceipt,
+          payment_method: method,
+          notes: (lang === "ar" ? "رصيد دائن" : "Credit balance") + (notes.trim() ? ` — ${notes.trim()}` : ""),
+          period_start: null,
+          period_end: null,
+        });
+      }
+    } else {
+      // Manual mode — single row tied to the chosen cycle.
+      rows.push({
+        unit_id: unitId,
+        tenancy_id: (activeT as any)?.id || null,
+        amount: Number(amount),
+        expected_amount: Number(expected) || null,
+        payment_date: date,
+        receipt_number: sharedReceipt,
+        payment_method: method,
+        notes: mergedNotes,
+        period_start: submitPeriodStartIso || null,
+        period_end: submitPeriodEndIso || null,
+      });
+      if (collectPriorArrears && priorArrears.length > 0) {
+        for (const m of priorArrears) {
+          rows.push({
+            unit_id: unitId,
+            tenancy_id: (activeT as any)?.id || null,
+            amount: m.remaining,
+            expected_amount: activeRent || null,
+            payment_date: date,
+            receipt_number: sharedReceipt,
+            payment_method: method,
+            notes: (lang === "ar" ? "تحصيل متأخرات" : "Arrears collection") + ` — ${m.label}`,
+            period_start: m.periodStartIso,
+            period_end: m.periodEndIso,
+          });
+        }
+      }
     }
+
     const { error } = await supabase.from("payments").insert(rows);
     if (!error) {
-      const newStatus = isPartial && !collectPriorArrears ? "soon" : "paid";
+      const newStatus = isPartial && !collectPriorArrears && payMode !== "auto" ? "soon" : "paid";
+
       // Advance the unit anchor (opening_balance_date) to the day AFTER the
       // latest covered period among the just-inserted rows. This keeps the
       // "next due cycle" accurate without requiring the user to edit the unit.
