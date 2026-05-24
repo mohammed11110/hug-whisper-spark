@@ -116,6 +116,13 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const [activeRent, setActiveRent] = useState<number>(0);
   const [showArrearsList, setShowArrearsList] = useState(false);
   const [paidMonthsKeys, setPaidMonthsKeys] = useState<Set<string>>(new Set());
+  // Smart payment modes: "auto" (distribute amount oldest→newest, spill into advance)
+  // or "manual" (pick a specific cycle from the dropdown).
+  const [payMode, setPayMode] = useState<"auto" | "manual">("auto");
+  const [distribution, setDistribution] = useState<import("@/lib/balance").PaymentDistribution | null>(null);
+  const [cachedArrears, setCachedArrears] = useState<import("@/lib/balance").UnitArrears | null>(null);
+  const [cachedUnit, setCachedUnit] = useState<any>(null);
+
 
   const { start: periodStart, end: periodEnd } = monthRange(periodYear, periodMonthNum);
   const monthNames = lang === "ar" ? AR_MONTHS : EN_MONTHS;
