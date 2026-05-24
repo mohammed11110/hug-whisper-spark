@@ -280,8 +280,8 @@ export function EditUnitDialog({
             <LastPaymentSection
               enabled={hasPrevPay}
               onEnabledChange={setHasPrevPay}
-              month={prevPayMonth}
-              onMonthChange={setPrevPayMonth}
+              date={prevPayDate}
+              onDateChange={setPrevPayDate}
               amount={prevPayAmount}
               onAmountChange={setPrevPayAmount}
             />
