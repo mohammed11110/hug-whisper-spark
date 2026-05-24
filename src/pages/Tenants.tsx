@@ -25,6 +25,7 @@ interface TenantRow {
   rent_amount: number;
   status: string;
   last_paid_date: string | null;
+  last_payment_amount: number | null;
   contract_end_date: string | null;
   total_paid: number;
   outstanding: number;
@@ -120,12 +121,20 @@ export default function Tenants() {
         .not("tenant_name", "is", null);
       const unitIds = (us || []).map((u: any) => u.id);
       const { data: ps } = unitIds.length
-        ? await supabase.from("payments").select("unit_id, amount, deleted_at").in("unit_id", unitIds).is("deleted_at", null)
+        ? await supabase.from("payments").select("unit_id, amount, payment_date, deleted_at").in("unit_id", unitIds).is("deleted_at", null)
         : { data: [] as any[] };
       const totals = new Map<string, number>();
-      (ps || []).forEach((p: any) => totals.set(p.unit_id, (totals.get(p.unit_id) || 0) + Number(p.amount)));
+      const lastPay = new Map<string, { date: string; amount: number }>();
+      (ps || []).forEach((p: any) => {
+        totals.set(p.unit_id, (totals.get(p.unit_id) || 0) + Number(p.amount));
+        const cur = lastPay.get(p.unit_id);
+        if (!cur || (p.payment_date && p.payment_date > cur.date)) {
+          lastPay.set(p.unit_id, { date: p.payment_date, amount: Number(p.amount) });
+        }
+      });
       const mapped: TenantRow[] = (us || []).map((u: any) => {
         const bal = computeBalance(u as any, (ps || []) as PaymentForBalance[]);
+        const lp = lastPay.get(u.id);
         return {
           unit_id: u.id,
           unit_number: u.unit_number,
@@ -135,7 +144,8 @@ export default function Tenants() {
           tenant_phone: u.tenant_phone,
           rent_amount: Number(u.rent_amount),
           status: u.status,
-          last_paid_date: u.last_paid_date,
+          last_paid_date: lp?.date || u.last_paid_date,
+          last_payment_amount: lp?.amount ?? null,
           contract_end_date: u.contract_end_date,
           total_paid: totals.get(u.id) || 0,
           outstanding: bal.outstanding,
@@ -337,6 +347,16 @@ export default function Tenants() {
                     )}
                     <span>{format(r.rent_amount)}/{lang === "ar" ? "شهر" : "mo"}</span>
                     <span>{lang === "ar" ? "إجمالي مدفوع" : "Total paid"}: <b className="text-sage-600">{format(r.total_paid)}</b></span>
+                    {r.last_paid_date && (
+                      <span className="inline-flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3 text-sage-500" />
+                        {lang === "ar" ? "آخر دفعة" : "Last payment"}:&nbsp;
+                        <b className="text-sage-600">
+                          {r.last_payment_amount != null ? `${format(r.last_payment_amount)} · ` : ""}
+                          {new Date(r.last_paid_date).toLocaleDateString(lang === "ar" ? "ar" : "en", { day: "numeric", month: "short", year: "numeric" })}
+                        </b>
+                      </span>
+                    )}
                     {r.outstanding > 0 && (
                       <span className="text-burgundy font-bold">{lang === "ar" ? "الديون" : "Debt"}: {format(r.outstanding)}</span>
                     )}
