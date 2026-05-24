@@ -17,7 +17,7 @@ import { EndTenancyDialog } from "@/components/EndTenancyDialog";
 import { NewTenancyDialog } from "@/components/NewTenancyDialog";
 import { AddMaintenanceDialog } from "@/components/AddMaintenanceDialog";
 import { FileUpload } from "@/components/FileUpload";
-import { computeBalance, type PaymentForBalance } from "@/lib/balance";
+import { getUnitArrears, type PaymentForBalance } from "@/lib/balance";
 import { ArrearsBadge } from "@/components/ArrearsBadge";
 
 interface Unit {
@@ -58,7 +58,7 @@ export default function UnitDetail() {
   const [endOpen, setEndOpen] = useState(false);
   const [newTenantOpen, setNewTenantOpen] = useState(false);
   const [activeTenancyId, setActiveTenancyId] = useState<string | null>(null);
-  const [priorArrears, setPriorArrears] = useState<{ count: number; total: number }>({ count: 0, total: 0 });
+  
 
   const load = async () => {
     if (!id) return;
@@ -70,11 +70,9 @@ export default function UnitDetail() {
     }
     const { data: ps } = await supabase.from("payments").select("unit_id,amount,deleted_at,payment_date,period_start,period_end").eq("unit_id", id).is("deleted_at", null);
     setPayments((ps || []) as any);
-    const { data: ts } = await supabase.from("tenancies").select("id,status,outstanding_at_end").eq("unit_id", id);
+    const { data: ts } = await supabase.from("tenancies").select("id,status").eq("unit_id", id);
     const active = (ts || []).find((t: any) => t.status === "active");
     setActiveTenancyId(active?.id || null);
-    const ended = (ts || []).filter((t: any) => t.status === "ended" && Number(t.outstanding_at_end) > 0);
-    setPriorArrears({ count: ended.length, total: ended.reduce((s: number, t: any) => s + Number(t.outstanding_at_end), 0) });
   };
   useEffect(() => { load(); }, [id]);
 
@@ -268,12 +266,6 @@ export default function UnitDetail() {
       </div>
 
       <div className="px-5 py-5 space-y-4 animate-float-up" key={tab}>
-        {priorArrears.count > 0 && (
-          <div className="rounded-2xl border border-burgundy/30 bg-burgundy/10 px-4 py-3 flex items-center justify-between">
-            <span className="text-xs font-semibold text-burgundy">⚠️ {t2("previous_tenant_arrears")}</span>
-            <span className="text-sm font-black text-burgundy">{format(priorArrears.total)}</span>
-          </div>
-        )}
         {tab === "details" && (
           unit.tenant_name ? (
             <DetailsTab unit={unit} payments={payments} format={format} t2={t2} lang={lang}
@@ -312,7 +304,8 @@ function VacantState({ t2, onAdd }: any) {
 }
 
 function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLeasePrint, onStatement, onEnd, reload }: any) {
-  const bal = computeBalance(unit, payments);
+  const arr = getUnitArrears(unit, payments, new Date(), lang as "ar" | "en");
+  const bal = { outstanding: arr.totalShortfall };
   const [editingArrears, setEditingArrears] = useState(false);
   const [arrearsVal, setArrearsVal] = useState<string>(String(unit.opening_balance ?? 0));
   const [arrearsDate, setArrearsDate] = useState<string>(unit.opening_balance_date || new Date().toISOString().slice(0, 10));
