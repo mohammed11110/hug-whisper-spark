@@ -164,7 +164,9 @@ export default function MonthlyCollection() {
   };
 
   const paidRows = rows.filter((r) => r.status === "paid");
-  const lateRowsRaw = rows.filter((r) => r.status !== "paid");
+  const upcomingRows = rows.filter((r) => r.status === "upcoming");
+  const lateRowsRaw = rows.filter((r) => r.status !== "paid" && r.status !== "upcoming");
+
   // Enrich + sort late by overdue months desc
   const lateRows = useMemo(
     () => lateRowsRaw
