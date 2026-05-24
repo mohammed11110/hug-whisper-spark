@@ -102,9 +102,21 @@ export function EditUnitDialog({
     } else {
       setHasPrevPay(false); setPrevPayDate(undefined); setPrevPayAmount("");
     }
-    setPeriodFrom(undefined);
-    setPeriodTo(undefined);
+    // Load covered period from opening_balance_date (= first unpaid cycle).
+    // periodTo = opening_balance_date - 1 day; periodFrom = first of that month.
+    const obd = (unit as any).opening_balance_date as string | null | undefined;
+    if (obd && lpd) {
+      const [oy, om, od] = obd.split("-").map(Number);
+      const pt = new Date(oy, (om || 1) - 1, (od || 1) - 1);
+      const pf = new Date(pt.getFullYear(), pt.getMonth(), 1);
+      setPeriodFrom(pf);
+      setPeriodTo(pt);
+    } else {
+      setPeriodFrom(undefined);
+      setPeriodTo(undefined);
+    }
     setShowAdvanced(false);
+
   }, [unit]);
 
   if (!unit) return null;

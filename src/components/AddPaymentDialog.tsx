@@ -379,8 +379,21 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     const { error } = await supabase.from("payments").insert(rows);
     if (!error) {
       const newStatus = isPartial && !collectPriorArrears ? "soon" : "paid";
-      await supabase.from("units").update({ last_paid_date: date, status: newStatus }).eq("id", unitId);
+      // Advance the unit anchor (opening_balance_date) to the day AFTER the
+      // latest covered period among the just-inserted rows. This keeps the
+      // "next due cycle" accurate without requiring the user to edit the unit.
+      const ends = rows.map((r) => r.period_end).filter(Boolean) as string[];
+      const latestEnd = ends.length ? ends.slice().sort().pop()! : null;
+      const upd: any = { last_paid_date: date, status: newStatus };
+      if (latestEnd) {
+        const [ly, lm, ld] = latestEnd.split("-").map(Number);
+        const nd = new Date(ly, (lm || 1) - 1, (ld || 1) + 1);
+        upd.opening_balance_date = `${nd.getFullYear()}-${String(nd.getMonth() + 1).padStart(2, "0")}-${String(nd.getDate()).padStart(2, "0")}`;
+        upd.opening_balance = 0;
+      }
+      await supabase.from("units").update(upd).eq("id", unitId);
     }
+
     setSaving(false);
     if (error) return toast.error(error.message);
     toast.success("✓");

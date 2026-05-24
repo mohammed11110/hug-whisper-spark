@@ -136,11 +136,36 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
     }).eq("id", paymentId);
     setSaving(false);
     if (error) return toast.error(error.message);
+
+    // Re-sync unit anchor from the latest remaining payment (if any).
+    if (payRow?.unit_id) {
+      const uid = payRow.unit_id as string;
+      const { data: latest } = await supabase
+        .from("payments")
+        .select("payment_date, period_end")
+        .eq("unit_id", uid)
+        .is("deleted_at", null)
+        .order("period_end", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (latest?.period_end) {
+        const [ly, lm, ld] = String(latest.period_end).split("-").map(Number);
+        const nd = new Date(ly, (lm || 1) - 1, (ld || 1) + 1);
+        const nextAnchor = `${nd.getFullYear()}-${String(nd.getMonth() + 1).padStart(2, "0")}-${String(nd.getDate()).padStart(2, "0")}`;
+        await supabase.from("units").update({
+          opening_balance_date: nextAnchor,
+          opening_balance: 0,
+          last_paid_date: latest.payment_date,
+        }).eq("id", uid);
+      }
+    }
+
     toast.success("✓");
     guard.markSaved();
     onOpenChange(false);
     onSaved?.();
   };
+
 
 
   const years = yearOptions();
