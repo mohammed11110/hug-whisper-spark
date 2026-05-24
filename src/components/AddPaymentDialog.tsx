@@ -365,6 +365,89 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         : `Final installment of the outstanding balance for ${selectedMonthLabel} has been settled.`)
     : null;
 
+  // Build the args for buildReceiptHTML based on CURRENT (pre-save) state.
+  // Used by both the live preview button and the save flow so the preview
+  // matches the final printed receipt exactly.
+  const buildReceiptArgs = () => {
+    if (!unitId || !(Number(amount) > 0)) return null;
+    const u = units.find((x) => x.id === unitId);
+    const monthLabel = anchorDay === 1
+      ? `${(lang === "ar" ? AR_MONTHS : EN_MONTHS)[periodMonthNum - 1]} ${periodYear}`
+      : (lang === "ar"
+          ? `إيجار الفترة من ${cycleStart.getDate()}/${cycleStart.getMonth() + 1}/${cycleStart.getFullYear()} إلى ${cycleEnd.getDate()}/${cycleEnd.getMonth() + 1}/${cycleEnd.getFullYear()}`
+          : `Rent ${cycleStart.getDate()}/${cycleStart.getMonth() + 1}/${cycleStart.getFullYear()} – ${cycleEnd.getDate()}/${cycleEnd.getMonth() + 1}/${cycleEnd.getFullYear()}`);
+      let collectedArrearsList: Array<{ label: string; amount: number }> = [];
+      let primaryAmount = Number(amount);
+      let primaryPeriodLabel = monthLabel;
+      let upTo: Array<{ label: string; remaining: number }>;
+      if (payMode === "auto" && distribution && distribution.allocations.length > 0) {
+        const allocs = distribution.allocations;
+        primaryAmount = allocs[0].amount;
+        primaryPeriodLabel = allocs[0].label;
+        collectedArrearsList = allocs.slice(1).map((a) => ({
+          label: (a.isAdvance ? (lang === "ar" ? "دفعة مقدمة — " : "Advance — ") : "") + a.label,
+          amount: a.amount,
+        }));
+        const arrearsCovered = allocs.filter((a) => !a.isAdvance).reduce((s, a) => s + a.amount, 0);
+        const remainingArrears = Math.max(0, arrearsBefore - arrearsCovered);
+        upTo = remainingArrears > 0.009
+          ? [{ label: lang === "ar" ? "متأخرات متبقية" : "Remaining arrears", remaining: remainingArrears }]
+          : [];
+      } else {
+        upTo = unpaidMonths
+          .filter((m) => m.periodStartIso <= submitPeriodStartIso)
+          .map((m) => {
+            const isCurrent = m.periodStartIso === submitPeriodStartIso;
+            const isPriorPaidNow = collectPriorArrears && !isCurrent;
+            const remaining = isCurrent
+              ? Math.max(0, m.remaining - Number(amount))
+              : (isPriorPaidNow ? 0 : m.remaining);
+            return { label: m.label, remaining };
+          })
+          .filter((m) => m.remaining > 0.009);
+        collectedArrearsList = collectPriorArrears
+          ? priorArrears.map((m) => ({ label: m.label, amount: m.remaining }))
+          : [];
+      }
+      const unpaidTotal = upTo.reduce((s, m) => s + m.remaining, 0);
+      const grandTotal = primaryAmount + collectedArrearsList.reduce((s, a) => s + a.amount, 0);
+      const baseArgs = {
+        brand: settings.brand,
+        receiptNumber: receipt.trim() || formatReceipt(settings.receipt),
+        paymentDate: date,
+        amount: collectedArrearsList.length ? grandTotal : primaryAmount,
+        expectedAmount: Number(expected) || null,
+        method: methodLabel(method, lang),
+        periodLabel: primaryPeriodLabel,
+        building: u?.building_name || "—",
+        unitNumber: u?.unit_number || "—",
+        tenantName: u?.tenant_name || "—",
+        notes: [settlementNote, notes.trim()].filter(Boolean).join(" — ") || null,
+        currency: format(0).replace(/[\d.,\s]/g, "").trim() || "",
+        lang: (lang === "ar" ? "ar" : "en") as "ar" | "en",
+        settlementNote,
+        collectedArrears: collectedArrearsList,
+        grandTotal: collectedArrearsList.length ? grandTotal : null,
+      };
+      return { baseArgs, upTo, unpaidTotal, monthLabel: primaryPeriodLabel };
+  };
+
+  const openPreview = () => {
+    const args = buildReceiptArgs();
+    if (!args) {
+      toast.error(lang === "ar" ? "أدخل المبلغ واختر الوحدة أولاً" : "Enter amount and select a unit first");
+      return;
+    }
+    const html = buildReceiptHTML({
+      ...args.baseArgs,
+      unpaidMonths: includeArrearsInReceipt ? args.upTo : [],
+      unpaidTotal: includeArrearsInReceipt ? args.unpaidTotal : 0,
+      unpaidUpToLabel: includeArrearsInReceipt ? args.monthLabel : undefined,
+    });
+    setPreviewHtml(html);
+    setPreviewOpen(true);
+  };
+
   const submit = async () => {
     const parsed = schema.safeParse({
       unit_id: unitId,
