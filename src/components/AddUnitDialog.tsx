@@ -55,6 +55,8 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
   const [contractType, setContractType] = useState<typeof CONTRACT_TYPES[number]>("yearly");
   const [contractStart, setContractStart] = useState<string>("");
   const [dueDay, setDueDay] = useState<string>("1");
+  const [rentTiming, setRentTiming] = useState<"advance" | "arrears">("advance");
+
   const [arrears, setArrears] = useState<string>("0");
   const [recordPay, setRecordPay] = useState(false);
   const monthOpts = useMemo(() => getMonthOptions(lang), [lang]);
