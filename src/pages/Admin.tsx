@@ -103,7 +103,7 @@ export default function Admin() {
     a.click(); URL.revokeObjectURL(url);
   };
 
-  if (adminLoading) return <div className="p-8 text-center text-sage-500">جاري التحميل...</div>;
+  if (adminLoading) return <div className="p-8 text-center text-sage-500">جارٍ التحميل…</div>;
   if (!isAdmin) return <Navigate to="/" replace />;
 
   return (
@@ -153,7 +153,7 @@ export default function Admin() {
           </div>
 
           <div className="px-5 mt-3 space-y-2">
-            {loading ? <p className="text-center text-sage-500 py-12 text-sm">جاري التحميل...</p>
+            {loading ? <p className="text-center text-sage-500 py-12 text-sm">جارٍ التحميل…</p>
               : filteredUsers.length === 0 ? <p className="text-center text-muted-foreground py-12 text-sm">لا يوجد مستخدمون</p>
               : filteredUsers.map(u => <UserCard key={u.id} u={u} />)}
           </div>

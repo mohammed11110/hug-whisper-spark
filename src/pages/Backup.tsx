@@ -83,7 +83,7 @@ export default function Backup() {
         const { error } = await supabase.from("expenses").upsert(d.expenses, { onConflict: "id" });
         if (error) throw error;
       }
-      toast.success(ar ? "تم الاستعادة بنجاح" : "Restore complete");
+      toast.success(ar ? "تمت الاستعادة" : "Restore complete");
     } catch (e: any) {
       toast.error(e.message);
     } finally {
