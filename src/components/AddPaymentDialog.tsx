@@ -349,12 +349,19 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
       receipt_number: sharedReceipt,
       payment_method: method,
       notes: mergedNotes,
-      period_start: periodStart || null,
-      period_end: periodEnd || null,
+      period_start: cycleStartIso || null,
+      period_end: cycleEndIso || null,
+
     }];
     if (collectPriorArrears && priorArrears.length > 0) {
       for (const m of priorArrears) {
-        const { start: ps, end: pe } = monthRange(m.year, m.month);
+        const ps = anchorDay === 1
+          ? monthRange(m.year, m.month).start
+          : `${m.year}-${String(m.month).padStart(2, "0")}-${String(anchorDay).padStart(2, "0")}`;
+        const peDate = anchorDay === 1
+          ? new Date(m.year, m.month, 0)
+          : new Date(m.year, m.month, anchorDay - 1);
+        const pe = `${peDate.getFullYear()}-${String(peDate.getMonth() + 1).padStart(2, "0")}-${String(peDate.getDate()).padStart(2, "0")}`;
         rows.push({
           unit_id: unitId,
           tenancy_id: (activeT as any)?.id || null,
