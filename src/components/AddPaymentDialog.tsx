@@ -428,25 +428,19 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
             ? `إيجار الفترة من ${cycleStart.getDate()}/${cycleStart.getMonth() + 1}/${cycleStart.getFullYear()} إلى ${cycleEnd.getDate()}/${cycleEnd.getMonth() + 1}/${cycleEnd.getFullYear()}`
             : `Rent ${cycleStart.getDate()}/${cycleStart.getMonth() + 1}/${cycleStart.getFullYear()} – ${cycleEnd.getDate()}/${cycleEnd.getMonth() + 1}/${cycleEnd.getFullYear()}`);
       const upTo = unpaidMonths
-        .filter((m) => m.year < periodYear || (m.year === periodYear && m.month <= periodMonthNum))
+        .filter((m) => m.periodStartIso <= submitPeriodStartIso)
         .map((m) => {
-          const isCurrent = m.year === periodYear && m.month === periodMonthNum;
+          const isCurrent = m.periodStartIso === submitPeriodStartIso;
           const isPriorPaidNow = collectPriorArrears && !isCurrent;
           const remaining = isCurrent
             ? Math.max(0, m.remaining - Number(amount))
             : (isPriorPaidNow ? 0 : m.remaining);
-          return {
-            label: `${(lang === "ar" ? AR_MONTHS : EN_MONTHS)[m.month - 1]} ${m.year}`,
-            remaining,
-          };
+          return { label: m.label, remaining };
         })
         .filter((m) => m.remaining > 0.009);
       const unpaidTotal = upTo.reduce((s, m) => s + m.remaining, 0);
       const collectedArrearsList = collectPriorArrears
-        ? priorArrears.map((m) => ({
-            label: `${(lang === "ar" ? AR_MONTHS : EN_MONTHS)[m.month - 1]} ${m.year}`,
-            amount: m.remaining,
-          }))
+        ? priorArrears.map((m) => ({ label: m.label, amount: m.remaining }))
         : [];
       const grandTotal = Number(amount) + collectedArrearsList.reduce((s, a) => s + a.amount, 0);
       const baseArgs = {
