@@ -347,6 +347,16 @@ export default function Tenants() {
                     )}
                     <span>{format(r.rent_amount)}/{lang === "ar" ? "شهر" : "mo"}</span>
                     <span>{lang === "ar" ? "إجمالي مدفوع" : "Total paid"}: <b className="text-sage-600">{format(r.total_paid)}</b></span>
+                    {r.last_paid_date && (
+                      <span className="inline-flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3 text-sage-500" />
+                        {lang === "ar" ? "آخر دفعة" : "Last payment"}:&nbsp;
+                        <b className="text-sage-600">
+                          {r.last_payment_amount != null ? `${format(r.last_payment_amount)} · ` : ""}
+                          {new Date(r.last_paid_date).toLocaleDateString(lang === "ar" ? "ar" : "en", { day: "numeric", month: "short", year: "numeric" })}
+                        </b>
+                      </span>
+                    )}
                     {r.outstanding > 0 && (
                       <span className="text-burgundy font-bold">{lang === "ar" ? "الديون" : "Debt"}: {format(r.outstanding)}</span>
                     )}
