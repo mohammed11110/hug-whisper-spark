@@ -59,6 +59,7 @@ export default function PaymentsTrash() {
       const b: any = u ? bMap.get(u.building_id) : null;
       return {
         id: p.id,
+        unit_id: p.unit_id,
         amount: Number(p.amount),
         payment_date: p.payment_date,
         receipt_number: p.receipt_number,
