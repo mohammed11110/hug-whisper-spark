@@ -267,6 +267,17 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
             </div>
           </div>
 
+          <LastPaymentSection
+            enabled={hasPrevPay}
+            onEnabledChange={setHasPrevPay}
+            month={prevPayMonth}
+            onMonthChange={setPrevPayMonth}
+            amount={prevPayAmount}
+            onAmountChange={setPrevPayAmount}
+          />
+
+
+
           {/* Optional attachments */}
           <div className="pt-2 border-t border-sage-200/50 space-y-3">
             <p className="text-xs font-bold text-sage-600">
