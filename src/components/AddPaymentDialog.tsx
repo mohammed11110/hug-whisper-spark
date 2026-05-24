@@ -310,6 +310,22 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     if (u) { setAmount(String(u.rent_amount)); setExpected(String(u.rent_amount)); }
   };
 
+  // Live distribution preview (auto mode only).
+  useEffect(() => {
+    if (payMode !== "auto" || !cachedArrears || !cachedUnit) { setDistribution(null); return; }
+    const amt = Number(amount) || 0;
+    if (amt <= 0) { setDistribution(null); return; }
+    let cancelled = false;
+    (async () => {
+      const { distributePayment } = await import("@/lib/balance");
+      const dist = distributePayment(cachedUnit, cachedArrears, amt, lang as "ar" | "en");
+      if (!cancelled) setDistribution(dist);
+    })();
+    return () => { cancelled = true; };
+  }, [amount, payMode, cachedArrears, cachedUnit, lang]);
+
+
+
 
   const remaining = Math.max(0, (Number(expected) || 0) - (Number(amount) || 0));
   const isPartial = Number(amount) > 0 && Number(expected) > 0 && Number(amount) < Number(expected);
