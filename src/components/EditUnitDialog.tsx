@@ -114,6 +114,8 @@ export function EditUnitDialog({
       rent_amount: parseFloat(rentAmount) || 0,
       rent_type: rentType,
       due_day: Math.min(31, Math.max(1, parseInt(dueDay) || 1)),
+      rent_timing: rentTiming,
+
       security_deposit: parseFloat(securityDeposit) || 0,
       deposit_status: depositStatus,
       deposit_refunded_at: depositStatus === "refunded" ? new Date().toISOString().slice(0, 10) : null,
