@@ -125,6 +125,8 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   // Whether to print the arrears table inside the PDF receipt. Default: off
   // (privacy-friendly). User opts in via switch before saving.
   const [includeArrearsInReceipt, setIncludeArrearsInReceipt] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState<string>("");
 
 
   const { start: periodStart, end: periodEnd } = monthRange(periodYear, periodMonthNum);
@@ -362,6 +364,89 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         ? `تم سداد الجزء الأخير من المبلغ المتبقي عن ${selectedMonthLabel}.`
         : `Final installment of the outstanding balance for ${selectedMonthLabel} has been settled.`)
     : null;
+
+  // Build the args for buildReceiptHTML based on CURRENT (pre-save) state.
+  // Used by both the live preview button and the save flow so the preview
+  // matches the final printed receipt exactly.
+  const buildReceiptArgs = () => {
+    if (!unitId || !(Number(amount) > 0)) return null;
+    const u = units.find((x) => x.id === unitId);
+    const monthLabel = anchorDay === 1
+      ? `${(lang === "ar" ? AR_MONTHS : EN_MONTHS)[periodMonthNum - 1]} ${periodYear}`
+      : (lang === "ar"
+          ? `إيجار الفترة من ${cycleStart.getDate()}/${cycleStart.getMonth() + 1}/${cycleStart.getFullYear()} إلى ${cycleEnd.getDate()}/${cycleEnd.getMonth() + 1}/${cycleEnd.getFullYear()}`
+          : `Rent ${cycleStart.getDate()}/${cycleStart.getMonth() + 1}/${cycleStart.getFullYear()} – ${cycleEnd.getDate()}/${cycleEnd.getMonth() + 1}/${cycleEnd.getFullYear()}`);
+      let collectedArrearsList: Array<{ label: string; amount: number }> = [];
+      let primaryAmount = Number(amount);
+      let primaryPeriodLabel = monthLabel;
+      let upTo: Array<{ label: string; remaining: number }>;
+      if (payMode === "auto" && distribution && distribution.allocations.length > 0) {
+        const allocs = distribution.allocations;
+        primaryAmount = allocs[0].amount;
+        primaryPeriodLabel = allocs[0].label;
+        collectedArrearsList = allocs.slice(1).map((a) => ({
+          label: (a.isAdvance ? (lang === "ar" ? "دفعة مقدمة — " : "Advance — ") : "") + a.label,
+          amount: a.amount,
+        }));
+        const arrearsCovered = allocs.filter((a) => !a.isAdvance).reduce((s, a) => s + a.amount, 0);
+        const remainingArrears = Math.max(0, arrearsBefore - arrearsCovered);
+        upTo = remainingArrears > 0.009
+          ? [{ label: lang === "ar" ? "متأخرات متبقية" : "Remaining arrears", remaining: remainingArrears }]
+          : [];
+      } else {
+        upTo = unpaidMonths
+          .filter((m) => m.periodStartIso <= submitPeriodStartIso)
+          .map((m) => {
+            const isCurrent = m.periodStartIso === submitPeriodStartIso;
+            const isPriorPaidNow = collectPriorArrears && !isCurrent;
+            const remaining = isCurrent
+              ? Math.max(0, m.remaining - Number(amount))
+              : (isPriorPaidNow ? 0 : m.remaining);
+            return { label: m.label, remaining };
+          })
+          .filter((m) => m.remaining > 0.009);
+        collectedArrearsList = collectPriorArrears
+          ? priorArrears.map((m) => ({ label: m.label, amount: m.remaining }))
+          : [];
+      }
+      const unpaidTotal = upTo.reduce((s, m) => s + m.remaining, 0);
+      const grandTotal = primaryAmount + collectedArrearsList.reduce((s, a) => s + a.amount, 0);
+      const baseArgs = {
+        brand: settings.brand,
+        receiptNumber: receipt.trim() || formatReceipt(settings.receipt),
+        paymentDate: date,
+        amount: collectedArrearsList.length ? grandTotal : primaryAmount,
+        expectedAmount: Number(expected) || null,
+        method: methodLabel(method, lang),
+        periodLabel: primaryPeriodLabel,
+        building: u?.building_name || "—",
+        unitNumber: u?.unit_number || "—",
+        tenantName: u?.tenant_name || "—",
+        notes: [settlementNote, notes.trim()].filter(Boolean).join(" — ") || null,
+        currency: format(0).replace(/[\d.,\s]/g, "").trim() || "",
+        lang: (lang === "ar" ? "ar" : "en") as "ar" | "en",
+        settlementNote,
+        collectedArrears: collectedArrearsList,
+        grandTotal: collectedArrearsList.length ? grandTotal : null,
+      };
+      return { baseArgs, upTo, unpaidTotal, monthLabel: primaryPeriodLabel };
+  };
+
+  const openPreview = () => {
+    const args = buildReceiptArgs();
+    if (!args) {
+      toast.error(lang === "ar" ? "أدخل المبلغ واختر الوحدة أولاً" : "Enter amount and select a unit first");
+      return;
+    }
+    const html = buildReceiptHTML({
+      ...args.baseArgs,
+      unpaidMonths: includeArrearsInReceipt ? args.upTo : [],
+      unpaidTotal: includeArrearsInReceipt ? args.unpaidTotal : 0,
+      unpaidUpToLabel: includeArrearsInReceipt ? args.monthLabel : undefined,
+    });
+    setPreviewHtml(html);
+    setPreviewOpen(true);
+  };
 
   const submit = async () => {
     const parsed = schema.safeParse({
@@ -1115,8 +1200,18 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
             </div>
           )}
         </div>
-        <DialogFooter className="gap-2 sm:gap-2">
+        <DialogFooter className="gap-2 sm:gap-2 flex-wrap">
           <Button data-guard-ignore variant="outline" onClick={() => guard.handleOpenChange(false)} className="rounded-xl">{t2("cancel")}</Button>
+          <Button
+            data-guard-ignore
+            type="button"
+            variant="outline"
+            onClick={openPreview}
+            disabled={!unitId || !(Number(amount) > 0)}
+            className="rounded-xl border-sage-300 text-sage-700 hover:bg-sage-100/50"
+          >
+            {lang === "ar" ? "معاينة الإيصال" : "Preview receipt"}
+          </Button>
           <Button data-guard-ignore onClick={submit} disabled={saving} className="rounded-xl bg-gradient-sage text-primary-foreground">{t2("save")}</Button>
         </DialogFooter>
         {guard.ConfirmDiscardUI}
@@ -1149,6 +1244,75 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="rounded-2xl max-w-3xl w-[95vw] max-h-[92vh] overflow-hidden flex flex-col p-4 sm:p-6">
+          <DialogHeader>
+            <DialogTitle className="text-sage-700 flex items-center justify-between gap-2">
+              <span>{lang === "ar" ? "معاينة الإيصال" : "Receipt preview"}</span>
+              {unpaidMonths.length > 0 && (
+                <span
+                  className={
+                    "text-[11px] font-bold rounded-full px-2.5 py-1 " +
+                    (includeArrearsInReceipt
+                      ? "bg-burgundy/10 text-burgundy"
+                      : "bg-sage-100 text-sage-600")
+                  }
+                >
+                  {includeArrearsInReceipt
+                    ? (lang === "ar" ? "المتأخرات مُدرجة" : "Arrears included")
+                    : (lang === "ar" ? "المتأخرات غير مُدرجة" : "Arrears hidden")}
+                </span>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden rounded-xl border border-sage-200 bg-sage-100/30">
+            <iframe
+              title="receipt-preview"
+              srcDoc={previewHtml}
+              className="w-full h-[70vh] bg-white"
+            />
+          </div>
+          <DialogFooter className="gap-2 sm:gap-2 flex-wrap">
+            {unpaidMonths.length > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIncludeArrearsInReceipt((v) => {
+                    const next = !v;
+                    // re-render preview with the new flag
+                    setTimeout(() => {
+                      const args = buildReceiptArgs();
+                      if (!args) return;
+                      const html = buildReceiptHTML({
+                        ...args.baseArgs,
+                        unpaidMonths: next ? args.upTo : [],
+                        unpaidTotal: next ? args.unpaidTotal : 0,
+                        unpaidUpToLabel: next ? args.monthLabel : undefined,
+                      });
+                      setPreviewHtml(html);
+                    }, 0);
+                    return next;
+                  });
+                }}
+                className="rounded-xl border-sage-300 text-sage-700"
+              >
+                {includeArrearsInReceipt
+                  ? (lang === "ar" ? "إخفاء المتأخرات" : "Hide arrears")
+                  : (lang === "ar" ? "إظهار المتأخرات" : "Show arrears")}
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setPreviewOpen(false)}
+              className="rounded-xl"
+            >
+              {lang === "ar" ? "إغلاق" : "Close"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
