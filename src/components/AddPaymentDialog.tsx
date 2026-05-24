@@ -256,6 +256,8 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
 
       setActiveRent(rentAmt);
       setArrearsBefore(arr.totalShortfall);
+      setCachedArrears(arr);
+      setCachedUnit(u);
 
       const priorLabel = lang === "ar" ? "متأخرات سابقة" : "Prior arrears";
       const entries: UnpaidEntry[] = arr.cycles
@@ -283,6 +285,8 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
 
       setUnpaidMonths(entries);
       setAllPaid(entries.length === 0);
+      // Default mode: auto-distribute when arrears exist, manual otherwise.
+      setPayMode(entries.length > 0 ? "auto" : "manual");
       // Auto-select the oldest unpaid entry and prefill amount/expected.
       const first = entries[0];
       if (first) {
@@ -290,13 +294,15 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         setPeriodYear(first.year);
         setPeriodMonthNum(first.month);
         if (rentAmt > 0) setExpected(String(first.isPrior ? first.remaining : rentAmt));
-        setAmount(String(first.remaining));
+        // Auto mode default: full arrears (covers all unpaid cycles).
+        setAmount(String(arr.totalShortfall));
       } else {
         setSelectedEntry(null);
       }
     })();
     return () => { cancelled = true; };
   }, [open, unitId, lang]);
+
 
   const onPickUnit = (id: string) => {
     setUnitId(id);
