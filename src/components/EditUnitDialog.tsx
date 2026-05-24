@@ -306,7 +306,12 @@ export function EditUnitDialog({
               onDateChange={setPrevPayDate}
               amount={prevPayAmount}
               onAmountChange={setPrevPayAmount}
+              periodFrom={periodFrom}
+              periodTo={periodTo}
+              onPeriodFromChange={setPeriodFrom}
+              onPeriodToChange={setPeriodTo}
               rentTiming={rentTiming}
+              rentAmount={parseFloat(rentAmount) || 0}
             />
 
           )}
