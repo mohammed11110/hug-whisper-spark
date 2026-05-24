@@ -157,16 +157,18 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
       updatePayload.handover_photos = [...existing, ...unitPhotos];
     }
 
-    // Last payment → set opening_balance_date to the month after, so arrears auto-compute.
-    // We do NOT insert a payment row for the historical month; opening_balance_date already
-    // represents "everything before this point is settled".
+    // Last payment → set opening_balance_date so arrears auto-compute from the
+    // first unpaid cycle. We do NOT insert a payment row for the historical month.
+    // - advance: payment covers the month it was made in → next unpaid = next month.
+    // - arrears: payment covers the PREVIOUS month → next unpaid = same month.
     if (hasPrevPay && prevPayDate) {
       const b = monthBoundsFromDate(prevPayDate, lang);
       const dateIso = `${prevPayDate.getFullYear()}-${String(prevPayDate.getMonth() + 1).padStart(2, "0")}-${String(prevPayDate.getDate()).padStart(2, "0")}`;
       updatePayload.opening_balance = 0;
-      updatePayload.opening_balance_date = b.nextMonthStart;
+      updatePayload.opening_balance_date = rentTiming === "arrears" ? b.start : b.nextMonthStart;
       updatePayload.last_paid_date = dateIso;
     }
+
 
 
     const { error: uErr } = await supabase.from("units").update(updatePayload).eq("id", unit.id);
