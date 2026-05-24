@@ -121,7 +121,7 @@ export default function Tenants() {
         .not("tenant_name", "is", null);
       const unitIds = (us || []).map((u: any) => u.id);
       const { data: ps } = unitIds.length
-        ? await supabase.from("payments").select("unit_id, amount, payment_date, deleted_at").in("unit_id", unitIds).is("deleted_at", null)
+        ? await supabase.from("payments").select("unit_id, amount, payment_date, deleted_at, period_start, period_end").in("unit_id", unitIds).is("deleted_at", null)
         : { data: [] as any[] };
       const totals = new Map<string, number>();
       const lastPay = new Map<string, { date: string; amount: number }>();
