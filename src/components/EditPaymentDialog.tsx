@@ -142,27 +142,43 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
           <div className="space-y-3" {...guard.formProps}>
             <div className="space-y-1.5">
               <Label className="text-xs text-sage-500">{t2("rent_month")}</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <Select value={String(periodMonthNum)} onValueChange={(v) => setPeriodMonthNum(Number(v))}>
-                  <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11"><SelectValue /></SelectTrigger>
-                  <SelectContent className="max-h-72">
-                    {monthNames.map((n, i) => {
-                      const k = `${periodYear}-${String(i + 1).padStart(2, "0")}`;
-                      const isPaid = paidMonthsKeys.has(k) && (i + 1) !== periodMonthNum;
-                      if (isPaid) return null;
-                      return <SelectItem key={i} value={String(i + 1)}>{n}</SelectItem>;
-                    })}
-                  </SelectContent>
-                </Select>
-                <Select value={String(periodYear)} onValueChange={(v) => setPeriodYear(Number(v))}>
-                  <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11"><SelectValue /></SelectTrigger>
-                  <SelectContent className="max-h-72">
-                    {years.map((y) => (
-                      <SelectItem key={y} value={String(y)}>{y}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {(() => {
+                const paidInYear = monthNames
+                  .map((_, i) => i + 1)
+                  .filter((m) => paidMonthsKeys.has(`${periodYear}-${String(m).padStart(2, "0")}`) && m !== periodMonthNum);
+                return (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Select value={String(periodMonthNum)} onValueChange={(v) => setPeriodMonthNum(Number(v))}>
+                        <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11"><SelectValue /></SelectTrigger>
+                        <SelectContent className="max-h-72">
+                          {monthNames.map((n, i) => {
+                            const k = `${periodYear}-${String(i + 1).padStart(2, "0")}`;
+                            const isPaid = paidMonthsKeys.has(k) && (i + 1) !== periodMonthNum;
+                            if (isPaid) return null;
+                            return <SelectItem key={i} value={String(i + 1)}>{n}</SelectItem>;
+                          })}
+                        </SelectContent>
+                      </Select>
+                      <Select value={String(periodYear)} onValueChange={(v) => setPeriodYear(Number(v))}>
+                        <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11"><SelectValue /></SelectTrigger>
+                        <SelectContent className="max-h-72">
+                          {years.map((y) => (
+                            <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {paidInYear.length > 0 && (
+                      <div className="mt-1.5 text-[11px] text-sage-400">
+                        {lang === "ar"
+                          ? `تم إخفاء ${paidInYear.length} ${paidInYear.length === 1 ? "شهر مسدَّد" : "أشهر مسدَّدة"}`
+                          : `${paidInYear.length} paid ${paidInYear.length === 1 ? "month" : "months"} hidden`}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
