@@ -132,16 +132,18 @@ export function EditUnitDialog({
       opening_balance: parseFloat(arrears) || 0,
     };
 
-    // Last payment → set opening_balance_date to the month after the chosen date,
-    // so arrears auto-compute from there. We do NOT insert a payment row for the
-    // historical month; opening_balance_date already means "settled up to this point".
+    // Last payment → set opening_balance_date so arrears auto-compute from the
+    // first unpaid cycle. We do NOT insert a payment row for the historical month.
+    // - advance: payment covers the month it was made in → next unpaid = next month.
+    // - arrears: payment covers the PREVIOUS month → next unpaid = same month.
     if (hasPrevPay && prevPayDate) {
       const b = monthBoundsFromDate(prevPayDate, lang);
       const dateIso = `${prevPayDate.getFullYear()}-${String(prevPayDate.getMonth() + 1).padStart(2, "0")}-${String(prevPayDate.getDate()).padStart(2, "0")}`;
       updatePayload.opening_balance = 0;
-      updatePayload.opening_balance_date = b.nextMonthStart;
+      updatePayload.opening_balance_date = rentTiming === "arrears" ? b.start : b.nextMonthStart;
       updatePayload.last_paid_date = dateIso;
     }
+
 
     const { error } = await supabase.from("units").update(updatePayload).eq("id", unit.id);
     if (error) { setBusy(false); return toast.error(error.message); }
