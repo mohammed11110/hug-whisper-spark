@@ -116,7 +116,7 @@ const dict: Dict = {
   welcome: { ar: "أهلاً بك", en: "Welcome", ur: "خوش آمدید", zh: "欢迎", hi: "स्वागत है", bn: "স্বাগতম", fr: "Bienvenue", es: "Bienvenido", tr: "Hoş geldiniz" },
   current_plan: { ar: "الخطة الحالية", en: "Current plan", ur: "موجودہ منصوبہ", zh: "当前套餐", hi: "वर्तमान योजना", bn: "বর্তমান পরিকল্পনা", fr: "Plan actuel", es: "Plan actual", tr: "Mevcut plan" },
   free: { ar: "مجاني", en: "Free", ur: "مفت", zh: "免费", hi: "मुफ़्त", bn: "ফ্রি", fr: "Gratuit", es: "Gratis", tr: "Ücretsiz" },
-  loading: { ar: "جاري التحميل...", en: "Loading...", ur: "لوڈ ہو رہا ہے...", zh: "加载中...", hi: "लोड हो रहा है...", bn: "লোড হচ্ছে...", fr: "Chargement...", es: "Cargando...", tr: "Yükleniyor..." },
+  loading: { ar: "جارٍ التحميل…", en: "Loading…", ur: "لوڈ ہو رہا ہے…", zh: "加载中…", hi: "लोड हो रहा है…", bn: "লোড হচ্ছে…", fr: "Chargement…", es: "Cargando…", tr: "Yükleniyor…" },
 };
 
 interface I18nCtx {
