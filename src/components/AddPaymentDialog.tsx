@@ -640,7 +640,13 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
               {unitId && unpaidMonths.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => setShowAllMonths((s) => !s)}
+                  onClick={() => {
+                    setShowAllMonths((s) => {
+                      const next = !s;
+                      if (next) setSelectedEntry(null);
+                      return next;
+                    });
+                  }}
                   className="text-[11px] text-sage-500 hover:text-sage-600 font-semibold"
                 >
                   {showAllMonths
