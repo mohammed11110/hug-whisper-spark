@@ -88,6 +88,13 @@ export default function BuildingDetail() {
   const dueDayDistance = (u: Unit) => {
     if (u.status === "vacant") return Number.MAX_SAFE_INTEGER;
     const today = new Date();
+    const info = getNextDueInfo(u as any, payments as any);
+    if (info) {
+      const diff = Math.ceil((info.nextDueDate.getTime() - today.getTime()) / 86400000);
+      // المتأخّر يأتي أولاً (قيمة سالبة → نُعيدها 0 لأقصى أولوية)
+      return Math.max(0, diff);
+    }
+    // fallback to legacy due_day
     const day = today.getDate();
     const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
     const due = Math.min(Math.max(1, u.due_day || 1), lastDay);
