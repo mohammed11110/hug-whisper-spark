@@ -12,7 +12,8 @@ import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { computeBalance, getNextDueInfo, type PaymentForBalance } from "@/lib/balance";
+import { computeBalance, getNextDueInfo, getUnitArrears, type PaymentForBalance } from "@/lib/balance";
+import { ArrearsBadge } from "@/components/ArrearsBadge";
 
 interface Building { id: string; name: string; name_en: string | null; type: string; floors: number; city: string | null; address: string | null; }
 interface Unit { id: string; unit_number: string; floor: number; type: string; tenant_name: string | null; tenant_phone: string | null; rent_amount: number; rent_type: string; rent_timing?: string | null; status: string; due_day: number; security_deposit?: number; deposit_status?: string; opening_balance?: number; opening_balance_date?: string | null; contract_start_date?: string | null; last_paid_date?: string | null; }
