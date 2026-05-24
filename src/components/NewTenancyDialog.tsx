@@ -282,7 +282,9 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
             onDateChange={setPrevPayDate}
             amount={prevPayAmount}
             onAmountChange={setPrevPayAmount}
+            rentTiming={rentTiming}
           />
+
 
 
 
