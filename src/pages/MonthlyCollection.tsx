@@ -18,6 +18,7 @@ import { buildCollectionHTML, downloadHTMLAsPDF, type CollectionPdfData } from "
 import { AddPaymentDialog } from "@/components/AddPaymentDialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { getAnchorDate, getAnchorDay, getCycleByStartMonth, periodsElapsed } from "@/lib/balance";
 
 interface UnitRow {
   id: string;
@@ -27,13 +28,16 @@ interface UnitRow {
   tenant_phone: string | null;
   rent_amount: number;
   rent_type: string;
+  rent_timing?: string | null;
   contract_start_date: string | null;
+  opening_balance_date?: string | null;
 }
 interface PaymentRow {
   unit_id: string;
   amount: number;
   payment_date: string;
   period_start: string | null;
+  deleted_at?: string | null;
 }
 interface BuildingRow { id: string; name: string; }
 
@@ -42,7 +46,7 @@ const EN_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","
 
 function monthOptions(lang: string) {
   const names = lang === "ar" ? AR_MONTHS : EN_MONTHS;
-  const opts: { key: string; label: string; start: Date; end: Date }[] = [];
+  const opts: { key: string; label: string; year: number; month: number; start: Date; end: Date }[] = [];
   const today = new Date();
   for (let i = 11; i >= 0; i--) {
     const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
@@ -50,19 +54,28 @@ function monthOptions(lang: string) {
     const m = d.getMonth();
     const start = new Date(y, m, 1);
     const end = new Date(y, m + 1, 0, 23, 59, 59);
-    opts.push({ key: `${y}-${String(m + 1).padStart(2, "0")}`, label: `${names[m]} ${String(y).slice(2)}`, start, end });
+    opts.push({ key: `${y}-${String(m + 1).padStart(2, "0")}`, label: `${names[m]} ${String(y).slice(2)}`, year: y, month: m + 1, start, end });
   }
   return opts;
 }
 
-function computeMonthRows(units: UnitRow[], payments: PaymentRow[], start: Date, end: Date) {
+/**
+ * يطابق الدفعات لدورة كل وحدة التي تبدأ في الشهر المختار (وليس الشهر التقويمي).
+ * يستبعد الوحدات التي لم يبدأ عقدها بعد بحلول تلك الدورة.
+ */
+function computeMonthRows(units: UnitRow[], payments: PaymentRow[], year: number, month1to12: number) {
   return units
-    .filter((u) => !u.contract_start_date || new Date(u.contract_start_date) <= end)
     .map((u) => {
+      const anchor = getAnchorDate(u);
+      const anchorDay = getAnchorDay(u);
+      // نافذة الدورة الخاصة بهذه الوحدة لهذا الشهر
+      const cycle = getCycleByStartMonth(year, month1to12, anchorDay);
+      // استبعد إذا الدورة سابقة لتاريخ بداية العقد/الرصيد
+      if (anchor && cycle.start < new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate())) return null;
       const paidPays = payments.filter((p) => {
-        if (p.unit_id !== u.id) return false;
+        if (p.unit_id !== u.id || p.deleted_at) return false;
         const ref = p.period_start ? new Date(p.period_start) : new Date(p.payment_date);
-        return ref >= start && ref <= end;
+        return ref >= cycle.start && ref <= cycle.end;
       });
       const paid = paidPays.reduce((s, p) => s + Number(p.amount || 0), 0);
       const rent = Number(u.rent_amount || 0);
@@ -70,8 +83,9 @@ function computeMonthRows(units: UnitRow[], payments: PaymentRow[], start: Date,
       let status: "paid" | "partial" | "unpaid" = "unpaid";
       if (paid >= rent && rent > 0) status = "paid";
       else if (paid > 0) status = "partial";
-      return { unit: u, rent, paid, remaining: Math.max(0, rent - paid), status, lastDate };
-    });
+      return { unit: u, rent, paid, remaining: Math.max(0, rent - paid), status, lastDate, cycleStart: cycle.start, cycleEnd: cycle.end };
+    })
+    .filter((r): r is NonNullable<typeof r> => r !== null);
 }
 
 export default function MonthlyCollection() {
