@@ -73,6 +73,12 @@ const dict: Record<Key, Partial<Record<Lang, string>>> = {
   rent_amount: { ar: "قيمة الإيجار", en: "Rent amount", ur: "کرایہ", zh: "租金", hi: "किराया राशि", bn: "ভাড়া", fr: "Loyer", es: "Renta", tr: "Kira" },
   rent_type: { ar: "نوع الإيجار", en: "Rent type", ur: "کرایہ کی قسم", zh: "周期", hi: "किराया प्रकार", bn: "ভাড়ার ধরন", fr: "Périodicité", es: "Periodicidad", tr: "Kira tipi" },
   due_day: { ar: "يوم الاستحقاق", en: "Due day", ur: "ادائیگی کا دن", zh: "付款日", hi: "देय दिन", bn: "দেয় দিন", fr: "Jour dû", es: "Día venc.", tr: "Vade günü" },
+  rent_timing: { ar: "نمط الدفع", en: "Payment timing" },
+  rent_timing_advance: { ar: "مُقدَّم", en: "In advance" },
+  rent_timing_arrears: { ar: "مُؤخَّر", en: "In arrears" },
+  rent_timing_advance_hint: { ar: "تُدفع أجرة الشهر في بدايته للشهر نفسه", en: "Rent for the month is paid at its start" },
+  rent_timing_arrears_hint: { ar: "تُدفع أجرة الشهر في نهايته عن الشهر السابق", en: "Rent for the month is paid at its end for the prior month" },
+
   monthly: { ar: "شهري", en: "Monthly", ur: "ماہانہ", zh: "月", hi: "मासिक", bn: "মাসিক", fr: "Mensuel", es: "Mensual", tr: "Aylık" },
   daily: { ar: "يومي", en: "Daily", ur: "روزانہ", zh: "日", hi: "दैनिक", bn: "দৈনিক", fr: "Quotidien", es: "Diario", tr: "Günlük" },
   yearly: { ar: "سنوي", en: "Yearly", ur: "سالانہ", zh: "年", hi: "वार्षिक", bn: "বার্ষিক", fr: "Annuel", es: "Anual", tr: "Yıllık" },
