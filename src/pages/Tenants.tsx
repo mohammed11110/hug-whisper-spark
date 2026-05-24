@@ -137,6 +137,7 @@ export default function Tenants() {
       });
       const mapped: TenantRow[] = (us || []).map((u: any) => {
         const bal = computeBalance(u as any, (ps || []) as PaymentForBalance[]);
+        const arr = getUnitArrears(u as any, (ps || []) as PaymentForBalance[], new Date(), lang as "ar" | "en");
         const lp = lastPay.get(u.id);
         return {
           unit_id: u.id,
@@ -152,6 +153,9 @@ export default function Tenants() {
           contract_end_date: u.contract_end_date,
           total_paid: totals.get(u.id) || 0,
           outstanding: bal.outstanding,
+          arrears_label: arr.oldestUnpaid?.label || null,
+          arrears_count: arr.unpaidCount,
+          arrears_total: arr.totalShortfall,
         };
       });
       setRows(mapped);
