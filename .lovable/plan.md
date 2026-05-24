@@ -1,21 +1,46 @@
-## عرض نمط الدفع (مُقدّم/مُؤخّر) في واجهة المستخدم
+## المشكلة
 
-### الملخص
-إظهار قيمة `rent_timing` (مُقدّم advance / مُؤخّر arrears) بجانب بيانات كل وحدة في قائمة شقق المبنى، وفي صفحة تفاصيل المستأجر (تبويب التفاصيل) ضمن بيانات الإيجار.
+في وحدات B2 #4، B2 #8 (و B2 #06) — نمط الدفع **مؤخّر**، آخر دفعة بتاريخ 5/4/2026 تخصّ شهر 3/2026، ومع ذلك لا تظهر متأخرات شهر أبريل رغم أننا في 24/5.
 
-### التغييرات
+السبب: في `EditUnitDialog.tsx` و`NewTenancyDialog.tsx` عند إدخال «تاريخ آخر دفعة» يتم تعيين:
+```
+opening_balance_date = nextMonthStart(prevPayDate)
+```
+هذا صحيح فقط لنمط **مُقدّم** (الدفعة تغطي الشهر الذي وقعت فيه)، لكن في **المؤخّر** الدفعة تغطي الشهر **السابق** لها، فينتج عن ذلك تخطّي شهر كامل وعدم احتساب متأخراته.
 
-1. **صفحة تفاصيل المبنى (`src/pages/BuildingDetail.tsx`)**
-   - الموقع: داخل بطاقة الوحدة في قائمة الشقق، بجانب سطر نوع الإيجار والمبلغ.
-   - التنفيذ: إضافة `· {t2(u.rent_timing === "arrears" ? "rent_timing_arrears" : "rent_timing_advance")}` إلى النص الفرعي الذي يعرض نوع الإيجار (`u.rent_type`).
-   - الموقع المحدد: السطر 281 تقريباً ضمن `<p className="text-xs text-muted-foreground">`.
+نتيجة على B2 #4: anchor مضبوط على 1/5/2026 → `cyclesDue` للمؤخّر في 24/5 = 0 → لا متأخرات. الصحيح: anchor = 1/4/2026 → cyclesDue = 1 (دورة أبريل انتهت 30/4 وغير مدفوعة).
 
-2. **صفحة تفاصيل الوحدة/المستأجر (`src/pages/UnitDetail.tsx`)**
-   - الموقع: داخل بطاقة "مبلغ الإيجار" (DetailsTab → Card الثالث) بجانب `rent_amount` و `rent_type`.
-   - التنفيذ: إضافة صف `Row` جديد داخل البطاقة يعرض `t2("rent_timing")` مع القيمة المناسبة (`rent_timing_advance` أو `rent_timing_arrears`).
-   - الموقع المحدد: بين السطر 394 (rent_amount) والسطر 395 (DueDateRow).
+## الحل
 
-### ملاحظات
-- الحقل `rent_timing` مُحمل مسبقاً في كلا الملفين (`rent_timing` في `BuildingDetail`، و`*` في `UnitDetail`).
-- الترجمات موجودة مسبقاً في `i18n2.tsx`: `rent_timing_advance` / `rent_timing_arrears`.
-- لا حاجة لتعديل قاعدة البيانات أو API.
+### 1) إصلاح منطق الحفظ (التلقائي للمستقبل)
+في كل من `EditUnitDialog.tsx` (سطر ~138-144) و`NewTenancyDialog.tsx` (سطر ~160-167):
+- إذا `rent_timing === 'arrears'` ⇒ `opening_balance_date = bounds.start` (أول يوم في شهر تاريخ الدفعة).
+- إذا `rent_timing === 'advance'` ⇒ يبقى `bounds.nextMonthStart` كما هو.
+
+### 2) تحديث نصّ التلميح
+في `LastPaymentSection.tsx` (سطر 122-126) جعل عبارة «المتأخرات تُحسب من …» تستخدم `bounds.start` لنمط المؤخّر، و`bounds.nextMonthStart` لنمط المُقدّم. يتطلب تمرير `rentTiming` كـ prop اختياري إلى المكوّن، أو حساب التسمية في الأماكن المستدعية.
+
+### 3) ترحيل البيانات (migration) لإصلاح الوحدات الحالية
+لكل وحدة:
+- `rent_timing = 'arrears'`
+- `opening_balance_date IS NOT NULL`
+- `last_paid_date IS NOT NULL`
+- `opening_balance_date = date_trunc('month', last_paid_date) + interval '1 month'` (أي أن النظام طبّق قاعدة «مُقدّم» عليها سابقاً)
+
+نُرجِع `opening_balance_date` شهراً واحداً للخلف:
+```sql
+UPDATE units
+   SET opening_balance_date = date_trunc('month', last_paid_date)::date
+ WHERE rent_timing = 'arrears'
+   AND last_paid_date IS NOT NULL
+   AND opening_balance_date IS NOT NULL
+   AND opening_balance_date = (date_trunc('month', last_paid_date) + interval '1 month')::date;
+```
+ينطبق نفس الإصلاح على `tenancies` إن وُجد فيها نفس النمط (يحتاج فحص).
+
+### 4) اختبار إضافي في `balance.test.ts`
+سيناريو: وحدة مؤخّر، تاريخ آخر دفعة 5/4/2026، بعد الإصلاح `opening_balance_date = 2026-04-01`، وفي 24/5/2026 → `cyclesDue = 1` و`outstanding = rent_amount`.
+
+## ملاحظات فنّية
+- لا يحتاج تعديل `balance.ts` نفسه؛ المنطق صحيح، الخلل في **مَن يكتب** anchor.
+- بعد الإصلاح ستظهر متأخرات أبريل على B2 #4 و#8 و#06 فوراً.

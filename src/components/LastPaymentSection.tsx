@@ -18,6 +18,7 @@ const iso = (d: Date) =>
 export interface MonthBounds {
   start: string;            // first day of date's month (YYYY-MM-DD)
   end: string;              // last day of date's month
+  startLabel: string;       // localized label of date's month
   nextMonthStart: string;   // first day of the month AFTER date's month
   nextMonthLabel: string;
 }
@@ -31,10 +32,12 @@ export function monthBoundsFromDate(date: Date, lang = "en"): MonthBounds {
   return {
     start: `${y}-${String(m + 1).padStart(2, "0")}-01`,
     end:   `${y}-${String(m + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`,
+    startLabel: `${names[m]} ${y}`,
     nextMonthStart: iso(new Date(next.getFullYear(), next.getMonth(), 1)),
     nextMonthLabel: `${names[next.getMonth()]} ${next.getFullYear()}`,
   };
 }
+
 
 interface Props {
   enabled: boolean;
@@ -43,12 +46,15 @@ interface Props {
   onDateChange: (d: Date | undefined) => void;
   amount: string;
   onAmountChange: (v: string) => void;
+  rentTiming?: "advance" | "arrears";
 }
 
-export function LastPaymentSection({ enabled, onEnabledChange, date, onDateChange, amount, onAmountChange }: Props) {
+export function LastPaymentSection({ enabled, onEnabledChange, date, onDateChange, amount, onAmountChange, rentTiming = "advance" }: Props) {
   const { lang } = useI18n();
   const locale = lang === "ar" ? ar : enUS;
   const bounds = date ? monthBoundsFromDate(date, lang) : null;
+  const arrearsFromLabel = bounds ? (rentTiming === "arrears" ? bounds.startLabel : bounds.nextMonthLabel) : "";
+
 
   return (
     <div className="pt-2 border-t border-sage-100">
@@ -121,10 +127,11 @@ export function LastPaymentSection({ enabled, onEnabledChange, date, onDateChang
           {bounds && (
             <p className="text-[11px] text-muted-foreground bg-sage-50 rounded-lg px-2 py-1.5 border border-sage-200/60">
               {lang === "ar"
-                ? `ⓘ المتأخرات ستُحسب تلقائياً من ${bounds.nextMonthLabel}`
-                : `ⓘ Arrears will be calculated automatically from ${bounds.nextMonthLabel}`}
+                ? `ⓘ المتأخرات ستُحسب تلقائياً من ${arrearsFromLabel}`
+                : `ⓘ Arrears will be calculated automatically from ${arrearsFromLabel}`}
             </p>
           )}
+
         </div>
       )}
     </div>
