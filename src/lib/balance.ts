@@ -35,7 +35,8 @@ export function periodsElapsed(start: Date, now: Date, rentType: string): number
     if (before) y -= 1;
     return Math.max(0, y);
   }
-  // monthly (default)
+  // monthly (default) — anchored on the start date's day-of-month.
+  // Example: start = 10/1/2026 → cycle 0 = 10/1→9/2, cycle 1 = 10/2→9/3, …
   let m = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
   if (now.getDate() < start.getDate()) m -= 1;
   return Math.max(0, m);
@@ -64,4 +65,116 @@ export function computeBalance(unit: UnitForBalance, payments: PaymentForBalance
 
   const outstanding = Math.max(0, totalDue - paid);
   return { opening, accrued, totalDue, paid, outstanding };
+}
+
+// =====================================================================
+// Cycle helpers — anchor-aware periods + smart receipt labels.
+// A "cycle" is one full rent period anchored on the contract-start day-of-month.
+// Example: contract starts 10/1/2026 → cycle whose month-index is January is
+// the window 10/1/2026 → 9/2/2026. Day-1 contracts collapse to the calendar
+// month (1/M → last/M).
+// =====================================================================
+
+const ISO = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+/** Anchor date for due-day calculations. Prefers opening_balance_date (= last settlement). */
+export function getAnchorDate(unit: { contract_start_date?: string | null; opening_balance_date?: string | null }): Date | null {
+  const s = unit.opening_balance_date || unit.contract_start_date || null;
+  if (!s) return null;
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** Day-of-month used as the anchor for monthly cycles (1..28, capped). */
+export function getAnchorDay(unit: { contract_start_date?: string | null; opening_balance_date?: string | null }): number {
+  const a = getAnchorDate(unit);
+  return a ? Math.min(28, Math.max(1, a.getDate())) : 1;
+}
+
+/**
+ * The monthly cycle whose START falls in `year/month1to12`.
+ * For anchor day D: cycle = D/M → (D-1)/(M+1).  For D=1 → 1/M → last day of M.
+ */
+export function getCycleByStartMonth(year: number, month1to12: number, anchorDay: number) {
+  const d = Math.min(28, Math.max(1, anchorDay || 1));
+  const start = new Date(year, month1to12 - 1, d);
+  const end = d === 1
+    ? new Date(year, month1to12, 0) // last day of same month
+    : new Date(year, month1to12, d - 1); // day before anchor of next month
+  return { start, end, startIso: ISO(start), endIso: ISO(end) };
+}
+
+/** Localized receipt label for a payment that covers a given cycle. */
+export function buildReceiptPeriodLabel(
+  cycleStart: Date,
+  cycleEnd: Date,
+  anchorDay: number,
+  lang: "ar" | "en" = "ar",
+): string {
+  const monthsAr = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+  const monthsEn = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const M = lang === "ar" ? monthsAr : monthsEn;
+  if (anchorDay === 1) {
+    const m = M[cycleStart.getMonth()];
+    const y = cycleStart.getFullYear();
+    return lang === "ar" ? `إيجار شهر ${m} ${y}` : `Rent for ${m} ${y}`;
+  }
+  const fmt = (d: Date) =>
+    `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+  return lang === "ar"
+    ? `إيجار الفترة من ${fmt(cycleStart)} إلى ${fmt(cycleEnd)}`
+    : `Rent for ${fmt(cycleStart)} – ${fmt(cycleEnd)}`;
+}
+
+/** Next due cycle for a unit, considering rent_timing. */
+export function getNextDueInfo(
+  unit: UnitForBalance,
+  payments: PaymentForBalance[] = [],
+  lang: "ar" | "en" = "ar",
+) {
+  const anchor = getAnchorDate(unit);
+  if (!anchor) return null;
+  const anchorDay = getAnchorDay(unit);
+  const now = new Date();
+  const timing = (unit.rent_timing || "advance") === "arrears" ? "arrears" : "advance";
+
+  // Index 0 = the cycle that starts at the anchor itself.
+  let periods = periodsElapsed(anchor, now, unit.rent_type || "monthly");
+  // Count fully-paid cycles by grouping payments by their period_start month.
+  // (Falls back to floor(paid/rent) when period_start isn't recorded.)
+  const rent = num(unit.rent_amount);
+  const totalPaid = payments
+    .filter((p) => p.unit_id === unit.id && !p.deleted_at)
+    .reduce((s, p) => s + num(p.amount), 0);
+  const paidCycles = rent > 0 ? Math.floor(totalPaid / rent) : 0;
+
+  // The "next due" cycle index = max(paidCycles, periods elapsed - (1 for arrears))
+  let dueIdx = paidCycles;
+  if (timing === "arrears") {
+    // Only past cycles are due; current running cycle isn't yet
+    dueIdx = Math.max(paidCycles, Math.max(0, periods - 1));
+    // If nothing past-due, the next billable cycle is the one that just finished
+    if (dueIdx < paidCycles + 1) dueIdx = paidCycles;
+  }
+
+  const cycleMonth = anchor.getMonth() + dueIdx; // JS Date handles overflow
+  const cycle = getCycleByStartMonth(
+    anchor.getFullYear() + Math.floor(cycleMonth / 12),
+    (cycleMonth % 12 + 12) % 12 + 1,
+    anchorDay,
+  );
+
+  const nextDueDate = timing === "advance" ? cycle.start : cycle.end;
+  const receiptLabel = buildReceiptPeriodLabel(cycle.start, cycle.end, anchorDay, lang);
+  return {
+    nextDueDate,
+    periodStart: cycle.start,
+    periodEnd: cycle.end,
+    periodStartIso: cycle.startIso,
+    periodEndIso: cycle.endIso,
+    receiptLabel,
+    anchorDay,
+    timing,
+  };
 }

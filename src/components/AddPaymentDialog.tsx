@@ -28,6 +28,10 @@ interface UnitOpt {
   rent_amount: number;
   tenant_name: string | null;
   arrears_note?: string | null;
+  anchor_day?: number;
+  rent_timing?: "advance" | "arrears";
+  contract_start_date?: string | null;
+  opening_balance_date?: string | null;
 }
 
 interface BuildingOpt { id: string; name: string; }
@@ -102,10 +106,29 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const { start: periodStart, end: periodEnd } = monthRange(periodYear, periodMonthNum);
   const monthNames = lang === "ar" ? AR_MONTHS : EN_MONTHS;
 
+  // Anchor-aware cycle for the currently selected unit/month.
+  const selectedUnit = units.find((x) => x.id === unitId);
+  const anchorDay = selectedUnit?.anchor_day || 1;
+  const timing = selectedUnit?.rent_timing || "advance";
+  const cycleStart = new Date(periodYear, periodMonthNum - 1, anchorDay);
+  const cycleEnd = anchorDay === 1
+    ? new Date(periodYear, periodMonthNum, 0)
+    : new Date(periodYear, periodMonthNum, anchorDay - 1);
+  const cycleStartIso = `${cycleStart.getFullYear()}-${String(cycleStart.getMonth() + 1).padStart(2, "0")}-${String(cycleStart.getDate()).padStart(2, "0")}`;
+  const cycleEndIso = `${cycleEnd.getFullYear()}-${String(cycleEnd.getMonth() + 1).padStart(2, "0")}-${String(cycleEnd.getDate()).padStart(2, "0")}`;
+  const cyclePeriodLabel = (() => {
+    if (anchorDay === 1) return `${monthNames[periodMonthNum - 1]} ${periodYear}`;
+    const fmt = (d: Date) => `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+    return lang === "ar"
+      ? `${fmt(cycleStart)} → ${fmt(cycleEnd)}`
+      : `${fmt(cycleStart)} – ${fmt(cycleEnd)}`;
+  })();
+
+
   useEffect(() => {
     if (!open) return;
     (async () => {
-      const { data: us } = await supabase.from("units").select("id, unit_number, tenant_name, rent_amount, rent_type, building_id, contract_start_date, opening_balance, opening_balance_date").order("unit_number");
+      const { data: us } = await supabase.from("units").select("id, unit_number, tenant_name, rent_amount, rent_type, rent_timing, building_id, contract_start_date, opening_balance, opening_balance_date").order("unit_number");
       const ids = Array.from(new Set((us || []).map((u: any) => u.building_id)));
       const { data: bs } = ids.length
         ? await supabase.from("buildings").select("id, name, name_en").in("id", ids)
@@ -152,6 +175,8 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
           } else if (activeOut > 0) {
             note = lang === "ar" ? `متأخرات: ${fmtAmt(activeOut)}` : `Arrears: ${fmtAmt(activeOut)}`;
           }
+          const anchorSrc = u.opening_balance_date || u.contract_start_date;
+          const anchorDay = anchorSrc ? Math.min(28, Math.max(1, new Date(anchorSrc).getDate() || 1)) : 1;
           return {
             id: u.id,
             unit_number: u.unit_number,
@@ -160,6 +185,10 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
             rent_amount: Number(u.rent_amount),
             building_name: bMap.get(u.building_id)?.name || bMap.get(u.building_id)?.name_en || "—",
             arrears_note: note,
+            anchor_day: anchorDay,
+            rent_timing: (u.rent_timing === "arrears" ? "arrears" : "advance") as "advance" | "arrears",
+            contract_start_date: u.contract_start_date,
+            opening_balance_date: u.opening_balance_date,
           };
         });
       setUnits(opts);
@@ -320,12 +349,19 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
       receipt_number: sharedReceipt,
       payment_method: method,
       notes: mergedNotes,
-      period_start: periodStart || null,
-      period_end: periodEnd || null,
+      period_start: cycleStartIso || null,
+      period_end: cycleEndIso || null,
+
     }];
     if (collectPriorArrears && priorArrears.length > 0) {
       for (const m of priorArrears) {
-        const { start: ps, end: pe } = monthRange(m.year, m.month);
+        const ps = anchorDay === 1
+          ? monthRange(m.year, m.month).start
+          : `${m.year}-${String(m.month).padStart(2, "0")}-${String(anchorDay).padStart(2, "0")}`;
+        const peDate = anchorDay === 1
+          ? new Date(m.year, m.month, 0)
+          : new Date(m.year, m.month, anchorDay - 1);
+        const pe = `${peDate.getFullYear()}-${String(peDate.getMonth() + 1).padStart(2, "0")}-${String(peDate.getDate()).padStart(2, "0")}`;
         rows.push({
           unit_id: unitId,
           tenancy_id: (activeT as any)?.id || null,
@@ -366,7 +402,11 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     // Prepare receipt args; ask user whether to include arrears if any remain
     try {
       const u = units.find((x) => x.id === unitId);
-      const monthLabel = `${(lang === "ar" ? AR_MONTHS : EN_MONTHS)[periodMonthNum - 1]} ${periodYear}`;
+      const monthLabel = anchorDay === 1
+        ? `${(lang === "ar" ? AR_MONTHS : EN_MONTHS)[periodMonthNum - 1]} ${periodYear}`
+        : (lang === "ar"
+            ? `إيجار الفترة من ${cycleStart.getDate()}/${cycleStart.getMonth() + 1}/${cycleStart.getFullYear()} إلى ${cycleEnd.getDate()}/${cycleEnd.getMonth() + 1}/${cycleEnd.getFullYear()}`
+            : `Rent ${cycleStart.getDate()}/${cycleStart.getMonth() + 1}/${cycleStart.getFullYear()} – ${cycleEnd.getDate()}/${cycleEnd.getMonth() + 1}/${cycleEnd.getFullYear()}`);
       const upTo = unpaidMonths
         .filter((m) => m.year < periodYear || (m.year === periodYear && m.month <= periodMonthNum))
         .map((m) => {

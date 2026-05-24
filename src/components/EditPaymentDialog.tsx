@@ -110,6 +110,20 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
     const a = Number(amount);
     if (!a || a <= 0) return toast.error(lang === "ar" ? "أدخل مبلغاً صحيحاً" : "Invalid amount");
     setSaving(true);
+    // Look up the unit's anchor day so the saved period matches the contract cycle.
+    let anchorDay = 1;
+    const { data: payRow } = await supabase.from("payments").select("unit_id").eq("id", paymentId).maybeSingle();
+    if (payRow?.unit_id) {
+      const { data: u } = await supabase.from("units")
+        .select("contract_start_date, opening_balance_date").eq("id", payRow.unit_id).maybeSingle();
+      const anchorSrc = (u as any)?.opening_balance_date || (u as any)?.contract_start_date;
+      if (anchorSrc) anchorDay = Math.min(28, Math.max(1, new Date(anchorSrc).getDate() || 1));
+    }
+    const cs = new Date(periodYear, periodMonthNum - 1, anchorDay);
+    const ce = anchorDay === 1
+      ? new Date(periodYear, periodMonthNum, 0)
+      : new Date(periodYear, periodMonthNum, anchorDay - 1);
+    const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     const { error } = await supabase.from("payments").update({
       amount: a,
       expected_amount: Number(expected) || null,
@@ -117,8 +131,8 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
       receipt_number: receipt.trim() || null,
       payment_method: method,
       notes: notes.trim() || null,
-      period_start: periodStart || null,
-      period_end: periodEnd || null,
+      period_start: iso(cs),
+      period_end: iso(ce),
     }).eq("id", paymentId);
     setSaving(false);
     if (error) return toast.error(error.message);
@@ -127,6 +141,7 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
     onOpenChange(false);
     onSaved?.();
   };
+
 
   const years = yearOptions();
 

@@ -6,7 +6,7 @@ type Key =
   | "building_name" | "building_name_en" | "building_type" | "floors" | "address" | "city"
   | "save" | "cancel" | "delete" | "delete_confirm" | "delete_building_msg"
   | "add_unit" | "unit_number" | "unit_type" | "tenant_name" | "tenant_phone"
-  | "rent_amount" | "rent_type" | "due_day" | "monthly" | "daily" | "yearly" | "rent_timing" | "rent_timing_advance" | "rent_timing_arrears" | "rent_timing_advance_hint" | "rent_timing_arrears_hint"
+  | "rent_amount" | "rent_type" | "due_day" | "monthly" | "daily" | "yearly" | "rent_timing" | "rent_timing_advance" | "rent_timing_arrears" | "rent_timing_advance_hint" | "rent_timing_arrears_hint" | "due_auto_hint" | "next_due_on" | "cycle_starts_on"
   | "occupancy" | "monthly_income" | "no_units" | "no_units_msg"
   | "details" | "maintenance" | "utilities" | "legal" | "photos"
   | "contract_end" | "last_payment" | "issue_receipt" | "register_payment"
@@ -78,6 +78,9 @@ const dict: Record<Key, Partial<Record<Lang, string>>> = {
   rent_timing_arrears: { ar: "مُؤخَّر", en: "In arrears" },
   rent_timing_advance_hint: { ar: "تُدفع أجرة الشهر في بدايته للشهر نفسه", en: "Rent for the month is paid at its start" },
   rent_timing_arrears_hint: { ar: "تُدفع أجرة الشهر في نهايته عن الشهر السابق", en: "Rent for the month is paid at its end for the prior month" },
+  due_auto_hint: { ar: "يُحتسب موعد الاستحقاق تلقائياً من تاريخ بداية العقد ونمط الدفع", en: "Due date is computed automatically from the contract start date and payment timing" },
+  next_due_on: { ar: "الاستحقاق القادم في", en: "Next due on" },
+  cycle_starts_on: { ar: "يوم الاستحقاق: {n} من كل شهر", en: "Due day: {n} of each month" },
 
   monthly: { ar: "شهري", en: "Monthly", ur: "ماہانہ", zh: "月", hi: "मासिक", bn: "মাসিক", fr: "Mensuel", es: "Mensual", tr: "Aylık" },
   daily: { ar: "يومي", en: "Daily", ur: "روزانہ", zh: "日", hi: "दैनिक", bn: "দৈনিক", fr: "Quotidien", es: "Diario", tr: "Günlük" },
