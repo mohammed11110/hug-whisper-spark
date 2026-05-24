@@ -77,7 +77,7 @@ function computeMonthRows(units: UnitRow[], payments: PaymentRow[], start: Date,
 export default function MonthlyCollection() {
   const { t, lang } = useI18n();
   const t2 = useT2();
-  const { format } = useCurrency();
+  const { format, currency } = useCurrency();
   const { user } = useAuth();
   const { settings } = useAppSettings();
   const months = useMemo(() => monthOptions(lang), [lang]);
