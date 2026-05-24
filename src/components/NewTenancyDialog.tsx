@@ -144,6 +144,8 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
       rent_amount: rentNum,
       rent_type: rentType,
       due_day: dueNum,
+      rent_timing: rentTiming,
+
       security_deposit: depositNum,
       deposit_status: depositNum > 0 ? "held" : "none",
       status: "soon",
