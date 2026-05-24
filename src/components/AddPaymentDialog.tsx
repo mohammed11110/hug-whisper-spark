@@ -354,19 +354,12 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
       receipt_number: sharedReceipt,
       payment_method: method,
       notes: mergedNotes,
-      period_start: cycleStartIso || null,
-      period_end: cycleEndIso || null,
+      period_start: submitPeriodStartIso || null,
+      period_end: submitPeriodEndIso || null,
 
     }];
     if (collectPriorArrears && priorArrears.length > 0) {
       for (const m of priorArrears) {
-        const ps = anchorDay === 1
-          ? monthRange(m.year, m.month).start
-          : `${m.year}-${String(m.month).padStart(2, "0")}-${String(anchorDay).padStart(2, "0")}`;
-        const peDate = anchorDay === 1
-          ? new Date(m.year, m.month, 0)
-          : new Date(m.year, m.month, anchorDay - 1);
-        const pe = `${peDate.getFullYear()}-${String(peDate.getMonth() + 1).padStart(2, "0")}-${String(peDate.getDate()).padStart(2, "0")}`;
         rows.push({
           unit_id: unitId,
           tenancy_id: (activeT as any)?.id || null,
@@ -375,9 +368,9 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
           payment_date: date,
           receipt_number: sharedReceipt,
           payment_method: method,
-          notes: (lang === "ar" ? "تحصيل متأخرات" : "Arrears collection") + ` — ${monthNames[m.month - 1]} ${m.year}`,
-          period_start: ps,
-          period_end: pe,
+          notes: (lang === "ar" ? "تحصيل متأخرات" : "Arrears collection") + ` — ${m.label}`,
+          period_start: m.periodStartIso,
+          period_end: m.periodEndIso,
         });
       }
     }
