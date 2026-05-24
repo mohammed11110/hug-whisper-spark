@@ -46,4 +46,22 @@ describe("getUnitArrears — prior arrears double-counting guard", () => {
       .reduce((s, a) => s + a.amount, 0);
     expect(collected).toBe(40);
   });
+
+  // عند حذف الإيصال (deleted_at != null) يجب أن تعود المتأخرات لما كانت عليه
+  // بشرط ألا نلمس opening_balance عند الحفظ (السلوك الجذري الجديد).
+  it("حذف إيصال المتأخرات يعيد القيمة كاملة 405", () => {
+    const payments = [
+      {
+        unit_id: "u1",
+        amount: 40,
+        deleted_at: "2026-05-12T00:00:00Z",
+        payment_date: "2026-05-10",
+        period_start: "2026-05-10",
+        period_end: "2026-05-10",
+      },
+    ];
+    const arr = getUnitArrears(baseUnit as any, payments as any, new Date("2026-05-15"));
+    const prior = arr.cycles.find((c) => c.label.includes("سابقة") || c.label.toLowerCase().includes("prior"));
+    expect(prior?.shortfall).toBe(405);
+  });
 });
