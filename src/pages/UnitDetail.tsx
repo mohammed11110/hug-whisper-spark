@@ -342,10 +342,10 @@ function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLea
         <h3 className="text-sage-600 font-bold mb-3 text-sm">{t2("tenant_name")}</h3>
         <Row icon={User} label={t2("tenant_name")} value={unit.tenant_name || "—"} />
         <Row icon={Phone} label={t2("tenant_phone")} value={unit.tenant_phone || "—"} />
-        <Row icon={IdCard} label="ID" value={unit.tenant_id_number || "—"} />
+        <Row icon={IdCard} label={lang === "ar" ? "رقم الهوية" : "ID number"} value={unit.tenant_id_number || "—"} />
       </Card>
       <Card>
-        <h3 className="text-sage-600 font-bold mb-3 text-sm">المستندات</h3>
+        <h3 className="text-sage-600 font-bold mb-3 text-sm">{lang === "ar" ? "المستندات" : "Documents"}</h3>
         <div className="space-y-3">
           <FileUpload
             bucket="contracts"
