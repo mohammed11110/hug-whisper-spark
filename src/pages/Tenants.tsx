@@ -25,6 +25,7 @@ interface TenantRow {
   rent_amount: number;
   status: string;
   last_paid_date: string | null;
+  last_payment_amount: number | null;
   contract_end_date: string | null;
   total_paid: number;
   outstanding: number;
