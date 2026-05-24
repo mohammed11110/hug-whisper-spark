@@ -228,6 +228,20 @@ export function EditUnitDialog({
                 className="rounded-xl border-sage-200 bg-card" />
             </Field>
           </div>
+          <Field label={t2("rent_timing")}>
+            <div className="flex gap-1.5">
+              {(["advance", "arrears"] as const).map((m) => (
+                <button key={m} type="button" onClick={() => setRentTiming(m)}
+                  className={`flex-1 px-3 py-2 rounded-xl text-xs font-semibold ${
+                    rentTiming === m ? "bg-gradient-sage text-primary-foreground shadow-soft" : "bg-muted text-muted-foreground"
+                  }`}>{t2(m === "advance" ? "rent_timing_advance" : "rent_timing_arrears")}</button>
+              ))}
+            </div>
+            <p className="text-[11px] text-sage-500 mt-1.5 leading-relaxed">
+              {t2(rentTiming === "advance" ? "rent_timing_advance_hint" : "rent_timing_arrears_hint")}
+            </p>
+          </Field>
+
           <Field label="نوع العقد / Contract type">
             <div className="flex gap-1.5">
               {CONTRACT_TYPES.map((ct) => (
