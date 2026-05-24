@@ -470,28 +470,110 @@ function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLea
   );
 }
 
-function MaintenanceTab() {
-  const items = [
-    { name: "AC", status: "good", icon: "❄️" },
-    { name: "Heater", status: "good", icon: "🔥" },
-    { name: "Fan", status: "needs", icon: "🌀" },
-    { name: "Lighting", status: "good", icon: "💡" },
-    { name: "Exhaust", status: "good", icon: "🌬" },
-    { name: "Faucet", status: "replace", icon: "🚰" },
-  ];
-  const colorMap: Record<string, string> = { good: "bg-sage-300/25 text-sage-600", needs: "bg-terracotta/15 text-terracotta", replace: "bg-burgundy/15 text-burgundy" };
+function MaintenanceTab({ unit, lang, t2, format }: any) {
+  const ar = lang === "ar";
+  const [rows, setRows] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [addOpen, setAddOpen] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    const { data } = await (supabase as any)
+      .from("maintenance_requests")
+      .select("id,title,status,priority,cost,vendor,created_at,cancelled_at")
+      .eq("unit_id", unit.id)
+      .order("created_at", { ascending: false });
+    setRows((data || []) as any[]);
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, [unit.id]);
+
+  const active = rows.filter((r) => !r.cancelled_at);
+  const open = active.filter((r) => r.status === "open").length;
+  const inProgress = active.filter((r) => r.status === "in_progress").length;
+  const done = active.filter((r) => r.status === "done").length;
+  const totalCost = active.reduce((s, r) => s + (Number(r.cost) || 0), 0);
+
+  const STATUS_CLR: Record<string, string> = {
+    open: "bg-terracotta/15 text-terracotta",
+    in_progress: "bg-slate-200/50 text-slate-700",
+    done: "bg-sage-300/30 text-sage-600",
+    cancelled: "bg-muted text-muted-foreground",
+  };
+  const PRIO_CLR: Record<string, string> = {
+    low: "bg-sage-200/40 text-sage-600",
+    normal: "bg-slate-200/40 text-slate-600",
+    high: "bg-terracotta/15 text-terracotta",
+    urgent: "bg-burgundy/15 text-burgundy",
+  };
+
   return (
-    <Card>
-      <div className="space-y-2">
-        {items.map((it) => (
-          <div key={it.name} className="flex items-center gap-3 py-2 border-b border-sage-200/40 last:border-0">
-            <span className="text-xl">{it.icon}</span>
-            <span className="flex-1 font-semibold text-sage-600">{it.name}</span>
-            <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded-full ${colorMap[it.status]}`}>{it.status}</span>
-          </div>
-        ))}
+    <>
+      <div className="grid grid-cols-3 gap-2">
+        <div className="rounded-2xl bg-card border border-sage-200/40 p-3 text-center">
+          <div className="text-lg font-black text-terracotta">{open + inProgress}</div>
+          <div className="text-[10px] text-muted-foreground mt-0.5">{ar ? "قيد المعالجة" : "Active"}</div>
+        </div>
+        <div className="rounded-2xl bg-card border border-sage-200/40 p-3 text-center">
+          <div className="text-lg font-black text-sage-600">{done}</div>
+          <div className="text-[10px] text-muted-foreground mt-0.5">{ar ? "منجزة" : "Completed"}</div>
+        </div>
+        <div className="rounded-2xl bg-card border border-sage-200/40 p-3 text-center">
+          <div className="text-sm font-black text-sage-600 leading-tight">{format(totalCost)}</div>
+          <div className="text-[10px] text-muted-foreground mt-0.5">{ar ? "إجمالي التكلفة" : "Total cost"}</div>
+        </div>
       </div>
-    </Card>
+
+      <Button onClick={() => setAddOpen(true)} className="w-full rounded-xl bg-gradient-sage text-primary-foreground h-11 font-semibold">
+        <Plus className="h-4 w-4 me-1.5" />{ar ? "طلب صيانة جديد" : "New maintenance request"}
+      </Button>
+
+      <Card>
+        {loading ? (
+          <div className="py-6 text-center text-xs text-muted-foreground">{ar ? "جارٍ التحميل…" : "Loading…"}</div>
+        ) : rows.length === 0 ? (
+          <div className="py-8 text-center space-y-2">
+            <div className="inline-flex p-3 rounded-2xl bg-sage-100"><Wrench className="h-6 w-6 text-sage-400" /></div>
+            <h3 className="font-bold text-sage-600 text-sm">{ar ? "لا توجد طلبات صيانة" : "No maintenance requests"}</h3>
+            <p className="text-xs text-muted-foreground">{ar ? "ابدأ بتسجيل أول طلب لتتبع الأعطال والإصلاحات" : "Log the first request to track issues and repairs"}</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {rows.slice(0, 8).map((r) => (
+              <div key={r.id} className={`py-2.5 border-b border-sage-200/30 last:border-0 ${r.cancelled_at ? "opacity-50" : ""}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <h4 className={`text-sm font-bold text-sage-600 truncate ${r.cancelled_at ? "line-through" : ""}`}>{r.title}</h4>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      {new Date(r.created_at).toLocaleDateString(ar ? "ar" : "en")}
+                      {r.vendor ? ` · ${r.vendor}` : ""}
+                      {r.cost ? ` · ${format(Number(r.cost))}` : ""}
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-1 items-end shrink-0">
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${PRIO_CLR[r.priority]}`}>{t2(`priority_${r.priority}` as any)}</span>
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${STATUS_CLR[r.cancelled_at ? "cancelled" : r.status]}`}>{t2(`status_${r.cancelled_at ? "cancelled" : r.status}` as any)}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {rows.length > 8 && (
+              <Link to="/maintenance" className="block text-center text-xs text-sage-600 font-semibold pt-2 hover:underline">
+                {ar ? `عرض الكل (${rows.length})` : `View all (${rows.length})`} →
+              </Link>
+            )}
+          </div>
+        )}
+      </Card>
+
+      <AddMaintenanceDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        presetBuildingId={unit.building_id}
+        presetUnitId={unit.id}
+        onCreated={load}
+      />
+    </>
   );
 }
 
