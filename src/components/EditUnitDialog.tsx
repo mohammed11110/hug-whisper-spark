@@ -28,6 +28,8 @@ interface UnitInput {
   rent_amount: number;
   rent_type: string;
   due_day: number;
+  rent_timing?: string | null;
+
   security_deposit?: number;
   deposit_status?: string;
   contract_type?: string;
