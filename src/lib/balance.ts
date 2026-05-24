@@ -66,13 +66,19 @@ export function computeBalance(unit: UnitForBalance, payments: PaymentForBalance
   const accrued = rent * periods;
   const totalDue = opening + accrued;
 
+  // Only count payments that belong to the current settlement window
+  // (i.e. on/after opening_balance_date). Payments older than the anchor
+  // already settled past cycles and must not offset new accrued rent.
+  const anchorIso = unit.opening_balance_date || unit.contract_start_date || null;
   const paid = payments
     .filter((p) => p.unit_id === unit.id && !p.deleted_at)
+    .filter((p) => !anchorIso || !p.payment_date || p.payment_date >= anchorIso)
     .reduce((s, p) => s + num(p.amount), 0);
 
   const outstanding = Math.max(0, totalDue - paid);
   return { opening, accrued, totalDue, paid, outstanding };
 }
+
 
 // =====================================================================
 // Cycle helpers — anchor-aware periods + smart receipt labels.
