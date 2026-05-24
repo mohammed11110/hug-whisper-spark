@@ -301,29 +301,34 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const remaining = Math.max(0, (Number(expected) || 0) - (Number(amount) || 0));
   const isPartial = Number(amount) > 0 && Number(expected) > 0 && Number(amount) < Number(expected);
 
-  // Other outstanding months besides the one this payment is for
-  const priorArrears = unpaidMonths.filter((m) => !(m.year === periodYear && m.month === periodMonthNum));
+  // Selected period (ISO) — prefer the cycle the user picked from the arrears
+  // dropdown so partial payments are linked to the exact cycle the badge shows.
+  const submitPeriodStartIso = selectedEntry?.periodStartIso || cycleStartIso;
+  const submitPeriodEndIso = selectedEntry?.periodEndIso || cycleEndIso;
+
+  // Other outstanding cycles besides the one this payment is for.
+  const priorArrears = unpaidMonths.filter(
+    (m) => m.periodStartIso !== submitPeriodStartIso,
+  );
   const priorArrearsTotal = priorArrears.reduce((s, m) => s + m.remaining, 0);
   const grandCollected = Number(amount || 0) + (collectPriorArrears ? priorArrearsTotal : 0);
 
-  // Total arrears up to and including the selected month (pre-payment)
+  // Total arrears up to and including the selected cycle (pre-payment).
   const arrearsUpToSelected = unpaidMonths.filter(
-    (m) => m.year < periodYear || (m.year === periodYear && m.month <= periodMonthNum)
+    (m) => m.periodStartIso <= submitPeriodStartIso,
   );
   const arrearsUpToTotal = arrearsUpToSelected.reduce((s, m) => s + m.remaining, 0);
-  const selectedMonthLabel = `${monthNames[periodMonthNum - 1]} ${periodYear}`;
+  const selectedMonthLabel = selectedEntry?.label || `${monthNames[periodMonthNum - 1]} ${periodYear}`;
 
-
-  // Detect "final installment of a partially-paid month"
-  const currentMonthEntry = unpaidMonths.find((m) => m.year === periodYear && m.month === periodMonthNum);
-  const hasPriorPartial = !!currentMonthEntry && activeRent > 0 && currentMonthEntry.remaining + 0.01 < activeRent;
+  // Detect "final installment of a partially-paid cycle".
+  const currentMonthEntry = unpaidMonths.find((m) => m.periodStartIso === submitPeriodStartIso);
+  const hasPriorPartial = !!currentMonthEntry && activeRent > 0 && !currentMonthEntry.isPrior && currentMonthEntry.remaining + 0.01 < activeRent;
   const settlesMonth = !!currentMonthEntry && Number(amount) + 0.01 >= currentMonthEntry.remaining;
   const isFinalSettlement = hasPriorPartial && settlesMonth;
-  const monthLabelForNote = `${monthNames[periodMonthNum - 1]} ${periodYear}`;
   const settlementNote = isFinalSettlement
     ? (lang === "ar"
-        ? `تم سداد الجزء الأخير من المبلغ المتبقي عن شهر ${monthLabelForNote}.`
-        : `Final installment of the outstanding balance for ${monthLabelForNote} has been settled.`)
+        ? `تم سداد الجزء الأخير من المبلغ المتبقي عن ${selectedMonthLabel}.`
+        : `Final installment of the outstanding balance for ${selectedMonthLabel} has been settled.`)
     : null;
 
   const submit = async () => {
