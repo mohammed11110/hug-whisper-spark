@@ -83,23 +83,25 @@ export function LastPaymentSection({
   const [openPopover, setOpenPopover] = useState<"from" | "to" | null>(null);
   const prevPeriodFromRef = useRef<Date | undefined>(periodFrom);
 
-  // Auto-fill period range when payment date or timing changes.
+  // Auto-fill period range when payment date or timing changes — but only when
+  // BOTH period fields are empty (first-time enable). Never overwrite a value
+  // loaded from the unit or edited manually by the user.
   useEffect(() => {
     if (!enabled || !date) return;
+    if (periodFrom || periodTo) return;
     const b = monthBoundsFromDate(date, lang);
     if (rentTiming === "arrears") {
-      // Payment covers the PREVIOUS month.
       const prev = new Date(date.getFullYear(), date.getMonth() - 1, 1);
       const pb = monthBoundsFromDate(prev, lang);
       onPeriodFromChange(new Date(pb.start + "T00:00:00"));
       onPeriodToChange(new Date(pb.end + "T00:00:00"));
     } else {
-      // Advance: payment covers the SAME month.
       onPeriodFromChange(new Date(b.start + "T00:00:00"));
       onPeriodToChange(new Date(b.end + "T00:00:00"));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date, rentTiming, enabled]);
+
 
   // Auto-open "To" popover after user picks "From" manually (and "To" is empty).
   useEffect(() => {
