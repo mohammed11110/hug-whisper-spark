@@ -122,6 +122,9 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const [distribution, setDistribution] = useState<import("@/lib/balance").PaymentDistribution | null>(null);
   const [cachedArrears, setCachedArrears] = useState<import("@/lib/balance").UnitArrears | null>(null);
   const [cachedUnit, setCachedUnit] = useState<any>(null);
+  // Whether to print the arrears table inside the PDF receipt. Default: off
+  // (privacy-friendly). User opts in via switch before saving.
+  const [includeArrearsInReceipt, setIncludeArrearsInReceipt] = useState(false);
 
 
   const { start: periodStart, end: periodEnd } = monthRange(periodYear, periodMonthNum);
@@ -569,9 +572,8 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
       const payload = { baseArgs, upTo, unpaidTotal, monthLabel: primaryPeriodLabel, filename };
 
       if (upTo.length > 0) {
-        // Defer: ask the user before generating the receipt
-        setPendingReceipt(payload);
-        setArrearsPromptOpen(true);
+        await emitReceipt(payload, includeArrearsInReceipt);
+        finishAndClose();
         return;
       }
       await emitReceipt(payload, false);
@@ -596,7 +598,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   };
 
   const finishAndClose = () => {
-    setAmount(""); setReceipt(""); setNotes(""); setCollectPriorArrears(false); if (!presetUnitId) setUnitId("");
+    setAmount(""); setReceipt(""); setNotes(""); setCollectPriorArrears(false); setIncludeArrearsInReceipt(false); if (!presetUnitId) setUnitId("");
     guard.markSaved();
     onOpenChange(false);
     onSaved?.();
@@ -695,17 +697,28 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
               );
             })()}
           </div>
-          {/* Prominent arrears alert — visible immediately after unit selection */}
+          {/* Prominent arrears alert — always visible after unit selection */}
+          {unitId && unpaidMonths.length === 0 && (
+            <div className="rounded-2xl border-2 border-sage-300 bg-sage-100/50 px-4 py-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <span className="text-sage-600 text-lg leading-none">✓</span>
+                <span className="text-sm font-extrabold text-sage-700">
+                  {lang === "ar" ? "لا توجد متأخرات على هذا المستأجر" : "No outstanding arrears for this tenant"}
+                </span>
+              </div>
+              <span className="text-lg font-extrabold text-sage-600 tabular-nums">{format(0)}</span>
+            </div>
+          )}
           {unitId && unpaidMonths.length > 0 && (
-            <div className="rounded-2xl border-2 border-burgundy/40 bg-burgundy/10 px-4 py-3.5 shadow-[0_4px_16px_-8px_rgba(168,93,93,0.3)]">
+            <div className="rounded-2xl border-2 border-burgundy/50 bg-burgundy/10 px-4 py-3.5 shadow-[0_4px_16px_-8px_rgba(168,93,93,0.35)]">
               <div className="flex items-start gap-2.5">
                 <span className="text-burgundy text-lg leading-none mt-0.5">⚠</span>
                 <div className="flex-1 min-w-0">
                   <div className="text-[12px] font-extrabold text-burgundy uppercase tracking-wide">
-                    {lang === "ar" ? "هذه الوحدة عليها متأخرات" : "This unit has outstanding arrears"}
+                    {lang === "ar" ? "إجمالي المتأخرات المستحقة" : "Total outstanding arrears"}
                   </div>
                   <div className="mt-1.5 flex items-baseline justify-between gap-2">
-                    <span className="text-2xl font-extrabold text-burgundy tabular-nums">
+                    <span className="text-3xl font-extrabold text-burgundy tabular-nums">
                       {format(arrearsBefore)}
                     </span>
                     <span className="text-[11px] text-burgundy/80 font-semibold whitespace-nowrap">
@@ -1037,6 +1050,50 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                 )}
               </span>
             </label>
+          )}
+
+          {/* Include arrears in printed receipt — explicit pre-save choice */}
+          {unitId && unpaidMonths.length > 0 && (
+            <label className="flex items-start gap-2.5 rounded-xl border border-sage-200 bg-sage-100/30 px-3 py-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={includeArrearsInReceipt}
+                onChange={(e) => setIncludeArrearsInReceipt(e.target.checked)}
+                className="h-4 w-4 mt-0.5 rounded border-sage-300 accent-[hsl(var(--primary))]"
+              />
+              <span className="text-xs flex-1">
+                <span className="font-extrabold text-sage-700 block">
+                  {lang === "ar" ? "أدرج تفاصيل المتأخرات في الإيصال" : "Include arrears details on the receipt"}
+                </span>
+                <span className="text-sage-500 block mt-0.5 text-[11px] leading-relaxed">
+                  {lang === "ar"
+                    ? "عند التفعيل، سيظهر جدول الأشهر المتأخرة في الإيصال المطبوع."
+                    : "When enabled, the unpaid months table will appear on the printed receipt."}
+                </span>
+              </span>
+            </label>
+          )}
+
+          {/* Pre-save summary */}
+          {unitId && (
+            <div className="text-[11px] text-sage-500 bg-sage-100/40 border border-sage-200/60 rounded-xl px-3 py-2 leading-relaxed">
+              <span className="font-bold text-sage-600">{lang === "ar" ? "ملخّص الحفظ:" : "Summary:"}</span>{" "}
+              {lang === "ar" ? "الإيصال" : "Receipt"}: <b className="text-sage-700">{lang === "ar" ? "سند استلام" : "Receipt voucher"}</b>
+              {" · "}
+              {lang === "ar" ? "المتأخرات في الإيصال" : "Arrears on receipt"}:{" "}
+              <b className={includeArrearsInReceipt && unpaidMonths.length > 0 ? "text-burgundy" : "text-sage-700"}>
+                {unpaidMonths.length === 0
+                  ? (lang === "ar" ? "لا توجد" : "none")
+                  : includeArrearsInReceipt
+                  ? (lang === "ar" ? "ستُدرج" : "will be included")
+                  : (lang === "ar" ? "لن تُدرج" : "will not be included")}
+              </b>
+              {" · "}
+              {lang === "ar" ? "عدد البنود" : "Items"}:{" "}
+              <b className="text-sage-700">
+                {payMode === "auto" && distribution ? distribution.allocations.length : (collectPriorArrears ? 1 + priorArrears.length : 1)}
+              </b>
+            </div>
           )}
         </div>
         <DialogFooter className="gap-2 sm:gap-2">
