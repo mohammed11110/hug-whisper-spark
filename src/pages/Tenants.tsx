@@ -346,6 +346,13 @@ export default function Tenants() {
                   <p className="text-xs text-muted-foreground mt-0.5 truncate">
                     {r.building_name} · {t2("unit_number")} {r.unit_number}
                   </p>
+                  {r.arrears_label && r.arrears_count > 0 && (
+                    <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-burgundy bg-burgundy/10 border border-burgundy/25 rounded-full px-2 py-0.5">
+                      <span aria-hidden className="text-[9px] leading-none">⚠</span>
+                      {lang === "ar" ? "متأخر" : "Overdue"}: {r.arrears_label}
+                      {r.arrears_count > 1 ? ` +${r.arrears_count - 1}` : ""} − {format(r.arrears_total)}
+                    </span>
+                  )}
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-[11px] text-sage-500">
                     {r.tenant_phone && (
                       <a href={`tel:${r.tenant_phone}`} onClick={(e) => e.stopPropagation()} className="flex items-center gap-1 hover:text-sage-600">
