@@ -11,7 +11,7 @@ import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useAppSettings } from "@/lib/appSettings";
 import { openWhatsApp, fillTemplate } from "@/lib/whatsapp";
-import { computeBalance, getUnitArrears, type PaymentForBalance } from "@/lib/balance";
+import { getUnitArrears, type PaymentForBalance } from "@/lib/balance";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 
@@ -136,7 +136,6 @@ export default function Tenants() {
         }
       });
       const mapped: TenantRow[] = (us || []).map((u: any) => {
-        const bal = computeBalance(u as any, (ps || []) as PaymentForBalance[]);
         const arr = getUnitArrears(u as any, (ps || []) as PaymentForBalance[], new Date(), lang as "ar" | "en");
         const lp = lastPay.get(u.id);
         return {
@@ -152,7 +151,7 @@ export default function Tenants() {
           last_payment_amount: lp?.amount ?? null,
           contract_end_date: u.contract_end_date,
           total_paid: totals.get(u.id) || 0,
-          outstanding: bal.outstanding,
+          outstanding: arr.totalShortfall,
           arrears_label: arr.oldestUnpaid?.label || null,
           arrears_count: arr.unpaidCount,
           arrears_total: arr.totalShortfall,
