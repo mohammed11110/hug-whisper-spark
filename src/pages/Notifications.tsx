@@ -207,6 +207,12 @@ export default function Notifications() {
                       {lang === "ar" ? "المتبقي" : "Remaining"}: {format(it.remaining)}
                     </span>
                   )}
+                  {it.kind === "late" && it.arrears_label && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-burgundy/10 text-burgundy font-bold">
+                      {lang === "ar" ? "منذ" : "Since"}: {it.arrears_label}
+                      {(it.arrears_count || 0) > 1 ? ` +${(it.arrears_count || 1) - 1}` : ""}
+                    </span>
+                  )}
                   {it.contract_end && <span>{lang === "ar" ? "ينتهي" : "ends"}: {it.contract_end}</span>}
                 </div>
                 {it.tenant_phone && (
