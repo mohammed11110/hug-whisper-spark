@@ -321,47 +321,63 @@ export function getUnitArrears(
     const timing = (unit.rent_timing || "advance") === "arrears" ? "arrears" : "advance";
     const anchorIso = unit.opening_balance_date || unit.contract_start_date || null;
     const elapsed = periodsElapsed(anchor, asOf, "monthly");
-    const cyclesToInspect = timing === "advance" ? elapsed + 1 : elapsed;
+    const baseCycles = timing === "advance" ? elapsed + 1 : elapsed;
 
-    if (cyclesToInspect > 0) {
-      const unitPays = payments.filter(
-        (p) => p.unit_id === unit.id && !p.deleted_at && isPostAnchorPayment(p, anchorIso),
-      );
+    const unitPays = payments.filter(
+      (p) => p.unit_id === unit.id && !p.deleted_at && isPostAnchorPayment(p, anchorIso),
+    );
 
-      for (let i = 0; i < cyclesToInspect; i++) {
-        const cycleMonthIdx = anchor.getMonth() + i;
-        const cycleYear = anchor.getFullYear() + Math.floor(cycleMonthIdx / 12);
-        const cycleMonth1to12 = ((cycleMonthIdx % 12) + 12) % 12 + 1;
-        const c = getCycleByStartMonth(cycleYear, cycleMonth1to12, anchorDay);
+    const buildCycle = (i: number): ArrearsCycle => {
+      const cycleMonthIdx = anchor.getMonth() + i;
+      const cycleYear = anchor.getFullYear() + Math.floor(cycleMonthIdx / 12);
+      const cycleMonth1to12 = ((cycleMonthIdx % 12) + 12) % 12 + 1;
+      const c = getCycleByStartMonth(cycleYear, cycleMonth1to12, anchorDay);
 
-        const paid = unitPays
-          .filter((p) => p.period_start && p.period_start >= c.startIso && p.period_start <= c.endIso)
-          .reduce((s, p) => s + num(p.amount), 0);
+      const paid = unitPays
+        .filter((p) => p.period_start && p.period_start >= c.startIso && p.period_start <= c.endIso)
+        .reduce((s, p) => s + num(p.amount), 0);
 
-        const shortfall = Math.max(0, rent - paid);
-        const status: ArrearsCycle["status"] =
-          shortfall <= 0.009 ? "paid" : paid > 0.009 ? "partial" : "unpaid";
-        const cycle: ArrearsCycle = {
-          periodStart: c.start,
-          periodEnd: c.end,
-          periodStartIso: c.startIso,
-          periodEndIso: c.endIso,
-          label: buildReceiptPeriodLabel(c.start, c.end, anchorDay, lang)
-            .replace(/^إيجار شهر\s+/, "")
-            .replace(/^إيجار الفترة\s+/, "")
-            .replace(/^Rent for\s+/, "")
-            .replace(/^Rent\s+/, ""),
-          rent,
-          paid,
-          shortfall,
-          status,
-        };
+      const shortfall = Math.max(0, rent - paid);
+      const status: ArrearsCycle["status"] =
+        shortfall <= 0.009 ? "paid" : paid > 0.009 ? "partial" : "unpaid";
+      return {
+        periodStart: c.start,
+        periodEnd: c.end,
+        periodStartIso: c.startIso,
+        periodEndIso: c.endIso,
+        label: buildReceiptPeriodLabel(c.start, c.end, anchorDay, lang)
+          .replace(/^إيجار شهر\s+/, "")
+          .replace(/^إيجار الفترة\s+/, "")
+          .replace(/^Rent for\s+/, "")
+          .replace(/^Rent\s+/, ""),
+        rent,
+        paid,
+        shortfall,
+        status,
+      };
+    };
+
+    for (let i = 0; i < baseCycles; i++) {
+      const cycle = buildCycle(i);
+      cycles.push(cycle);
+      if (cycle.shortfall > 0.009) {
+        totalShortfall += cycle.shortfall;
+        unpaidCount += 1;
+        if (!oldestUnpaid) oldestUnpaid = cycle;
+      }
+    }
+
+    // 2.b) في وضع «مؤخّر»: أدرج الدورة الجارية إن وُجدت عليها دفعة جزئية
+    //      (paid > 0 و paid < rent) — حتى يظهر النقص فوراً للمستخدم
+    //      دون أن نزعجه بدورات مستقبلية فارغة.
+    if (timing === "arrears") {
+      const currentIdx = elapsed; // الدورة الجارية (لم تنتهِ بعد)
+      const cycle = buildCycle(currentIdx);
+      if (cycle.paid > 0.009 && cycle.shortfall > 0.009) {
         cycles.push(cycle);
-        if (shortfall > 0.009) {
-          totalShortfall += shortfall;
-          unpaidCount += 1;
-          if (!oldestUnpaid) oldestUnpaid = cycle;
-        }
+        totalShortfall += cycle.shortfall;
+        unpaidCount += 1;
+        if (!oldestUnpaid) oldestUnpaid = cycle;
       }
     }
   }
