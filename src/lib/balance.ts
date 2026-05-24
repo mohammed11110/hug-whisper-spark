@@ -17,7 +17,24 @@ export interface PaymentForBalance {
   amount: number | string;
   deleted_at?: string | null;
   payment_date?: string | null;
+  period_start?: string | null;
+  period_end?: string | null;
 }
+
+/**
+ * A payment belongs to the *current* settlement window (i.e. should offset
+ * accrued rent from the anchor onward) only if the cycle it covers ends
+ * at/after the anchor. Falls back to payment_date for legacy rows without
+ * period_end.
+ */
+const isPostAnchorPayment = (p: PaymentForBalance, anchorIso: string | null): boolean => {
+  if (!anchorIso) return true;
+  if (p.period_end) return p.period_end >= anchorIso;
+  if (p.period_start) return p.period_start >= anchorIso;
+  if (p.payment_date) return p.payment_date >= anchorIso;
+  return true;
+};
+
 
 
 const num = (v: any) => Number(v) || 0;
