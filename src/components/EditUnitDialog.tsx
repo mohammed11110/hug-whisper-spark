@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
 import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
-import { LastPaymentSection, getLastPaidMonthOptions, nextMonthStartISO } from "@/components/LastPaymentSection";
+import { LastPaymentSection, monthBoundsFromDate } from "@/components/LastPaymentSection";
 import { useI18n } from "@/lib/i18n";
 
 const UNIT_TYPES = ["apartment", "shop", "room", "villa"] as const;
@@ -62,7 +62,7 @@ export function EditUnitDialog({
   const [contractStart, setContractStart] = useState<string>("");
   const [arrears, setArrears] = useState("0");
   const [hasPrevPay, setHasPrevPay] = useState(false);
-  const [prevPayMonth, setPrevPayMonth] = useState("");
+  const [prevPayDate, setPrevPayDate] = useState<Date | undefined>(undefined);
   const [prevPayAmount, setPrevPayAmount] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -85,7 +85,7 @@ export function EditUnitDialog({
     setContractType(unit.contract_type || "yearly");
     setContractStart(unit.contract_start_date || "");
     setArrears(String((unit as any).opening_balance ?? 0));
-    setHasPrevPay(false); setPrevPayMonth(""); setPrevPayAmount("");
+    setHasPrevPay(false); setPrevPayDate(undefined); setPrevPayAmount("");
     setShowAdvanced(false);
   }, [unit]);
 
@@ -117,26 +117,24 @@ export function EditUnitDialog({
     };
 
     let prevPayPayload: any = null;
-    if (hasPrevPay && prevPayMonth) {
-      const opts = getLastPaidMonthOptions(lang);
-      const sel = opts.find((o) => o.value === prevPayMonth);
-      if (sel) {
-        updatePayload.opening_balance = 0;
-        updatePayload.opening_balance_date = nextMonthStartISO(prevPayMonth);
-        const amt = Number(prevPayAmount) || 0;
-        if (amt > 0) {
-          updatePayload.last_paid_date = sel.end;
-          prevPayPayload = {
-            unit_id: unit.id,
-            amount: amt,
-            expected_amount: parseFloat(rentAmount) || 0,
-            payment_method: "cash",
-            payment_date: new Date().toISOString().slice(0, 10),
-            period_start: sel.start,
-            period_end: sel.end,
-            notes: lang === "ar" ? "دفعة سابقة مُسجّلة من شاشة التعديل" : "Prior payment recorded from edit screen",
-          };
-        }
+    if (hasPrevPay && prevPayDate) {
+      const b = monthBoundsFromDate(prevPayDate, lang);
+      const dateIso = `${prevPayDate.getFullYear()}-${String(prevPayDate.getMonth() + 1).padStart(2, "0")}-${String(prevPayDate.getDate()).padStart(2, "0")}`;
+      updatePayload.opening_balance = 0;
+      updatePayload.opening_balance_date = b.nextMonthStart;
+      const amt = Number(prevPayAmount) || 0;
+      if (amt > 0) {
+        updatePayload.last_paid_date = dateIso;
+        prevPayPayload = {
+          unit_id: unit.id,
+          amount: amt,
+          expected_amount: parseFloat(rentAmount) || 0,
+          payment_method: "cash",
+          payment_date: new Date().toISOString().slice(0, 10),
+          period_start: b.start,
+          period_end: b.end,
+          notes: lang === "ar" ? "دفعة سابقة مُسجّلة من شاشة التعديل" : "Prior payment recorded from edit screen",
+        };
       }
     }
 
@@ -282,8 +280,8 @@ export function EditUnitDialog({
             <LastPaymentSection
               enabled={hasPrevPay}
               onEnabledChange={setHasPrevPay}
-              month={prevPayMonth}
-              onMonthChange={setPrevPayMonth}
+              date={prevPayDate}
+              onDateChange={setPrevPayDate}
               amount={prevPayAmount}
               onAmountChange={setPrevPayAmount}
             />
