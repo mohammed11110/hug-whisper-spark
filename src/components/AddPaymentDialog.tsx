@@ -106,6 +106,25 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const { start: periodStart, end: periodEnd } = monthRange(periodYear, periodMonthNum);
   const monthNames = lang === "ar" ? AR_MONTHS : EN_MONTHS;
 
+  // Anchor-aware cycle for the currently selected unit/month.
+  const selectedUnit = units.find((x) => x.id === unitId);
+  const anchorDay = selectedUnit?.anchor_day || 1;
+  const timing = selectedUnit?.rent_timing || "advance";
+  const cycleStart = new Date(periodYear, periodMonthNum - 1, anchorDay);
+  const cycleEnd = anchorDay === 1
+    ? new Date(periodYear, periodMonthNum, 0)
+    : new Date(periodYear, periodMonthNum, anchorDay - 1);
+  const cycleStartIso = `${cycleStart.getFullYear()}-${String(cycleStart.getMonth() + 1).padStart(2, "0")}-${String(cycleStart.getDate()).padStart(2, "0")}`;
+  const cycleEndIso = `${cycleEnd.getFullYear()}-${String(cycleEnd.getMonth() + 1).padStart(2, "0")}-${String(cycleEnd.getDate()).padStart(2, "0")}`;
+  const cyclePeriodLabel = (() => {
+    if (anchorDay === 1) return `${monthNames[periodMonthNum - 1]} ${periodYear}`;
+    const fmt = (d: Date) => `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+    return lang === "ar"
+      ? `${fmt(cycleStart)} → ${fmt(cycleEnd)}`
+      : `${fmt(cycleStart)} – ${fmt(cycleEnd)}`;
+  })();
+
+
   useEffect(() => {
     if (!open) return;
     (async () => {
