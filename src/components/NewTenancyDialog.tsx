@@ -259,6 +259,22 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
             </div>
           </div>
 
+          <div className="space-y-1.5">
+            <Label className="text-xs text-sage-500">{t2("rent_timing")}</Label>
+            <div className="flex gap-1.5">
+              {(["advance", "arrears"] as const).map((m) => (
+                <button key={m} type="button" onClick={() => setRentTiming(m)}
+                  className={`flex-1 px-3 py-2 rounded-xl text-xs font-semibold ${
+                    rentTiming === m ? "bg-gradient-sage text-primary-foreground shadow-soft" : "bg-muted text-muted-foreground"
+                  }`}>{t2(m === "advance" ? "rent_timing_advance" : "rent_timing_arrears")}</button>
+              ))}
+            </div>
+            <p className="text-[11px] text-sage-500 leading-relaxed">
+              {t2(rentTiming === "advance" ? "rent_timing_advance_hint" : "rent_timing_arrears_hint")}
+            </p>
+
+          </div>
+
           <LastPaymentSection
             enabled={hasPrevPay}
             onEnabledChange={setHasPrevPay}
