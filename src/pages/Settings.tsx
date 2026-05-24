@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  ArrowRight, Clock, Coins, RotateCcw, Printer, ShieldAlert, MessageCircle, Bell,
+  ArrowRight, Coins, RotateCcw, Printer, ShieldAlert, MessageCircle, Bell,
   Database, Users, Image as ImageIcon, Smartphone, Globe, Moon, Sun, Monitor,
-  Crown, Sparkles, LogOut, ChevronDown, Shield, User as UserIcon, Mail,
-  CreditCard, Loader2,
+  Crown, Sparkles, LogOut, Shield, User as UserIcon, Mail,
+  CreditCard, Loader2, Check, Upload, Download, Send, Palette, Eye, Trash2,
 } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
 import { getPaddleEnvironment } from "@/lib/paddle";
@@ -16,6 +16,10 @@ import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency, CURRENCIES } from "@/lib/currency";
 import { useAppSettings, PAGE_SIZES_MM, type PageSize, formatReceipt } from "@/lib/appSettings";
@@ -23,25 +27,23 @@ import { useAuth } from "@/lib/auth";
 import { useAdmin } from "@/lib/useAdmin";
 import { DeleteAccountSection } from "@/components/DeleteAccountSection";
 import { BusinessWhatsAppSection } from "@/components/BusinessWhatsAppSection";
+import { fillTemplate } from "@/lib/whatsapp";
 import { toast } from "sonner";
 
-const RETENTIONS = [
-  { v: 0, key: "ret_off" },
-  { v: 60, key: "ret_1h" },
-  { v: 60 * 24, key: "ret_1d" },
-  { v: 60 * 24 * 7, key: "ret_1w" },
-  { v: -1, key: "ret_forever" },
-];
+const tr = (lang: string, ar: string, en: string) => (lang === "ar" ? ar : en);
 
-const RET_LABELS: Record<string, { ar: string; en: string }> = {
-  ret_off: { ar: "بدون حفظ", en: "Don't save" },
-  ret_1h: { ar: "ساعة", en: "1 hour" },
-  ret_1d: { ar: "يوم", en: "1 day" },
-  ret_1w: { ar: "أسبوع", en: "1 week" },
-  ret_forever: { ar: "دائماً", en: "Forever" },
+const TEMPLATE_VARS = ["tenant", "unit", "building", "amount", "remaining", "date", "month"] as const;
+const SAMPLE_VARS: Record<string, string> = {
+  tenant: "أحمد العامري",
+  unit: "A-204",
+  building: "برج المرجان",
+  amount: "350 ر.ع",
+  remaining: "0 ر.ع",
+  date: new Date().toLocaleDateString(),
+  month: new Date().toLocaleDateString(undefined, { month: "long", year: "numeric" }),
 };
 
-const tr = (lang: string, ar: string, en: string) => (lang === "ar" ? ar : en);
+const PREFIX_PRESETS = ["R-", "INV-", "RCT-", "PAY-"];
 
 export default function Settings() {
   const { t, lang } = useI18n();
@@ -51,12 +53,14 @@ export default function Settings() {
   const { currency, setCurrency } = useCurrency();
   const { settings, update, reset, resetReceiptNumber } = useAppSettings();
   const { theme, setTheme } = useTheme();
-  const [openCurr, setOpenCurr] = useState(false);
-  const [openAdvanced, setOpenAdvanced] = useState(false);
-  const RL = (k: string) => RET_LABELS[k]?.[lang === "ar" ? "ar" : "en"] || k;
-  const saved = () => toast.success(tr(lang, "تم الحفظ", "Saved"));
   const sub = useSubscription();
+
   const [portalLoading, setPortalLoading] = useState(false);
+  const [currOpen, setCurrOpen] = useState(false);
+  const [testTpl, setTestTpl] = useState<null | "reminder" | "late" | "receipt">(null);
+  const fileImportRef = useRef<HTMLInputElement>(null);
+  const logoDragRef = useRef<HTMLDivElement>(null);
+  const [logoDrag, setLogoDrag] = useState(false);
 
   const planLabel = (p: string) => {
     const map: Record<string, { ar: string; en: string }> = {
@@ -72,10 +76,9 @@ export default function Settings() {
   const openPortal = async () => {
     if (sub.loading) return;
     if (!sub.paddleSubscriptionId) {
-      toast.info(
-        tr(lang, "لا يوجد اشتراك مدفوع بعد. اختر خطة للبدء.", "No paid subscription yet. Choose a plan to get started."),
-        { action: { label: tr(lang, "الخطط", "Plans"), onClick: () => navigate("/pricing") } },
-      );
+      toast.info(tr(lang, "لا يوجد اشتراك مدفوع بعد.", "No paid subscription yet."), {
+        action: { label: tr(lang, "الخطط", "Plans"), onClick: () => navigate("/pricing") },
+      });
       return;
     }
     setPortalLoading(true);
@@ -84,476 +87,387 @@ export default function Settings() {
         body: { environment: getPaddleEnvironment() },
       });
       if (error) throw error;
-      if (!data?.url) {
-        if ((data as any)?.error === "no_subscription") {
-          toast.info(
-            tr(lang, "لا يوجد اشتراك مدفوع بعد. اختر خطة للبدء.", "No paid subscription yet. Choose a plan to get started."),
-            { action: { label: tr(lang, "الخطط", "Plans"), onClick: () => navigate("/pricing") } },
-          );
-          return;
-        }
-        throw new Error("no_url");
-      }
+      if (!data?.url) throw new Error("no_url");
       window.open(data.url, "_blank", "noopener,noreferrer");
-    } catch (e) {
-      toast.error(
-        tr(lang, "تعذّر فتح بوابة الإدارة", "Couldn't open the portal"),
-        {
-          description: tr(
-            lang,
-            "تحقّق من اتصالك بالإنترنت ثم أعد المحاولة.",
-            "Check your connection and try again.",
-          ),
-          action: { label: tr(lang, "إعادة المحاولة", "Retry"), onClick: () => openPortal() },
-          duration: 8000,
-        },
-      );
+    } catch {
+      toast.error(tr(lang, "تعذّر فتح بوابة الإدارة", "Couldn't open the portal"));
     } finally {
       setPortalLoading(false);
     }
+  };
+
+  // ---- Logo handling (drag & drop + file) ----
+  const handleLogoFile = (f: File | undefined) => {
+    if (!f) return;
+    if (!f.type.startsWith("image/")) { toast.error(tr(lang, "صيغة غير مدعومة", "Unsupported format")); return; }
+    if (f.size > 500_000) { toast.error(tr(lang, "الحد 500 كيلوبايت", "Max 500KB")); return; }
+    const reader = new FileReader();
+    reader.onload = () => update({ brand: { ...settings.brand, logo: String(reader.result) } });
+    reader.readAsDataURL(f);
+  };
+
+  // ---- Receipt builder helpers ----
+  const setPrefix = (p: string) => update({ receipt: { ...settings.receipt, prefix: p } });
+  const setPadding = (n: number) => update({ receipt: { ...settings.receipt, padding: Math.max(0, Math.min(6, n)) } });
+  const receiptPreview = useMemo(() => formatReceipt(settings.receipt), [settings.receipt]);
+
+  // ---- Import / Export settings ----
+  const exportSettings = () => {
+    const blob = new Blob([JSON.stringify(settings, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `amlaki-settings-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click(); URL.revokeObjectURL(url);
+    toast.success(tr(lang, "تم تصدير الإعدادات", "Settings exported"));
+  };
+  const importSettings = async (f: File | undefined) => {
+    if (!f) return;
+    try {
+      const txt = await f.text();
+      const data = JSON.parse(txt);
+      update(data);
+      toast.success(tr(lang, "تم استيراد الإعدادات", "Settings imported"));
+    } catch {
+      toast.error(tr(lang, "ملف غير صالح", "Invalid file"));
+    }
+  };
+
+  // ---- Template helpers ----
+  const insertVar = (k: typeof TEMPLATE_VARS[number], which: "reminder" | "late" | "receipt") => {
+    update({ templates: { ...settings.templates, [which]: settings.templates[which] + ` {${k}}` } });
+  };
+  const renderTpl = (k: "reminder" | "late" | "receipt") => fillTemplate(settings.templates[k], SAMPLE_VARS);
+
+  // ---- PIN ----
+  const setPin = (v: string) => {
+    const clean = v.replace(/\D/g, "").slice(0, 4);
+    update({ deletePin: clean.length === 4 ? clean : (clean ? clean : null) });
   };
 
   return (
     <div className="mobile-shell min-h-screen pb-24 bg-background">
       <TopBar />
 
+      {/* Header */}
       <div className="px-5 md:px-8 lg:px-12 pt-2 flex items-center gap-2">
         <Link to="/" className="text-sage-500"><ArrowRight className="h-5 w-5 rtl:rotate-180" /></Link>
-        <h1 className="text-2xl font-black text-sage-600">{tr(lang, "الإعدادات", "Settings")}</h1>
+        <h1 className="text-2xl font-black text-sage-600 flex-1">{tr(lang, "الإعدادات", "Settings")}</h1>
+        <span className="hidden sm:inline-flex items-center gap-1.5 text-[11px] font-bold text-sage-500 bg-sage-100/70 rounded-full px-3 py-1">
+          <Check className="h-3 w-3" /> {tr(lang, "حفظ تلقائي", "Auto-saved")}
+        </span>
       </div>
 
-      {/* === Admin Panel (admins only) === */}
-      {isAdmin && (
-        <section className="px-5 md:px-8 lg:px-12 mt-5">
-          <div className="flex items-center gap-2 mb-2">
-            <Shield className="h-4 w-4 text-burgundy" />
-            <h2 className="font-bold text-burgundy text-sm">{tr(lang, "لوحة المسؤول", "Admin panel")}</h2>
-          </div>
-          <Link
-            to="/admin"
-            className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-burgundy/15 to-burgundy/5 border border-burgundy/30 p-4 shadow-soft hover:from-burgundy/20 transition"
-          >
-            <div className="p-2 rounded-xl bg-burgundy/20 text-burgundy"><Shield className="h-4 w-4" /></div>
-            <div className="flex-1 text-start">
-              <p className="font-bold text-sm text-burgundy">{tr(lang, "المستخدمون والاشتراكات", "Users & subscriptions")}</p>
-              <p className="text-[11px] text-burgundy/70">{tr(lang, "إدارة الحسابات وأكواد الترويج", "Manage accounts & promo codes")}</p>
+      {/* Account hero card */}
+      <section className="px-5 md:px-8 lg:px-12 mt-4">
+        <div className="rounded-3xl bg-gradient-sage text-primary-foreground p-5 shadow-soft relative overflow-hidden">
+          <div className="flex items-center gap-3 relative z-10">
+            <div className="h-14 w-14 rounded-2xl bg-white/15 backdrop-blur grid place-items-center">
+              <UserIcon className="h-7 w-7" />
             </div>
-            <ArrowRight className="h-4 w-4 text-burgundy rtl:rotate-180" />
-          </Link>
-        </section>
-      )}
-
-      {/* === Account === */}
-      <section className="px-5 md:px-8 lg:px-12 mt-5">
-        <div className="flex items-center gap-2 mb-2">
-          <UserIcon className="h-4 w-4 text-sage-600" />
-          <h2 className="font-bold text-sage-600 text-sm">{tr(lang, "الحساب", "Account")}</h2>
-        </div>
-        <div className="rounded-2xl bg-card shadow-soft border border-sage-200/50 divide-y divide-sage-100 overflow-hidden">
-          {user?.email && (
-            <div className="flex items-center gap-3 px-4 py-3">
-              <Mail className="h-4 w-4 text-sage-500" />
-              <span className="text-sm text-sage-600 font-semibold truncate flex-1">{user.email}</span>
-            </div>
-          )}
-          <Link to="/pricing" className="flex items-center gap-3 px-4 py-3 hover:bg-sage-50 transition">
-            <Crown className="h-4 w-4 text-sage-600" />
-            <span className="flex-1 text-sm font-bold text-sage-600">{tr(lang, "الخطط والأسعار", "Plans & pricing")}</span>
-            <ArrowRight className="h-4 w-4 text-sage-400 rtl:rotate-180" />
-          </Link>
-          <button
-            onClick={openPortal}
-            disabled={portalLoading || sub.loading}
-            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-sage-50 transition disabled:opacity-60"
-          >
-            <CreditCard className="h-4 w-4 text-sage-600" />
-            <div className="flex-1 text-start">
-              <p className="text-sm font-bold text-sage-600">{tr(lang, "إدارة الاشتراك", "Manage subscription")}</p>
-              <p className="text-[11px] text-muted-foreground">
-                {sub.paddleSubscriptionId
-                  ? planLabel(sub.plan)
-                  : tr(lang, "أنت على الخطة المجانية", "You're on the Free plan")}
+            <div className="flex-1 min-w-0">
+              <p className="font-black text-base truncate">{user?.user_metadata?.name || user?.email}</p>
+              <p className="text-[11px] opacity-85 truncate flex items-center gap-1">
+                <Mail className="h-3 w-3" /> {user?.email}
               </p>
             </div>
-            {portalLoading ? (
-              <Loader2 className="h-4 w-4 text-sage-400 animate-spin" />
-            ) : (
-              <ArrowRight className="h-4 w-4 text-sage-400 rtl:rotate-180" />
-            )}
-          </button>
-          <button
-            onClick={async () => {
-              await signOut();
-              toast.success(tr(lang, "تم تسجيل الخروج", "Signed out"));
-              navigate("/auth");
-            }}
-            className="w-full flex items-center gap-3 px-4 py-3 text-burgundy hover:bg-burgundy/5 transition"
-          >
-            <LogOut className="h-4 w-4" />
-            <span className="flex-1 text-start text-sm font-bold">{tr(lang, "تسجيل الخروج", "Sign out")}</span>
-          </button>
-        </div>
-      </section>
-
-      <BusinessWhatsAppSection />
-
-      {/* === Preferences === */}
-      <section className="px-5 md:px-8 lg:px-12 mt-6">
-        <h2 className="font-bold text-sage-600 text-sm mb-2">{tr(lang, "التفضيلات", "Preferences")}</h2>
-
-        {/* Language */}
-        <div className="rounded-2xl bg-card shadow-soft p-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-sage text-primary-foreground grid place-items-center shadow-soft">
-              <Globe className="h-5 w-5" />
-            </div>
-            <p className="font-bold text-sm text-sage-600">{t("language")}</p>
-          </div>
-          <LanguageSwitcher variant="outline" />
-        </div>
-
-        {/* Currency */}
-        <div className="rounded-2xl bg-card shadow-soft p-4 mt-2">
-          <button onClick={() => setOpenCurr((v) => !v)} className="w-full flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-sage text-primary-foreground grid place-items-center shadow-soft">
-                <Coins className="h-5 w-5" />
-              </div>
-              <div className="text-start">
-                <p className="font-bold text-sm text-sage-600">{t("currency")}</p>
-                <p className="text-[11px] text-muted-foreground">{currency.name}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="font-mono font-bold text-sage-600 text-sm">{currency.code}</span>
-              <span className="font-bold text-sage-500">{currency.symbol}</span>
-            </div>
-          </button>
-          {openCurr && (
-            <div className="mt-3 max-h-72 overflow-y-auto rounded-2xl border border-sage-200/40 bg-background divide-y divide-sage-100">
-              {CURRENCIES.map((c) => (
-                <button
-                  key={c.code}
-                  onClick={() => { setCurrency(c.code); setOpenCurr(false); saved(); }}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm ${
-                    c.code === currency.code ? "bg-sage-100/70" : "hover:bg-muted"
-                  }`}
-                >
-                  <span className="font-mono font-bold w-14 text-start">{c.code}</span>
-                  <span className="flex-1 text-start opacity-80">{c.name}</span>
-                  <span className="font-semibold">{c.symbol}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Theme */}
-        <div className="rounded-2xl bg-card shadow-soft p-4 mt-2">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-sage text-primary-foreground grid place-items-center shadow-soft">
-              <Moon className="h-5 w-5" />
-            </div>
-            <p className="font-bold text-sm text-sage-600">{tr(lang, "المظهر", "Appearance")}</p>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            {([
-              { key: "light", icon: Sun, lbl: tr(lang, "فاتح", "Light") },
-              { key: "dark", icon: Moon, lbl: tr(lang, "داكن", "Dark") },
-              { key: "system", icon: Monitor, lbl: tr(lang, "النظام", "System") },
-            ] as const).map(({ key, icon: Ic, lbl }) => {
-              const active = theme === key;
-              return (
-                <button
-                  key={key}
-                  onClick={() => { setTheme(key); saved(); }}
-                  className={`flex flex-col items-center gap-1.5 py-3 rounded-xl text-xs font-bold transition-all ${
-                    active ? "bg-gradient-sage text-primary-foreground shadow-soft" : "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  <Ic className="h-4 w-4" />
-                  {lbl}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* AI floating button toggle */}
-        <div className="rounded-2xl bg-card shadow-soft border border-sage-200/50 p-4 mt-2 flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-sage-100 text-sage-600"><Sparkles className="h-4 w-4" /></div>
-          <div className="flex-1">
-            <p className="font-bold text-sm text-sage-600">{tr(lang, "زر المساعد الذكي العائم", "Floating AI button")}</p>
-            <p className="text-[11px] text-muted-foreground">{tr(lang, "إظهار زر سريع للمساعد على الرئيسية", "Show quick AI button on dashboard")}</p>
-          </div>
-          <button
-            onClick={() => { update({ showAiFab: !settings.showAiFab }); saved(); }}
-            className={`relative w-11 h-6 rounded-full transition-colors ${settings.showAiFab ? "bg-sage-500" : "bg-muted"}`}
-            aria-label="toggle ai fab"
-          >
-            <span className={`absolute top-0.5 ${settings.showAiFab ? "end-0.5" : "start-0.5"} h-5 w-5 rounded-full bg-white shadow-soft transition-all`} />
-          </button>
-        </div>
-      </section>
-
-      {/* === Business brand === */}
-      <section className="px-5 md:px-8 lg:px-12 mt-6">
-        <div className="flex items-center gap-2 mb-2">
-          <ImageIcon className="h-4 w-4 text-sage-600" />
-          <h2 className="font-bold text-sage-600 text-sm">
-            {tr(lang, "هوية الإيصالات والعقود", "Receipt & contract branding")}
-          </h2>
-        </div>
-        <div className="bg-card border border-sage-200/50 rounded-2xl p-4 shadow-soft space-y-3">
-          <p className="text-[10px] text-muted-foreground">
-            {tr(lang, "تظهر هذه البيانات في رأس كل إيصال وعقد PDF.", "Shown in the header of every receipt and lease PDF.")}
-          </p>
-          <label className="block space-y-1">
-            <span className="text-[11px] text-sage-500 font-semibold">{tr(lang, "اسم العمل", "Business name")}</span>
-            <Input value={settings.brand.name}
-              onChange={(e) => update({ brand: { ...settings.brand, name: e.target.value } })}
-              className="rounded-xl border-sage-200 bg-card h-10" />
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            <label className="block space-y-1">
-              <span className="text-[11px] text-sage-500 font-semibold">{tr(lang, "اسم المؤجِّر (عربي)", "Landlord name (Arabic)")}</span>
-              <Input value={settings.brand.landlordName || ""}
-                onChange={(e) => update({ brand: { ...settings.brand, landlordName: e.target.value } })}
-                placeholder={tr(lang, "اختياري", "Optional")}
-                dir="rtl"
-                className="rounded-xl border-sage-200 bg-card h-10" />
-            </label>
-            <label className="block space-y-1">
-              <span className="text-[11px] text-sage-500 font-semibold">{tr(lang, "اسم المؤجِّر (إنجليزي)", "Landlord name (English)")}</span>
-              <Input value={settings.brand.landlordNameEn || ""}
-                onChange={(e) => update({ brand: { ...settings.brand, landlordNameEn: e.target.value } })}
-                placeholder={tr(lang, "اختياري", "Optional")}
-                dir="ltr"
-                className="rounded-xl border-sage-200 bg-card h-10" />
-            </label>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <label className="block space-y-1">
-              <span className="text-[11px] text-sage-500 font-semibold">{tr(lang, "هاتف", "Phone")}</span>
-              <Input value={settings.brand.phone}
-                onChange={(e) => update({ brand: { ...settings.brand, phone: e.target.value } })}
-                className="rounded-xl border-sage-200 bg-card h-10" />
-            </label>
-            <label className="block space-y-1">
-              <span className="text-[11px] text-sage-500 font-semibold">{tr(lang, "العنوان", "Address")}</span>
-              <Input value={settings.brand.address}
-                onChange={(e) => update({ brand: { ...settings.brand, address: e.target.value } })}
-                className="rounded-xl border-sage-200 bg-card h-10" />
-            </label>
-          </div>
-          <div>
-            <span className="text-[11px] text-sage-500 font-semibold block mb-1">{tr(lang, "الشعار (PNG/JPG)", "Logo (PNG/JPG)")}</span>
-            <div className="flex items-center gap-3">
-              {settings.brand.logo && (
-                <img src={settings.brand.logo} alt="logo" className="h-12 w-12 object-contain rounded-lg border border-sage-200 bg-white p-1" />
-              )}
-              <input type="file" accept="image/*"
-                onChange={(e) => {
-                  const f = e.target.files?.[0]; if (!f) return;
-                  if (f.size > 500_000) { toast.error(tr(lang, "الحد 500 كيلوبايت", "Max 500KB")); return; }
-                  const reader = new FileReader();
-                  reader.onload = () => { update({ brand: { ...settings.brand, logo: String(reader.result) } }); saved(); };
-                  reader.readAsDataURL(f);
-                }}
-                className="text-xs text-sage-600 flex-1" />
-              {settings.brand.logo && (
-                <button onClick={() => update({ brand: { ...settings.brand, logo: null } })}
-                  className="text-[11px] text-burgundy font-bold">×</button>
-              )}
+            <div className="text-end">
+              <span className={`inline-block text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                sub.plan && sub.plan !== "free" ? "bg-gold text-white" : "bg-white/15"
+              }`}>
+                {sub.plan && sub.plan !== "free" ? planLabel(sub.plan).replace(/^خطة |^.* /, "") : "FREE"}
+              </span>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* === Receipt numbering === */}
-      <section className="px-5 md:px-8 lg:px-12 mt-6">
-        <div className="flex items-center gap-2 mb-2">
-          <Printer className="h-4 w-4 text-sage-600" />
-          <h2 className="font-bold text-sage-600 text-sm">
-            {tr(lang, "ترقيم الإيصالات", "Receipt numbering")}
-          </h2>
-        </div>
-        <div className="bg-card border border-sage-200/50 rounded-2xl p-4 shadow-soft space-y-3">
-          <p className="text-[10px] text-muted-foreground">
-            {tr(lang, "يُستخدم الرقم تلقائياً عند تسجيل دفعة جديدة، ويزداد بمقدار 1 بعد كل حفظ. يمكنك تعديله يدوياً وقت الإدخال.", "Used automatically on new payments and increments by 1 after each save. You can still edit it at entry time.")}
-          </p>
-          <div className="grid grid-cols-3 gap-2">
-            <label className="block space-y-1">
-              <span className="text-[11px] text-sage-500 font-semibold">{tr(lang, "بادئة", "Prefix")}</span>
-              <Input value={settings.receipt.prefix}
-                onChange={(e) => update({ receipt: { ...settings.receipt, prefix: e.target.value } })}
-                maxLength={10}
-                className="rounded-xl border-sage-200 bg-card h-10" />
-            </label>
-            <label className="block space-y-1">
-              <span className="text-[11px] text-sage-500 font-semibold">{tr(lang, "رقم البداية", "Start number")}</span>
-              <Input type="number" min={0} value={settings.receipt.startNumber}
-                onChange={(e) => {
-                  const v = Math.max(0, Number(e.target.value) || 0);
-                  const keepNext = settings.receipt.nextNumber > settings.receipt.startNumber;
-                  update({ receipt: { ...settings.receipt, startNumber: v, nextNumber: keepNext ? settings.receipt.nextNumber : v } });
-                }}
-                className="rounded-xl border-sage-200 bg-card h-10" />
-            </label>
-            <label className="block space-y-1">
-              <span className="text-[11px] text-sage-500 font-semibold">{tr(lang, "خانات", "Digits")}</span>
-              <Input type="number" min={0} max={8} value={settings.receipt.padding}
-                onChange={(e) => update({ receipt: { ...settings.receipt, padding: Math.max(0, Math.min(8, Number(e.target.value) || 0)) } })}
-                className="rounded-xl border-sage-200 bg-card h-10" />
-            </label>
-          </div>
-          <div className="flex items-center justify-between gap-2 bg-sage-50 rounded-xl px-3 py-2">
-            <div className="text-[11px] text-sage-600">
-              <div>{tr(lang, "الرقم التالي", "Next number")}: <b>{settings.receipt.nextNumber}</b></div>
-              <div className="opacity-80">{tr(lang, "معاينة", "Preview")}: <span className="font-mono font-bold">{formatReceipt(settings.receipt)}</span></div>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => { resetReceiptNumber(); saved(); }} className="rounded-lg h-8 text-xs">
-              <RotateCcw className="h-3 w-3 me-1" /> {tr(lang, "إعادة ضبط", "Reset")}
+          <div className="flex gap-2 mt-4 relative z-10">
+            <Button onClick={openPortal} disabled={portalLoading || sub.loading}
+              className="flex-1 bg-white/15 hover:bg-white/25 text-primary-foreground border-0 rounded-xl h-10 backdrop-blur">
+              {portalLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4 me-2" />}
+              {tr(lang, "إدارة الاشتراك", "Manage subscription")}
+            </Button>
+            <Button variant="ghost" onClick={async () => { await signOut(); navigate("/auth"); }}
+              className="bg-white/10 hover:bg-white/20 text-primary-foreground rounded-xl h-10 px-3">
+              <LogOut className="h-4 w-4 rtl:rotate-180" />
             </Button>
           </div>
         </div>
       </section>
 
-      {/* === Notifications & messages === */}
-      <section className="px-5 md:px-8 lg:px-12 mt-6">
-        <div className="flex items-center gap-2 mb-2">
-          <Bell className="h-4 w-4 text-sage-600" />
-          <h2 className="font-bold text-sage-600 text-sm">
-            {tr(lang, "التنبيهات والرسائل", "Notifications & messages")}
-          </h2>
-        </div>
-        <div className="bg-card border border-sage-200/50 rounded-2xl p-4 shadow-soft grid grid-cols-2 gap-3">
-          <label className="space-y-1">
-            <span className="text-[11px] text-sage-500 font-semibold">
-              {tr(lang, "تنبيه قبل الاستحقاق (يوم)", "Days before due")}
-            </span>
-            <Input type="number" min={1} max={30} value={settings.upcomingDays}
-              onChange={(e) => update({ upcomingDays: Math.max(1, parseInt(e.target.value) || 7) })}
-              className="rounded-xl border-sage-200 bg-card h-10" />
-          </label>
-          <label className="space-y-1">
-            <span className="text-[11px] text-sage-500 font-semibold">
-              {tr(lang, "تنبيه قبل انتهاء العقد (يوم)", "Days before contract end")}
-            </span>
-            <Input type="number" min={1} max={180} value={settings.contractWarnDays}
-              onChange={(e) => update({ contractWarnDays: Math.max(1, parseInt(e.target.value) || 30) })}
-              className="rounded-xl border-sage-200 bg-card h-10" />
-          </label>
-        </div>
-        <div className="bg-card border border-sage-200/50 rounded-2xl p-4 shadow-soft space-y-3 mt-2">
-          <div className="flex items-center gap-2">
-            <MessageCircle className="h-4 w-4 text-[#128C7E]" />
-            <p className="font-bold text-sm text-sage-600">{tr(lang, "قوالب رسائل واتساب", "WhatsApp templates")}</p>
-          </div>
-          <p className="text-[10px] text-muted-foreground">
-            {tr(lang, "متغيرات: {tenant} {unit} {building} {amount} {date}", "Variables: {tenant} {unit} {building} {amount} {date}")}
-          </p>
-          {(["reminder", "late", "receipt"] as const).map((k) => (
-            <label key={k} className="block space-y-1">
-              <span className="text-[11px] text-sage-500 font-semibold">
-                {k === "reminder" ? tr(lang, "تذكير عام", "Reminder") :
-                 k === "late" ? tr(lang, "متأخر", "Late") :
-                 tr(lang, "إيصال", "Receipt")}
-              </span>
-              <Textarea value={settings.templates[k]}
-                onChange={(e) => update({ templates: { ...settings.templates, [k]: e.target.value } })}
-                rows={3}
-                className="rounded-xl border-sage-200 bg-card text-xs" />
-            </label>
-          ))}
-        </div>
-      </section>
-
-      {/* === Security === */}
-      <section className="px-5 md:px-8 lg:px-12 mt-6">
-        <div className="flex items-center gap-2 mb-2">
-          <ShieldAlert className="h-4 w-4 text-burgundy" />
-          <h2 className="font-bold text-sage-600 text-sm">{tr(lang, "الأمان", "Security")}</h2>
-        </div>
-        <div className="bg-card border border-sage-200/50 rounded-2xl p-4 shadow-soft space-y-2">
-          <p className="font-bold text-sm text-sage-600">{tr(lang, "حماية الحذف برقم سري", "Delete protection PIN")}</p>
-          <p className="text-[11px] text-muted-foreground">
-            {tr(lang,
-              "عند تفعيله، يطلب التطبيق هذا الرقم قبل حذف أي دفعة. اتركه فارغاً للتعطيل.",
-              "When set, the app asks for this PIN before deleting any payment. Leave empty to disable.")}
-          </p>
-          <Input
-            type="password"
-            inputMode="numeric"
-            maxLength={12}
-            placeholder={tr(lang, "بدون رقم سري", "No PIN")}
-            defaultValue={settings.deletePin || ""}
-            onBlur={(e) => {
-              const v = e.target.value.trim();
-              update({ deletePin: v ? v : null });
-              saved();
-            }}
-            className="rounded-xl border-sage-200 bg-card h-11 font-mono text-center tracking-[0.4em]"
-          />
-          {settings.deletePin && (
-            <p className="text-[10px] text-sage-500 text-center">
-              {tr(lang, "✓ الحماية مفعّلة", "✓ Protection enabled")}
-            </p>
-          )}
-        </div>
-      </section>
-
-      {/* === Tools === */}
-      <section className="px-5 md:px-8 lg:px-12 mt-6 space-y-2">
-        <h2 className="font-bold text-sage-600 text-sm mb-2">{tr(lang, "الأدوات", "Tools")}</h2>
-        {[
-          { to: "/team", icon: Users, ar: "الفريق والصلاحيات", en: "Team & roles", arS: "ادعُ محاسبين أو مدراء فرع", enS: "Invite accountants or managers" },
-          { to: "/backup", icon: Database, ar: "النسخ الاحتياطي", en: "Backup & restore", arS: "تصدير واستعادة كل بياناتك", enS: "Export and restore all your data" },
-          { to: "/assistant", icon: Sparkles, ar: "المساعد الذكي", en: "AI Assistant", arS: "اسأل عن عقاراتك واحصل على رؤى", enS: "Ask about your properties" },
-          { to: "/install", icon: Smartphone, ar: "تثبيت التطبيق على الجوال", en: "Install on phone", arS: "افتحه من الشاشة الرئيسية كتطبيق", enS: "Launch like a native app" },
-        ].map(({ to, icon: Ic, ar, en, arS, enS }) => (
-          <Link key={to} to={to} className="flex items-center gap-3 bg-card border border-sage-200/60 rounded-2xl p-4 shadow-soft hover:bg-sage-50 transition">
-            <div className="p-2 rounded-xl bg-sage-100 text-sage-600"><Ic className="h-4 w-4" /></div>
-            <div className="flex-1 text-start">
-              <p className="font-bold text-sm text-sage-600">{tr(lang, ar, en)}</p>
-              <p className="text-[11px] text-muted-foreground">{tr(lang, arS, enS)}</p>
-            </div>
-            <ArrowRight className="h-4 w-4 text-sage-500 rtl:rotate-180" />
+      {/* Admin shortcut */}
+      {isAdmin && (
+        <section className="px-5 md:px-8 lg:px-12 mt-3">
+          <Link to="/admin" className="flex items-center gap-3 rounded-2xl bg-burgundy/5 border border-burgundy/25 p-3 hover:bg-burgundy/10 transition">
+            <div className="p-2 rounded-xl bg-burgundy/15 text-burgundy"><Shield className="h-4 w-4" /></div>
+            <p className="flex-1 text-sm font-bold text-burgundy text-start">{tr(lang, "لوحة المسؤول", "Admin panel")}</p>
+            <ArrowRight className="h-4 w-4 text-burgundy rtl:rotate-180" />
           </Link>
-        ))}
-      </section>
+        </section>
+      )}
 
-      {/* === Advanced (collapsible) === */}
-      <section className="px-5 md:px-8 lg:px-12 mt-6">
-        <button
-          onClick={() => setOpenAdvanced((v) => !v)}
-          className="w-full flex items-center justify-between bg-card border border-sage-200/50 rounded-2xl p-4 shadow-soft hover:bg-sage-50 transition"
-        >
-          <span className="font-bold text-sm text-sage-600">{tr(lang, "إعدادات متقدمة", "Advanced settings")}</span>
-          <ChevronDown className={`h-4 w-4 text-sage-500 transition-transform ${openAdvanced ? "rotate-180" : ""}`} />
-        </button>
+      {/* Tabs */}
+      <section className="px-5 md:px-8 lg:px-12 mt-5">
+        <Tabs defaultValue="account" className="w-full">
+          <TabsList className="grid grid-cols-5 w-full h-auto bg-sage-100/60 p-1 rounded-2xl">
+            {[
+              { v: "account", icon: UserIcon, ar: "الحساب", en: "Account" },
+              { v: "brand", icon: Palette, ar: "الهوية", en: "Brand" },
+              { v: "notify", icon: Bell, ar: "تنبيهات", en: "Alerts" },
+              { v: "print", icon: Printer, ar: "طباعة", en: "Print" },
+              { v: "secure", icon: ShieldAlert, ar: "أمان", en: "Security" },
+            ].map(({ v, icon: Ic, ar, en }) => (
+              <TabsTrigger key={v} value={v}
+                className="flex flex-col gap-1 py-2 px-1 rounded-xl text-[10px] font-bold data-[state=active]:bg-card data-[state=active]:text-sage-600 data-[state=active]:shadow-soft">
+                <Ic className="h-4 w-4" />
+                {tr(lang, ar, en)}
+              </TabsTrigger>
+            ))}
+          </TabsList>
 
-        {openAdvanced && (
-          <div className="mt-2 space-y-3">
-            {/* Print layout */}
-            <div className="bg-card border border-sage-200/50 rounded-2xl p-4 shadow-soft space-y-4">
-              <div className="flex items-center gap-2">
-                <Printer className="h-4 w-4 text-sage-500" />
-                <p className="font-bold text-sm text-sage-600">{tr(lang, "نمط الطباعة", "Print layout")}</p>
+          {/* ============== ACCOUNT ============== */}
+          <TabsContent value="account" className="space-y-3 mt-4">
+            <Card>
+              <Row icon={Globe} title={t("language")}>
+                <LanguageSwitcher variant="outline" />
+              </Row>
+            </Card>
+
+            <Card>
+              <button onClick={() => setCurrOpen(true)} className="w-full flex items-center gap-3 p-4 hover:bg-sage-50 rounded-2xl transition">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-sage text-primary-foreground grid place-items-center shadow-soft">
+                  <Coins className="h-5 w-5" />
+                </div>
+                <div className="flex-1 text-start">
+                  <p className="font-bold text-sm text-sage-600">{t("currency")}</p>
+                  <p className="text-[11px] text-muted-foreground">{currency.name}</p>
+                </div>
+                <span className="font-mono font-bold text-sage-600 text-sm">{currency.code}</span>
+                <span className="font-bold text-sage-500">{currency.symbol}</span>
+              </button>
+            </Card>
+
+            <Card>
+              <div className="p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-sage text-primary-foreground grid place-items-center shadow-soft">
+                    <Moon className="h-5 w-5" />
+                  </div>
+                  <p className="font-bold text-sm text-sage-600">{tr(lang, "المظهر", "Appearance")}</p>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { key: "light", icon: Sun, lbl: tr(lang, "فاتح", "Light") },
+                    { key: "dark", icon: Moon, lbl: tr(lang, "داكن", "Dark") },
+                    { key: "system", icon: Monitor, lbl: tr(lang, "النظام", "System") },
+                  ] as const).map(({ key, icon: Ic, lbl }) => {
+                    const active = theme === key;
+                    return (
+                      <button key={key} onClick={() => setTheme(key)}
+                        className={`flex flex-col items-center gap-1.5 py-3 rounded-xl text-xs font-bold transition-all ${
+                          active ? "bg-gradient-sage text-primary-foreground shadow-soft" : "bg-muted text-muted-foreground"
+                        }`}>
+                        <Ic className="h-4 w-4" />{lbl}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-2">{tr(lang, "حجم الورق", "Page size")}</p>
+            </Card>
+
+            <Link to="/pricing" className="flex items-center gap-3 bg-card border border-sage-200/60 rounded-2xl p-4 shadow-soft hover:bg-sage-50">
+              <div className="p-2 rounded-xl bg-gold/15 text-gold"><Crown className="h-4 w-4" /></div>
+              <p className="flex-1 text-sm font-bold text-sage-600 text-start">{tr(lang, "الخطط والأسعار", "Plans & pricing")}</p>
+              <ArrowRight className="h-4 w-4 text-sage-400 rtl:rotate-180" />
+            </Link>
+          </TabsContent>
+
+          {/* ============== BRAND ============== */}
+          <TabsContent value="brand" className="space-y-3 mt-4">
+            <BusinessWhatsAppSection />
+
+            <Card>
+              <div className="p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <ImageIcon className="h-4 w-4 text-sage-600" />
+                  <p className="font-bold text-sm text-sage-600">
+                    {tr(lang, "هوية الإيصالات والعقود", "Receipt & contract branding")}
+                  </p>
+                </div>
+
+                {/* Drag & drop logo */}
+                <div
+                  ref={logoDragRef}
+                  onDragOver={(e) => { e.preventDefault(); setLogoDrag(true); }}
+                  onDragLeave={() => setLogoDrag(false)}
+                  onDrop={(e) => {
+                    e.preventDefault(); setLogoDrag(false);
+                    handleLogoFile(e.dataTransfer.files?.[0]);
+                  }}
+                  className={`rounded-2xl border-2 border-dashed transition-all p-4 flex items-center gap-4 ${
+                    logoDrag ? "border-sage-500 bg-sage-100/60" : "border-sage-200 bg-sage-50/40"
+                  }`}
+                >
+                  <div className="h-16 w-16 rounded-full bg-white border border-sage-200 grid place-items-center overflow-hidden shadow-soft">
+                    {settings.brand.logo
+                      ? <img src={settings.brand.logo} alt="logo" className="h-full w-full object-contain p-1.5" />
+                      : <ImageIcon className="h-6 w-6 text-sage-400" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-sage-600">
+                      {tr(lang, "اسحب الشعار هنا", "Drop logo here")}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {tr(lang, "PNG / JPG حتى 500KB", "PNG / JPG up to 500KB")}
+                    </p>
+                    <label className="inline-block mt-1.5 text-[11px] font-bold text-sage-600 underline cursor-pointer">
+                      {tr(lang, "أو اختر ملفاً", "or browse file")}
+                      <input type="file" accept="image/*" hidden onChange={(e) => handleLogoFile(e.target.files?.[0] || undefined)} />
+                    </label>
+                  </div>
+                  {settings.brand.logo && (
+                    <button onClick={() => update({ brand: { ...settings.brand, logo: null } })}
+                      className="p-2 rounded-lg text-burgundy hover:bg-burgundy/10" aria-label="remove logo">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+
+                <Field label={tr(lang, "اسم العمل", "Business name")}>
+                  <Input value={settings.brand.name}
+                    onChange={(e) => update({ brand: { ...settings.brand, name: e.target.value } })}
+                    className="rounded-xl border-sage-200 bg-card h-10" />
+                </Field>
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label={tr(lang, "المؤجِّر (عربي)", "Landlord (AR)")}>
+                    <Input value={settings.brand.landlordName || ""} dir="rtl"
+                      onChange={(e) => update({ brand: { ...settings.brand, landlordName: e.target.value } })}
+                      className="rounded-xl border-sage-200 bg-card h-10" />
+                  </Field>
+                  <Field label={tr(lang, "المؤجِّر (إنجليزي)", "Landlord (EN)")}>
+                    <Input value={settings.brand.landlordNameEn || ""} dir="ltr"
+                      onChange={(e) => update({ brand: { ...settings.brand, landlordNameEn: e.target.value } })}
+                      className="rounded-xl border-sage-200 bg-card h-10" />
+                  </Field>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label={tr(lang, "هاتف", "Phone")}>
+                    <Input value={settings.brand.phone}
+                      onChange={(e) => update({ brand: { ...settings.brand, phone: e.target.value } })}
+                      className="rounded-xl border-sage-200 bg-card h-10" />
+                  </Field>
+                  <Field label={tr(lang, "العنوان", "Address")}>
+                    <Input value={settings.brand.address}
+                      onChange={(e) => update({ brand: { ...settings.brand, address: e.target.value } })}
+                      className="rounded-xl border-sage-200 bg-card h-10" />
+                  </Field>
+                </div>
+              </div>
+            </Card>
+
+            {/* Live receipt preview */}
+            <Card>
+              <div className="p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Eye className="h-4 w-4 text-sage-600" />
+                  <p className="font-bold text-sm text-sage-600">{tr(lang, "معاينة الإيصال الحية", "Live receipt preview")}</p>
+                </div>
+                <div className="rounded-2xl bg-white border border-sage-200/70 p-5 shadow-inner">
+                  <div className="flex items-center gap-3 pb-3 border-b border-sage-100">
+                    {settings.brand.logo && <img src={settings.brand.logo} alt="" className="h-12 w-12 object-contain rounded-lg bg-white" />}
+                    <div className="flex-1">
+                      <p className="font-black text-sage-700">{settings.brand.name || "—"}</p>
+                      {settings.brand.phone && <p className="text-[10px] text-sage-500">{settings.brand.phone}</p>}
+                      {settings.brand.address && <p className="text-[10px] text-sage-500">{settings.brand.address}</p>}
+                    </div>
+                    <div className="text-end">
+                      <p className="text-[9px] text-sage-400 uppercase">{tr(lang, "إيصال رقم", "Receipt #")}</p>
+                      <p className="font-mono font-bold text-sage-700">{receiptPreview}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 mt-3 text-[11px] text-sage-600">
+                    <div><span className="text-sage-400">{tr(lang, "المستأجر", "Tenant")}: </span>{SAMPLE_VARS.tenant}</div>
+                    <div><span className="text-sage-400">{tr(lang, "الوحدة", "Unit")}: </span>{SAMPLE_VARS.unit}</div>
+                    <div><span className="text-sage-400">{tr(lang, "المبنى", "Building")}: </span>{SAMPLE_VARS.building}</div>
+                    <div><span className="text-sage-400">{tr(lang, "المبلغ", "Amount")}: </span><b>{SAMPLE_VARS.amount}</b></div>
+                  </div>
+                  {(settings.brand.landlordName || settings.brand.landlordNameEn) && (
+                    <p className="text-[10px] text-sage-400 mt-3 text-center">
+                      {settings.brand.landlordName} · {settings.brand.landlordNameEn}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </Card>
+          </TabsContent>
+
+          {/* ============== NOTIFY ============== */}
+          <TabsContent value="notify" className="space-y-3 mt-4">
+            <Card>
+              <div className="p-4 grid grid-cols-2 gap-3">
+                <Field label={tr(lang, "تنبيه قبل الاستحقاق (يوم)", "Days before due")}>
+                  <Input type="number" min={1} max={30} value={settings.upcomingDays}
+                    onChange={(e) => update({ upcomingDays: Math.max(1, parseInt(e.target.value) || 7) })}
+                    className="rounded-xl border-sage-200 bg-card h-10" />
+                </Field>
+                <Field label={tr(lang, "قبل انتهاء العقد (يوم)", "Before contract end")}>
+                  <Input type="number" min={1} max={180} value={settings.contractWarnDays}
+                    onChange={(e) => update({ contractWarnDays: Math.max(1, parseInt(e.target.value) || 30) })}
+                    className="rounded-xl border-sage-200 bg-card h-10" />
+                </Field>
+              </div>
+            </Card>
+
+            <Card>
+              <div className="p-4 space-y-4">
+                <div className="flex items-center gap-2">
+                  <MessageCircle className="h-4 w-4 text-sage-600" />
+                  <p className="font-bold text-sm text-sage-600">{tr(lang, "قوالب رسائل واتساب", "WhatsApp templates")}</p>
+                </div>
+                {(["reminder", "late", "receipt"] as const).map((k) => (
+                  <div key={k} className="space-y-2 pb-3 border-b border-sage-100 last:border-0 last:pb-0">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-sage-600 font-bold">
+                        {k === "reminder" ? tr(lang, "تذكير عام", "Reminder") :
+                         k === "late" ? tr(lang, "متأخر", "Late") :
+                         tr(lang, "إيصال", "Receipt")}
+                      </span>
+                      <button onClick={() => setTestTpl(k)}
+                        className="text-[10px] font-bold text-sage-600 bg-sage-100 hover:bg-sage-200 rounded-full px-2.5 py-1 flex items-center gap-1">
+                        <Send className="h-3 w-3" /> {tr(lang, "اختبار", "Test")}
+                      </button>
+                    </div>
+                    <Textarea value={settings.templates[k]}
+                      onChange={(e) => update({ templates: { ...settings.templates, [k]: e.target.value } })}
+                      rows={3}
+                      className="rounded-xl border-sage-200 bg-card text-xs" />
+                    <div className="flex flex-wrap gap-1.5">
+                      {TEMPLATE_VARS.map((v) => (
+                        <button key={v} onClick={() => insertVar(v, k)}
+                          className="text-[10px] font-mono font-bold text-sage-600 bg-sage-100/70 hover:bg-sage-200 rounded-md px-2 py-0.5">
+                          {"{"}{v}{"}"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </TabsContent>
+
+          {/* ============== PRINT ============== */}
+          <TabsContent value="print" className="space-y-3 mt-4">
+            <Card>
+              <div className="p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Printer className="h-4 w-4 text-sage-600" />
+                  <p className="font-bold text-sm text-sage-600">{tr(lang, "حجم الورق", "Paper size")}</p>
+                </div>
                 <div className="grid grid-cols-3 gap-2">
                   {(Object.keys(PAGE_SIZES_MM) as PageSize[]).map((s) => {
                     const active = settings.pageSize === s;
                     return (
-                      <button
-                        key={s}
-                        onClick={() => { update({ pageSize: s }); saved(); }}
-                        className={`px-2 py-2 rounded-xl text-xs font-bold transition-all ${
+                      <button key={s} onClick={() => update({ pageSize: s })}
+                        className={`px-2 py-3 rounded-xl text-xs font-bold transition-all ${
                           active ? "bg-gradient-sage text-primary-foreground shadow-soft" : "bg-muted text-muted-foreground"
-                        }`}
-                      >
+                        }`}>
                         {s}
                         <span className="block text-[9px] font-mono opacity-70 mt-0.5">
                           {PAGE_SIZES_MM[s].w}×{PAGE_SIZES_MM[s].h}
@@ -562,84 +476,142 @@ export default function Settings() {
                     );
                   })}
                 </div>
+                <p className="text-[10px] text-muted-foreground">
+                  {tr(lang, "هوامش 16 مم على جميع الجوانب.", "16mm margins on all sides.")}
+                </p>
               </div>
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs text-muted-foreground">{tr(lang, "الهوامش (مم)", "Margins (mm)")}</p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const v = settings.margins.top;
-                      update({ margins: { top: v, right: v, bottom: v, left: v } });
-                    }}
-                    className="text-[10px] font-bold text-sage-500 underline"
-                  >
-                    {tr(lang, "توحيد الجوانب", "Link all sides")}
-                  </button>
+            </Card>
+
+            <Card>
+              <div className="p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Printer className="h-4 w-4 text-sage-600" />
+                  <p className="font-bold text-sm text-sage-600">{tr(lang, "ترقيم الإيصالات", "Receipt numbering")}</p>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {(["top", "right", "bottom", "left"] as const).map((side) => (
-                    <label key={side} className="flex items-center gap-2 bg-muted/50 rounded-xl px-3 py-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-sage-500 w-12">
-                        {tr(lang,
-                          side === "top" ? "أعلى" : side === "right" ? "يمين" : side === "bottom" ? "أسفل" : "يسار",
-                          side
-                        )}
-                      </span>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={60}
-                        value={settings.margins[side]}
-                        onChange={(e) => {
-                          const n = Math.max(0, Math.min(60, Number(e.target.value) || 0));
-                          update({ margins: { ...settings.margins, [side]: n } });
-                        }}
-                        className="h-8 text-sm font-mono text-center"
-                      />
-                    </label>
+
+                <div className="flex flex-wrap gap-1.5">
+                  {PREFIX_PRESETS.map((p) => (
+                    <button key={p} onClick={() => setPrefix(p)}
+                      className={`text-xs font-mono font-bold rounded-lg px-2.5 py-1 transition ${
+                        settings.receipt.prefix === p ? "bg-sage-500 text-white" : "bg-sage-100 text-sage-600 hover:bg-sage-200"
+                      }`}>{p}</button>
                   ))}
                 </div>
-              </div>
-            </div>
 
-            {/* Filter retention */}
-            <div className="bg-card border border-sage-200/50 rounded-2xl p-4 shadow-soft">
-              <div className="flex items-center gap-2 mb-2">
-                <Clock className="h-4 w-4 text-sage-500" />
-                <p className="font-bold text-sm text-sage-600">{tr(lang, "مدة حفظ الفلاتر", "Filter retention")}</p>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {RETENTIONS.map((r) => {
-                  const active = settings.filterRetentionMin === r.v;
-                  return (
-                    <button
-                      key={r.v}
-                      onClick={() => { update({ filterRetentionMin: r.v }); saved(); }}
-                      className={`px-2 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                        active ? "bg-gradient-sage text-primary-foreground shadow-soft" : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      {RL(r.key)}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label={tr(lang, "بادئة مخصصة", "Custom prefix")}>
+                    <Input value={settings.receipt.prefix} maxLength={10}
+                      onChange={(e) => setPrefix(e.target.value)}
+                      className="rounded-xl border-sage-200 bg-card h-10 font-mono" />
+                  </Field>
+                  <Field label={tr(lang, "خانات الرقم", "Number digits")}>
+                    <div className="flex items-center gap-2 h-10 bg-card border border-sage-200 rounded-xl px-3">
+                      <input type="range" min={1} max={6} value={settings.receipt.padding || 1}
+                        onChange={(e) => setPadding(parseInt(e.target.value))}
+                        className="flex-1 accent-sage-500" />
+                      <span className="font-mono font-bold text-sage-600 text-sm w-5 text-center">{settings.receipt.padding || 1}</span>
+                    </div>
+                  </Field>
+                </div>
 
-            {/* Reset all */}
-            <Button
-              variant="outline"
-              onClick={() => { reset(); saved(); }}
-              className="w-full rounded-xl border-burgundy/30 text-burgundy hover:bg-burgundy/5"
-            >
-              <RotateCcw className="h-4 w-4 me-2" /> {tr(lang, "استعادة الافتراضيات", "Reset defaults")}
-            </Button>
-          </div>
-        )}
+                <div className="flex items-center justify-between gap-2 bg-sage-100/70 rounded-xl px-4 py-3">
+                  <div className="text-[11px] text-sage-600">
+                    <p className="opacity-70">{tr(lang, "معاينة الرقم التالي", "Next number preview")}</p>
+                    <p className="font-mono font-black text-lg text-sage-700">{receiptPreview}</p>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => resetReceiptNumber()}
+                    className="rounded-lg h-8 text-xs border-sage-300">
+                    <RotateCcw className="h-3 w-3 me-1" /> {tr(lang, "صفر", "Reset")}
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          </TabsContent>
+
+          {/* ============== SECURE ============== */}
+          <TabsContent value="secure" className="space-y-3 mt-4">
+            <Card>
+              <div className="p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert className="h-4 w-4 text-sage-600" />
+                  <p className="font-bold text-sm text-sage-600">{tr(lang, "رمز حماية الحذف (PIN)", "Delete PIN")}</p>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  {tr(lang, "أربعة أرقام تُطلب قبل أي حذف. اترك الحقل فارغاً للتعطيل.",
+                            "Four digits required before any deletion. Clear to disable.")}
+                </p>
+                <div className="flex justify-center py-2" dir="ltr">
+                  <InputOTP maxLength={4} value={settings.deletePin || ""} onChange={setPin}>
+                    <InputOTPGroup>
+                      {[0, 1, 2, 3].map((i) => (
+                        <InputOTPSlot key={i} index={i}
+                          className="h-12 w-12 mx-1 first:ms-0 last:me-0 rounded-xl border-sage-200 text-lg font-bold first:rounded-xl last:rounded-xl border" />
+                      ))}
+                    </InputOTPGroup>
+                  </InputOTP>
+                </div>
+                {settings.deletePin?.length === 4 && (
+                  <p className="text-[11px] text-sage-600 text-center flex items-center justify-center gap-1">
+                    <Check className="h-3 w-3" /> {tr(lang, "الحماية مفعّلة", "Protection enabled")}
+                  </p>
+                )}
+                {settings.deletePin && (
+                  <Button variant="ghost" size="sm" onClick={() => update({ deletePin: null })}
+                    className="w-full text-burgundy hover:bg-burgundy/5 text-xs">
+                    {tr(lang, "تعطيل الحماية", "Disable protection")}
+                  </Button>
+                )}
+              </div>
+            </Card>
+
+            <Card>
+              <div className="p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Database className="h-4 w-4 text-sage-600" />
+                  <p className="font-bold text-sm text-sage-600">{tr(lang, "نسخ احتياطي للإعدادات", "Settings backup")}</p>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  {tr(lang, "احفظ إعداداتك كملف JSON أو استعدها على جهاز آخر.",
+                            "Save your settings as JSON or restore on another device.")}
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button variant="outline" onClick={exportSettings} className="rounded-xl border-sage-300 text-sage-600">
+                    <Download className="h-4 w-4 me-2" /> {tr(lang, "تصدير", "Export")}
+                  </Button>
+                  <Button variant="outline" onClick={() => fileImportRef.current?.click()} className="rounded-xl border-sage-300 text-sage-600">
+                    <Upload className="h-4 w-4 me-2" /> {tr(lang, "استيراد", "Import")}
+                  </Button>
+                  <input ref={fileImportRef} type="file" accept="application/json" hidden
+                    onChange={(e) => importSettings(e.target.files?.[0] || undefined)} />
+                </div>
+                <Button variant="outline" onClick={() => { if (confirm(tr(lang, "استعادة الإعدادات الافتراضية؟", "Reset to defaults?"))) { reset(); toast.success(tr(lang, "تمت الاستعادة", "Reset done")); } }}
+                  className="w-full rounded-xl border-burgundy/30 text-burgundy hover:bg-burgundy/5">
+                  <RotateCcw className="h-4 w-4 me-2" /> {tr(lang, "استعادة الافتراضيات", "Reset defaults")}
+                </Button>
+              </div>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </section>
 
-      {/* === Legal === */}
+      {/* Tools */}
+      <section className="px-5 md:px-8 lg:px-12 mt-6 space-y-2">
+        <h2 className="font-bold text-sage-600 text-sm mb-2">{tr(lang, "الأدوات", "Tools")}</h2>
+        {[
+          { to: "/team", icon: Users, ar: "الفريق والصلاحيات", en: "Team & roles" },
+          { to: "/backup", icon: Database, ar: "النسخ الاحتياطي", en: "Backup & restore" },
+          { to: "/assistant", icon: Sparkles, ar: "المساعد الذكي", en: "AI Assistant" },
+          { to: "/install", icon: Smartphone, ar: "تثبيت التطبيق", en: "Install app" },
+        ].map(({ to, icon: Ic, ar, en }) => (
+          <Link key={to} to={to} className="flex items-center gap-3 bg-card border border-sage-200/60 rounded-2xl p-3.5 shadow-soft hover:bg-sage-50 transition">
+            <div className="p-2 rounded-xl bg-sage-100 text-sage-600"><Ic className="h-4 w-4" /></div>
+            <p className="flex-1 text-sm font-bold text-sage-600 text-start">{tr(lang, ar, en)}</p>
+            <ArrowRight className="h-4 w-4 text-sage-400 rtl:rotate-180" />
+          </Link>
+        ))}
+      </section>
+
+      {/* Legal */}
       <section className="px-5 md:px-8 lg:px-12 mt-6">
         <h2 className="font-bold text-sage-600 text-sm mb-2">{tr(lang, "الصفحات القانونية", "Legal")}</h2>
         <div className="rounded-2xl bg-card shadow-soft divide-y divide-sage-100 overflow-hidden">
@@ -657,8 +629,82 @@ export default function Settings() {
       </section>
 
       <DeleteAccountSection />
-
       <BottomNav />
+
+      {/* Currency Sheet */}
+      <Sheet open={currOpen} onOpenChange={setCurrOpen}>
+        <SheetContent side="bottom" className="rounded-t-3xl border-0 max-w-[430px] mx-auto p-0 max-h-[80vh] flex flex-col">
+          <SheetHeader className="p-5 border-b border-sage-100">
+            <SheetTitle className="text-sage-600 text-start">{tr(lang, "اختر العملة", "Choose currency")}</SheetTitle>
+          </SheetHeader>
+          <div className="overflow-y-auto flex-1 p-2">
+            {CURRENCIES.map((c) => (
+              <button key={c.code}
+                onClick={() => { setCurrency(c.code); setCurrOpen(false); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm ${
+                  c.code === currency.code ? "bg-gradient-sage text-primary-foreground" : "hover:bg-muted"
+                }`}>
+                <span className="font-mono font-bold w-14 text-start">{c.code}</span>
+                <span className="flex-1 text-start opacity-90">{c.name}</span>
+                <span className="font-bold">{c.symbol}</span>
+                {c.code === currency.code && <Check className="h-4 w-4" />}
+              </button>
+            ))}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Template test dialog */}
+      <Dialog open={!!testTpl} onOpenChange={(o) => !o && setTestTpl(null)}>
+        <DialogContent className="rounded-3xl max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sage-600 text-start flex items-center gap-2">
+              <MessageCircle className="h-4 w-4 text-[#128C7E]" />
+              {tr(lang, "معاينة الرسالة", "Message preview")}
+            </DialogTitle>
+          </DialogHeader>
+          {testTpl && (
+            <div className="rounded-2xl bg-[#e7f8d9] border border-sage-200 p-4 text-sm text-sage-700 whitespace-pre-line shadow-inner">
+              {renderTpl(testTpl)}
+            </div>
+          )}
+          <p className="text-[10px] text-muted-foreground text-center">
+            {tr(lang, "بيانات تجريبية للمعاينة فقط", "Sample data for preview only")}
+          </p>
+          <DialogFooter>
+            <Button onClick={() => setTestTpl(null)} className="w-full rounded-xl bg-gradient-sage">
+              {tr(lang, "تم", "Done")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+  );
+}
+
+/* ===== Small composables ===== */
+
+function Card({ children }: { children: React.ReactNode }) {
+  return <div className="rounded-2xl bg-card border border-sage-200/50 shadow-soft overflow-hidden">{children}</div>;
+}
+
+function Row({ icon: Ic, title, children }: { icon: any; title: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-3 p-4">
+      <div className="w-10 h-10 rounded-2xl bg-gradient-sage text-primary-foreground grid place-items-center shadow-soft">
+        <Ic className="h-5 w-5" />
+      </div>
+      <p className="font-bold text-sm text-sage-600 flex-1">{title}</p>
+      {children}
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block space-y-1">
+      <span className="text-[11px] text-sage-500 font-semibold">{label}</span>
+      {children}
+    </label>
   );
 }
