@@ -231,7 +231,7 @@ export default function MonthlyCollection() {
         phone: settings.brand.phone || "",
         address: settings.brand.address || "",
       },
-      currency: String(settings.currency || ""),
+      currency: currency.symbol,
       lang: lang === "ar" ? "ar" : "en",
       monthLabel: month.label,
       generatedAt: new Date().toLocaleDateString(lang === "ar" ? "ar" : "en-GB"),
