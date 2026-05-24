@@ -119,7 +119,7 @@ export default function Tenants() {
       if (!ids.length) { setRows([]); setLoading(false); return; }
       const bMap = new Map((bs || []).map((b: any) => [b.id, b.name || b.name_en || "—"]));
       const { data: us } = await supabase.from("units")
-        .select("id, unit_number, building_id, tenant_name, tenant_phone, rent_amount, rent_type, status, last_paid_date, contract_end_date, contract_start_date, opening_balance, opening_balance_date")
+        .select("id, unit_number, building_id, tenant_name, tenant_phone, rent_amount, rent_type, rent_timing, status, last_paid_date, contract_end_date, contract_start_date, opening_balance, opening_balance_date")
         .in("building_id", ids)
         .not("tenant_name", "is", null);
       const unitIds = (us || []).map((u: any) => u.id);
