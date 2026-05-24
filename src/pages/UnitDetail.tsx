@@ -985,10 +985,12 @@ function Row({ icon: Icon, label, value }: any) {
 }
 
 function getDueForMonth(dueDay: number, year: number, month: number): Date {
-  const day = Math.max(1, Math.min(31, dueDay || 1));
+  // dueDay now reflects the contract-start day-of-month (synced on save).
+  const day = Math.max(1, Math.min(28, dueDay || 1));
   const lastOfMonth = new Date(year, month + 1, 0).getDate();
   return new Date(year, month, Math.min(day, lastOfMonth));
 }
+
 
 function DueDateRow({ unit, t2, lang }: any) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
