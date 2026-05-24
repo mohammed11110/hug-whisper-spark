@@ -203,7 +203,7 @@ export default function MonthlyCollection() {
       if (!bIds.length) { setUnits([]); setPayments([]); setLoading(false); return; }
       const { data: us } = await supabase
         .from("units")
-        .select("id,unit_number,building_id,tenant_name,tenant_phone,rent_amount,rent_type,contract_start_date")
+        .select("id,unit_number,building_id,tenant_name,tenant_phone,rent_amount,rent_type,rent_timing,contract_start_date,opening_balance_date")
         .in("building_id", bIds)
         .not("tenant_name", "is", null);
       const uList = (us || []) as UnitRow[];
