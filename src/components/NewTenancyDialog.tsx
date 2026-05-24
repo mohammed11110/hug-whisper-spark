@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
 import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
 import { X, Image as ImageIcon, Sparkles, Loader2 } from "lucide-react";
+import { LastPaymentSection, getLastPaidMonthOptions, nextMonthStartISO } from "@/components/LastPaymentSection";
 
 interface Props {
   open: boolean;
@@ -41,6 +42,9 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
   const [pendingPhoto, setPendingPhoto] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [extracting, setExtracting] = useState(false);
+  const [hasPrevPay, setHasPrevPay] = useState(false);
+  const [prevPayMonth, setPrevPayMonth] = useState<string>("");
+  const [prevPayAmount, setPrevPayAmount] = useState<string>("");
   const guard = useUnsavedGuard({ open, onOpenChange });
 
   const extractFromId = async () => {
@@ -80,6 +84,7 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
     setContractFileUrl(null);
     setUnitPhotos([]);
     setPendingPhoto(null);
+    setHasPrevPay(false); setPrevPayMonth(""); setPrevPayAmount("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, unit?.id]);
 
@@ -145,9 +150,37 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
       updatePayload.handover_photos = [...existing, ...unitPhotos];
     }
 
+    // Last payment → set opening_balance_date to the month after, so arrears auto-compute
+    let prevPayPayload: any = null;
+    if (hasPrevPay && prevPayMonth) {
+      const opts = getLastPaidMonthOptions(lang);
+      const sel = opts.find((o) => o.value === prevPayMonth);
+      if (sel) {
+        updatePayload.opening_balance = 0;
+        updatePayload.opening_balance_date = nextMonthStartISO(prevPayMonth);
+        const amt = Number(prevPayAmount) || 0;
+        if (amt > 0) {
+          updatePayload.last_paid_date = sel.end;
+          prevPayPayload = {
+            unit_id: unit.id,
+            amount: amt,
+            expected_amount: rentNum,
+            payment_method: "cash",
+            payment_date: new Date().toISOString().slice(0, 10),
+            period_start: sel.start,
+            period_end: sel.end,
+            notes: lang === "ar" ? "دفعة سابقة مُسجّلة عند إضافة المستأجر" : "Prior payment recorded at tenant creation",
+          };
+        }
+      }
+    }
+
     const { error: uErr } = await supabase.from("units").update(updatePayload).eq("id", unit.id);
     setSaving(false);
     if (uErr) return toast.error(uErr.message);
+    if (prevPayPayload) {
+      await supabase.from("payments").insert(prevPayPayload);
+    }
     logActivity({
       entityType: "tenant",
       action: "created",
@@ -233,6 +266,17 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
               <Input type="number" inputMode="decimal" value={deposit} onChange={(e) => setDeposit(e.target.value)} className="rounded-xl border-sage-200 h-11" />
             </div>
           </div>
+
+          <LastPaymentSection
+            enabled={hasPrevPay}
+            onEnabledChange={setHasPrevPay}
+            month={prevPayMonth}
+            onMonthChange={setPrevPayMonth}
+            amount={prevPayAmount}
+            onAmountChange={setPrevPayAmount}
+          />
+
+
 
           {/* Optional attachments */}
           <div className="pt-2 border-t border-sage-200/50 space-y-3">

@@ -8,6 +8,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
 import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
+import { LastPaymentSection, getLastPaidMonthOptions, nextMonthStartISO } from "@/components/LastPaymentSection";
+import { useI18n } from "@/lib/i18n";
 
 const UNIT_TYPES = ["apartment", "shop", "room", "villa"] as const;
 const RENT_TYPES = ["monthly", "daily", "yearly"] as const;
@@ -43,6 +45,7 @@ export function EditUnitDialog({
   onSaved?: () => void;
 }) {
   const t2 = useT2();
+  const { lang } = useI18n();
   const [unitNumber, setUnitNumber] = useState("");
   const [floor, setFloor] = useState("1");
   const [type, setType] = useState<string>("apartment");
@@ -58,6 +61,10 @@ export function EditUnitDialog({
   const [contractType, setContractType] = useState<string>("yearly");
   const [contractStart, setContractStart] = useState<string>("");
   const [arrears, setArrears] = useState("0");
+  const [hasPrevPay, setHasPrevPay] = useState(false);
+  const [prevPayMonth, setPrevPayMonth] = useState("");
+  const [prevPayAmount, setPrevPayAmount] = useState("");
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [busy, setBusy] = useState(false);
   const guard = useUnsavedGuard({ open, onOpenChange });
 
@@ -78,6 +85,8 @@ export function EditUnitDialog({
     setContractType(unit.contract_type || "yearly");
     setContractStart(unit.contract_start_date || "");
     setArrears(String((unit as any).opening_balance ?? 0));
+    setHasPrevPay(false); setPrevPayMonth(""); setPrevPayAmount("");
+    setShowAdvanced(false);
   }, [unit]);
 
   if (!unit) return null;
@@ -88,7 +97,7 @@ export function EditUnitDialog({
     if (!unitNumber.trim()) return;
     if (occupied && !tenantName.trim()) return toast.error(t2("tenant_required"));
     setBusy(true);
-    const { error } = await supabase.from("units").update({
+    const updatePayload: any = {
       unit_number: unitNumber.trim(),
       floor: Math.max(1, parseInt(floor) || 1),
       type,
@@ -105,9 +114,38 @@ export function EditUnitDialog({
       contract_type: contractType,
       contract_start_date: contractStart || null,
       opening_balance: parseFloat(arrears) || 0,
-    }).eq("id", unit.id);
+    };
+
+    let prevPayPayload: any = null;
+    if (hasPrevPay && prevPayMonth) {
+      const opts = getLastPaidMonthOptions(lang);
+      const sel = opts.find((o) => o.value === prevPayMonth);
+      if (sel) {
+        updatePayload.opening_balance = 0;
+        updatePayload.opening_balance_date = nextMonthStartISO(prevPayMonth);
+        const amt = Number(prevPayAmount) || 0;
+        if (amt > 0) {
+          updatePayload.last_paid_date = sel.end;
+          prevPayPayload = {
+            unit_id: unit.id,
+            amount: amt,
+            expected_amount: parseFloat(rentAmount) || 0,
+            payment_method: "cash",
+            payment_date: new Date().toISOString().slice(0, 10),
+            period_start: sel.start,
+            period_end: sel.end,
+            notes: lang === "ar" ? "دفعة سابقة مُسجّلة من شاشة التعديل" : "Prior payment recorded from edit screen",
+          };
+        }
+      }
+    }
+
+    const { error } = await supabase.from("units").update(updatePayload).eq("id", unit.id);
+    if (error) { setBusy(false); return toast.error(error.message); }
+    if (prevPayPayload) {
+      await supabase.from("payments").insert(prevPayPayload);
+    }
     setBusy(false);
-    if (error) return toast.error(error.message);
     const tenantChanged =
       (unit.tenant_name || "") !== tenantName.trim() ||
       (unit.tenant_phone || "") !== tenantPhone.trim() ||
@@ -240,12 +278,36 @@ export function EditUnitDialog({
             </Field>
           </div>
 
-          <Field label={t2("arrears_amount")}>
-            <Input type="number" inputMode="decimal" min={0} step="0.001" value={arrears}
-              onChange={(e) => setArrears(e.target.value)}
-              className="rounded-xl border-sage-200 bg-card" />
-            <p className="text-[11px] text-muted-foreground mt-1">{t2("arrears_hint")}</p>
-          </Field>
+          {occupied && (
+            <LastPaymentSection
+              enabled={hasPrevPay}
+              onEnabledChange={setHasPrevPay}
+              month={prevPayMonth}
+              onMonthChange={setPrevPayMonth}
+              amount={prevPayAmount}
+              onAmountChange={setPrevPayAmount}
+            />
+          )}
+
+          <div className="pt-2 border-t border-sage-100">
+            <button type="button" onClick={() => setShowAdvanced((s) => !s)}
+              className="text-[11px] font-semibold text-sage-500 hover:text-sage-600">
+              {showAdvanced
+                ? (lang === "ar" ? "− إخفاء الإعدادات المتقدمة" : "− Hide advanced")
+                : (lang === "ar" ? "+ إعدادات متقدمة (إدخال متأخرات يدوياً)" : "+ Advanced (manual arrears)")}
+            </button>
+            {showAdvanced && (
+              <div className="mt-2">
+                <Field label={t2("arrears_amount")}>
+                  <Input type="number" inputMode="decimal" min={0} step="0.001" value={arrears}
+                    onChange={(e) => setArrears(e.target.value)}
+                    className="rounded-xl border-sage-200 bg-card" />
+                  <p className="text-[11px] text-muted-foreground mt-1">{t2("arrears_hint")}</p>
+                </Field>
+              </div>
+            )}
+          </div>
+
 
           <div className="flex gap-2 pt-2">
             <Button data-guard-ignore variant="outline" className="flex-1 rounded-xl border-sage-200" onClick={() => guard.handleOpenChange(false)}>{t2("cancel")}</Button>
