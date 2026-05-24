@@ -305,7 +305,13 @@ function VacantState({ t2, onAdd }: any) {
 
 function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLeasePrint, onStatement, onEnd, reload }: any) {
   const arr = getUnitArrears(unit, payments, new Date(), lang as "ar" | "en");
-  const bal = { outstanding: arr.totalShortfall };
+  const totalPaid = (payments || []).reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
+  const bal = {
+    outstanding: arr.totalShortfall,
+    opening: arr.openingBalance,
+    totalDue: arr.totalShortfall + totalPaid,
+    paid: totalPaid,
+  };
   const [editingArrears, setEditingArrears] = useState(false);
   const [arrearsVal, setArrearsVal] = useState<string>(String(unit.opening_balance ?? 0));
   const [arrearsDate, setArrearsDate] = useState<string>(unit.opening_balance_date || new Date().toISOString().slice(0, 10));
