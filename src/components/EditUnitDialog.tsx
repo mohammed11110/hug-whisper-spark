@@ -91,7 +91,15 @@ export function EditUnitDialog({
     setContractType(unit.contract_type || "yearly");
     setContractStart(unit.contract_start_date || "");
     setArrears(String((unit as any).opening_balance ?? 0));
-    setHasPrevPay(false); setPrevPayDate(undefined); setPrevPayAmount("");
+    const lpd = (unit as any).last_paid_date as string | null | undefined;
+    if (lpd) {
+      const [y, m, d] = lpd.split("-").map(Number);
+      setHasPrevPay(true);
+      setPrevPayDate(new Date(y, (m || 1) - 1, d || 1));
+      setPrevPayAmount("");
+    } else {
+      setHasPrevPay(false); setPrevPayDate(undefined); setPrevPayAmount("");
+    }
     setShowAdvanced(false);
   }, [unit]);
 
