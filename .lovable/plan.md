@@ -1,69 +1,43 @@
 ## الهدف
-تعريف موحَّد للمتأخرات في كل التطبيق:
+ربط شارة المتأخرات (مصدر الحقيقة `getUnitArrears`) مع شاشة «دفعة جديدة» بحيث:
+- تظهر المتأخرات الموحَّدة بجانب اسم المستأجر في كل مكان (موجود) **وأيضاً داخل حوار الدفعة فور اختيار الوحدة**.
+- إيجار الشهر الحالي يُضاف تلقائياً للمتأخرات بعد تاريخ الاستحقاق حسب نمط الوحدة (`advance` فور بداية الدورة / `arrears` بعد انتهائها) — موجود في `getUnitArrears` ويستفيد منه الحوار مباشرة.
+- عند دفع جزء من إجمالي المتأخرات، يُحسم المبلغ المدفوع تلقائياً من الإجمالي وتُحدَّث الشارة فوراً.
+- ربط واضح: السطر/الشهر الذي تختاره في «دفعة جديدة» هو نفسه السطر الذي يختفي/يتناقص في شارة المتأخرات بعد الحفظ.
 
-```
-متأخرات الوحدة = opening_balance (الرصيد الافتتاحي = متأخرات سابقة)
-               + Σ (إيجار الدورة − المدفوع لها)   لكل دورة مستحقة منذ المرسى
-```
+## التغييرات (الواجهة فقط — لا قاعدة بيانات)
 
-«مستحقة» = حسب نمط الوحدة:
-- `advance` → الدورة الجارية تُحتسب فور بدايتها.
-- `arrears` → الدورة لا تُحتسب إلا بعد انتهائها.
+### 1) `src/components/AddPaymentDialog.tsx` — توحيد المصدر
+- استبدال منطق `unpaidMonths` المبنيّ على جدول `tenancies` بنتائج `getUnitArrears(unit, payments)`:
+  - تحميل الوحدة المختارة + دفعاتها مرّة واحدة عند اختيار الوحدة.
+  - بناء قائمة الدورات غير المسدَّدة من `arr.cycles.filter(c => c.shortfall > 0.009)`، بترتيبها الزمني، بما فيها «متأخرات سابقة» (opening_balance) إن وُجدت.
+- صندوق التنبيه الأحمر يعرض:
+  - الإجمالي = `arr.totalShortfall` (بدلاً من جمع `unpaidMonths`).
+  - العدّاد = `arr.unpaidCount`.
+  - عند فتح التفاصيل: يظهر كل سطر بنفس تسميات الشارة (`cycle.label`) + قيمة النقص.
+- قائمة «شهر الإيجار» تتحوّل إلى Select واحد يعرض الدورات غير المسدَّدة فقط افتراضياً، مع الإبقاء على زر «عرض كل الأشهر». عند اختيار سطر:
+  - يُضبط `period_start = cycle.periodStartIso` و`period_end = cycle.periodEndIso` (يحترم `anchor_day` بدل افتراض اليوم 1).
+  - يُملأ المبلغ تلقائياً = `cycle.shortfall` (وليس الإيجار الكامل) ليكون مساوياً للنقص فعلاً.
+  - يُملأ «الإيجار المتوقَّع» = إيجار الدورة.
+- خيار «تحصيل بقية المتأخرات السابقة كذلك» (موجود) يبقى، لكن المصدر يصبح الدورات الأخرى ذات النقص — فيُولَّد لكل دورة صفّ دفعة بتواريخها الصحيحة.
+- بعد الحفظ، رسالة النجاح تُظهر: «المتأخرات: X ← Y» (الفرق المحسوم) لربط بصري واضح.
 
-تُحدَّث تلقائياً مع بداية كل شهر (الاعتماد على `asOf = new Date()`).
+### 2) عرض الشارة داخل حوار الدفعة عند اختيار الوحدة
+- استخدام `<ArrearsBadge unit payments block />` أعلى صندوق التنبيه (نفس الشارة المعروضة بجانب اسم المستأجر في الشاشات الأخرى) — يضمن تطابق التسميات والإجمالي.
+- في قائمة اختيار الوحدة (`Popover`)، الإبقاء على `arrears_note` الذي يأتي الآن من `getUnitArrears` (موجود).
 
-## التغييرات
+### 3) ضبط بسيط في `src/lib/balance.ts`
+- لا تغيير منطقي. فقط التأكد من أن `cycle.label` لـ «متأخرات سابقة» وللأشهر يطابق ما يعرضه التنبيه والقائمة (موجود).
 
-### 1) `src/lib/balance.ts` — توسيع `getUnitArrears`
-- إضافة حقل `openingBalance: number` للنتيجة، يُحسب من `unit.opening_balance` (≥ 0).
-- إذا كان `> 0` نُضيف عنصراً افتراضياً في رأس `cycles[]` بـ:
-  - `label`: «متأخرات سابقة» / "Prior arrears"
-  - `rent = openingBalance`, `paid = 0`, `shortfall = openingBalance`, `status = "unpaid"`
-  - `periodStart/End = opening_balance_date` (للترتيب الزمني فقط)
-- `totalShortfall` يصبح: `openingBalance + Σ shortfall للدورات`.
-- `unpaidCount`: يشمل عنصر المتأخرات السابقة إن وُجد.
-- `oldestUnpaid`: المتأخرات السابقة أولاً ثم أقدم دورة بها نقص.
-- شارة الإشعار في `ArrearsBadge` تبقى كما هي (تعرض oldestUnpaid + totalShortfall + N).
+### 4) لا حاجة لتعديلات في Tenants/BuildingDetail/UnitDetail/Notifications
+كلها تستهلك `getUnitArrears` و`ArrearsBadge` أصلاً، ستُحدَّث تلقائياً بعد الحفظ (إبطال التخزين/إعادة الاستعلام موجودة عبر `onSaved`).
 
-### 2) حذف/استبدال أي حساب متضارب — مصدر واحد
-كل ما يلي يصبح من `getUnitArrears(...).totalShortfall` بدل `computeBalance(...).outstanding`:
+### 5) اختبارات `src/lib/balance.test.ts`
+إضافة سيناريو:
+- وحدة `advance`، إيجار 200، عقد 1/1/2026، اليوم 15/5/2026، دفعة 150 على أبريل → `cycles` غير المسدَّدة = [أبريل (نقص 50)، مايو (نقص 200)]، `totalShortfall = 250`. بعد إضافة دفعة 50 لأبريل تختفي أبريل ويتبقّى مايو فقط.
 
-| ملف | السطر | الاستبدال |
-|---|---|---|
-| `src/pages/UnitDetail.tsx` | 315, 454-455 | استخدم `getUnitArrears(unit, payments).totalShortfall` لعرض «الرصيد المتبقي». لا حاجة لـ `priorArrears` المنفصل (السطور 73-77, 209) → احذفه لأن opening_balance يغطّي. |
-| `src/pages/BuildingDetail.tsx` | 258 | احذف `computeBalance` غير المستعمل (شارة المتأخرات تستعمل getUnitArrears أصلاً). |
-| `src/pages/Tenants.tsx` | 14, 60, 139-155, 175-207, 269, 340, 374-393 | استبدل كل `r.outstanding` بـ `r.arrears` (= totalShortfall). أزل `computeBalance` و`priorArrears` (السطر 60). الفرز/التصفية/البار بحسب arrears. |
-| `src/pages/Payments.tsx` | 18, 119-120 | `getUnitArrears(u, allPays).totalShortfall` بدل `computeBalance`. |
-| `src/pages/Notifications.tsx` | 12, 58, 66-69 | أزل `computeBalance` و`isUnitOverdue`؛ المتأخر = `arrears.totalShortfall > 0.009`، و`remaining = arrears.totalShortfall`. |
-| `src/pages/MonthlyCollection.tsx` | 380 | KPI «الرصيد المتبقي» = arrears.totalShortfall. |
-| `src/components/AddPaymentDialog.tsx` | 140-171 | استبدل `computeBalance` بـ `getUnitArrears`؛ احذف منطق `tenancies.outstanding_at_end` (سطور 140-155) لأن opening_balance المُرحَّل عند إنهاء الإيجار يغطّيه ضمن نفس المعادلة، فلا نضاعفه. |
-| `src/components/EndTenancyDialog.tsx` | 12, 36, 54-55, 69-149 | استبدل `computeBalance` بـ `getUnitArrears`؛ `outstanding = arrears.totalShortfall`. |
-| `src/lib/pdfDocs.ts` | 235, 594-595, 1043 | بقاء العرض كما هو، لكن المُمرَّر إلى `totals.outstanding`/`unpaidTotal` يأتي من `getUnitArrears`. |
-
-### 3) تعريف انتقالي — لا نحذف `computeBalance`
-لتفادي كسر اختبارات الإيصالات والـ PDF القديمة:
-- نُبقي `computeBalance` و`overdueCyclesCount` و`isUnitOverdue` كدوال مساعدة داخلية.
-- لكنّ كل **واجهات الاستخدام** الموضّحة أعلاه تتحوّل إلى `getUnitArrears`. مصدر الحقيقة على الشاشات = arrears فقط.
-
-### 4) `src/lib/balance.test.ts`
-- اختبار: opening_balance = 100، إيجار 200، مرسى 2026‑04‑01، دفعة جزئية 150 على أبريل، اليوم 2026‑05‑24 →
-  - `unpaidCount = 3` (سابقة + أبريل نقص 50 + مايو 200)
-  - `totalShortfall = 350`
-  - `oldestUnpaid.label = "متأخرات سابقة"`
-- اختبار: opening_balance = 0 ودفعات كاملة → `unpaidCount = 0` و `totalShortfall = 0`.
-- اختبار `arrears` timing: لا تُدرج الدورة الحالية ما لم تنتهِ.
-
-## ملفات متأثرة
-- `src/lib/balance.ts`
-- `src/lib/balance.test.ts`
-- `src/components/ArrearsBadge.tsx` (لا تغيير منطقي، يستفيد تلقائياً)
-- `src/pages/UnitDetail.tsx`
-- `src/pages/BuildingDetail.tsx`
-- `src/pages/Tenants.tsx`
-- `src/pages/Payments.tsx`
-- `src/pages/Notifications.tsx`
-- `src/pages/MonthlyCollection.tsx`
-- `src/components/AddPaymentDialog.tsx`
-- `src/components/EndTenancyDialog.tsx`
+## الملفات المتأثرة
+- `src/components/AddPaymentDialog.tsx` (إعادة هيكلة منطق الأشهر/المبالغ وعرض الشارة)
+- `src/lib/balance.test.ts` (اختبار جديد)
 
 ## بدون تغييرات على قاعدة البيانات.
