@@ -67,7 +67,7 @@ export default function UnitDetail() {
       const { data: b } = await supabase.from("buildings").select("name, name_en").eq("id", data.building_id).maybeSingle();
       if (b) setBuildingName((b as any).name || (b as any).name_en || "");
     }
-    const { data: ps } = await supabase.from("payments").select("unit_id,amount,deleted_at").eq("unit_id", id).is("deleted_at", null);
+    const { data: ps } = await supabase.from("payments").select("unit_id,amount,deleted_at,payment_date,period_start,period_end").eq("unit_id", id).is("deleted_at", null);
     setPayments((ps || []) as any);
     const { data: ts } = await supabase.from("tenancies").select("id,status,outstanding_at_end").eq("unit_id", id);
     const active = (ts || []).find((t: any) => t.status === "active");
