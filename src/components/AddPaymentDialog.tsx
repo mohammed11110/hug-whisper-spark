@@ -598,7 +598,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   };
 
   const finishAndClose = () => {
-    setAmount(""); setReceipt(""); setNotes(""); setCollectPriorArrears(false); if (!presetUnitId) setUnitId("");
+    setAmount(""); setReceipt(""); setNotes(""); setCollectPriorArrears(false); setIncludeArrearsInReceipt(false); if (!presetUnitId) setUnitId("");
     guard.markSaved();
     onOpenChange(false);
     onSaved?.();
