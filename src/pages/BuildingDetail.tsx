@@ -12,7 +12,7 @@ import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { computeBalance, getNextDueInfo, getUnitArrears, type PaymentForBalance } from "@/lib/balance";
+import { getNextDueInfo, type PaymentForBalance } from "@/lib/balance";
 import { ArrearsBadge } from "@/components/ArrearsBadge";
 
 interface Building { id: string; name: string; name_en: string | null; type: string; floors: number; city: string | null; address: string | null; }
@@ -255,7 +255,6 @@ export default function BuildingDetail() {
             </div>
           ) : (
             visible.map((u, i) => {
-              const bal = u.tenant_name ? computeBalance(u as any, payments) : null;
               return (
               <div key={u.id} className="relative animate-float-up" style={{ animationDelay: `${i * 0.03}s` }}>
                 <Link to={`/units/${u.id}`} className="block">

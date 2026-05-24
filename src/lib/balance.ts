@@ -266,76 +266,106 @@ export interface UnitArrears {
   oldestUnpaid: ArrearsCycle | null;
   totalShortfall: number;
   unpaidCount: number;
+  /** opening_balance treated as prior arrears (≥ 0). Included in totalShortfall. */
+  openingBalance: number;
 }
 
+/**
+ * مصدر الحقيقة الوحيد للمتأخرات:
+ *   متأخرات الوحدة = opening_balance (متأخرات سابقة)
+ *                  + Σ (إيجار الدورة − المدفوع لها) لكل دورة مستحقة منذ المرسى
+ *
+ * advance: الدورة الجارية تُحتسب فور بدايتها.
+ * arrears: لا تُدرج الدورة إلا بعد انتهائها.
+ */
 export function getUnitArrears(
   unit: UnitForBalance,
   payments: PaymentForBalance[] = [],
   asOf: Date = new Date(),
   lang: "ar" | "en" = "ar",
 ): UnitArrears {
-  const empty: UnitArrears = { cycles: [], oldestUnpaid: null, totalShortfall: 0, unpaidCount: 0 };
+  const opening = Math.max(0, num(unit.opening_balance));
   const anchor = getAnchorDate(unit);
-  if (!anchor) return empty;
-  const rent = num(unit.rent_amount);
-  if (rent <= 0) return empty;
-  if ((unit.rent_type || "monthly") !== "monthly") return empty;
-
-  const anchorDay = getAnchorDay(unit);
-  const timing = (unit.rent_timing || "advance") === "arrears" ? "arrears" : "advance";
-  const anchorIso = unit.opening_balance_date || unit.contract_start_date || null;
-
-  const elapsed = periodsElapsed(anchor, asOf, "monthly");
-  // advance: الدورة الجارية مستحقة فور بدايتها → elapsed+1
-  // arrears: لا تُدرج الدورة إلا بعد انتهائها → elapsed
-  const cyclesToInspect = timing === "advance" ? elapsed + 1 : elapsed;
-  if (cyclesToInspect <= 0) return empty;
-
-  const unitPays = payments.filter(
-    (p) => p.unit_id === unit.id && !p.deleted_at && isPostAnchorPayment(p, anchorIso),
-  );
 
   const cycles: ArrearsCycle[] = [];
   let totalShortfall = 0;
   let unpaidCount = 0;
   let oldestUnpaid: ArrearsCycle | null = null;
 
-  for (let i = 0; i < cyclesToInspect; i++) {
-    const cycleMonthIdx = anchor.getMonth() + i;
-    const cycleYear = anchor.getFullYear() + Math.floor(cycleMonthIdx / 12);
-    const cycleMonth1to12 = ((cycleMonthIdx % 12) + 12) % 12 + 1;
-    const c = getCycleByStartMonth(cycleYear, cycleMonth1to12, anchorDay);
-
-    const paid = unitPays
-      .filter((p) => p.period_start && p.period_start >= c.startIso && p.period_start <= c.endIso)
-      .reduce((s, p) => s + num(p.amount), 0);
-
-    const shortfall = Math.max(0, rent - paid);
-    const status: ArrearsCycle["status"] =
-      shortfall <= 0.009 ? "paid" : paid > 0.009 ? "partial" : "unpaid";
-    const cycle: ArrearsCycle = {
-      periodStart: c.start,
-      periodEnd: c.end,
-      periodStartIso: c.startIso,
-      periodEndIso: c.endIso,
-      label: buildReceiptPeriodLabel(c.start, c.end, anchorDay, lang)
-        .replace(/^إيجار شهر\s+/, "")
-        .replace(/^إيجار الفترة\s+/, "")
-        .replace(/^Rent for\s+/, "")
-        .replace(/^Rent\s+/, ""),
-      rent,
-      paid,
-      shortfall,
-      status,
+  // 1) متأخرات سابقة (opening_balance) — دورة افتراضية في رأس القائمة.
+  if (opening > 0) {
+    const anchorIsoForOpening = unit.opening_balance_date || unit.contract_start_date || null;
+    const obDate = anchorIsoForOpening ? new Date(anchorIsoForOpening) : (anchor || asOf);
+    const obIso = anchorIsoForOpening || ISO(obDate);
+    const priorCycle: ArrearsCycle = {
+      periodStart: obDate,
+      periodEnd: obDate,
+      periodStartIso: obIso,
+      periodEndIso: obIso,
+      label: lang === "ar" ? "متأخرات سابقة" : "Prior arrears",
+      rent: opening,
+      paid: 0,
+      shortfall: opening,
+      status: "unpaid",
     };
-    cycles.push(cycle);
-    if (shortfall > 0.009) {
-      totalShortfall += shortfall;
-      unpaidCount += 1;
-      if (!oldestUnpaid) oldestUnpaid = cycle;
+    cycles.push(priorCycle);
+    totalShortfall += opening;
+    unpaidCount += 1;
+    oldestUnpaid = priorCycle;
+  }
+
+  // 2) دورات إيجار شهرية منذ المرسى.
+  const rent = num(unit.rent_amount);
+  if (anchor && rent > 0 && (unit.rent_type || "monthly") === "monthly") {
+    const anchorDay = getAnchorDay(unit);
+    const timing = (unit.rent_timing || "advance") === "arrears" ? "arrears" : "advance";
+    const anchorIso = unit.opening_balance_date || unit.contract_start_date || null;
+    const elapsed = periodsElapsed(anchor, asOf, "monthly");
+    const cyclesToInspect = timing === "advance" ? elapsed + 1 : elapsed;
+
+    if (cyclesToInspect > 0) {
+      const unitPays = payments.filter(
+        (p) => p.unit_id === unit.id && !p.deleted_at && isPostAnchorPayment(p, anchorIso),
+      );
+
+      for (let i = 0; i < cyclesToInspect; i++) {
+        const cycleMonthIdx = anchor.getMonth() + i;
+        const cycleYear = anchor.getFullYear() + Math.floor(cycleMonthIdx / 12);
+        const cycleMonth1to12 = ((cycleMonthIdx % 12) + 12) % 12 + 1;
+        const c = getCycleByStartMonth(cycleYear, cycleMonth1to12, anchorDay);
+
+        const paid = unitPays
+          .filter((p) => p.period_start && p.period_start >= c.startIso && p.period_start <= c.endIso)
+          .reduce((s, p) => s + num(p.amount), 0);
+
+        const shortfall = Math.max(0, rent - paid);
+        const status: ArrearsCycle["status"] =
+          shortfall <= 0.009 ? "paid" : paid > 0.009 ? "partial" : "unpaid";
+        const cycle: ArrearsCycle = {
+          periodStart: c.start,
+          periodEnd: c.end,
+          periodStartIso: c.startIso,
+          periodEndIso: c.endIso,
+          label: buildReceiptPeriodLabel(c.start, c.end, anchorDay, lang)
+            .replace(/^إيجار شهر\s+/, "")
+            .replace(/^إيجار الفترة\s+/, "")
+            .replace(/^Rent for\s+/, "")
+            .replace(/^Rent\s+/, ""),
+          rent,
+          paid,
+          shortfall,
+          status,
+        };
+        cycles.push(cycle);
+        if (shortfall > 0.009) {
+          totalShortfall += shortfall;
+          unpaidCount += 1;
+          if (!oldestUnpaid) oldestUnpaid = cycle;
+        }
+      }
     }
   }
 
-  return { cycles, oldestUnpaid, totalShortfall, unpaidCount };
+  return { cycles, oldestUnpaid, totalShortfall, unpaidCount, openingBalance: opening };
 }
 

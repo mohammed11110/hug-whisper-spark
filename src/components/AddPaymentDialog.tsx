@@ -135,53 +135,35 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         : { data: [] as any[] };
       const bMap = new Map((bs || []).map((b: any) => [b.id, b]));
       const unitIds = (us || []).map((u: any) => u.id);
-      const { data: ts } = unitIds.length
-        ? await supabase.from("tenancies")
-            .select("unit_id, status, tenant_name, outstanding_at_end, ended_at")
-            .in("unit_id", unitIds)
-        : { data: [] as any[] };
       const { data: pays } = unitIds.length
         ? await supabase.from("payments")
-            .select("unit_id, amount, deleted_at")
+            .select("unit_id, amount, deleted_at, payment_date, period_start, period_end")
             .in("unit_id", unitIds)
             .is("deleted_at", null)
         : { data: [] as any[] };
-      const endedArrearsMap = new Map<string, { name: string; amount: number }>();
-      (ts || []).forEach((t: any) => {
-        if (t.status === "ended" && Number(t.outstanding_at_end) > 0) {
-          const cur = endedArrearsMap.get(t.unit_id);
-          const amt = Number(t.outstanding_at_end);
-          if (!cur || amt > cur.amount) endedArrearsMap.set(t.unit_id, { name: t.tenant_name || "—", amount: amt });
-        }
-      });
-      // compute outstanding per active unit using shared balance helper
-      const { computeBalance } = await import("@/lib/balance");
+      // مصدر الحقيقة الوحيد للمتأخرات
+      const { getUnitArrears } = await import("@/lib/balance");
       const outstandingMap = new Map<string, number>();
       (us || []).forEach((u: any) => {
         if (!u.tenant_name) return;
-        const { outstanding } = computeBalance(u as any, (pays || []) as any);
-        if (outstanding > 0) outstandingMap.set(u.id, outstanding);
+        const { totalShortfall } = getUnitArrears(u as any, (pays || []) as any, new Date(), lang as "ar" | "en");
+        if (totalShortfall > 0.009) outstandingMap.set(u.id, totalShortfall);
       });
       const fmtAmt = (n: number) => n.toLocaleString(lang === "ar" ? "ar" : "en", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
       const opts: UnitOpt[] = (us || [])
-        .filter((u: any) => !!u.tenant_name || endedArrearsMap.has(u.id) || u.id === presetUnitId)
+        .filter((u: any) => !!u.tenant_name || u.id === presetUnitId)
         .map((u: any) => {
-          const ar = endedArrearsMap.get(u.id);
-          const isVacantWithArrears = !u.tenant_name && !!ar;
           const activeOut = outstandingMap.get(u.id) || 0;
-          let note: string | null = null;
-          if (isVacantWithArrears) {
-            note = lang === "ar" ? `متأخرات سابقة: ${fmtAmt(ar!.amount)}` : `Prior arrears: ${fmtAmt(ar!.amount)}`;
-          } else if (activeOut > 0) {
-            note = lang === "ar" ? `متأخرات: ${fmtAmt(activeOut)}` : `Arrears: ${fmtAmt(activeOut)}`;
-          }
+          const note = activeOut > 0
+            ? (lang === "ar" ? `متأخرات: ${fmtAmt(activeOut)}` : `Arrears: ${fmtAmt(activeOut)}`)
+            : null;
           const anchorSrc = u.opening_balance_date || u.contract_start_date;
           const anchorDay = anchorSrc ? Math.min(28, Math.max(1, new Date(anchorSrc).getDate() || 1)) : 1;
           return {
             id: u.id,
             unit_number: u.unit_number,
             building_id: u.building_id,
-            tenant_name: u.tenant_name || (isVacantWithArrears ? ar!.name : null),
+            tenant_name: u.tenant_name,
             rent_amount: Number(u.rent_amount),
             building_name: bMap.get(u.building_id)?.name || bMap.get(u.building_id)?.name_en || "—",
             arrears_note: note,

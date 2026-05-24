@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/auth";
 import { useAppSettings } from "@/lib/appSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { openWhatsApp, fillTemplate } from "@/lib/whatsapp";
-import { computeBalance, getNextDueInfo, isUnitOverdue, getUnitArrears } from "@/lib/balance";
+import { getNextDueInfo, getUnitArrears } from "@/lib/balance";
 
 interface AlertItem {
   kind: "late" | "upcoming" | "contract";
@@ -55,7 +55,8 @@ export default function Notifications() {
       const today = new Date();
       const out: AlertItem[] = [];
       (us || []).forEach((u: any) => {
-        const { outstanding } = computeBalance(u, pays || []);
+        const arr = getUnitArrears(u, pays || [], today, lang as "ar" | "en");
+        const outstanding = arr.totalShortfall;
         const base = {
           unit_id: u.id,
           unit_number: u.unit_number,
@@ -65,10 +66,9 @@ export default function Notifications() {
           amount: Number(u.rent_amount),
           remaining: outstanding,
         };
-        // متأخّر: استحقاق قد مضى ومازال هناك رصيد غير مدفوع (يحترم نمط الدفع)
-        const overdue = outstanding > 0.009 && isUnitOverdue(u, pays || [], today);
+        // متأخّر: يوجد أي نقص في أي دورة مستحقة أو في الرصيد الافتتاحي
+        const overdue = outstanding > 0.009;
         if (overdue) {
-          const arr = getUnitArrears(u, pays || [], today, lang as "ar" | "en");
           out.push({
             ...base,
             kind: "late",
