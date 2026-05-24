@@ -99,7 +99,7 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
       tenant_email: occupied ? tenantEmail.trim() || null : null,
       rent_amount: occupied ? rentN : 0,
       rent_type: rentType,
-      due_day: Math.min(31, Math.max(1, parseInt(dueDay) || 1)),
+      due_day: contractStart ? Math.min(28, Math.max(1, new Date(contractStart).getDate() || 1)) : Math.min(31, Math.max(1, parseInt(dueDay) || 1)),
       rent_timing: rentTiming,
 
       status: occupied ? "soon" : "vacant",
@@ -220,17 +220,11 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
               <Field label="البريد الإلكتروني / Email">
                 <Input type="email" value={tenantEmail} onChange={(e) => setTenantEmail(e.target.value)} placeholder="tenant@example.com" className="rounded-xl border-sage-200 bg-card" />
               </Field>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1">
                 <Field label={t2("rent_amount")}>
                   <Input type="number" inputMode="decimal" min={0} step="0.001" value={rentAmount}
                     onChange={(e) => setRentAmount(e.target.value)}
                     onBlur={() => { if (!rentAmount) setRentAmount("0"); }}
-                    className="rounded-xl border-sage-200 bg-card" />
-                </Field>
-                <Field label={t2("due_day")}>
-                  <Input type="number" inputMode="numeric" min={1} max={31} value={dueDay}
-                    onChange={(e) => setDueDay(e.target.value)}
-                    onBlur={() => { const n = parseInt(dueDay); if (!dueDay || isNaN(n) || n < 1) setDueDay("1"); }}
                     className="rounded-xl border-sage-200 bg-card" />
                 </Field>
               </div>
@@ -246,7 +240,11 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
                 <p className="text-[11px] text-sage-500 mt-1.5 leading-relaxed">
                   {t2(rentTiming === "advance" ? "rent_timing_advance_hint" : "rent_timing_arrears_hint")}
                 </p>
+                <p className="text-[11px] text-sage-400 mt-1 leading-relaxed">
+                  ⓘ {t2("due_auto_hint")}
+                </p>
               </Field>
+
 
               <Field label="نوع العقد / Contract type">
                 <div className="flex gap-1.5">
