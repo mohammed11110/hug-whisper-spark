@@ -8,7 +8,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
 import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
-import { LastPaymentSection, monthBoundsFromDate } from "@/components/LastPaymentSection";
+// LastPaymentSection import removed — manual prior-payment entry is now
+// only available in AddUnitDialog / NewTenancyDialog (at registration).
 import { useI18n } from "@/lib/i18n";
 
 const UNIT_TYPES = ["apartment", "shop", "room", "villa"] as const;
@@ -303,42 +304,9 @@ export function EditUnitDialog({
             </Field>
           </div>
 
-          {occupied && (
-            <LastPaymentSection
-              enabled={hasPrevPay}
-              onEnabledChange={setHasPrevPay}
-              date={prevPayDate}
-              onDateChange={setPrevPayDate}
-              amount={prevPayAmount}
-              onAmountChange={setPrevPayAmount}
-              periodFrom={periodFrom}
-              periodTo={periodTo}
-              onPeriodFromChange={setPeriodFrom}
-              onPeriodToChange={setPeriodTo}
-              rentTiming={rentTiming}
-              rentAmount={parseFloat(rentAmount) || 0}
-            />
-
-          )}
-
-          <div className="pt-2 border-t border-sage-100">
-            <button type="button" onClick={() => setShowAdvanced((s) => !s)}
-              className="text-[11px] font-semibold text-sage-500 hover:text-sage-600">
-              {showAdvanced
-                ? (lang === "ar" ? "− إخفاء الإعدادات المتقدمة" : "− Hide advanced")
-                : (lang === "ar" ? "+ إعدادات متقدمة (إدخال متأخرات يدوياً)" : "+ Advanced (manual arrears)")}
-            </button>
-            {showAdvanced && (
-              <div className="mt-2">
-                <Field label={t2("arrears_amount")}>
-                  <Input type="number" inputMode="decimal" min={0} step="0.001" value={arrears}
-                    onChange={(e) => setArrears(e.target.value)}
-                    className="rounded-xl border-sage-200 bg-card" />
-                  <p className="text-[11px] text-muted-foreground mt-1">{t2("arrears_hint")}</p>
-                </Field>
-              </div>
-            )}
-          </div>
+          {/* تنويه: إدخال "آخر دفعة سابقة" و"متأخرات يدوية" متاحان فقط
+              عند تسجيل المستأجر لأول مرة. بعد ذلك تنقص المتأخرات حصرًا
+              عبر تسجيل إيصالات الدفع. */}
 
 
           <div className="flex gap-2 pt-2">
