@@ -697,7 +697,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     finishAndClose();
   };
 
-  const years = yearOptions();
+  
 
   return (
     <Dialog open={open} onOpenChange={guard.handleOpenChange}>
