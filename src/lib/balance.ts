@@ -78,26 +78,9 @@ export function cyclesDue(unit: UnitForBalance, asOf: Date = new Date()): number
   return timing === "advance" ? elapsed + 1 : elapsed;
 }
 
-export function computeBalance(unit: UnitForBalance, payments: PaymentForBalance[]) {
-  const rent = num(unit.rent_amount);
-  const opening = num(unit.opening_balance);
-  const periods = cyclesDue(unit, new Date());
-  const accrued = rent * periods;
-  const totalDue = opening + accrued;
-
-  // Only count payments that belong to the current settlement window
-  // (i.e. on/after opening_balance_date). Payments older than the anchor
-  // already settled past cycles and must not offset new accrued rent.
-  const anchorIso = unit.opening_balance_date || unit.contract_start_date || null;
-  const paid = payments
-    .filter((p) => p.unit_id === unit.id && !p.deleted_at)
-    .filter((p) => isPostAnchorPayment(p, anchorIso))
-
-    .reduce((s, p) => s + num(p.amount), 0);
-
-  const outstanding = Math.max(0, totalDue - paid);
-  return { opening, accrued, totalDue, paid, outstanding };
-}
+// `computeBalance` was removed: it was a legacy single-bucket calculator
+// that lumped every payment into one sum. The single source of truth is
+// now `getUnitArrears().totalShortfall`, which works cycle-by-cycle.
 
 
 // =====================================================================

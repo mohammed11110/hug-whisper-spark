@@ -290,24 +290,20 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
 
       setUnpaidMonths(entries);
       setAllPaid(entries.length === 0);
-      // Default mode: auto-distribute when arrears exist, manual otherwise.
-      setPayMode(entries.length > 0 ? "auto" : "manual");
+      // Default: manual mode preselecting the oldest unpaid cycle, with the
+      // amount = one month's rent (= قيمة الإيصال = إيجار الشهر). The user
+      // can switch to "Auto-distribute" (= ادفع كل المتأخرات) to pay all.
+      setPayMode("manual");
       // Auto-select the oldest unpaid entry and prefill amount/expected.
       const first = entries[0];
       if (first) {
         setSelectedEntry(first);
         setPeriodYear(first.year);
         setPeriodMonthNum(first.month);
-        // In auto mode (default when arrears exist) المتوقع = إجمالي المتأخرات
-        // المستحقة لأن الدفعة ستوزَّع على كل البنود غير المسددة. في الوضع
-        // اليدوي يقتصر المتوقع على الدورة المختارة.
-        if (entries.length > 0) {
-          setExpected(String(arr.totalShortfall));
-        } else if (rentAmt > 0) {
-          setExpected(String(rentAmt));
-        }
-        // Auto mode default: full arrears (covers all unpaid cycles).
-        setAmount(String(arr.totalShortfall));
+        // Expected = rent of the selected cycle (or its remaining for prior).
+        setExpected(String(first.isPrior ? first.remaining : (rentAmt || first.remaining)));
+        // Default amount = one month's rent (the receipt = one month).
+        setAmount(String(rentAmt || first.remaining));
       } else {
         setSelectedEntry(null);
       }
