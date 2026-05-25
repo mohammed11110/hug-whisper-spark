@@ -158,14 +158,20 @@ export function FileUpload({
         ref={inputRef}
         type="file"
         accept={accept}
+        multiple={multiple}
         className="hidden"
         onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) handleFile(f);
+          const list = Array.from(e.target.files || []);
+          if (multiple) {
+            if (list.length) handleFiles(list);
+          } else {
+            const f = list[0];
+            if (f) handleFile(f);
+          }
           e.target.value = "";
         }}
       />
-      {value ? (
+      {!multiple && value ? (
         <div className="flex items-center gap-2 p-3 rounded-xl bg-sage-100/50 border border-sage-200/40">
           {value && isImage(value) ? <ImageIcon className="h-4 w-4 text-sage-500" /> : <FileText className="h-4 w-4 text-sage-500" />}
           <button
@@ -188,7 +194,11 @@ export function FileUpload({
           className="w-full h-11 rounded-xl border-dashed border-sage-300 text-sage-600 font-medium"
         >
           {busy ? <Loader2 className="h-4 w-4 animate-spin me-2" /> : <Upload className="h-4 w-4 me-2" />}
-          {busy ? "جاري الرفع..." : label}
+          {busy
+            ? progress
+              ? `جاري الرفع ${progress.done}/${progress.total}...`
+              : "جاري الرفع..."
+            : label}
         </Button>
       )}
     </div>
