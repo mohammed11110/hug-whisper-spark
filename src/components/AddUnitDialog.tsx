@@ -105,8 +105,21 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
       status: occupied ? "soon" : "vacant",
       contract_type: contractType,
       contract_start_date: contractStart || null,
-      opening_balance: occupied ? arrN : 0,
-      opening_balance_date: occupied && arrN > 0 ? (contractStart || new Date().toISOString().slice(0, 10)) : null,
+      ...(occupied && arrN > 0 && rentN > 0 && rentType === "monthly"
+        ? (() => {
+            const dueInt = Math.min(28, Math.max(1, parseInt(dueDay) || 1));
+            const months = Math.max(1, Math.round(arrN / rentN));
+            const remainder = Math.max(0, arrN - months * rentN);
+            const monthsBack = rentTiming === "arrears" ? months : Math.max(0, months - 1);
+            const today = new Date();
+            const anchor = new Date(today.getFullYear(), today.getMonth() - monthsBack, dueInt);
+            const iso = `${anchor.getFullYear()}-${String(anchor.getMonth() + 1).padStart(2, "0")}-${String(anchor.getDate()).padStart(2, "0")}`;
+            return { opening_balance: remainder, opening_balance_date: iso };
+          })()
+        : {
+            opening_balance: occupied ? arrN : 0,
+            opening_balance_date: occupied && arrN > 0 ? (contractStart || new Date().toISOString().slice(0, 10)) : null,
+          }),
     }).select("id").single();
 
     if (error || !created) {
