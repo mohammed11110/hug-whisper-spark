@@ -146,7 +146,7 @@ export default function Dashboard() {
                 </span>
               </div>
             </div>
-          </Link>
+          </div>
         )}
 
         {/* Recent Activity */}
