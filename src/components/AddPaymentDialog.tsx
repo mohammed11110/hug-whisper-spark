@@ -271,16 +271,8 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
           isPrior: c.label === priorLabel,
         }));
 
-      // Set of fully-paid month keys for "show all" fallback dropdown filtering.
-      const fullyPaid = new Set<string>();
-      arr.cycles.forEach((c) => {
-        if (c.status === "paid" && c.label !== priorLabel) {
-          fullyPaid.add(
-            `${c.periodStart.getFullYear()}-${String(c.periodStart.getMonth() + 1).padStart(2, "0")}`,
-          );
-        }
-      });
-      setPaidMonthsKeys(fullyPaid);
+
+
 
       setUnpaidMonths(entries);
       setAllPaid(entries.length === 0);
