@@ -99,7 +99,7 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
       tenant_email: occupied ? tenantEmail.trim() || null : null,
       rent_amount: occupied ? rentN : 0,
       rent_type: rentType,
-      due_day: contractStart ? Math.min(28, Math.max(1, new Date(contractStart).getDate() || 1)) : Math.min(31, Math.max(1, parseInt(dueDay) || 1)),
+      due_day: Math.min(28, Math.max(1, parseInt(dueDay) || 1)),
       rent_timing: rentTiming,
 
       status: occupied ? "soon" : "vacant",
