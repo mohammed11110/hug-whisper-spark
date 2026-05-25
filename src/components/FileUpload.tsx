@@ -83,6 +83,56 @@ export function FileUpload({
     }
   };
 
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+
+  const uploadOne = async (file: File): Promise<string> => {
+    if (file.size > maxSizeMB * 1024 * 1024) {
+      throw new Error(`${file.name}: > ${maxSizeMB}MB`);
+    }
+    const ext = file.name.split(".").pop() || "bin";
+    const path = `${pathPrefix.replace(/\/+$/, "")}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const { error } = await supabase.storage.from(bucket).upload(path, file, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: file.type,
+    });
+    if (error) throw error;
+    if (isPrivate) return path;
+    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+    return data.publicUrl;
+  };
+
+  const handleFiles = async (files: File[]) => {
+    if (!files.length) return;
+    if (files.length > 20) {
+      toast.warning(`الحد الأقصى 20 صورة في الدفعة الواحدة (تم اختيار ${files.length})`);
+      files = files.slice(0, 20);
+    }
+    setBusy(true);
+    setProgress({ done: 0, total: files.length });
+    const results: string[] = [];
+    let failed = 0;
+    for (const f of files) {
+      try {
+        const v = await uploadOne(f);
+        results.push(v);
+      } catch (e: any) {
+        failed++;
+        console.warn("upload failed", e);
+      } finally {
+        setProgress((p) => (p ? { ...p, done: p.done + 1 } : p));
+      }
+    }
+    setBusy(false);
+    setProgress(null);
+    if (results.length) {
+      onMultipleUploaded?.(results);
+      toast.success(`تم رفع ${results.length} صورة${failed ? ` (فشل ${failed})` : ""}`);
+    } else if (failed) {
+      toast.error("فشل الرفع");
+    }
+  };
+
   const handleRemove = async () => {
     if (!value) return;
     if (isPrivate) {
