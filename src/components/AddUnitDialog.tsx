@@ -105,8 +105,21 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
       status: occupied ? "soon" : "vacant",
       contract_type: contractType,
       contract_start_date: contractStart || null,
-      opening_balance: occupied ? arrN : 0,
-      opening_balance_date: occupied && arrN > 0 ? (contractStart || new Date().toISOString().slice(0, 10)) : null,
+      ...(occupied && arrN > 0 && rentN > 0 && rentType === "monthly"
+        ? (() => {
+            const dueInt = Math.min(28, Math.max(1, parseInt(dueDay) || 1));
+            const months = Math.max(1, Math.round(arrN / rentN));
+            const remainder = Math.max(0, arrN - months * rentN);
+            const monthsBack = rentTiming === "arrears" ? months : Math.max(0, months - 1);
+            const today = new Date();
+            const anchor = new Date(today.getFullYear(), today.getMonth() - monthsBack, dueInt);
+            const iso = `${anchor.getFullYear()}-${String(anchor.getMonth() + 1).padStart(2, "0")}-${String(anchor.getDate()).padStart(2, "0")}`;
+            return { opening_balance: remainder, opening_balance_date: iso };
+          })()
+        : {
+            opening_balance: occupied ? arrN : 0,
+            opening_balance_date: occupied && arrN > 0 ? (contractStart || new Date().toISOString().slice(0, 10)) : null,
+          }),
     }).select("id").single();
 
     if (error || !created) {
@@ -302,8 +315,35 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
                     placeholder="0"
                     className="rounded-xl border-sage-200 bg-card" />
                   <p className="text-[11px] text-muted-foreground mt-1">{t2("arrears_hint")}</p>
+                  {arrN > 0 && rentN > 0 && rentType === "monthly" && (() => {
+                    const months = Math.max(1, Math.round(arrN / rentN));
+                    const remainder = Math.max(0, arrN - months * rentN);
+                    const names = lang === "ar" ? AR_MONTHS : EN_MONTHS;
+                    const dueInt = Math.min(28, Math.max(1, parseInt(dueDay) || 1));
+                    const monthsBack = rentTiming === "arrears" ? months : Math.max(0, months - 1);
+                    const today = new Date();
+                    const list: string[] = [];
+                    for (let i = 0; i < months; i++) {
+                      const d = new Date(today.getFullYear(), today.getMonth() - monthsBack + i, dueInt);
+                      list.push(`${names[d.getMonth()]} ${d.getFullYear()}`);
+                    }
+                    return (
+                      <div className="mt-2 rounded-xl border border-sage-200 bg-sage-50/60 px-2.5 py-2 text-[11px] text-sage-600">
+                        <p className="font-bold">
+                          {lang === "ar" ? `= ${months} ${months === 1 ? "شهر متأخّر" : months === 2 ? "شهران متأخّران" : "أشهر متأخّرة"}` : `= ${months} overdue ${months === 1 ? "month" : "months"}`}
+                        </p>
+                        <p className="mt-0.5 opacity-80 leading-relaxed">{list.join(lang === "ar" ? " · " : " · ")}</p>
+                        {remainder > 0.009 && (
+                          <p className="mt-1 text-terracotta font-semibold">
+                            {lang === "ar" ? `+ رصيد جزئي: ${format(remainder)}` : `+ partial balance: ${format(remainder)}`}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </Field>
               </div>
+
 
               {/* Initial payment */}
               <div className="pt-2 border-t border-sage-100">
