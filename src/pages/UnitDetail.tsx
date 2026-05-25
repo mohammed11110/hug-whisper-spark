@@ -928,17 +928,19 @@ function PhotosTab({ unit, reload }: any) {
         bucket="unit-photos"
         pathPrefix={`${unit.building_id}/${unit.id}`}
         value={null}
-        onChange={async (v) => {
-          if (!v) return;
-          const next = [...photos, v];
+        onChange={() => {}}
+        multiple
+        onMultipleUploaded={async (vals) => {
+          if (!vals.length) return;
+          const next = [...photos, ...vals];
           await supabase.from("units").update({ handover_photos: next }).eq("id", unit.id);
           reload?.();
-          // Auto-classify in background
-          classifyOne(v);
+          vals.forEach((v) => classifyOne(v));
         }}
         accept="image/*"
-        label={ar ? "إضافة صورة" : "Add photo"}
+        label={ar ? "إضافة صور" : "Add photos"}
       />
+
     </>
   );
 }
