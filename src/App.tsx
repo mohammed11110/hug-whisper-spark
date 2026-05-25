@@ -34,7 +34,7 @@ import Privacy from "./pages/Privacy";
 import Refund from "./pages/Refund";
 import Assistant from "./pages/Assistant";
 import Admin from "./pages/Admin";
-import MonthlyCollection from "./pages/MonthlyCollection";
+
 import Maintenance from "./pages/Maintenance";
 import Activity from "./pages/Activity";
 import Unsubscribe from "./pages/Unsubscribe";
@@ -86,7 +86,7 @@ const App = () => (
                       
                       <Route path="/assistant" element={<RequireAuth><Assistant /></RequireAuth>} />
                       <Route path="/admin" element={<RequireAuth><Admin /></RequireAuth>} />
-                      <Route path="/collection" element={<RequireAuth><MonthlyCollection /></RequireAuth>} />
+                      
                       <Route path="/maintenance" element={<RequireAuth><Maintenance /></RequireAuth>} />
                       <Route path="/activity" element={<RequireAuth><Activity /></RequireAuth>} />
                       <Route path="/daily" element={<RequireAuth><DailyLayout /></RequireAuth>}>

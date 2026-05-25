@@ -7,7 +7,7 @@ const tabs = [
   { to: "/buildings", label: "buildings", icon: "⌬", t2: false },
   { to: "/tenants", label: "tenants", icon: "◉", t2: false },
   { to: "/payments", label: "payments", icon: "◈", t2: false },
-  { to: "/collection", label: "monthly_collection", icon: "▦", t2: true },
+  { to: "/reports", label: "reports", icon: "▦", t2: false },
 ];
 
 export function BottomNav() {
