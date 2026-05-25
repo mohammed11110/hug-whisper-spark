@@ -562,14 +562,9 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     }
 
     const { error } = await supabase.from("payments").insert(rows);
-    if (!error) {
-      // SINGLE SOURCE OF TRUTH: derive last_paid_date + status from live
-      // payment rows. We intentionally do NOT mutate opening_balance or
-      // opening_balance_date — that lets soft-delete/restore revert arrears
-      // automatically without any manual inverse logic.
-      const { recomputeUnitStateFromPayments } = await import("@/lib/unitState");
-      await recomputeUnitStateFromPayments(unitId);
-    }
+    // Unit state (last_paid_date + status) is recomputed automatically by the
+    // DB trigger `sync_unit_state_from_payments_trg` — no client-side recompute
+    // is needed. This keeps a single source of truth and avoids races.
 
     setSaving(false);
     if (error) return toast.error(error.message);
