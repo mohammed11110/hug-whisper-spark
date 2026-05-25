@@ -9,6 +9,8 @@ export interface UnitForBalance {
   contract_start_date?: string | null;
   opening_balance?: number | string | null;
   opening_balance_date?: string | null;
+  /** Day-of-month (1..28) at which monthly rent becomes due. */
+  due_day?: number | null;
 }
 
 
