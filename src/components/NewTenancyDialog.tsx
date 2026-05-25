@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
 import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
 import { X, Image as ImageIcon, Sparkles, Loader2 } from "lucide-react";
-import { LastPaymentSection, monthBoundsFromDate } from "@/components/LastPaymentSection";
+
 
 interface Props {
   open: boolean;
@@ -44,11 +44,8 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
   const [pendingPhoto, setPendingPhoto] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [extracting, setExtracting] = useState(false);
-  const [hasPrevPay, setHasPrevPay] = useState(false);
-  const [prevPayDate, setPrevPayDate] = useState<Date | undefined>(undefined);
-  const [prevPayAmount, setPrevPayAmount] = useState<string>("");
-  const [periodFrom, setPeriodFrom] = useState<Date | undefined>(undefined);
-  const [periodTo, setPeriodTo] = useState<Date | undefined>(undefined);
+  // المتأخرات الافتتاحية — يتم توزيعها تلقائياً على الأشهر السابقة (نفس منطق AddUnitDialog).
+  const [arrears, setArrears] = useState<string>("0");
   const guard = useUnsavedGuard({ open, onOpenChange });
 
   const extractFromId = async () => {
@@ -90,8 +87,7 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
     setContractFileUrl(null);
     setUnitPhotos([]);
     setPendingPhoto(null);
-    setHasPrevPay(false); setPrevPayDate(undefined); setPrevPayAmount("");
-    setPeriodFrom(undefined); setPeriodTo(undefined);
+    setArrears("0");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, unit?.id]);
 
