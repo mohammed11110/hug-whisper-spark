@@ -19,6 +19,8 @@ import { AddMaintenanceDialog } from "@/components/AddMaintenanceDialog";
 import { FileUpload } from "@/components/FileUpload";
 import { getUnitArrears, type PaymentForBalance } from "@/lib/balance";
 import { ArrearsBadge } from "@/components/ArrearsBadge";
+import { UnitHealthBadge } from "@/components/UnitHealthBadge";
+import { exportToCSV } from "@/lib/exportCSV";
 
 interface Unit {
   id: string; building_id: string; unit_number: string; floor: number; type: string;
