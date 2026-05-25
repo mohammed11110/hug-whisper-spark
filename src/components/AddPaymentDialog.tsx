@@ -69,12 +69,8 @@ function monthRange(year: number, month1to12: number) {
   return { start, end };
 }
 
-function yearOptions() {
-  const cur = new Date().getFullYear();
-  const out: number[] = [];
-  for (let y = cur + 2; y >= 2020; y--) out.push(y);
-  return out;
-}
+
+
 
 const schema = z.object({
   unit_id: z.string().uuid({ message: "Select a unit" }),
