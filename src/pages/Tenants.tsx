@@ -229,7 +229,7 @@ export default function Tenants() {
         {[
           { label: lang === "ar" ? "إجمالي المستأجرين" : "Total tenants", value: String(kpis.total), tone: "sage" as const, icon: Users },
           { label: lang === "ar" ? "متأخرون" : "Overdue", value: String(kpis.overdue), tone: "burgundy" as const, icon: AlertTriangle },
-          { label: lang === "ar" ? "إجمالي الديون" : "Total debt", value: format(kpis.totalDebt), tone: "terracotta" as const, icon: TrendingDown },
+          { label: lang === "ar" ? "إجمالي المتأخرات" : "Total arrears", value: format(kpis.totalDebt), tone: "terracotta" as const, icon: TrendingDown },
           { label: lang === "ar" ? "عقود تنتهي ≤ 30 يوم" : "Expiring ≤ 30d", value: String(kpis.expiring), tone: "gold" as const, icon: Clock },
         ].map((k) => {
           const toneCls = k.tone === "burgundy" ? "text-burgundy bg-burgundy/10"
@@ -285,7 +285,7 @@ export default function Tenants() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="name">{lang === "ar" ? "الاسم" : "Name"}</SelectItem>
-            <SelectItem value="debt_desc">{lang === "ar" ? "الأكثر ديوناً" : "Most debt"}</SelectItem>
+            <SelectItem value="debt_desc">{lang === "ar" ? "الأعلى متأخرات" : "Highest arrears"}</SelectItem>
             <SelectItem value="building_unit">{lang === "ar" ? "المبنى/الوحدة" : "Building/Unit"}</SelectItem>
           </SelectContent>
         </Select>
@@ -371,7 +371,7 @@ export default function Tenants() {
                       </span>
                     )}
                     {r.outstanding > 0 && (
-                      <span className="text-burgundy font-bold">{lang === "ar" ? "الديون" : "Debt"}: {format(r.outstanding)}</span>
+                      <span className="text-burgundy font-bold">{lang === "ar" ? "المتأخرات" : "Arrears"}: {format(r.outstanding)}</span>
                     )}
                     {r.contract_end_date && (() => {
                       const d = daysUntil(r.contract_end_date);
