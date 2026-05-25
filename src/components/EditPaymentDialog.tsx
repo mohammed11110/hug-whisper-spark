@@ -42,7 +42,7 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
   const [saving, setSaving] = useState(false);
   const [unitIdRef, setUnitIdRef] = useState<string | null>(null);
   const [unitData, setUnitData] = useState<UnitForBalance | null>(null);
-  const [allPayments, setAllPayments] = useState<PaymentForBalance[]>([]);
+  const [allPayments, setAllPayments] = useState<Array<PaymentForBalance & { id: string }>>([]);
   const guard = useUnsavedGuard({ open, onOpenChange });
 
   useEffect(() => {
