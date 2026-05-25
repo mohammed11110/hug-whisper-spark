@@ -1291,6 +1291,7 @@ export type Database = {
           read_ct: number
         }[]
       }
+      recompute_unit_state: { Args: { _uid: string }; Returns: undefined }
       redeem_promo_code: { Args: { _code: string }; Returns: Json }
       user_active_plan: { Args: { _user_id: string }; Returns: string }
     }
