@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { exportToCSV } from "@/lib/exportCSV";
 import { buildReportHTML, downloadHTMLAsPDF, type ReportData } from "@/lib/pdfDocs";
 import { useAppSettings } from "@/lib/appSettings";
+import { getUnitArrears } from "@/lib/balance";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -38,6 +39,11 @@ interface Unit {
   building_id: string;
   status: string;
   rent_amount: number;
+  rent_type?: string;
+  rent_timing?: string | null;
+  contract_start_date?: string | null;
+  opening_balance?: number | null;
+  opening_balance_date?: string | null;
 }
 interface Payment {
   id: string;
@@ -45,6 +51,8 @@ interface Payment {
   amount: number;
   payment_date: string;
   period_start?: string | null;
+  period_end?: string | null;
+  deleted_at?: string | null;
 }
 interface Expense {
   id: string;
@@ -82,15 +90,16 @@ export default function Reports() {
       if (ids.length) {
         const { data: usData } = await supabase
           .from("units")
-          .select("id, building_id, status, rent_amount")
+          .select("id, building_id, status, rent_amount, rent_type, rent_timing, contract_start_date, opening_balance, opening_balance_date")
           .in("building_id", ids);
         us = (usData as Unit[]) || [];
         const unitIds = us.map((u) => u.id);
         if (unitIds.length) {
           const { data: psData } = await supabase
             .from("payments")
-            .select("id, unit_id, amount, payment_date, period_start")
-            .in("unit_id", unitIds);
+            .select("id, unit_id, amount, payment_date, period_start, period_end, deleted_at")
+            .in("unit_id", unitIds)
+            .is("deleted_at", null);
           ps = (psData as Payment[]) || [];
         }
         const { data: exData } = await supabase
@@ -148,7 +157,17 @@ export default function Reports() {
   const totalUnits = units.length;
   const rented = units.filter((u) => u.status === "rented" || u.status === "paid").length;
   const vacant = units.filter((u) => u.status === "vacant").length;
-  const late = units.filter((u) => u.status === "late").length;
+  // عدد الوحدات المتأخرة = أي وحدة لديها متأخرات > 0 (مصدر الحقيقة: getUnitArrears).
+  const late = units.filter((u) => {
+    if (!u.rent_amount) return false;
+    const arr = getUnitArrears(u as any, payments as any, new Date(), lang as "ar" | "en");
+    return arr.totalShortfall > 0.009;
+  }).length;
+  const totalArrears = units.reduce((s, u) => {
+    if (!u.rent_amount) return s;
+    const arr = getUnitArrears(u as any, payments as any, new Date(), lang as "ar" | "en");
+    return s + arr.totalShortfall;
+  }, 0);
   const occupancy = totalUnits ? Math.round((rented / totalUnits) * 100) : 0;
   const expectedMonthly = units
     .filter((u) => u.status !== "vacant")
