@@ -54,9 +54,9 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
         .select("amount, expected_amount, payment_date, receipt_number, payment_method, notes, period_start, period_end, unit_id")
         .eq("id", paymentId)
         .maybeSingle();
-      setLoading(false);
-      if (error || !data) return;
+      if (error || !data) { setLoading(false); return; }
       setAmount(String(data.amount ?? ""));
+      setOriginalAmount(Number(data.amount ?? 0));
       setExpected(String(data.expected_amount ?? ""));
       setDate(data.payment_date ?? "");
       setReceipt(data.receipt_number ?? "");
@@ -64,9 +64,39 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
       setNotes(data.notes ?? "");
       setPeriodStart(data.period_start ?? null);
       setPeriodEnd(data.period_end ?? null);
-      setUnitIdRef((data as any).unit_id ?? null);
+      const uid = (data as any).unit_id ?? null;
+      setUnitIdRef(uid);
+      if (uid) {
+        const [{ data: u }, { data: pays }] = await Promise.all([
+          supabase.from("units").select("rent_amount, rent_type, due_day, rent_timing, contract_start_date, opening_balance, opening_balance_date").eq("id", uid).maybeSingle(),
+          supabase.from("payments").select("id, amount, payment_date, period_start, period_end").eq("unit_id", uid).is("deleted_at", null),
+        ]);
+        if (u) setUnitData(u as any);
+        setAllPayments((pays || []) as any);
+      }
+      setLoading(false);
     })();
   }, [open, paymentId]);
+
+  // إعادة احتساب فورية: نستبدل دفعتنا الحالية بالمبلغ الجديد ونحسب المتأخرات.
+  const arrearsPreview = useMemo(() => {
+    if (!unitData) return null;
+    const newAmount = Number(amount) || 0;
+    const adjusted = allPayments.map((p) =>
+      p.id === paymentId ? { ...p, amount: newAmount } : p,
+    );
+    return getUnitArrears(unitData, adjusted, new Date(), lang as "ar" | "en");
+  }, [unitData, allPayments, amount, paymentId, lang]);
+
+  const arrearsCurrent = useMemo(() => {
+    if (!unitData) return null;
+    return getUnitArrears(unitData, allPayments, new Date(), lang as "ar" | "en");
+  }, [unitData, allPayments, lang]);
+
+  const diff = useMemo(() => {
+    if (!arrearsPreview || !arrearsCurrent) return 0;
+    return arrearsPreview.totalShortfall - arrearsCurrent.totalShortfall;
+  }, [arrearsPreview, arrearsCurrent]);
 
   const periodLabel = (() => {
     if (!periodStart) return lang === "ar" ? "— (دفعة بدون فترة)" : "— (no period)";
