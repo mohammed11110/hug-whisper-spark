@@ -64,21 +64,7 @@ export function EditUnitDialog({
   const [depositStatus, setDepositStatus] = useState<string>("none");
   const [contractType, setContractType] = useState<string>("yearly");
   const [contractStart, setContractStart] = useState<string>("");
-  const [arrears, setArrears] = useState("0");
-  const [hasPrevPay, setHasPrevPay] = useState(false);
-  const [prevPayDate, setPrevPayDate] = useState<Date | undefined>(undefined);
-  const [prevPayAmount, setPrevPayAmount] = useState("");
-  const [periodFrom, setPeriodFrom] = useState<Date | undefined>(undefined);
-  const [periodTo, setPeriodTo] = useState<Date | undefined>(undefined);
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [busy, setBusy] = useState(false);
-  // Snapshot of auto-loaded "آخر دفعة سابقة" fields. Used to detect
-  // whether the user actually TOUCHED them before zeroing opening_balance.
-  const [initialPrevPaySnapshot, setInitialPrevPaySnapshot] = useState<{
-    hasPrevPay: boolean;
-    prevPayDateIso: string | null;
-    periodToIso: string | null;
-  }>({ hasPrevPay: false, prevPayDateIso: null, periodToIso: null });
   const [initialRentTiming, setInitialRentTiming] = useState<"advance" | "arrears">("advance");
   const guard = useUnsavedGuard({ open, onOpenChange });
 
@@ -100,42 +86,7 @@ export function EditUnitDialog({
     setDepositStatus(unit.deposit_status || "none");
     setContractType(unit.contract_type || "yearly");
     setContractStart(unit.contract_start_date || "");
-    setArrears(String((unit as any).opening_balance ?? 0));
-    const lpd = (unit as any).last_paid_date as string | null | undefined;
-    if (lpd) {
-      const [y, m, d] = lpd.split("-").map(Number);
-      setHasPrevPay(true);
-      setPrevPayDate(new Date(y, (m || 1) - 1, d || 1));
-      setPrevPayAmount("");
-    } else {
-      setHasPrevPay(false); setPrevPayDate(undefined); setPrevPayAmount("");
-    }
-    // Load covered period from opening_balance_date (= first unpaid cycle).
-    // periodTo = opening_balance_date - 1 day; periodFrom = first of that month.
-    const obd = (unit as any).opening_balance_date as string | null | undefined;
-    let loadedPrevPayDateIso: string | null = null;
-    let loadedPeriodToIso: string | null = null;
-    if (obd && lpd) {
-      const [oy, om, od] = obd.split("-").map(Number);
-      const pt = new Date(oy, (om || 1) - 1, (od || 1) - 1);
-      const pf = new Date(pt.getFullYear(), pt.getMonth(), 1);
-      setPeriodFrom(pf);
-      setPeriodTo(pt);
-      loadedPeriodToIso = `${pt.getFullYear()}-${String(pt.getMonth() + 1).padStart(2, "0")}-${String(pt.getDate()).padStart(2, "0")}`;
-      loadedPrevPayDateIso = lpd;
-    } else {
-      setPeriodFrom(undefined);
-      setPeriodTo(undefined);
-    }
-    setInitialPrevPaySnapshot({
-      hasPrevPay: !!(obd && lpd),
-      prevPayDateIso: loadedPrevPayDateIso,
-      periodToIso: loadedPeriodToIso,
-    });
     setInitialRentTiming(((unit as any).rent_timing === "arrears" ? "arrears" : "advance"));
-    setShowAdvanced(false);
-
-
   }, [unit]);
 
   if (!unit) return null;
@@ -164,32 +115,10 @@ export function EditUnitDialog({
       deposit_refunded_at: depositStatus === "refunded" ? new Date().toISOString().slice(0, 10) : null,
       contract_type: contractType,
       contract_start_date: contractStart || null,
-      opening_balance: parseFloat(arrears) || 0,
+      // ملاحظة: لا نُعدّل opening_balance أو opening_balance_date من هنا.
+      // المتأخرات الافتتاحية تُدخل فقط عند تسجيل المستأجر، وتُنقَص بعد ذلك
+      // حصرًا عبر تسجيل إيصالات الدفع.
     };
-
-    // Only update last-payment-derived fields when the user TOUCHED the
-    // "آخر دفعة سابقة" section. Auto-loaded values must not silently zero
-    // out opening_balance on every save — that was wiping arrears.
-    if (hasPrevPay && prevPayDate && periodTo) {
-      const dateIso = `${prevPayDate.getFullYear()}-${String(prevPayDate.getMonth() + 1).padStart(2, "0")}-${String(prevPayDate.getDate()).padStart(2, "0")}`;
-      const periodToIso = `${periodTo.getFullYear()}-${String(periodTo.getMonth() + 1).padStart(2, "0")}-${String(periodTo.getDate()).padStart(2, "0")}`;
-      const userTouchedPrevPay =
-        !initialPrevPaySnapshot.hasPrevPay ||
-        initialPrevPaySnapshot.prevPayDateIso !== dateIso ||
-        initialPrevPaySnapshot.periodToIso !== periodToIso ||
-        (prevPayAmount.trim() !== "" && parseFloat(prevPayAmount) > 0);
-
-      if (userTouchedPrevPay) {
-        const nextDay = new Date(periodTo.getFullYear(), periodTo.getMonth(), periodTo.getDate() + 1);
-        const nextIso = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, "0")}-${String(nextDay.getDate()).padStart(2, "0")}`;
-        updatePayload.opening_balance = parseFloat(arrears) || 0;
-        updatePayload.opening_balance_date = nextIso;
-        updatePayload.last_paid_date = dateIso;
-      } else {
-        // User didn't touch the section → never overwrite opening_balance_date.
-        delete updatePayload.opening_balance_date;
-      }
-    }
 
 
 
