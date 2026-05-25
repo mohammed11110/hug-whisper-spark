@@ -20,6 +20,10 @@ interface FileUploadProps {
   label?: string;
   /** If true, store object path (private bucket); if false, store public URL (public bucket). */
   isPrivate?: boolean;
+  /** If true, allow selecting and uploading multiple files at once. Uses onMultipleUploaded for results. */
+  multiple?: boolean;
+  /** Called once after a multi-upload batch finishes with the uploaded paths/URLs. */
+  onMultipleUploaded?: (values: string[]) => void;
 }
 
 export function FileUpload({
@@ -31,6 +35,8 @@ export function FileUpload({
   maxSizeMB = 10,
   label = "رفع ملف",
   isPrivate = true,
+  multiple = false,
+  onMultipleUploaded,
 }: FileUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -77,6 +83,56 @@ export function FileUpload({
     }
   };
 
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+
+  const uploadOne = async (file: File): Promise<string> => {
+    if (file.size > maxSizeMB * 1024 * 1024) {
+      throw new Error(`${file.name}: > ${maxSizeMB}MB`);
+    }
+    const ext = file.name.split(".").pop() || "bin";
+    const path = `${pathPrefix.replace(/\/+$/, "")}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const { error } = await supabase.storage.from(bucket).upload(path, file, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: file.type,
+    });
+    if (error) throw error;
+    if (isPrivate) return path;
+    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+    return data.publicUrl;
+  };
+
+  const handleFiles = async (files: File[]) => {
+    if (!files.length) return;
+    if (files.length > 20) {
+      toast.warning(`الحد الأقصى 20 صورة في الدفعة الواحدة (تم اختيار ${files.length})`);
+      files = files.slice(0, 20);
+    }
+    setBusy(true);
+    setProgress({ done: 0, total: files.length });
+    const results: string[] = [];
+    let failed = 0;
+    for (const f of files) {
+      try {
+        const v = await uploadOne(f);
+        results.push(v);
+      } catch (e: any) {
+        failed++;
+        console.warn("upload failed", e);
+      } finally {
+        setProgress((p) => (p ? { ...p, done: p.done + 1 } : p));
+      }
+    }
+    setBusy(false);
+    setProgress(null);
+    if (results.length) {
+      onMultipleUploaded?.(results);
+      toast.success(`تم رفع ${results.length} صورة${failed ? ` (فشل ${failed})` : ""}`);
+    } else if (failed) {
+      toast.error("فشل الرفع");
+    }
+  };
+
   const handleRemove = async () => {
     if (!value) return;
     if (isPrivate) {
@@ -102,14 +158,20 @@ export function FileUpload({
         ref={inputRef}
         type="file"
         accept={accept}
+        multiple={multiple}
         className="hidden"
         onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) handleFile(f);
+          const list = Array.from(e.target.files || []);
+          if (multiple) {
+            if (list.length) handleFiles(list);
+          } else {
+            const f = list[0];
+            if (f) handleFile(f);
+          }
           e.target.value = "";
         }}
       />
-      {value ? (
+      {!multiple && value ? (
         <div className="flex items-center gap-2 p-3 rounded-xl bg-sage-100/50 border border-sage-200/40">
           {value && isImage(value) ? <ImageIcon className="h-4 w-4 text-sage-500" /> : <FileText className="h-4 w-4 text-sage-500" />}
           <button
@@ -132,7 +194,11 @@ export function FileUpload({
           className="w-full h-11 rounded-xl border-dashed border-sage-300 text-sage-600 font-medium"
         >
           {busy ? <Loader2 className="h-4 w-4 animate-spin me-2" /> : <Upload className="h-4 w-4 me-2" />}
-          {busy ? "جاري الرفع..." : label}
+          {busy
+            ? progress
+              ? `جاري الرفع ${progress.done}/${progress.total}...`
+              : "جاري الرفع..."
+            : label}
         </Button>
       )}
     </div>
