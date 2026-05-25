@@ -78,9 +78,7 @@ export function cyclesDue(unit: UnitForBalance, asOf: Date = new Date()): number
   return timing === "advance" ? elapsed + 1 : elapsed;
 }
 
-// `computeBalance` was removed: it was a legacy single-bucket calculator
-// that lumped every payment into one sum. The single source of truth is
-// now `getUnitArrears().totalShortfall`, which works cycle-by-cycle.
+
 
 
 // =====================================================================

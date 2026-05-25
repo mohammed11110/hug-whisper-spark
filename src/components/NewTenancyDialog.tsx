@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
 import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
 import { X, Image as ImageIcon, Sparkles, Loader2 } from "lucide-react";
-import { LastPaymentSection, monthBoundsFromDate } from "@/components/LastPaymentSection";
+
 
 interface Props {
   open: boolean;
@@ -44,11 +44,8 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
   const [pendingPhoto, setPendingPhoto] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [extracting, setExtracting] = useState(false);
-  const [hasPrevPay, setHasPrevPay] = useState(false);
-  const [prevPayDate, setPrevPayDate] = useState<Date | undefined>(undefined);
-  const [prevPayAmount, setPrevPayAmount] = useState<string>("");
-  const [periodFrom, setPeriodFrom] = useState<Date | undefined>(undefined);
-  const [periodTo, setPeriodTo] = useState<Date | undefined>(undefined);
+  // المتأخرات الافتتاحية — يتم توزيعها تلقائياً على الأشهر السابقة (نفس منطق AddUnitDialog).
+  const [arrears, setArrears] = useState<string>("0");
   const guard = useUnsavedGuard({ open, onOpenChange });
 
   const extractFromId = async () => {
@@ -90,8 +87,7 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
     setContractFileUrl(null);
     setUnitPhotos([]);
     setPendingPhoto(null);
-    setHasPrevPay(false); setPrevPayDate(undefined); setPrevPayAmount("");
-    setPeriodFrom(undefined); setPeriodTo(undefined);
+    setArrears("0");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, unit?.id]);
 
@@ -160,15 +156,21 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
       updatePayload.handover_photos = [...existing, ...unitPhotos];
     }
 
-    // Last payment → set opening_balance_date as day AFTER periodTo (= first
-    // day of the first unpaid cycle). Works uniformly for advance and arrears.
-    if (hasPrevPay && prevPayDate && periodTo) {
-      const dateIso = `${prevPayDate.getFullYear()}-${String(prevPayDate.getMonth() + 1).padStart(2, "0")}-${String(prevPayDate.getDate()).padStart(2, "0")}`;
-      const nextDay = new Date(periodTo.getFullYear(), periodTo.getMonth(), periodTo.getDate() + 1);
-      const nextIso = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, "0")}-${String(nextDay.getDate()).padStart(2, "0")}`;
-      updatePayload.opening_balance = 0;
-      updatePayload.opening_balance_date = nextIso;
-      updatePayload.last_paid_date = dateIso;
+    // المتأخرات الافتتاحية: تُوزَّع تلقائياً على الأشهر السابقة بنفس منطق AddUnitDialog.
+    // months = round(arrears / rent), opening_balance_date = اليوم − months × دورة.
+    const arrN = parseFloat(arrears) || 0;
+    if (arrN > 0 && rentNum > 0 && rentType === "monthly") {
+      const months = Math.max(1, Math.round(arrN / rentNum));
+      const remainder = Math.max(0, arrN - months * rentNum);
+      const monthsBack = rentTiming === "arrears" ? months : Math.max(0, months - 1);
+      const today = new Date();
+      const anchor = new Date(today.getFullYear(), today.getMonth() - monthsBack, dueNum);
+      const iso = `${anchor.getFullYear()}-${String(anchor.getMonth() + 1).padStart(2, "0")}-${String(anchor.getDate()).padStart(2, "0")}`;
+      updatePayload.opening_balance = remainder;
+      updatePayload.opening_balance_date = iso;
+    } else if (arrN > 0) {
+      updatePayload.opening_balance = arrN;
+      updatePayload.opening_balance_date = startDate || new Date().toISOString().slice(0, 10);
     }
 
 
@@ -276,21 +278,55 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
             </p>
           </div>
 
-
-          <LastPaymentSection
-            enabled={hasPrevPay}
-            onEnabledChange={setHasPrevPay}
-            date={prevPayDate}
-            onDateChange={setPrevPayDate}
-            amount={prevPayAmount}
-            onAmountChange={setPrevPayAmount}
-            periodFrom={periodFrom}
-            periodTo={periodTo}
-            onPeriodFromChange={setPeriodFrom}
-            onPeriodToChange={setPeriodTo}
-            rentTiming={rentTiming}
-            rentAmount={Number(rent) || 0}
-          />
+          {/* المتأخرات الافتتاحية — يُحوَّل المبلغ تلقائياً إلى عدد أشهر متأخرة */}
+          <div className="pt-2 border-t border-sage-100 space-y-1.5">
+            <Label className="text-xs text-sage-500">{t2("arrears_amount")}</Label>
+            <Input
+              type="number"
+              inputMode="decimal"
+              min={0}
+              step="0.001"
+              value={arrears}
+              onChange={(e) => setArrears(e.target.value)}
+              onBlur={() => { if (!arrears) setArrears("0"); }}
+              placeholder="0"
+              className="rounded-xl border-sage-200 bg-card h-11"
+            />
+            <p className="text-[11px] text-muted-foreground">{t2("arrears_hint")}</p>
+            {(() => {
+              const arrN = parseFloat(arrears) || 0;
+              const rentN = Number(rent) || 0;
+              if (!(arrN > 0 && rentN > 0 && rentType === "monthly")) return null;
+              const months = Math.max(1, Math.round(arrN / rentN));
+              const remainder = Math.max(0, arrN - months * rentN);
+              const AR = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+              const EN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+              const names = lang === "ar" ? AR : EN;
+              const dueInt = Math.min(28, Math.max(1, startDate ? new Date(startDate).getDate() : Number(dueDay) || 1));
+              const monthsBack = rentTiming === "arrears" ? months : Math.max(0, months - 1);
+              const today = new Date();
+              const list: string[] = [];
+              for (let i = 0; i < months; i++) {
+                const d = new Date(today.getFullYear(), today.getMonth() - monthsBack + i, dueInt);
+                list.push(`${names[d.getMonth()]} ${d.getFullYear()}`);
+              }
+              return (
+                <div className="mt-2 rounded-xl border border-sage-200 bg-sage-50/60 px-2.5 py-2 text-[11px] text-sage-600">
+                  <p className="font-bold">
+                    {lang === "ar"
+                      ? `= ${months} ${months === 1 ? "شهر متأخّر" : months === 2 ? "شهران متأخّران" : "أشهر متأخّرة"}`
+                      : `= ${months} overdue ${months === 1 ? "month" : "months"}`}
+                  </p>
+                  <p className="mt-0.5 opacity-80 leading-relaxed">{list.join(" · ")}</p>
+                  {remainder > 0.009 && (
+                    <p className="mt-1 text-terracotta font-semibold">
+                      {lang === "ar" ? `+ رصيد جزئي ${remainder.toFixed(3)}` : `+ partial ${remainder.toFixed(3)}`}
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
 
 
 

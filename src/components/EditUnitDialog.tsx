@@ -35,7 +35,6 @@ interface UnitInput {
   deposit_status?: string;
   contract_type?: string;
   contract_start_date?: string | null;
-  opening_balance?: number | null;
 }
 
 export function EditUnitDialog({

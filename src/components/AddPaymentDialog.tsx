@@ -109,7 +109,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const [collectPriorArrears, setCollectPriorArrears] = useState(false);
   const [allPaid, setAllPaid] = useState(false);
   const [activeRent, setActiveRent] = useState<number>(0);
-  const [showArrearsList, setShowArrearsList] = useState(false);
+  
   // Smart payment modes: "auto" (distribute amount oldest→newest, spill into advance)
   // or "manual" (pick a specific cycle from the dropdown).
   const [payMode, setPayMode] = useState<"auto" | "manual">("auto");
@@ -829,16 +829,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                       {lang === "ar" ? "اختيار يدوي" : "Manual pick"}
                     </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowArrearsList((s) => !s)}
-                    className="mt-2 ms-3 text-[11px] font-bold text-burgundy/90 hover:text-burgundy underline underline-offset-2"
-                  >
-                    {showArrearsList
-                      ? (lang === "ar" ? "إخفاء التفاصيل ▴" : "Hide details ▴")
-                      : (lang === "ar" ? "عرض التفاصيل ▾" : "Show details ▾")}
-                  </button>
-                  {showArrearsList && (
+                  {unpaidMonths.length > 0 && (
                     <div className="mt-2 divide-y divide-burgundy/15 border-t border-burgundy/20 pt-1">
                       {unpaidMonths.map((m) => (
                         <div key={m.periodStartIso + (m.isPrior ? "-prior" : "")} className="flex items-center justify-between py-1.5 text-xs">
@@ -939,36 +930,16 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
             </div>
           </div>
 
-          {/* Quick-fill chips */}
-          {unitId && (arrearsBefore > 0 || activeRent > 0) && (
+          {/* Quick-fill chip: one-month rent (auto-distribute mode uses its own button) */}
+          {unitId && activeRent > 0 && payMode === "manual" && (
             <div className="flex flex-wrap gap-1.5">
-              {arrearsBefore > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setAmount(String(arrearsBefore))}
-                  className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-burgundy/10 text-burgundy border border-burgundy/25 hover:bg-burgundy/15"
-                >
-                  {lang === "ar" ? "= كامل المتأخرات" : "= Full arrears"} ({format(arrearsBefore)})
-                </button>
-              )}
-              {activeRent > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setAmount(String(activeRent))}
-                  className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-sage-100 text-sage-700 border border-sage-200 hover:bg-sage-200/50"
-                >
-                  {lang === "ar" ? "= إيجار شهر" : "= 1 month rent"} ({format(activeRent)})
-                </button>
-              )}
-              {unpaidMonths[0] && unpaidMonths[0].remaining < (activeRent || Infinity) && (
-                <button
-                  type="button"
-                  onClick={() => setAmount(String(unpaidMonths[0].remaining))}
-                  className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-terracotta/10 text-terracotta border border-terracotta/25 hover:bg-terracotta/15"
-                >
-                  {lang === "ar" ? "= متبقي الأقدم" : "= Oldest remaining"} ({format(unpaidMonths[0].remaining)})
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => setAmount(String(activeRent))}
+                className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-sage-100 text-sage-700 border border-sage-200 hover:bg-sage-200/50"
+              >
+                {lang === "ar" ? "= إيجار شهر" : "= 1 month rent"} ({format(activeRent)})
+              </button>
             </div>
           )}
 

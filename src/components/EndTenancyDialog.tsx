@@ -152,11 +152,11 @@ export function EndTenancyDialog({ open, onOpenChange, unit, tenancyId, onDone }
               <div className="mt-2 space-y-1.5">
                 <label className="flex items-center gap-2 text-xs cursor-pointer">
                   <input type="radio" checked={debtAction === "carry"} onChange={() => setDebtAction("carry")} />
-                  <span>{t2("carry_debt")}</span>
+                  <span>{t2("carry_arrears")}</span>
                 </label>
                 <label className="flex items-center gap-2 text-xs cursor-pointer">
                   <input type="radio" checked={debtAction === "settle"} onChange={() => setDebtAction("settle")} />
-                  <span>{t2("settle_debt")}</span>
+                  <span>{t2("settle_arrears")}</span>
                 </label>
               </div>
             )}
