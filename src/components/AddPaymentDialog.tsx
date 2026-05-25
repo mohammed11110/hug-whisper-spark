@@ -872,26 +872,8 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
 
 
           <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs text-sage-500">{t2("rent_month")}</Label>
-              {unitId && unpaidMonths.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAllMonths((s) => {
-                      const next = !s;
-                      if (next) setSelectedEntry(null);
-                      return next;
-                    });
-                  }}
-                  className="text-[11px] text-sage-500 hover:text-sage-600 font-semibold"
-                >
-                  {showAllMonths
-                    ? (lang === "ar" ? "غير المدفوعة فقط" : "Unpaid only")
-                    : (lang === "ar" ? "عرض كل الأشهر" : "Show all months")}
-                </button>
-              )}
-            </div>
+            <Label className="text-xs text-sage-500">{t2("rent_month")}</Label>
+
             {unitId && unpaidMonths.length > 0 ? (
               <Select
                 value={selectedEntry?.periodStartIso || ""}
