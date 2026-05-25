@@ -342,6 +342,12 @@ export default function Reports() {
             tone="danger"
           />
           <Kpi
+            icon={<AlertCircle className="h-4 w-4" />}
+            label={lang === "ar" ? "إجمالي المتأخرات" : "Total arrears"}
+            value={format(totalArrears)}
+            tone="danger"
+          />
+          <Kpi
             icon={<TrendingUp className="h-4 w-4" />}
             label={lang === "ar" ? "نمو شهري" : "MoM growth"}
             value={`${growth >= 0 ? "+" : ""}${growth.toFixed(1)}%`}
