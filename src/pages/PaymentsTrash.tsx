@@ -105,10 +105,7 @@ export default function PaymentsTrash() {
     const { error } = await supabase.from("payments").delete().eq("id", pendingPurge);
     setPendingPurge(null);
     if (error) return toast.error(error.message);
-    if (target) {
-      const { recomputeUnitStateFromPayments } = await import("@/lib/unitState");
-      await recomputeUnitStateFromPayments(target.unit_id);
-    }
+    // Unit status recomputed by DB trigger.
     if (target) {
       logActivity({
         entityType: "payment",
