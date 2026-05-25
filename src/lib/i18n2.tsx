@@ -153,7 +153,7 @@ const dict: Record<Key, Partial<Record<Lang, string>>> = {
   edit_unit: { ar: "تعديل الوحدة", en: "Edit unit", ur: "یونٹ ترمیم", zh: "编辑单元", hi: "इकाई संपादित", bn: "ইউনিট সম্পাদনা", fr: "Modifier l'unité", es: "Editar unidad", tr: "Birimi düzenle" },
   arrears: { ar: "متأخرات", en: "Arrears" },
   arrears_amount: { ar: "مبلغ المتأخرات", en: "Arrears amount" },
-  arrears_hint: { ar: "إيجارات سابقة لم تُسدَّد عند تسجيل المستأجر", en: "Previous unpaid rent at registration time" },
+  arrears_hint: { ar: "سيتم توزيعها تلقائياً على الأشهر السابقة (المبلغ ÷ الإيجار الشهري).", en: "Will be auto-distributed across previous months (amount ÷ monthly rent)." },
   record_payment_now: { ar: "تسجيل دفعة الآن", en: "Record a payment now" },
   payment_summary: { ar: "ملخص الحساب", en: "Account summary" },
   outstanding_balance: { ar: "الرصيد المستحق", en: "Outstanding balance" },
