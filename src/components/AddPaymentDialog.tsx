@@ -230,7 +230,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   // Unified arrears for the selected unit — single source of truth via getUnitArrears.
   useEffect(() => {
     if (!open || !unitId) {
-      setUnpaidMonths([]); setAllPaid(false); setPaidMonthsKeys(new Set());
+      setUnpaidMonths([]); setAllPaid(false);
       setArrearsBefore(0); setSelectedEntry(null);
       return;
     }
