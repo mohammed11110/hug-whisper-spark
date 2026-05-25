@@ -28,7 +28,9 @@ interface Props {
 export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Props) {
   const t2 = useT2();
   const { lang } = useI18n();
+  const { format } = useCurrency();
   const [amount, setAmount] = useState("");
+  const [originalAmount, setOriginalAmount] = useState(0);
   const [expected, setExpected] = useState("");
   const [date, setDate] = useState("");
   const [receipt, setReceipt] = useState("");
@@ -39,6 +41,8 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [unitIdRef, setUnitIdRef] = useState<string | null>(null);
+  const [unitData, setUnitData] = useState<UnitForBalance | null>(null);
+  const [allPayments, setAllPayments] = useState<PaymentForBalance[]>([]);
   const guard = useUnsavedGuard({ open, onOpenChange });
 
   useEffect(() => {
