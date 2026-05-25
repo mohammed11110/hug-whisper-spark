@@ -171,10 +171,7 @@ export default function Payments() {
     const target = rows.find((r) => r.id === delId);
     // soft delete → goes to recycle bin
     const { error } = await supabase.from("payments").update({ deleted_at: new Date().toISOString() }).eq("id", delId);
-    if (!error && target) {
-      const { recomputeUnitStateFromPayments } = await import("@/lib/unitState");
-      await recomputeUnitStateFromPayments(target.unit_id);
-    }
+    // Unit status is recomputed automatically by the DB trigger.
     if (error) return toast.error(error.message);
     if (target) {
       const { data: u } = await supabase.from("units").select("building_id").eq("id", target.unit_id).maybeSingle();

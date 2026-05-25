@@ -115,9 +115,8 @@ export default function Dashboard() {
 
         {/* Monthly Collection Snapshot */}
         {!isEmpty && (
-          <Link
-            to="/collection"
-            className="relative block overflow-hidden bg-card border border-sage-200/60 rounded-2xl p-5 shadow-soft hover:shadow-elev transition-all animate-float-up"
+          <div
+            className="relative block overflow-hidden bg-card border border-sage-200/60 rounded-2xl p-5 shadow-soft animate-float-up"
             style={{ animationDelay: "0.2s" }}
           >
             <BotanicalDecor className="absolute -end-8 -bottom-8 w-32 h-32 text-sage-400 opacity-10" />
@@ -147,7 +146,7 @@ export default function Dashboard() {
                 </span>
               </div>
             </div>
-          </Link>
+          </div>
         )}
 
         {/* Recent Activity */}

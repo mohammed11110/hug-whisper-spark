@@ -9,6 +9,8 @@ export interface UnitForBalance {
   contract_start_date?: string | null;
   opening_balance?: number | string | null;
   opening_balance_date?: string | null;
+  /** Day-of-month (1..28) at which monthly rent becomes due. */
+  due_day?: number | null;
 }
 
 
@@ -117,8 +119,12 @@ export function getAnchorDate(unit: { contract_start_date?: string | null; openi
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-/** Day-of-month used as the anchor for monthly cycles (1..28, capped). */
-export function getAnchorDay(unit: { contract_start_date?: string | null; opening_balance_date?: string | null }): number {
+/** Day-of-month used as the anchor for monthly cycles (1..28).
+ *  Prefers `unit.due_day` when set, otherwise falls back to the day-of-month
+ *  of `opening_balance_date` / `contract_start_date`. */
+export function getAnchorDay(unit: { contract_start_date?: string | null; opening_balance_date?: string | null; due_day?: number | null }): number {
+  const dd = Number((unit as any).due_day);
+  if (Number.isFinite(dd) && dd >= 1) return Math.min(28, Math.max(1, Math.floor(dd)));
   const a = getAnchorDate(unit);
   return a ? Math.min(28, Math.max(1, a.getDate())) : 1;
 }

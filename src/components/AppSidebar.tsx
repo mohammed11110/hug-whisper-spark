@@ -4,7 +4,7 @@ import {
   Building2,
   Users,
   Wallet,
-  CalendarCheck,
+  
   BarChart3,
   Bell,
   Sparkles,
@@ -45,7 +45,7 @@ export function AppSidebar() {
     { to: "/buildings", label: t("buildings"), icon: Building2 },
     { to: "/tenants", label: t("tenants"), icon: Users },
     { to: "/payments", label: t("payments"), icon: Wallet },
-    { to: "/collection", label: t2("monthly_collection"), icon: CalendarCheck },
+    
   ];
   const ops = [
     { to: "/daily", label: rtl ? "الإيجارات اليومية" : "Daily rentals", icon: CalendarRange },
