@@ -156,15 +156,21 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
       updatePayload.handover_photos = [...existing, ...unitPhotos];
     }
 
-    // Last payment → set opening_balance_date as day AFTER periodTo (= first
-    // day of the first unpaid cycle). Works uniformly for advance and arrears.
-    if (hasPrevPay && prevPayDate && periodTo) {
-      const dateIso = `${prevPayDate.getFullYear()}-${String(prevPayDate.getMonth() + 1).padStart(2, "0")}-${String(prevPayDate.getDate()).padStart(2, "0")}`;
-      const nextDay = new Date(periodTo.getFullYear(), periodTo.getMonth(), periodTo.getDate() + 1);
-      const nextIso = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, "0")}-${String(nextDay.getDate()).padStart(2, "0")}`;
-      updatePayload.opening_balance = 0;
-      updatePayload.opening_balance_date = nextIso;
-      updatePayload.last_paid_date = dateIso;
+    // المتأخرات الافتتاحية: تُوزَّع تلقائياً على الأشهر السابقة بنفس منطق AddUnitDialog.
+    // months = round(arrears / rent), opening_balance_date = اليوم − months × دورة.
+    const arrN = parseFloat(arrears) || 0;
+    if (arrN > 0 && rentNum > 0 && rentType === "monthly") {
+      const months = Math.max(1, Math.round(arrN / rentNum));
+      const remainder = Math.max(0, arrN - months * rentNum);
+      const monthsBack = rentTiming === "arrears" ? months : Math.max(0, months - 1);
+      const today = new Date();
+      const anchor = new Date(today.getFullYear(), today.getMonth() - monthsBack, dueNum);
+      const iso = `${anchor.getFullYear()}-${String(anchor.getMonth() + 1).padStart(2, "0")}-${String(anchor.getDate()).padStart(2, "0")}`;
+      updatePayload.opening_balance = remainder;
+      updatePayload.opening_balance_date = iso;
+    } else if (arrN > 0) {
+      updatePayload.opening_balance = arrN;
+      updatePayload.opening_balance_date = startDate || new Date().toISOString().slice(0, 10);
     }
 
 
