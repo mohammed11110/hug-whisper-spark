@@ -892,14 +892,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                 </button>
               )}
             </div>
-            {unitId && allPaid && !showAllMonths ? (
-              <div className="rounded-xl border border-dashed border-sage-200 bg-sage-100/40 px-3 py-3 text-xs text-sage-600 flex items-center justify-between">
-                <span className="font-semibold">{lang === "ar" ? "كل الأشهر مدفوعة ✓" : "All months paid ✓"}</span>
-                <button type="button" onClick={() => setShowAllMonths(true)} className="font-bold text-sage-500 hover:underline">
-                  {lang === "ar" ? "اختيار شهر آخر" : "Pick another month"}
-                </button>
-              </div>
-            ) : unitId && !showAllMonths && unpaidMonths.length > 0 ? (
+            {unitId && unpaidMonths.length > 0 ? (
               <Select
                 value={selectedEntry?.periodStartIso || ""}
                 onValueChange={(v) => {
@@ -921,93 +914,22 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                   ))}
                 </SelectContent>
               </Select>
-            ) : (
-              (() => {
-                const allMonthsForYear = monthNames.map((n, i) => ({ n, m: i + 1 }));
-                const paidInYear = allMonthsForYear.filter(({ m }) =>
-                  paidMonthsKeys.has(`${periodYear}-${String(m).padStart(2, "0")}`)
-                );
-                const visible = showAllMonths
-                  ? allMonthsForYear
-                  : allMonthsForYear.filter(({ m }) => !paidMonthsKeys.has(`${periodYear}-${String(m).padStart(2, "0")}`));
-                const selectedKey = `${periodYear}-${String(periodMonthNum).padStart(2, "0")}`;
-                const selectedIsPaid = paidMonthsKeys.has(selectedKey);
-                // Auto-shift selection off a paid month when not showing all
-                if (!showAllMonths && selectedIsPaid && visible.length > 0) {
-                  const todayM = new Date().getMonth() + 1;
-                  const next = visible.find((x) => x.m === todayM) || visible[0];
-                  setTimeout(() => setPeriodMonthNum(next.m), 0);
-                }
-                return (
-                  <>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Select value={String(periodMonthNum)} onValueChange={(v) => setPeriodMonthNum(Number(v))}>
-                        <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11"><SelectValue /></SelectTrigger>
-                        <SelectContent className="max-h-72">
-                          {visible.length === 0 ? (
-                            <div className="px-3 py-2 text-xs text-sage-500">
-                              {lang === "ar" ? "جميع أشهر هذه السنة مُسدَّدة" : "All months of this year are paid"}
-                            </div>
-                          ) : visible.map(({ n, m }) => {
-                            const isPaid = paidMonthsKeys.has(`${periodYear}-${String(m).padStart(2, "0")}`);
-                            return (
-                              <SelectItem key={m} value={String(m)}>
-                                <span className="flex items-center gap-2">
-                                  <span>{n}</span>
-                                  {isPaid && (
-                                    <span className="text-[10px] font-bold text-sage-500 bg-sage-100 px-1.5 py-0.5 rounded">
-                                      {lang === "ar" ? "مدفوع ✓" : "Paid ✓"}
-                                    </span>
-                                  )}
-                                </span>
-                              </SelectItem>
-                            );
-                          })}
-                        </SelectContent>
-                      </Select>
-                      <Select value={String(periodYear)} onValueChange={(v) => setPeriodYear(Number(v))}>
-                        <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11"><SelectValue /></SelectTrigger>
-                        <SelectContent className="max-h-72">
-                          {years.map((y) => (
-                            <SelectItem key={y} value={String(y)}>{y}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {unitId && paidInYear.length > 0 && !showAllMonths && (
-                      <button
-                        type="button"
-                        onClick={() => setShowAllMonths(true)}
-                        className="mt-1.5 text-[11px] text-sage-500 hover:text-sage-600 font-semibold flex items-center gap-1"
-                      >
-                        <span>✓</span>
-                        <span>
-                          {lang === "ar"
-                            ? `تم إخفاء ${paidInYear.length} ${paidInYear.length === 1 ? "شهر مسدَّد" : "أشهر مسدَّدة"} · إظهار الكل`
-                            : `${paidInYear.length} paid ${paidInYear.length === 1 ? "month" : "months"} hidden · Show all`}
-                        </span>
-                      </button>
-                    )}
-                    {unitId && paidMonthsKeys.size === 0 && (
-                      <div className="mt-1.5 text-[11px] text-sage-400">
-                        {lang === "ar" ? "لا توجد دفعات سابقة لهذه الوحدة" : "No prior payments for this unit"}
-                      </div>
-                    )}
-                    {showAllMonths && unitId && paidInYear.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setShowAllMonths(false)}
-                        className="mt-1.5 text-[11px] text-sage-500 hover:text-sage-600 font-semibold"
-                      >
-                        {lang === "ar" ? "إخفاء الأشهر المسدَّدة" : "Hide paid months"}
-                      </button>
-                    )}
-                  </>
-                );
-              })()
-            )}
+            ) : unitId ? (
+              <div className="rounded-xl border border-dashed border-sage-200 bg-sage-100/40 px-3 py-3 text-xs text-sage-600">
+                <p className="font-semibold">
+                  {lang === "ar" ? "سيتم تسجيل دفعة مُقدَّمة عن:" : "Will record an advance payment for:"}
+                </p>
+                <p className="mt-0.5 font-bold text-sage-700">{cyclePeriodLabel}</p>
+                <p className="text-[10px] text-sage-400 mt-1.5 leading-relaxed">
+                  {lang === "ar"
+                    ? "لا توجد متأخرات. الفترة تُحدَّد تلقائياً من تاريخ بداية العقد ودورة الدفع."
+                    : "No arrears. Period is set automatically from contract start and payment cycle."}
+                </p>
+              </div>
+            ) : null}
           </div>
           )}
+
 
 
 
