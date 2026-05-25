@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,9 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useI18n } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
+import { useCurrency } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
+import { getUnitArrears, type UnitForBalance, type PaymentForBalance } from "@/lib/balance";
 
 const METHODS = ["cash", "transfer", "cheque", "card"] as const;
 
@@ -26,7 +28,9 @@ interface Props {
 export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Props) {
   const t2 = useT2();
   const { lang } = useI18n();
+  const { format } = useCurrency();
   const [amount, setAmount] = useState("");
+  const [originalAmount, setOriginalAmount] = useState(0);
   const [expected, setExpected] = useState("");
   const [date, setDate] = useState("");
   const [receipt, setReceipt] = useState("");
@@ -37,6 +41,8 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [unitIdRef, setUnitIdRef] = useState<string | null>(null);
+  const [unitData, setUnitData] = useState<UnitForBalance | null>(null);
+  const [allPayments, setAllPayments] = useState<Array<PaymentForBalance & { id: string }>>([]);
   const guard = useUnsavedGuard({ open, onOpenChange });
 
   useEffect(() => {
@@ -48,9 +54,9 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
         .select("amount, expected_amount, payment_date, receipt_number, payment_method, notes, period_start, period_end, unit_id")
         .eq("id", paymentId)
         .maybeSingle();
-      setLoading(false);
-      if (error || !data) return;
+      if (error || !data) { setLoading(false); return; }
       setAmount(String(data.amount ?? ""));
+      setOriginalAmount(Number(data.amount ?? 0));
       setExpected(String(data.expected_amount ?? ""));
       setDate(data.payment_date ?? "");
       setReceipt(data.receipt_number ?? "");
@@ -58,9 +64,39 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
       setNotes(data.notes ?? "");
       setPeriodStart(data.period_start ?? null);
       setPeriodEnd(data.period_end ?? null);
-      setUnitIdRef((data as any).unit_id ?? null);
+      const uid = (data as any).unit_id ?? null;
+      setUnitIdRef(uid);
+      if (uid) {
+        const [{ data: u }, { data: pays }] = await Promise.all([
+          supabase.from("units").select("rent_amount, rent_type, due_day, rent_timing, contract_start_date, opening_balance, opening_balance_date").eq("id", uid).maybeSingle(),
+          supabase.from("payments").select("id, amount, payment_date, period_start, period_end").eq("unit_id", uid).is("deleted_at", null),
+        ]);
+        if (u) setUnitData(u as any);
+        setAllPayments((pays || []) as any);
+      }
+      setLoading(false);
     })();
   }, [open, paymentId]);
+
+  // إعادة احتساب فورية: نستبدل دفعتنا الحالية بالمبلغ الجديد ونحسب المتأخرات.
+  const arrearsPreview = useMemo(() => {
+    if (!unitData) return null;
+    const newAmount = Number(amount) || 0;
+    const adjusted = allPayments.map((p) =>
+      p.id === paymentId ? { ...p, amount: newAmount } : p,
+    );
+    return getUnitArrears(unitData, adjusted, new Date(), lang as "ar" | "en");
+  }, [unitData, allPayments, amount, paymentId, lang]);
+
+  const arrearsCurrent = useMemo(() => {
+    if (!unitData) return null;
+    return getUnitArrears(unitData, allPayments, new Date(), lang as "ar" | "en");
+  }, [unitData, allPayments, lang]);
+
+  const diff = useMemo(() => {
+    if (!arrearsPreview || !arrearsCurrent) return 0;
+    return arrearsPreview.totalShortfall - arrearsCurrent.totalShortfall;
+  }, [arrearsPreview, arrearsCurrent]);
 
   const periodLabel = (() => {
     if (!periodStart) return lang === "ar" ? "— (دفعة بدون فترة)" : "— (no period)";
@@ -169,6 +205,32 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
               <Label className="text-xs text-sage-500">{t2("notes")}</Label>
               <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="rounded-xl border-sage-200 bg-card" />
             </div>
+            {/* إعادة احتساب فوري للمتأخرات بعد التعديل */}
+            {arrearsPreview && arrearsCurrent && Number(amount) !== originalAmount && (
+              <div className="rounded-xl border border-sage-200 bg-sage-100/40 px-3 py-2.5 space-y-1">
+                <p className="text-[10px] uppercase tracking-wider text-sage-500 font-bold">
+                  {lang === "ar" ? "أثر التعديل على المتأخرات" : "Effect on arrears"}
+                </p>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-sage-500">{lang === "ar" ? "الحالي" : "Current"}</span>
+                  <span className="font-bold text-sage-700">{format(arrearsCurrent.totalShortfall)}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-sage-500">{lang === "ar" ? "بعد الحفظ" : "After save"}</span>
+                  <span className={`font-bold ${arrearsPreview.totalShortfall > 0.009 ? "text-burgundy" : "text-sage-600"}`}>
+                    {format(arrearsPreview.totalShortfall)}
+                  </span>
+                </div>
+                {Math.abs(diff) > 0.009 && (
+                  <div className="flex items-center justify-between text-[11px] pt-1 border-t border-sage-200/60">
+                    <span className="text-sage-500">{lang === "ar" ? "الفرق" : "Change"}</span>
+                    <span className={`font-bold ${diff > 0 ? "text-burgundy" : "text-sage-600"}`}>
+                      {diff > 0 ? "+" : ""}{format(diff)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
         <DialogFooter className="gap-2 sm:gap-2">

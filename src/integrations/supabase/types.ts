@@ -1044,6 +1044,48 @@ export type Database = {
         }
         Relationships: []
       }
+      unit_audit_log: {
+        Row: {
+          action: string
+          building_id: string | null
+          changed_at: string
+          changed_by: string | null
+          entity_id: string
+          entity_type: string
+          field_name: string | null
+          id: string
+          new_value: string | null
+          old_value: string | null
+          unit_id: string | null
+        }
+        Insert: {
+          action: string
+          building_id?: string | null
+          changed_at?: string
+          changed_by?: string | null
+          entity_id: string
+          entity_type: string
+          field_name?: string | null
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          unit_id?: string | null
+        }
+        Update: {
+          action?: string
+          building_id?: string | null
+          changed_at?: string
+          changed_by?: string | null
+          entity_id?: string
+          entity_type?: string
+          field_name?: string | null
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          unit_id?: string | null
+        }
+        Relationships: []
+      }
       units: {
         Row: {
           building_id: string

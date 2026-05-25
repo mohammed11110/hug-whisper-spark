@@ -19,6 +19,8 @@ import { AddMaintenanceDialog } from "@/components/AddMaintenanceDialog";
 import { FileUpload } from "@/components/FileUpload";
 import { getUnitArrears, type PaymentForBalance } from "@/lib/balance";
 import { ArrearsBadge } from "@/components/ArrearsBadge";
+import { UnitHealthBadge } from "@/components/UnitHealthBadge";
+import { exportToCSV } from "@/lib/exportCSV";
 
 interface Unit {
   id: string; building_id: string; unit_number: string; floor: number; type: string;
@@ -238,7 +240,8 @@ export default function UnitDetail() {
             {buildingName && <p className="text-xs opacity-75 mt-1">🏢 {buildingName}</p>}
             {unit.tenant_name && <p className="text-sm opacity-90 mt-0.5">{unit.tenant_name}</p>}
             {unit.tenant_name && (
-              <div className="mt-1.5">
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                <UnitHealthBadge unit={unit as any} payments={payments} />
                 <ArrearsBadge unit={unit as any} payments={payments} block />
               </div>
             )}
@@ -400,6 +403,36 @@ function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLea
       </div>
       <Button variant="outline" onClick={onStatement} className="w-full rounded-xl border-sage-300 text-sage-600 h-11 font-semibold">
         <Receipt className="h-4 w-4 me-1.5" />{t2("tenant_statement")} PDF
+      </Button>
+      <Button
+        variant="ghost"
+        onClick={() => {
+          const rows = arr.cycles.map((c) => ({
+            cycle: c.label,
+            period_start: c.periodStartIso,
+            period_end: c.periodEndIso,
+            rent: c.rent,
+            paid: c.paid,
+            shortfall: c.shortfall,
+            status: c.status,
+          }));
+          if (arr.openingBalance > 0.009) {
+            rows.unshift({
+              cycle: lang === "ar" ? "متأخرات سابقة" : "Prior arrears",
+              period_start: "",
+              period_end: "",
+              rent: arr.openingBalance,
+              paid: 0,
+              shortfall: arr.openingBalance,
+              status: "unpaid",
+            });
+          }
+          if (!rows.length) return;
+          exportToCSV(`unit-${unit.unit_number}-cycles-${new Date().toISOString().slice(0,10)}`, rows);
+        }}
+        className="w-full rounded-xl text-sage-500 h-10 text-xs"
+      >
+        {lang === "ar" ? "تصدير الدورات (CSV)" : "Export cycles (CSV)"}
       </Button>
       <Button variant="ghost" onClick={onLeasePrint} className="w-full rounded-xl text-sage-500 h-10 text-xs">
         {lang === "ar" ? "طباعة العقد" : "Print contract"}
