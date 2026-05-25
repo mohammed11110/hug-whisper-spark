@@ -1,52 +1,69 @@
-## المشكلة
+## الهدف
+1. إزالة كل ما يسبّب «اختفاء» المتأخرات أو تذبذبها بين القيم (٤٠٥ → ٣٢٥ …).
+2. ربط حقل `due_day` الموجود في `units` فعليّاً بمحرّك المتأخرات، بحيث يُضاف إيجار الشهر تلقائياً إلى قائمة المتأخرات فور تجاوز يوم الاستحقاق دون دفع.
 
-عند حفظ الإيصال يتم تعديل حقول الوحدة:
-- `opening_balance` يُنقص بمقدار ما دُفع من متأخرات سابقة
-- `opening_balance_date` يُقدَّم إذا تمت تسوية الفترة بالكامل
-- `last_paid_date` و `status` يتحدَّثان
+---
 
-عند الحذف الناعم (`deleted_at = now`) في `src/pages/Payments.tsx`، **لا يُعكس أيّ من هذه التعديلات**، فيبقى `opening_balance` منخفضًا و`opening_balance_date` متقدّمًا، بينما `getUnitArrears` يستبعد الإيصال المحذوف — والنتيجة: شارة المتأخرات تظهر رقمًا خاطئًا أقل من الواقع (وحالة "ياسر" تتكرر معكوسة بعد الحذف).
+## ما الذي يسبّب التعارض اليوم؟
 
-نفس المشكلة عند الاسترجاع من السلة في `src/pages/PaymentsTrash.tsx`.
+بعد فحص `balance.ts` و`AddPaymentDialog.tsx` و`unitState.ts`:
 
-## الحل الجذري
+- ✅ تمّ سابقاً منع الازدواج (دفعة «متأخرات سابقة» لم تعد تُخصم من أول دورة).
+- ✅ تمّ سابقاً وقف تعديل `opening_balance` عند الحفظ.
+- ⚠️ ما زال **مصدران للحقيقة** متعايشَين:
+  - `units.opening_balance` + `opening_balance_date` (تاريخي).
+  - `units.last_paid_date` + `units.status` (مشتقّان من الدفعات لكن يُكتبان يدوياً من `recomputeUnitStateFromPayments` ومن trigger قاعدة البيانات `sync_unit_last_paid_date` في نفس الوقت → سباق وكتابة مزدوجة).
+- ⚠️ `getUnitArrears` يستخدم `getAnchorDay()` المشتقّ من **يوم** `opening_balance_date`، ويتجاهل حقل `units.due_day` كليّاً. أي تغيير من المستخدم على «يوم الاستحقاق» لا أثر له.
+- ⚠️ صفحات مهمَلة/مكرّرة: `MonthlyCollection.tsx` تعرض حسابات قديمة لا تستخدم `getUnitArrears`، وقد تُظهر أرقاماً مختلفة عن البطاقة والإيصال.
 
-إعادة اشتقاق حالة الوحدة من مصدر واحد بعد كل عملية حذف/استرجاع، بدل محاولة "عكس" التعديل يدويًا.
+---
 
-### الخطوات
+## الخطّة
 
-**1) دالة مساعدة جديدة** `src/lib/unitState.ts`
-- `recomputeUnitStateFromPayments(unitId)` تقوم بـ:
-  - جلب الوحدة + كل المدفوعات غير المحذوفة
-  - حساب `last_paid_date` = أحدث `payment_date` (أو `null` إذا لا توجد)
-  - حساب `status` عبر `getUnitArrears`: `paid` إذا `totalShortfall === 0`، وإلا `late` (أو `soon` حسب التاريخ مقابل `due_day`)
-  - **عدم تعديل** `opening_balance` و `opening_balance_date` هنا (المنطق التالي يُلغي حاجة تعديلهما)
-- تُكتب التحديثات بـ `update()` واحدة على `units`.
+### 1) مصدر واحد لحالة الوحدة
+- حذف الاستدعاء اليدوي لـ `recomputeUnitStateFromPayments` من `AddPaymentDialog`، `Payments`، `PaymentsTrash`.
+- استبدالها بـ **trigger قاعدة بيانات موحَّد** على `payments` (insert/update/delete) يحدّث `units.last_paid_date` و`units.status` (paid/late/soon) باستخدام نفس منطق `getUnitArrears` المنقول إلى دالة SQL مبسّطة:
+  - `status = 'late'` إذا توجد دورة مستحقّة غير مدفوعة أو `opening_balance > Σ(دفعات بنطاق يوم واحد على المرسى)`.
+  - `status = 'paid'` إذا كل الدورات حتى اليوم مدفوعة بالكامل.
+  - `status = 'soon'` إذا لا دفعات بعد ولا متأخرات.
+- إبقاء `opening_balance` و`opening_balance_date` **للقراءة فقط** بعد الإنشاء (لا تُحدَّث من أي مكان في الكود إلا من شاشة تعديل الوحدة صراحةً).
 
-**2) إلغاء التعديل الجانبي على `opening_balance` عند الحفظ** في `AddPaymentDialog.tsx` (السطور 586-597)
-- إزالة `upd.opening_balance = ...` و `upd.opening_balance_date = ...` تمامًا.
-- `getUnitArrears` يطرح المدفوعات السابقة (sentinel cycle) من `opening_balance` ديناميكيًا، فالمتأخرات السابقة "تتقلّص" تلقائيًا عبر صفوف `payments` نفسها بدون لمس عمود الوحدة.
-- الفائدة: عند حذف أي إيصال، يكفي حذف صف الدفع لتعود المتأخرات تلقائيًا — لا يوجد حقل ملوّث يحتاج عكسًا.
-- نُبقي فقط `last_paid_date` و `status`.
+### 2) ربط `due_day` بمحرّك المتأخرات
+- تعديل `getAnchorDay(unit)` ليُفضّل `unit.due_day` إن وُجد (1..28)، وإلا يرجع إلى يوم `opening_balance_date`/`contract_start_date`.
+- `getCycleByStartMonth` يبقى كما هو، لكنه سيستخدم `due_day` كيوم بداية الدورة الشهرية.
+- النتيجة: إذا كان `due_day = 5` ولم يُدفع إيجار الشهر بحلول 5/الشهر → يظهر تلقائياً في قائمة «المتأخرات» للوحدة وفي البطاقة الحمراء وفي الإيصال التالي (تلقائي/يدوي).
 
-**3) استدعاء `recomputeUnitStateFromPayments` بعد**:
-- الحذف الناعم في `Payments.tsx → handleDelete` (بعد `update deleted_at`).
-- الاسترجاع في `PaymentsTrash.tsx → restore` (بعد `update deleted_at = null`).
-- الحذف النهائي في `PaymentsTrash.tsx → purge` (بعد `delete()`).
-- الحفظ في `AddPaymentDialog.tsx` (يحلّ محل منطق `newStatus` المحلي ويضمن اتّساقًا واحدًا).
+### 3) حذف/تنظيف ما لا يُستخدم وما يسبّب أرقاماً متعارضة
+- **حذف**: `src/pages/MonthlyCollection.tsx` (حسابات قديمة موازية، تُظهر «٣٥٠» بينما البطاقة «٣٢٥») — والتأكد من إزالة الراوت من `App.tsx` والروابط من `AppSidebar`/`BottomNav` إن وُجدت.
+- **حذف** `recomputeUnitStateFromPayments` و`src/lib/unitState.ts` بعد نقل المنطق إلى trigger.
+- **حذف** أي تعديل لـ `opening_balance`/`opening_balance_date` متبقٍّ في `AddPaymentDialog` (تأكيد).
+- **حذف** trigger `sync_unit_last_paid_date` الحالي واستبداله بالنسخة الجديدة الموحَّدة.
 
-**4) اختبار الانحدار** في `src/test/balance-arrears.test.ts`:
-- سيناريو ياسر: `opening_balance=405` → دفع 40 → الباقي 365 → حذف الإيصال → الباقي يعود 405.
-- دفع كامل ثم حذف → `status` تعود من `paid` إلى `late`، و `last_paid_date` تُحدَّث للأحدث المتبقي.
+### 4) واجهة الوحدة
+- في `EditUnitDialog`/`AddUnitDialog`: إظهار حقل «يوم الاستحقاق الشهري (1–28)» بوضوح مع شرح موجز «يُحتسب الإيجار متأخراً إن لم يُدفع بحلول هذا اليوم من الشهر».
+- في `UnitDetail` بطاقة المتأخرات: إضافة سطر صغير «يوم الاستحقاق: ٥ من كل شهر».
 
-### الملفات المتأثرة
+### 5) اختبارات
+- توسيع `balance-arrears.test.ts`:
+  - `due_day = 5`، آخر دفعة 4/الشهر → في 6/الشهر تظهر دورة الشهر الحالي في المتأخرات.
+  - تعديل `due_day` بأثر رجعي يعيد حساب الدورات.
+  - حذف الإيصال → الـ trigger يعيد `status` و`last_paid_date` تلقائياً.
 
-- جديد: `src/lib/unitState.ts`
-- تعديل: `src/components/AddPaymentDialog.tsx` (إزالة 586-597، استبدال 599 بالاستدعاء الموحّد)
-- تعديل: `src/pages/Payments.tsx` (إضافة استدعاء في `handleDelete`)
-- تعديل: `src/pages/PaymentsTrash.tsx` (إضافة استدعاء في `restore` و `purge`)
-- تحديث: `src/test/balance-arrears.test.ts` (سيناريوهات الحذف/الاسترجاع)
+---
 
-### لماذا هذا "جذري"؟
+## الملفات المتأثّرة
+- migration جديدة: trigger موحَّد على `payments` + دوال SQL مساعدة.
+- `src/lib/balance.ts` — `getAnchorDay` يحترم `due_day`.
+- `src/components/AddPaymentDialog.tsx` — إزالة `recomputeUnitStateFromPayments`.
+- `src/pages/Payments.tsx`, `src/pages/PaymentsTrash.tsx` — إزالة الاستدعاء.
+- حذف: `src/lib/unitState.ts`, `src/pages/MonthlyCollection.tsx` (+ تنظيف الراوت).
+- `src/components/EditUnitDialog.tsx`, `AddUnitDialog.tsx` — إبراز `due_day`.
+- `src/pages/UnitDetail.tsx` — عرض يوم الاستحقاق.
+- `src/test/balance-arrears.test.ts` — اختبارات `due_day` و delete-revert.
 
-نُلغي مصدر الحقيقة المزدوج: `opening_balance` المعدَّل + صفوف `payments`. بعد التغيير، **صفوف payments هي مصدر الحقيقة الوحيد** للمتأخرات التراكمية، و`opening_balance` يبقى ثابتًا كرصيد افتتاحي تاريخي. أي عملية CRUD على الدفعات تنعكس فورًا في شارة المتأخرات بلا حاجة لـ "عكس يدوي".
+---
+
+## ملاحظات تقنية للمراجعة
+- الـ trigger سيُكتب بـ `LANGUAGE plpgsql SECURITY DEFINER` ومسار `search_path = public`.
+- لن نلمس `auth/storage/realtime/vault`.
+- لا تغيير على `opening_balance`؛ يبقى رقماً تاريخيّاً ثابتاً.
