@@ -257,8 +257,30 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
                 </div>
               </Field>
               <Field label="تاريخ بداية العقد / Contract start">
-                <Input type="date" value={contractStart} onChange={(e) => setContractStart(e.target.value)}
+                <Input type="date" value={contractStart} onChange={(e) => {
+                  const v = e.target.value;
+                  setContractStart(v);
+                  if (v) {
+                    const d = new Date(v).getDate();
+                    if (d >= 1 && d <= 28) setDueDay(String(d));
+                  }
+                }}
                   className="rounded-xl border-sage-200 bg-card" />
+              </Field>
+              <Field label={lang === "ar" ? "يوم الاستحقاق الشهري (١–٢٨)" : "Monthly due day (1–28)"}>
+                <Input type="number" inputMode="numeric" min={1} max={28} value={dueDay}
+                  onChange={(e) => setDueDay(e.target.value)}
+                  onBlur={() => {
+                    const n = parseInt(dueDay);
+                    if (!dueDay || isNaN(n) || n < 1) setDueDay("1");
+                    else if (n > 28) setDueDay("28");
+                  }}
+                  className="rounded-xl border-sage-200 bg-card" />
+                <p className="text-[11px] text-sage-500 mt-1 leading-relaxed">
+                  {lang === "ar"
+                    ? "اليوم من كل شهر الذي يستحق فيه الإيجار. إذا لم يُدفع بعده تظهر الوحدة في المتأخرات تلقائياً."
+                    : "Day of each month rent is due. If unpaid after this day, the unit appears in arrears automatically."}
+                </p>
               </Field>
               <Field label={`${t2("rent_type")} (دورة الدفع)`}>
                 <div className="flex gap-1.5">
