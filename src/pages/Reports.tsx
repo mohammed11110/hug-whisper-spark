@@ -318,7 +318,7 @@ export default function Reports() {
           />
           <Kpi
             icon={<AlertCircle className="h-4 w-4" />}
-            label={lang === "ar" ? "متأخرات" : "Late"}
+            label={lang === "ar" ? "وحدات متأخرة" : "Late units"}
             value={String(late)}
             tone="danger"
           />

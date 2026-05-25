@@ -150,8 +150,8 @@ export default function Payments() {
       const d = new Date(r.payment_date);
       if (filter === "month" && (d.getMonth() !== now.getMonth() || d.getFullYear() !== now.getFullYear())) return false;
       if (filter === "year" && d.getFullYear() !== now.getFullYear()) return false;
-      if (statusFilter === "paid" && r.unit_status !== "paid") return false;
-      if (statusFilter === "late" && r.unit_status !== "late") return false;
+      if (statusFilter === "paid" && !(r.remaining <= 0.009)) return false;
+      if (statusFilter === "late" && !(r.remaining > 0.009)) return false;
       if (q) {
         return (
           r.receipt_number?.toLowerCase().includes(q) ||
