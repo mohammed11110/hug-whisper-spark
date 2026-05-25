@@ -20,6 +20,10 @@ interface FileUploadProps {
   label?: string;
   /** If true, store object path (private bucket); if false, store public URL (public bucket). */
   isPrivate?: boolean;
+  /** If true, allow selecting and uploading multiple files at once. Uses onMultipleUploaded for results. */
+  multiple?: boolean;
+  /** Called once after a multi-upload batch finishes with the uploaded paths/URLs. */
+  onMultipleUploaded?: (values: string[]) => void;
 }
 
 export function FileUpload({
@@ -31,6 +35,8 @@ export function FileUpload({
   maxSizeMB = 10,
   label = "رفع ملف",
   isPrivate = true,
+  multiple = false,
+  onMultipleUploaded,
 }: FileUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
