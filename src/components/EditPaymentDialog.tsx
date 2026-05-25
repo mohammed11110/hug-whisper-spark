@@ -205,6 +205,32 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
               <Label className="text-xs text-sage-500">{t2("notes")}</Label>
               <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="rounded-xl border-sage-200 bg-card" />
             </div>
+            {/* إعادة احتساب فوري للمتأخرات بعد التعديل */}
+            {arrearsPreview && arrearsCurrent && Number(amount) !== originalAmount && (
+              <div className="rounded-xl border border-sage-200 bg-sage-100/40 px-3 py-2.5 space-y-1">
+                <p className="text-[10px] uppercase tracking-wider text-sage-500 font-bold">
+                  {lang === "ar" ? "أثر التعديل على المتأخرات" : "Effect on arrears"}
+                </p>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-sage-500">{lang === "ar" ? "الحالي" : "Current"}</span>
+                  <span className="font-bold text-sage-700">{format(arrearsCurrent.totalShortfall)}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-sage-500">{lang === "ar" ? "بعد الحفظ" : "After save"}</span>
+                  <span className={`font-bold ${arrearsPreview.totalShortfall > 0.009 ? "text-burgundy" : "text-sage-600"}`}>
+                    {format(arrearsPreview.totalShortfall)}
+                  </span>
+                </div>
+                {Math.abs(diff) > 0.009 && (
+                  <div className="flex items-center justify-between text-[11px] pt-1 border-t border-sage-200/60">
+                    <span className="text-sage-500">{lang === "ar" ? "الفرق" : "Change"}</span>
+                    <span className={`font-bold ${diff > 0 ? "text-burgundy" : "text-sage-600"}`}>
+                      {diff > 0 ? "+" : ""}{format(diff)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
         <DialogFooter className="gap-2 sm:gap-2">
