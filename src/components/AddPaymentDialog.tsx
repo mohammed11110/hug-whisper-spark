@@ -107,11 +107,9 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const [arrearsPromptOpen, setArrearsPromptOpen] = useState(false);
   const [pendingReceipt, setPendingReceipt] = useState<any>(null);
   const [collectPriorArrears, setCollectPriorArrears] = useState(false);
-  const [showAllMonths, setShowAllMonths] = useState(false);
   const [allPaid, setAllPaid] = useState(false);
   const [activeRent, setActiveRent] = useState<number>(0);
   const [showArrearsList, setShowArrearsList] = useState(false);
-  const [paidMonthsKeys, setPaidMonthsKeys] = useState<Set<string>>(new Set());
   // Smart payment modes: "auto" (distribute amount oldest→newest, spill into advance)
   // or "manual" (pick a specific cycle from the dropdown).
   const [payMode, setPayMode] = useState<"auto" | "manual">("auto");
