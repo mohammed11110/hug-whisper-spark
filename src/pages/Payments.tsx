@@ -142,6 +142,11 @@ export default function Payments() {
   };
 
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    const h = () => load();
+    window.addEventListener("amlaki:payment-added", h);
+    return () => window.removeEventListener("amlaki:payment-added", h);
+  }, []);
 
   const filtered = useMemo(() => {
     const now = new Date();
