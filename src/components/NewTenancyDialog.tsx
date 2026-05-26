@@ -160,7 +160,8 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
     // months = round(arrears / rent), opening_balance_date = اليوم − months × دورة.
     const arrN = parseFloat(arrears) || 0;
     if (arrN > 0 && rentNum > 0 && rentType === "monthly") {
-      const months = Math.max(1, Math.round(arrN / rentNum));
+      // نستخدم floor كي يظل المجموع = arrN بالضبط (أشهر كاملة + باقي).
+      const months = Math.floor(arrN / rentNum);
       const remainder = Math.max(0, arrN - months * rentNum);
       const monthsBack = rentTiming === "arrears" ? months : Math.max(0, months - 1);
       const today = new Date();

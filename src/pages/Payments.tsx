@@ -142,6 +142,11 @@ export default function Payments() {
   };
 
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    const h = () => load();
+    window.addEventListener("amlaki:payment-added", h);
+    return () => window.removeEventListener("amlaki:payment-added", h);
+  }, []);
 
   const filtered = useMemo(() => {
     const now = new Date();
@@ -450,10 +455,6 @@ export default function Payments() {
         )}
       </div>
 
-      <button onClick={() => setAddOpen(true)} aria-label={t2("register_payment")}
-        className="fixed bottom-24 end-5 z-30 h-14 w-14 rounded-full bg-gradient-sage text-primary-foreground shadow-soft flex items-center justify-center active:scale-95 transition-transform">
-        <Plus className="h-6 w-6" />
-      </button>
 
       <AddPaymentDialog open={addOpen} onOpenChange={setAddOpen} onSaved={load} />
       <EditPaymentDialog open={!!editId} onOpenChange={(o) => !o && setEditId(null)} paymentId={editId} onSaved={load} />

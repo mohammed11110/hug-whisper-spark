@@ -108,7 +108,8 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
       ...(occupied && arrN > 0 && rentN > 0 && rentType === "monthly"
         ? (() => {
             const dueInt = Math.min(28, Math.max(1, parseInt(dueDay) || 1));
-            const months = Math.max(1, Math.round(arrN / rentN));
+            // floor + remainder كي لا يتم تقريب المتأخرات لأعلى.
+            const months = Math.floor(arrN / rentN);
             const remainder = Math.max(0, arrN - months * rentN);
             const monthsBack = rentTiming === "arrears" ? months : Math.max(0, months - 1);
             const today = new Date();
