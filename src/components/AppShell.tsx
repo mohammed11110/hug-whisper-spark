@@ -3,6 +3,7 @@ import { Outlet } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ActivityNotifier } from "@/components/ActivityNotifier";
+import { QuickAddPaymentFab } from "@/components/QuickAddPaymentFab";
 
 /**
  * Layout shell: on iPad/desktop (md+) shows a collapsible sidebar next to the
@@ -27,6 +28,8 @@ export function AppShell() {
           <Outlet />
         </main>
       </div>
+      <QuickAddPaymentFab />
     </SidebarProvider>
   );
 }
+
