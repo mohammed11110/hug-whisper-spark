@@ -280,25 +280,43 @@ export function getUnitArrears(
   let oldestUnpaid: ArrearsCycle | null = null;
 
   // 1) متأخرات سابقة (opening_balance) — دورة افتراضية في رأس القائمة.
+  //    نخصم منها الدفعات «المُوجَّهة للمتأخرات السابقة» وهي الدفعات ذات
+  //    نطاق يوم واحد (period_start == period_end) على تاريخ المرسى.
   if (opening > 0) {
     const anchorIsoForOpening = unit.opening_balance_date || unit.contract_start_date || null;
     const obDate = anchorIsoForOpening ? new Date(anchorIsoForOpening) : (anchor || asOf);
     const obIso = anchorIsoForOpening || ISO(obDate);
-    const priorCycle: ArrearsCycle = {
-      periodStart: obDate,
-      periodEnd: obDate,
-      periodStartIso: obIso,
-      periodEndIso: obIso,
-      label: lang === "ar" ? "متأخرات سابقة" : "Prior arrears",
-      rent: opening,
-      paid: 0,
-      shortfall: opening,
-      status: "unpaid",
-    };
-    cycles.push(priorCycle);
-    totalShortfall += opening;
-    unpaidCount += 1;
-    oldestUnpaid = priorCycle;
+
+    const priorPaid = payments
+      .filter(
+        (p) =>
+          p.unit_id === unit.id &&
+          !p.deleted_at &&
+          p.period_start && p.period_end &&
+          p.period_start === p.period_end &&
+          (!anchorIsoForOpening || p.period_start === anchorIsoForOpening),
+      )
+      .reduce((s, p) => s + num(p.amount), 0);
+
+    const openingRemaining = Math.max(0, opening - priorPaid);
+
+    if (openingRemaining > 0.009) {
+      const priorCycle: ArrearsCycle = {
+        periodStart: obDate,
+        periodEnd: obDate,
+        periodStartIso: obIso,
+        periodEndIso: obIso,
+        label: lang === "ar" ? "متأخرات سابقة" : "Prior arrears",
+        rent: opening,
+        paid: priorPaid,
+        shortfall: openingRemaining,
+        status: priorPaid > 0.009 ? "partial" : "unpaid",
+      };
+      cycles.push(priorCycle);
+      totalShortfall += openingRemaining;
+      unpaidCount += 1;
+      oldestUnpaid = priorCycle;
+    }
   }
 
   // 2) دورات إيجار شهرية منذ المرسى.
