@@ -346,8 +346,16 @@ export function getUnitArrears(
       const cycleMonth1to12 = ((cycleMonthIdx % 12) + 12) % 12 + 1;
       const c = getCycleByStartMonth(cycleYear, cycleMonth1to12, anchorDay);
 
+      // Match by OVERLAP rather than start-within-cycle, so a payment whose
+      // recorded period uses a different day-of-month (e.g. 1→30) still
+      // counts toward a cycle anchored on a custom due_day (e.g. 23→22).
       const paid = cyclePays
-        .filter((p) => p.period_start && p.period_start >= c.startIso && p.period_start <= c.endIso)
+        .filter((p) => {
+          if (!p.period_start) return false;
+          const ps = p.period_start;
+          const pe = p.period_end || p.period_start;
+          return ps <= c.endIso && pe >= c.startIso;
+        })
         .reduce((s, p) => s + num(p.amount), 0);
 
 
