@@ -96,15 +96,44 @@ export default function Settings() {
     }
   };
 
-  // ---- Logo handling (drag & drop + file) ----
+  // ---- Logo handling (drag & drop + file) — auto-resize to 1024x1024 PNG ----
   const handleLogoFile = (f: File | undefined) => {
     if (!f) return;
     if (!f.type.startsWith("image/")) { toast.error(tr(lang, "صيغة غير مدعومة", "Unsupported format")); return; }
-    if (f.size > 500_000) { toast.error(tr(lang, "الحد 500 كيلوبايت", "Max 500KB")); return; }
+    if (f.size > 5_000_000) { toast.error(tr(lang, "الحد 5 ميجابايت", "Max 5MB")); return; }
     const reader = new FileReader();
-    reader.onload = () => update({ brand: { ...settings.brand, logo: String(reader.result) } });
+    reader.onload = () => {
+      const src = String(reader.result);
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const SIZE = 1024;
+          const canvas = document.createElement("canvas");
+          canvas.width = SIZE; canvas.height = SIZE;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) throw new Error("canvas");
+          ctx.clearRect(0, 0, SIZE, SIZE);
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = "high";
+          const ratio = Math.min(SIZE / img.width, SIZE / img.height);
+          const w = Math.round(img.width * ratio);
+          const h = Math.round(img.height * ratio);
+          const x = Math.round((SIZE - w) / 2);
+          const y = Math.round((SIZE - h) / 2);
+          ctx.drawImage(img, x, y, w, h);
+          const out = canvas.toDataURL("image/png");
+          update({ brand: { ...settings.brand, logo: out } });
+          toast.success(tr(lang, "تم ضبط الشعار على 1024×1024", "Logo resized to 1024×1024"));
+        } catch {
+          toast.error(tr(lang, "تعذّر معالجة الصورة", "Couldn't process image"));
+        }
+      };
+      img.onerror = () => toast.error(tr(lang, "صورة غير صالحة", "Invalid image"));
+      img.src = src;
+    };
     reader.readAsDataURL(f);
   };
+
 
   // ---- Receipt builder helpers ----
   const setPrefix = (p: string) => update({ receipt: { ...settings.receipt, prefix: p } });
