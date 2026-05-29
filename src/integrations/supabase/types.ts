@@ -875,6 +875,7 @@ export type Database = {
       }
       subscriptions: {
         Row: {
+          addon_units: number
           cancel_at_period_end: boolean | null
           created_at: string | null
           current_period_end: string | null
@@ -891,6 +892,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          addon_units?: number
           cancel_at_period_end?: boolean | null
           created_at?: string | null
           current_period_end?: string | null
@@ -907,6 +909,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          addon_units?: number
           cancel_at_period_end?: boolean | null
           created_at?: string | null
           current_period_end?: string | null
@@ -1336,6 +1339,7 @@ export type Database = {
       recompute_unit_state: { Args: { _uid: string }; Returns: undefined }
       redeem_promo_code: { Args: { _code: string }; Returns: Json }
       user_active_plan: { Args: { _user_id: string }; Returns: string }
+      user_unit_allowance: { Args: { _user_id: string }; Returns: number }
     }
     Enums: {
       app_role: "admin" | "user"

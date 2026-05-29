@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
 import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
+import { BuyAddonUnitsDialog } from "@/components/BuyAddonUnitsDialog";
 
 const UNIT_TYPES = ["apartment", "shop", "room", "villa"] as const;
 const RENT_TYPES = ["monthly", "daily", "yearly"] as const;
@@ -42,6 +43,7 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
   const t2 = useT2();
   const { lang } = useI18n();
   const { format } = useCurrency();
+  const [showAddons, setShowAddons] = useState(false);
   const [unitNumber, setUnitNumber] = useState("");
   const [floor, setFloor] = useState<string>("1");
   const [type, setType] = useState<typeof UNIT_TYPES[number]>("apartment");
@@ -126,7 +128,8 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
     if (error || !created) {
       setBusy(false);
       if (error?.message?.includes("unit_quota_exceeded")) {
-        return toast.error("لقد وصلت إلى حد الوحدات في باقتك الحالية. قم بالترقية لإضافة المزيد. / You've reached your plan's unit limit. Upgrade to add more.");
+        setShowAddons(true);
+        return;
       }
       return toast.error(error?.message || "");
     }
@@ -179,6 +182,7 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={guard.handleOpenChange}>
       <DialogContent className="max-w-[400px] rounded-3xl border-sage-200 bg-background max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -408,6 +412,8 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
         {guard.ConfirmDiscardUI}
       </DialogContent>
     </Dialog>
+    <BuyAddonUnitsDialog open={showAddons} onOpenChange={setShowAddons} />
+    </>
   );
 }
 

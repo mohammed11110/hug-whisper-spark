@@ -14,11 +14,41 @@ function getSupabase() {
 
 // Map product external_id -> plan label stored in profiles.subscription_plan
 const PRODUCT_TO_PLAN: Record<string, string> = {
-  amlaki_starter: 'starter',
+  amlaki_starter: 'personal', // legacy product, now treated as Personal
+  amlaki_personal: 'personal',
   amlaki_pro: 'pro',
   amlaki_business: 'business',
   amlaki_enterprise: 'enterprise',
 };
+
+const ADDON_PRODUCTS = new Set([
+  'amlaki_personal_addon',
+  'amlaki_pro_addon',
+  'amlaki_business_addon',
+]);
+
+function pickPrimaryItem(items: any[]): any | undefined {
+  if (!Array.isArray(items) || items.length === 0) return undefined;
+  return (
+    items.find(
+      (it) =>
+        it?.product?.importMeta?.externalId &&
+        !ADDON_PRODUCTS.has(it.product.importMeta.externalId),
+    ) ?? items[0]
+  );
+}
+
+function sumAddonUnits(items: any[]): number {
+  if (!Array.isArray(items)) return 0;
+  let total = 0;
+  for (const it of items) {
+    const ext = it?.product?.importMeta?.externalId;
+    if (ext && ADDON_PRODUCTS.has(ext)) {
+      total += Number(it.quantity ?? 0);
+    }
+  }
+  return total;
+}
 
 async function syncProfile(userId: string, fields: Record<string, unknown>) {
   await getSupabase()
@@ -34,17 +64,22 @@ async function handleSubscriptionCreated(data: any, env: PaddleEnv) {
     console.error('No userId in customData');
     return;
   }
-  const item = items[0];
-  const priceId = item.price.importMeta?.externalId;
-  const productId = item.product.importMeta?.externalId;
+  const item = pickPrimaryItem(items);
+  if (!item) {
+    console.warn('Skipping subscription: no items');
+    return;
+  }
+  const priceId = item.price?.importMeta?.externalId;
+  const productId = item.product?.importMeta?.externalId;
   if (!priceId || !productId) {
     console.warn('Skipping subscription: missing importMeta.externalId', {
-      rawPriceId: item.price.id,
-      rawProductId: item.product.id,
+      rawPriceId: item.price?.id,
+      rawProductId: item.product?.id,
     });
     return;
   }
 
+  const addonUnits = sumAddonUnits(items);
   const trialEndsAt = status === 'trialing' ? (currentBillingPeriod?.endsAt || nextBilledAt) : null;
   const planLabel = PRODUCT_TO_PLAN[productId] || 'pro';
   const interval = item.price.billingCycle?.interval === 'year' ? 'yearly' : 'monthly';
@@ -60,6 +95,7 @@ async function handleSubscriptionCreated(data: any, env: PaddleEnv) {
       current_period_start: currentBillingPeriod?.startsAt,
       current_period_end: currentBillingPeriod?.endsAt,
       trial_ends_at: trialEndsAt,
+      addon_units: addonUnits,
       environment: env,
       updated_at: new Date().toISOString(),
     },
@@ -81,6 +117,11 @@ async function handleSubscriptionCreated(data: any, env: PaddleEnv) {
 
 async function handleSubscriptionUpdated(data: any, env: PaddleEnv) {
   const { id, status, currentBillingPeriod, scheduledChange, customData, items } = data;
+  const addonUnits = sumAddonUnits(items);
+  const primary = pickPrimaryItem(items);
+  const productId = primary?.product?.importMeta?.externalId;
+  const priceId = primary?.price?.importMeta?.externalId;
+
   await getSupabase()
     .from('subscriptions')
     .update({
@@ -88,6 +129,9 @@ async function handleSubscriptionUpdated(data: any, env: PaddleEnv) {
       current_period_start: currentBillingPeriod?.startsAt,
       current_period_end: currentBillingPeriod?.endsAt,
       cancel_at_period_end: scheduledChange?.action === 'cancel',
+      addon_units: addonUnits,
+      ...(productId ? { product_id: productId } : {}),
+      ...(priceId ? { price_id: priceId } : {}),
       updated_at: new Date().toISOString(),
     })
     .eq('paddle_subscription_id', id)
@@ -95,10 +139,8 @@ async function handleSubscriptionUpdated(data: any, env: PaddleEnv) {
 
   const userId = customData?.userId;
   if (userId) {
-    const item = items?.[0];
-    const productId = item?.product?.importMeta?.externalId;
     const planLabel = productId ? PRODUCT_TO_PLAN[productId] : undefined;
-    const interval = item?.price?.billingCycle?.interval === 'year' ? 'yearly' : 'monthly';
+    const interval = primary?.price?.billingCycle?.interval === 'year' ? 'yearly' : 'monthly';
     await syncProfile(userId, {
       subscription_status: status,
       subscription_expires_at: currentBillingPeriod?.endsAt,
