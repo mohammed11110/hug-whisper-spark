@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
 import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
+import { BuyAddonUnitsDialog } from "@/components/BuyAddonUnitsDialog";
 
 const TYPES = ["tower", "compound", "villa", "commercial", "mixed"] as const;
 
@@ -27,6 +28,7 @@ export function AddBuildingDialog({ open, onOpenChange, onCreated }: { open: boo
   const [city, setCity] = useState("");
   const [address, setAddress] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showAddons, setShowAddons] = useState(false);
 
   const guard = useUnsavedGuard({ open, onOpenChange });
 
@@ -63,7 +65,8 @@ export function AddBuildingDialog({ open, onOpenChange, onCreated }: { open: boo
       const { error: uErr } = await supabase.from("units").insert(rows);
       if (uErr) {
         if (uErr.message?.includes("unit_quota_exceeded")) {
-          toast.error("تم إنشاء المبنى لكن لم تُضف الوحدات: تجاوزت حد الباقة. / Building created but units skipped: plan limit reached.");
+          toast.error("تجاوزت حد الباقة — يمكنك شراء وحدات إضافية / Plan limit reached — buy add-on units");
+          setShowAddons(true);
         } else {
           toast.error(uErr.message);
         }
@@ -88,6 +91,7 @@ export function AddBuildingDialog({ open, onOpenChange, onCreated }: { open: boo
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={guard.handleOpenChange}>
       <DialogContent className="max-w-[400px] rounded-3xl border-sage-200 bg-background">
         <DialogHeader>
@@ -145,6 +149,8 @@ export function AddBuildingDialog({ open, onOpenChange, onCreated }: { open: boo
         {guard.ConfirmDiscardUI}
       </DialogContent>
     </Dialog>
+    <BuyAddonUnitsDialog open={showAddons} onOpenChange={setShowAddons} />
+    </>
   );
 }
 
