@@ -43,6 +43,7 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
   const t2 = useT2();
   const { lang } = useI18n();
   const { format } = useCurrency();
+  const [showAddons, setShowAddons] = useState(false);
   const [unitNumber, setUnitNumber] = useState("");
   const [floor, setFloor] = useState<string>("1");
   const [type, setType] = useState<typeof UNIT_TYPES[number]>("apartment");
