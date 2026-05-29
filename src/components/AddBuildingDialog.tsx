@@ -148,6 +148,8 @@ export function AddBuildingDialog({ open, onOpenChange, onCreated }: { open: boo
         {guard.ConfirmDiscardUI}
       </DialogContent>
     </Dialog>
+    <BuyAddonUnitsDialog open={showAddons} onOpenChange={setShowAddons} />
+    </>
   );
 }
 
