@@ -64,17 +64,22 @@ async function handleSubscriptionCreated(data: any, env: PaddleEnv) {
     console.error('No userId in customData');
     return;
   }
-  const item = items[0];
-  const priceId = item.price.importMeta?.externalId;
-  const productId = item.product.importMeta?.externalId;
+  const item = pickPrimaryItem(items);
+  if (!item) {
+    console.warn('Skipping subscription: no items');
+    return;
+  }
+  const priceId = item.price?.importMeta?.externalId;
+  const productId = item.product?.importMeta?.externalId;
   if (!priceId || !productId) {
     console.warn('Skipping subscription: missing importMeta.externalId', {
-      rawPriceId: item.price.id,
-      rawProductId: item.product.id,
+      rawPriceId: item.price?.id,
+      rawProductId: item.product?.id,
     });
     return;
   }
 
+  const addonUnits = sumAddonUnits(items);
   const trialEndsAt = status === 'trialing' ? (currentBillingPeriod?.endsAt || nextBilledAt) : null;
   const planLabel = PRODUCT_TO_PLAN[productId] || 'pro';
   const interval = item.price.billingCycle?.interval === 'year' ? 'yearly' : 'monthly';
@@ -82,6 +87,20 @@ async function handleSubscriptionCreated(data: any, env: PaddleEnv) {
   await getSupabase().from('subscriptions').upsert(
     {
       user_id: userId,
+      paddle_subscription_id: id,
+      paddle_customer_id: customerId,
+      product_id: productId,
+      price_id: priceId,
+      status,
+      current_period_start: currentBillingPeriod?.startsAt,
+      current_period_end: currentBillingPeriod?.endsAt,
+      trial_ends_at: trialEndsAt,
+      addon_units: addonUnits,
+      environment: env,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'paddle_subscription_id' },
+  );
       paddle_subscription_id: id,
       paddle_customer_id: customerId,
       product_id: productId,
