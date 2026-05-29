@@ -65,7 +65,8 @@ export default function Settings() {
   const planLabel = (p: string) => {
     const map: Record<string, { ar: string; en: string }> = {
       free: { ar: "الخطة المجانية", en: "Free plan" },
-      starter: { ar: "خطة Starter", en: "Starter plan" },
+      personal: { ar: "خطة Personal", en: "Personal plan" },
+      starter: { ar: "خطة Personal", en: "Personal plan" }, // legacy alias
       pro: { ar: "خطة Pro", en: "Pro plan" },
       business: { ar: "خطة Business", en: "Business plan" },
       enterprise: { ar: "خطة Enterprise", en: "Enterprise plan" },
