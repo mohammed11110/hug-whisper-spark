@@ -65,7 +65,8 @@ export function AddBuildingDialog({ open, onOpenChange, onCreated }: { open: boo
       const { error: uErr } = await supabase.from("units").insert(rows);
       if (uErr) {
         if (uErr.message?.includes("unit_quota_exceeded")) {
-          toast.error("تم إنشاء المبنى لكن لم تُضف الوحدات: تجاوزت حد الباقة. / Building created but units skipped: plan limit reached.");
+          toast.error("تجاوزت حد الباقة — يمكنك شراء وحدات إضافية / Plan limit reached — buy add-on units");
+          setShowAddons(true);
         } else {
           toast.error(uErr.message);
         }
