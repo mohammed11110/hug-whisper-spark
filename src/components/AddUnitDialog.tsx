@@ -128,7 +128,8 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
     if (error || !created) {
       setBusy(false);
       if (error?.message?.includes("unit_quota_exceeded")) {
-        return toast.error("لقد وصلت إلى حد الوحدات في باقتك الحالية. قم بالترقية لإضافة المزيد. / You've reached your plan's unit limit. Upgrade to add more.");
+        setShowAddons(true);
+        return;
       }
       return toast.error(error?.message || "");
     }
