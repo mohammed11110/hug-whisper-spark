@@ -125,7 +125,10 @@ export function useSubscription(): SubscriptionState {
       currentPeriodEnd,
       cancelAtPeriodEnd: !!data.cancel_at_period_end,
       paddleSubscriptionId: (data.paddle_subscription_id as string) ?? null,
-      unitLimit: PLAN_UNIT_LIMITS[isActive ? plan : "free"],
+      addonUnits: Number((data as any).addon_units ?? 0),
+      unitLimit:
+        PLAN_UNIT_LIMITS[isActive ? plan : "free"] +
+        (isActive ? Number((data as any).addon_units ?? 0) : 0),
     });
   }, [user]);
 
