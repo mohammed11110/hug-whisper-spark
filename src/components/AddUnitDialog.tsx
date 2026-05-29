@@ -411,6 +411,8 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
         {guard.ConfirmDiscardUI}
       </DialogContent>
     </Dialog>
+    <BuyAddonUnitsDialog open={showAddons} onOpenChange={setShowAddons} />
+    </>
   );
 }
 
