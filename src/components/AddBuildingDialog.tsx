@@ -28,6 +28,7 @@ export function AddBuildingDialog({ open, onOpenChange, onCreated }: { open: boo
   const [city, setCity] = useState("");
   const [address, setAddress] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showAddons, setShowAddons] = useState(false);
 
   const guard = useUnsavedGuard({ open, onOpenChange });
 
