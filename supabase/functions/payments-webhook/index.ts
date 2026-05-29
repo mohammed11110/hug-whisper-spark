@@ -101,19 +101,6 @@ async function handleSubscriptionCreated(data: any, env: PaddleEnv) {
     },
     { onConflict: 'paddle_subscription_id' },
   );
-      paddle_subscription_id: id,
-      paddle_customer_id: customerId,
-      product_id: productId,
-      price_id: priceId,
-      status,
-      current_period_start: currentBillingPeriod?.startsAt,
-      current_period_end: currentBillingPeriod?.endsAt,
-      trial_ends_at: trialEndsAt,
-      environment: env,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: 'paddle_subscription_id' },
-  );
 
   // Sync the legacy fields on profiles so the rest of the app keeps working.
   await syncProfile(userId, {
