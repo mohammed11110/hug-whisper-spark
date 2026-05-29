@@ -3,19 +3,29 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { getPaddleEnvironment } from "@/lib/paddle";
 
-export type PlanTier = "free" | "starter" | "pro" | "business" | "enterprise";
+export type PlanTier = "free" | "personal" | "pro" | "business" | "enterprise";
 
-// Unit limits per plan
+// Unit limits per plan (matches public.get_plan_unit_limit)
 export const PLAN_UNIT_LIMITS: Record<PlanTier, number> = {
-  free: 5,
-  starter: 25,
-  pro: 75,
-  business: 200,
-  enterprise: Infinity,
+  free: 3,
+  personal: 10,
+  pro: 25,
+  business: 75,
+  enterprise: Infinity, // legacy grandfathered plan
+};
+
+// Add-on monthly price per unit (USD) per plan
+export const ADDON_UNIT_PRICE: Record<PlanTier, number> = {
+  free: 0,
+  personal: 0.99,
+  pro: 0.69,
+  business: 0.49,
+  enterprise: 0,
 };
 
 const PRODUCT_TO_PLAN: Record<string, PlanTier> = {
-  amlaki_starter: "starter",
+  amlaki_starter: "personal", // legacy product, now Personal
+  amlaki_personal: "personal",
   amlaki_pro: "pro",
   amlaki_business: "business",
   amlaki_enterprise: "enterprise",
