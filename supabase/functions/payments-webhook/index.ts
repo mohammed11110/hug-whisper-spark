@@ -14,11 +14,41 @@ function getSupabase() {
 
 // Map product external_id -> plan label stored in profiles.subscription_plan
 const PRODUCT_TO_PLAN: Record<string, string> = {
-  amlaki_starter: 'starter',
+  amlaki_starter: 'personal', // legacy product, now treated as Personal
+  amlaki_personal: 'personal',
   amlaki_pro: 'pro',
   amlaki_business: 'business',
   amlaki_enterprise: 'enterprise',
 };
+
+const ADDON_PRODUCTS = new Set([
+  'amlaki_personal_addon',
+  'amlaki_pro_addon',
+  'amlaki_business_addon',
+]);
+
+function pickPrimaryItem(items: any[]): any | undefined {
+  if (!Array.isArray(items) || items.length === 0) return undefined;
+  return (
+    items.find(
+      (it) =>
+        it?.product?.importMeta?.externalId &&
+        !ADDON_PRODUCTS.has(it.product.importMeta.externalId),
+    ) ?? items[0]
+  );
+}
+
+function sumAddonUnits(items: any[]): number {
+  if (!Array.isArray(items)) return 0;
+  let total = 0;
+  for (const it of items) {
+    const ext = it?.product?.importMeta?.externalId;
+    if (ext && ADDON_PRODUCTS.has(ext)) {
+      total += Number(it.quantity ?? 0);
+    }
+  }
+  return total;
+}
 
 async function syncProfile(userId: string, fields: Record<string, unknown>) {
   await getSupabase()
