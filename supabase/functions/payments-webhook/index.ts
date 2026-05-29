@@ -117,6 +117,11 @@ async function handleSubscriptionCreated(data: any, env: PaddleEnv) {
 
 async function handleSubscriptionUpdated(data: any, env: PaddleEnv) {
   const { id, status, currentBillingPeriod, scheduledChange, customData, items } = data;
+  const addonUnits = sumAddonUnits(items);
+  const primary = pickPrimaryItem(items);
+  const productId = primary?.product?.importMeta?.externalId;
+  const priceId = primary?.price?.importMeta?.externalId;
+
   await getSupabase()
     .from('subscriptions')
     .update({
@@ -124,6 +129,9 @@ async function handleSubscriptionUpdated(data: any, env: PaddleEnv) {
       current_period_start: currentBillingPeriod?.startsAt,
       current_period_end: currentBillingPeriod?.endsAt,
       cancel_at_period_end: scheduledChange?.action === 'cancel',
+      addon_units: addonUnits,
+      ...(productId ? { product_id: productId } : {}),
+      ...(priceId ? { price_id: priceId } : {}),
       updated_at: new Date().toISOString(),
     })
     .eq('paddle_subscription_id', id)
@@ -131,10 +139,8 @@ async function handleSubscriptionUpdated(data: any, env: PaddleEnv) {
 
   const userId = customData?.userId;
   if (userId) {
-    const item = items?.[0];
-    const productId = item?.product?.importMeta?.externalId;
     const planLabel = productId ? PRODUCT_TO_PLAN[productId] : undefined;
-    const interval = item?.price?.billingCycle?.interval === 'year' ? 'yearly' : 'monthly';
+    const interval = primary?.price?.billingCycle?.interval === 'year' ? 'yearly' : 'monthly';
     await syncProfile(userId, {
       subscription_status: status,
       subscription_expires_at: currentBillingPeriod?.endsAt,
