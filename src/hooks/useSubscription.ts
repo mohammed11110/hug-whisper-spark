@@ -61,6 +61,7 @@ export function useSubscription(): SubscriptionState {
     cancelAtPeriodEnd: false,
     paddleSubscriptionId: null,
     unitLimit: PLAN_UNIT_LIMITS.free,
+    addonUnits: 0,
   });
 
   const load = useCallback(async () => {
