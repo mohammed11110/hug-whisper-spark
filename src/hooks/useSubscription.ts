@@ -43,6 +43,7 @@ export interface SubscriptionState {
   cancelAtPeriodEnd: boolean;
   paddleSubscriptionId: string | null;
   unitLimit: number;
+  addonUnits: number;
   refresh: () => Promise<void>;
 }
 
