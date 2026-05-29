@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
 import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
+import { BuyAddonUnitsDialog } from "@/components/BuyAddonUnitsDialog";
 
 const TYPES = ["tower", "compound", "villa", "commercial", "mixed"] as const;
 
