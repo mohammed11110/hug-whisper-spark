@@ -78,17 +78,11 @@ export default function UnitDetail() {
   };
   useEffect(() => { load(); }, [id]);
   useEffect(() => {
-    let cancelled = false;
+    let unsub: (() => void) | null = null;
     import("@/lib/paymentsBus").then(({ paymentsBus }) => {
-      if (cancelled) return;
-      const unsub = paymentsBus.subscribe(() => load());
-      (window as any).__amlakiUnitDetailUnsub = unsub;
+      unsub = paymentsBus.subscribe(() => load());
     });
-    return () => {
-      cancelled = true;
-      const unsub = (window as any).__amlakiUnitDetailUnsub;
-      if (typeof unsub === "function") unsub();
-    };
+    return () => { if (unsub) unsub(); };
   }, [id]);
 
   const handleDelete = async () => {
