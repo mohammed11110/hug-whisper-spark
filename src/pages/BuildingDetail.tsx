@@ -72,6 +72,13 @@ export default function BuildingDetail() {
   };
 
   useEffect(() => { load(); }, [id]);
+  useEffect(() => {
+    let unsub: (() => void) | null = null;
+    import("@/lib/paymentsBus").then(({ paymentsBus }) => {
+      unsub = paymentsBus.subscribe(() => load());
+    });
+    return () => { if (unsub) unsub(); };
+  }, [id]);
 
   const handleDelete = async () => {
     if (!id) return;

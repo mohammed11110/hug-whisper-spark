@@ -77,6 +77,19 @@ export default function UnitDetail() {
     setActiveTenancyId(active?.id || null);
   };
   useEffect(() => { load(); }, [id]);
+  useEffect(() => {
+    let cancelled = false;
+    import("@/lib/paymentsBus").then(({ paymentsBus }) => {
+      if (cancelled) return;
+      const unsub = paymentsBus.subscribe(() => load());
+      (window as any).__amlakiUnitDetailUnsub = unsub;
+    });
+    return () => {
+      cancelled = true;
+      const unsub = (window as any).__amlakiUnitDetailUnsub;
+      if (typeof unsub === "function") unsub();
+    };
+  }, [id]);
 
   const handleDelete = async () => {
     if (!unit) return;
