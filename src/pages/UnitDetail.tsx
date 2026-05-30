@@ -1197,3 +1197,63 @@ function DueDateRow({ unit, t2, lang }: any) {
     </div>
   );
 }
+
+function LeaseHistoryCard({ unitId, tenancies, payments, format, lang }: { unitId: string; tenancies: any[]; payments: any[]; format: (n: number) => string; lang: string }) {
+  const past = (tenancies || []).filter((t) => t.status === "ended");
+  if (past.length === 0) return null;
+  const ar = lang === "ar";
+  const fmtDate = (d?: string | null) => d ? new Date(d).toLocaleDateString(ar ? "ar" : "en", { year: "numeric", month: "short", day: "numeric" }) : "—";
+  return (
+    <div className="rounded-2xl bg-card border border-sage-200/50 p-5 shadow-soft space-y-3">
+      <div className="flex items-center gap-2">
+        <FileText className="h-4 w-4 text-sage-600" />
+        <h3 className="text-sage-600 font-bold text-sm">{ar ? "سجل المستأجرين السابقين" : "Lease history"}</h3>
+        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sage-100 text-sage-600">{past.length}</span>
+      </div>
+      <p className="text-[11px] text-muted-foreground leading-relaxed">
+        {ar
+          ? "الإيصالات أدناه محفوظة بالكامل ومرتبطة بعقود منتهية — لا تؤثر على رصيد المستأجر الحالي."
+          : "Receipts below are preserved on ended leases and do not affect the current tenant's balance."}
+      </p>
+      <div className="space-y-2">
+        {past.map((t) => {
+          const tPays = (payments || []).filter((p: any) => p.tenancy_id === t.id);
+          const totalPaid = tPays.reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
+          return (
+            <div key={t.id} className="rounded-xl border border-sage-200/60 bg-sage-50/30 px-3 py-2.5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-sage-700 truncate">{t.tenant_name || "—"}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {fmtDate(t.contract_start_date)} <span className="opacity-50">→</span> {fmtDate(t.ended_at || t.contract_end_date)}
+                  </p>
+                </div>
+                <div className="text-end shrink-0">
+                  <p className="text-[10px] text-muted-foreground">{ar ? "إجمالي المدفوع" : "Total paid"}</p>
+                  <p className="text-sm font-black text-sage-700 tabular-nums">{format(totalPaid)}</p>
+                </div>
+              </div>
+              {(Number(t.outstanding_at_end) > 0.009 || t.deposit_status) && (
+                <div className="mt-2 flex flex-wrap gap-2 text-[10px]">
+                  {Number(t.outstanding_at_end) > 0.009 && (
+                    <span className="px-2 py-0.5 rounded-full bg-burgundy/10 text-burgundy font-bold">
+                      {ar ? `متبقٍّ عند الإنهاء: ${format(Number(t.outstanding_at_end))}` : `Outstanding at end: ${format(Number(t.outstanding_at_end))}`}
+                    </span>
+                  )}
+                  {t.deposit_status && t.deposit_status !== "none" && (
+                    <span className="px-2 py-0.5 rounded-full bg-sage-100 text-sage-600 font-bold">
+                      {ar ? "التأمين: " : "Deposit: "}{t.deposit_status}
+                    </span>
+                  )}
+                  <span className="px-2 py-0.5 rounded-full bg-sage-100/80 text-sage-600 font-semibold">
+                    {tPays.length} {ar ? "إيصال" : "receipts"}
+                  </span>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
