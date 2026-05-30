@@ -64,7 +64,7 @@ export function AdjustBalanceDialog({
 
     logActivity({
       entityType: "payment",
-      action: "adjusted",
+      action: "updated",
       entityId: unitId,
       entityLabel: tenantName || unitNumber || "—",
       buildingId: buildingId ?? null,
