@@ -291,25 +291,34 @@ export function getUnitArrears(
   payments: PaymentForBalance[] = [],
   asOf: Date = new Date(),
   lang: "ar" | "en" = "ar",
+  activeTenancyId?: string | null,
 ): UnitArrears {
   const anchor = getAnchorDate(unit);
 
   // === Current-tenancy isolation ===
-  // Exclude payments belonging to a previous tenant on the same unit.
-  // Cutoff = earliest of (opening_balance_date, contract_start_date) on the
-  // CURRENT unit. EndTenancyDialog clears these fields and NewTenancyDialog
-  // sets them to the new contract, so payments dated before the cutoff
-  // necessarily belong to a previous tenancy.
+  // PRIMARY filter: strict equality on tenancy_id when known.
+  //   - If activeTenancyId is provided, only payments with that exact
+  //     tenancy_id (or NULL tenancy_id that passes the date cutoff) are
+  //     counted. Payments tied to a previous tenancy are excluded.
+  // FALLBACK filter (for payments with NULL tenancy_id — legacy rows
+  // pre-backfill): the earliest of (opening_balance_date, contract_start_date)
+  // on the CURRENT unit. EndTenancyDialog clears these fields and
+  // NewTenancyDialog re-sets them.
   const cutoffIso =
     [unit.opening_balance_date, unit.contract_start_date]
       .filter((v): v is string => Boolean(v))
       .sort()[0] || null;
   const inCurrentTenancy = (p: PaymentForBalance): boolean => {
+    if (p.unit_id !== unit.id) return true;
+    if (activeTenancyId && p.tenancy_id) {
+      return p.tenancy_id === activeTenancyId;
+    }
     if (!cutoffIso) return true;
     const ref = p.period_start || p.payment_date || null;
     return !ref || ref >= cutoffIso;
   };
-  payments = payments.filter((p) => p.unit_id !== unit.id || inCurrentTenancy(p));
+  payments = payments.filter(inCurrentTenancy);
+
 
   // 1) Prior arrears — either from legacy `unit.opening_balance` (for units
   //    created before the migration) OR from migrated payments rows with
