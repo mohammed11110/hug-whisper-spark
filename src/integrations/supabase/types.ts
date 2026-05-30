@@ -671,6 +671,7 @@ export type Database = {
           deleted_at: string | null
           expected_amount: number | null
           id: string
+          kind: string
           notes: string | null
           payment_date: string
           payment_method: string
@@ -686,6 +687,7 @@ export type Database = {
           deleted_at?: string | null
           expected_amount?: number | null
           id?: string
+          kind?: string
           notes?: string | null
           payment_date?: string
           payment_method?: string
@@ -701,6 +703,7 @@ export type Database = {
           deleted_at?: string | null
           expected_amount?: number | null
           id?: string
+          kind?: string
           notes?: string | null
           payment_date?: string
           payment_method?: string
@@ -1103,6 +1106,7 @@ export type Database = {
           electric_account: string | null
           floor: number
           gas_account: string | null
+          grace_days: number
           handover_photos: Json
           handover_video_url: string | null
           id: string
@@ -1143,6 +1147,7 @@ export type Database = {
           electric_account?: string | null
           floor?: number
           gas_account?: string | null
+          grace_days?: number
           handover_photos?: Json
           handover_video_url?: string | null
           id?: string
@@ -1183,6 +1188,7 @@ export type Database = {
           electric_account?: string | null
           floor?: number
           gas_account?: string | null
+          grace_days?: number
           handover_photos?: Json
           handover_video_url?: string | null
           id?: string
