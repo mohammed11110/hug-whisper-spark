@@ -324,9 +324,9 @@ function VacantState({ t2, onAdd }: any) {
   );
 }
 
-function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLeasePrint, onStatement, onEnd, reload }: any) {
+function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLeasePrint, onStatement, onEnd, reload, activeTenancyId }: any) {
   const [adjustOpen, setAdjustOpen] = useState(false);
-  const arr = getUnitArrears(unit, payments, new Date(), lang as "ar" | "en");
+  const arr = getUnitArrears(unit, payments, new Date(), lang as "ar" | "en", activeTenancyId);
 
   const totalPaid = (payments || []).reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
   const bal = {
