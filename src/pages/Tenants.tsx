@@ -55,6 +55,14 @@ export default function Tenants() {
   useEffect(() => { try { localStorage.setItem("amlaki.tenants.sortBy", sortBy); } catch {} }, [sortBy]);
   const [loading, setLoading] = useState(true);
   const [collecting, setCollecting] = useState<string | null>(null);
+  const [paymentsTick, setPaymentsTick] = useState(0);
+  useEffect(() => {
+    let unsub: (() => void) | null = null;
+    import("@/lib/paymentsBus").then(({ paymentsBus }) => {
+      unsub = paymentsBus.subscribe(() => setPaymentsTick((t) => t + 1));
+    });
+    return () => { if (unsub) unsub(); };
+  }, []);
 
   const quickCollect = async (r: TenantRow) => {
     const priorArrears = Math.max(0, r.outstanding - r.rent_amount);
@@ -160,7 +168,7 @@ export default function Tenants() {
       setRows(mapped);
       setLoading(false);
     })();
-  }, [user]);
+  }, [user, paymentsTick]);
 
   const numOf = (s: string) => { const m = String(s || "").match(/\d+/); return m ? parseInt(m[0], 10) : Number.MAX_SAFE_INTEGER; };
   const daysUntil = (iso: string | null) => {
