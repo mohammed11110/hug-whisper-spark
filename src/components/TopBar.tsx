@@ -46,10 +46,7 @@ export function TopBar({ hasAlerts = false }: { hasAlerts?: boolean }) {
                 </Button>
               </Link>
             )}
-            <Button variant="ghost" size="icon" className="rounded-full h-9 w-9 relative">
-              <Bell className="h-4 w-4 text-sage-500" />
-              {hasAlerts && <span className="absolute top-1.5 end-1.5 h-2 w-2 bg-burgundy rounded-full animate-pulse-soft" />}
-            </Button>
+            <NotificationBell hasAlerts={hasAlerts} />
             <Link to="/settings">
               <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
                 <Settings className="h-4 w-4 text-sage-500" />
