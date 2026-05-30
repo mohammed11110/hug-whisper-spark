@@ -46,6 +46,11 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
   const [extracting, setExtracting] = useState(false);
   // المتأخرات الافتتاحية — يتم توزيعها تلقائياً على الأشهر السابقة (نفس منطق AddUnitDialog).
   const [arrears, setArrears] = useState<string>("0");
+  // مدفوع حتى (اختياري): تاريخ آخر شهر تم سداده فعلاً قبل بداية هذا العقد —
+  // المتأخرات تبدأ مباشرة بعد هذا التاريخ، ولا يُحتسب أي شيء قبله.
+  const [paidUpTo, setPaidUpTo] = useState<string>("");
+  // أيام السماح بعد يوم الاستحقاق قبل أن يصبح العقد متأخراً.
+  const [graceDays, setGraceDays] = useState<string>("0");
   const guard = useUnsavedGuard({ open, onOpenChange });
 
   const extractFromId = async () => {
