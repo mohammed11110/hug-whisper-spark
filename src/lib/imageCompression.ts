@@ -19,7 +19,8 @@ export async function compressImage(file: File): Promise<File> {
     });
     // browser-image-compression returns a Blob in some envs; normalize to File.
     if (out instanceof File) return out;
-    return new File([out], file.name, { type: out.type || file.type, lastModified: Date.now() });
+    const blob: Blob = out as Blob;
+    return new File([blob], file.name, { type: blob.type || file.type, lastModified: Date.now() });
   } catch (e) {
     console.warn("[imageCompression] falling back to original:", e);
     return file;
