@@ -196,12 +196,14 @@ export function FileUpload({
         <Button
           type="button"
           variant="outline"
-          disabled={busy}
+          disabled={busy || optimizing}
           onClick={() => inputRef.current?.click()}
           className="w-full h-11 rounded-xl border-dashed border-sage-300 text-sage-600 font-medium"
         >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin me-2" /> : <Upload className="h-4 w-4 me-2" />}
-          {busy
+          {busy || optimizing ? <Loader2 className="h-4 w-4 animate-spin me-2" /> : <Upload className="h-4 w-4 me-2" />}
+          {optimizing
+            ? "يجري التحسين…"
+            : busy
             ? progress
               ? `جاري الرفع ${progress.done}/${progress.total}...`
               : "جاري الرفع..."
