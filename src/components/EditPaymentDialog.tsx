@@ -147,6 +147,7 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
     toast.success("✓");
     guard.markSaved();
     onOpenChange(false);
+    import("@/lib/paymentsBus").then(({ paymentsBus }) => paymentsBus.emit(unitIdRef || null));
     onSaved?.();
   };
 

@@ -686,6 +686,9 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     setAmount(""); setReceipt(""); setNotes(""); setCollectPriorArrears(false); setIncludeArrearsInReceipt(false); if (!presetUnitId) setUnitId("");
     guard.markSaved();
     onOpenChange(false);
+    // Broadcast first so every subscribed page (Tenants, UnitDetail,
+    // BuildingDetail, Notifications, Reports, Payments…) refreshes instantly.
+    import("@/lib/paymentsBus").then(({ paymentsBus }) => paymentsBus.emit(unitId || null));
     onSaved?.();
   };
 

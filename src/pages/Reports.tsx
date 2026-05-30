@@ -74,6 +74,15 @@ export default function Reports() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
+  const [paymentsTick, setPaymentsTick] = useState(0);
+  useEffect(() => {
+    let unsub: (() => void) | null = null;
+    import("@/lib/paymentsBus").then(({ paymentsBus }) => {
+      unsub = paymentsBus.subscribe(() => setPaymentsTick((t) => t + 1));
+    });
+    return () => { if (unsub) unsub(); };
+  }, []);
+
 
   useEffect(() => {
     if (!user) return;
@@ -114,7 +123,7 @@ export default function Reports() {
       setExpenses(ex);
       setLoading(false);
     })();
-  }, [user]);
+  }, [user, paymentsTick]);
 
   const now = new Date();
   const months = useMemo(() => {

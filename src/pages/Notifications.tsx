@@ -34,6 +34,14 @@ export default function Notifications() {
   const [items, setItems] = useState<AlertItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"all" | "late" | "upcoming" | "contract">("all");
+  const [paymentsTick, setPaymentsTick] = useState(0);
+  useEffect(() => {
+    let unsub: (() => void) | null = null;
+    import("@/lib/paymentsBus").then(({ paymentsBus }) => {
+      unsub = paymentsBus.subscribe(() => setPaymentsTick((t) => t + 1));
+    });
+    return () => { if (unsub) unsub(); };
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -97,7 +105,7 @@ export default function Notifications() {
       setItems(out);
       setLoading(false);
     })();
-  }, [user, settings.upcomingDays, settings.contractWarnDays]);
+  }, [user, settings.upcomingDays, settings.contractWarnDays, paymentsTick]);
 
   const filtered = useMemo(() => tab === "all" ? items : items.filter(i => i.kind === tab), [items, tab]);
   const counts = useMemo(() => ({

@@ -77,6 +77,13 @@ export default function UnitDetail() {
     setActiveTenancyId(active?.id || null);
   };
   useEffect(() => { load(); }, [id]);
+  useEffect(() => {
+    let unsub: (() => void) | null = null;
+    import("@/lib/paymentsBus").then(({ paymentsBus }) => {
+      unsub = paymentsBus.subscribe(() => load());
+    });
+    return () => { if (unsub) unsub(); };
+  }, [id]);
 
   const handleDelete = async () => {
     if (!unit) return;
