@@ -699,6 +699,7 @@ export default function Settings() {
 
       <DeleteAccountSection />
       <BottomNav />
+      <EndTrialDialog open={endTrialOpen} onOpenChange={setEndTrialOpen} onEnded={() => sub.refresh()} />
 
       {/* Currency Sheet */}
       <Sheet open={currOpen} onOpenChange={setCurrOpen}>
