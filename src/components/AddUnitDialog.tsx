@@ -148,9 +148,7 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
         expected_amount: rentN,
       });
       if (pErr) toast.error(pErr.message);
-      else if (payN >= rentN) {
-        await supabase.from("units").update({ status: "paid", last_paid_date: today }).eq("id", created.id);
-      }
+      // Status is derived (see src/lib/balance.ts → calculateBalance); never write it.
     }
 
     await logActivity({
