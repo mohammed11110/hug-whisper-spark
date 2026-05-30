@@ -43,11 +43,7 @@ export function QuickAddPaymentFab() {
       >
         <Plus className="h-6 w-6" strokeWidth={2.5} />
       </button>
-      <AddPaymentDialog
-        open={open}
-        onOpenChange={setOpen}
-        onSaved={() => window.dispatchEvent(new CustomEvent("amlaki:payment-added"))}
-      />
+      <AddPaymentDialog open={open} onOpenChange={setOpen} />
     </>
   );
 }
