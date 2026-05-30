@@ -116,8 +116,19 @@ export function cyclesDue(unit: UnitForBalance, asOf: Date = new Date()): number
 const ISO = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
-/** Anchor date for due-day calculations. Prefers opening_balance_date (= last settlement). */
-export function getAnchorDate(unit: { contract_start_date?: string | null; opening_balance_date?: string | null }): Date | null {
+/** Anchor date for due-day calculations. The lease's `paid_up_to` always
+ *  wins when set (arrears start the day after). Otherwise prefers
+ *  `opening_balance_date` (= last settlement), then `contract_start_date`. */
+export function getAnchorDate(unit: { contract_start_date?: string | null; opening_balance_date?: string | null; paid_up_to?: string | null }): Date | null {
+  // paid_up_to: arrears start the next day. We move the anchor forward by 1 day
+  // so cycles align to "first day after the last paid period".
+  if (unit.paid_up_to) {
+    const p = new Date(unit.paid_up_to);
+    if (!Number.isNaN(p.getTime())) {
+      p.setDate(p.getDate() + 1);
+      return p;
+    }
+  }
   const s = unit.opening_balance_date || unit.contract_start_date || null;
   if (!s) return null;
   const d = new Date(s);
