@@ -295,16 +295,39 @@ export function getUnitArrears(
   // 1) متأخرات سابقة (opening_balance) — دورة افتراضية في رأس القائمة.
   //    نخصم منها الدفعات «المُوجَّهة للمتأخرات السابقة» وهي الدفعات ذات
   //    نطاق يوم واحد (period_start == period_end) على تاريخ المرسى.
+  // 1) Prior arrears — either from legacy `unit.opening_balance` (for units
+  //    created before the migration) OR from migrated payments rows with
+  //    kind='opening'. Both paths sum into `opening`.
+  const legacyOpening = Math.max(0, num(unit.opening_balance));
+  const openingPays = payments.filter(
+    (p) => p.unit_id === unit.id && !p.deleted_at && isOpeningPayment(p),
+  );
+  const openingFromRows = openingPays.reduce((s, p) => s + num(p.amount), 0);
+  const opening = legacyOpening > 0 ? legacyOpening : openingFromRows;
+
+  const cycles: ArrearsCycle[] = [];
+  let totalShortfall = 0;
+  let unpaidCount = 0;
+  let oldestUnpaid: ArrearsCycle | null = null;
+
   if (opening > 0) {
-    const anchorIsoForOpening = unit.opening_balance_date || unit.contract_start_date || null;
+    const anchorIsoForOpening =
+      unit.opening_balance_date ||
+      openingPays[0]?.period_start ||
+      unit.contract_start_date ||
+      null;
     const obDate = anchorIsoForOpening ? new Date(anchorIsoForOpening) : (anchor || asOf);
     const obIso = anchorIsoForOpening || ISO(obDate);
 
+    // Prior-arrears installments are recorded as single-day RENT payments
+    // anchored on the prior-arrears date. Opening rows themselves are
+    // excluded so we don't double-count.
     const priorPaid = payments
       .filter(
         (p) =>
           p.unit_id === unit.id &&
           !p.deleted_at &&
+          isRentPayment(p) &&
           p.period_start && p.period_end &&
           p.period_start === p.period_end &&
           (!anchorIsoForOpening || p.period_start === anchorIsoForOpening),
