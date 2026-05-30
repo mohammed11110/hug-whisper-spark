@@ -266,9 +266,33 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-sage-500">{lang === "ar" ? "تأمين" : "Deposit"}</Label>
+              <Input type="number" inputMode="decimal" value={deposit} onChange={(e) => setDeposit(e.target.value)} className="rounded-xl border-sage-200 h-11" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-sage-500">{lang === "ar" ? "أيام السماح" : "Grace days"}</Label>
+              <Input type="number" inputMode="numeric" min={0} max={30} value={graceDays} onChange={(e) => setGraceDays(e.target.value)} className="rounded-xl border-sage-200 h-11" />
+            </div>
+          </div>
+
+          {/* مدفوع حتى — اختياري: تاريخ آخر شهر سُدِّد فعلاً قبل بدء هذا العقد */}
           <div className="space-y-1.5">
-            <Label className="text-xs text-sage-500">{lang === "ar" ? "تأمين" : "Deposit"}</Label>
-            <Input type="number" inputMode="decimal" value={deposit} onChange={(e) => setDeposit(e.target.value)} className="rounded-xl border-sage-200 h-11" />
+            <Label className="text-xs text-sage-500">
+              {lang === "ar" ? "مدفوع حتى (اختياري)" : "Paid up to (optional)"}
+            </Label>
+            <Input
+              type="date"
+              value={paidUpTo}
+              onChange={(e) => setPaidUpTo(e.target.value)}
+              className="rounded-xl border-sage-200 h-11"
+            />
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              {lang === "ar"
+                ? "تاريخ آخر شهر سُدِّد فعلاً. تبدأ المتأخرات بعد هذا التاريخ — يُغني عن إدخال الإيصالات القديمة."
+                : "Last date already paid. Arrears start the day after — no need to enter old receipts."}
+            </p>
           </div>
 
 
