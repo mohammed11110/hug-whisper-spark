@@ -112,7 +112,9 @@ export function EditUnitDialog({
       rent_amount: parseFloat(rentAmount) || 0,
       rent_type: rentType,
       due_day: Math.min(28, Math.max(1, parseInt(dueDay) || 1)),
+      grace_days: Math.min(30, Math.max(0, parseInt(graceDays) || 0)),
       rent_timing: rentTiming,
+
 
       security_deposit: parseFloat(securityDeposit) || 0,
       deposit_status: depositStatus,
