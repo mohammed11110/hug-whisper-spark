@@ -90,6 +90,26 @@ export function ArrearsBadge({ unit, payments, className, block }: Props) {
     return `${prefix}: ${oldestLabel}${arrow}${latestLabel} − ${amount}`;
   }, [arrears, L, format]);
 
+  // Show a credit chip when the tenant has paid in advance (negative balance).
+  const credit = useMemo(() => {
+    const b = calculateUnitBalance(unit as any, payments, new Date());
+    return b.credit > 0.009 ? b.credit : 0;
+  }, [unit, payments]);
+
+  if (!text && credit > 0) {
+    const lbl = L === "ar" ? `رصيد دائن: ${format(credit)}` : `Credit: ${format(credit)}`;
+    const size = block ? "text-[11px] px-2.5 py-1 mt-1" : "text-[10px] px-2 py-0.5 mt-1";
+    return (
+      <span
+        className={`inline-flex items-center gap-1 rounded-full font-bold text-sage-700 bg-sage-100 border border-sage-300 ${size} ${className || ""}`.trim()}
+        title={lbl}
+      >
+        <span aria-hidden className="text-[9px] leading-none">✦</span>
+        <span className="truncate">{lbl}</span>
+      </span>
+    );
+  }
+
   if (!text) return null;
 
   const base =
@@ -105,3 +125,4 @@ export function ArrearsBadge({ unit, payments, className, block }: Props) {
     </span>
   );
 }
+
