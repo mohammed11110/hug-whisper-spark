@@ -36,6 +36,11 @@ export const isOpeningPayment = (p: PaymentForBalance): boolean =>
 export const isRentPayment = (p: PaymentForBalance): boolean =>
   (p.kind || "rent") === "rent";
 
+/** Manual balance adjustments (waiver/discount when positive, extra charge when negative). */
+export const isAdjustmentPayment = (p: PaymentForBalance): boolean =>
+  (p.kind || "rent") === "adjustment";
+
+
 /**
  * A payment belongs to the *current* settlement window (i.e. should offset
  * accrued rent from the anchor onward) only if the cycle it covers ends
@@ -628,11 +633,17 @@ export function calculateUnitBalance(
     : openingPays.reduce((s, p) => s + num(p.amount), 0);
   const totalDue = dueCycles * rent + openingDue;
 
-  // ----- totalPaid: only kind='rent' payments
+  // ----- totalPaid: kind='rent' receipts + kind='adjustment' (signed: positive = waiver/discount, negative = extra charge)
   const rentPays = payments.filter(
     (p) => p.unit_id === unit.id && !p.deleted_at && isRentPayment(p),
   );
-  const totalPaid = rentPays.reduce((s, p) => s + num(p.amount), 0);
+  const adjustments = payments.filter(
+    (p) => p.unit_id === unit.id && !p.deleted_at && isAdjustmentPayment(p),
+  );
+  const totalPaid =
+    rentPays.reduce((s, p) => s + num(p.amount), 0) +
+    adjustments.reduce((s, p) => s + num(p.amount), 0);
+
 
   const balance = totalDue - totalPaid;
   const arrears = balance > 0.009 ? balance : 0;

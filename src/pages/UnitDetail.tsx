@@ -19,6 +19,8 @@ import { AddMaintenanceDialog } from "@/components/AddMaintenanceDialog";
 import { FileUpload } from "@/components/FileUpload";
 import { getUnitArrears, type PaymentForBalance } from "@/lib/balance";
 import { ArrearsBadge } from "@/components/ArrearsBadge";
+import { AdjustBalanceDialog } from "@/components/AdjustBalanceDialog";
+
 import { UnitHealthBadge } from "@/components/UnitHealthBadge";
 import { exportToCSV } from "@/lib/exportCSV";
 
@@ -314,7 +316,9 @@ function VacantState({ t2, onAdd }: any) {
 }
 
 function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLeasePrint, onStatement, onEnd, reload }: any) {
+  const [adjustOpen, setAdjustOpen] = useState(false);
   const arr = getUnitArrears(unit, payments, new Date(), lang as "ar" | "en");
+
   const totalPaid = (payments || []).reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
   const bal = {
     outstanding: arr.totalShortfall,
@@ -411,6 +415,22 @@ function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLea
       <Button variant="outline" onClick={onStatement} className="w-full rounded-xl border-sage-300 text-sage-600 h-11 font-semibold">
         <Receipt className="h-4 w-4 me-1.5" />{t2("tenant_statement")} PDF
       </Button>
+      <Button
+        variant="outline"
+        onClick={() => setAdjustOpen(true)}
+        className="w-full rounded-xl border-sage-300 text-sage-600 h-11 font-semibold"
+      >
+        {lang === "ar" ? "تعديل الرصيد يدوياً" : "Adjust balance"}
+      </Button>
+      <AdjustBalanceDialog
+        open={adjustOpen}
+        onOpenChange={setAdjustOpen}
+        unitId={unit.id}
+        unitNumber={unit.unit_number}
+        buildingId={unit.building_id}
+        tenantName={unit.tenant_name}
+      />
+
       <Button
         variant="ghost"
         onClick={() => {
