@@ -38,6 +38,7 @@ const Terms = lazy(() => import("./pages/Terms"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const Refund = lazy(() => import("./pages/Refund"));
 const Assistant = lazy(() => import("./pages/Assistant"));
+const NotificationPreferences = lazy(() => import("./pages/NotificationPreferences"));
 const Admin = lazy(() => import("./pages/Admin"));
 const Maintenance = lazy(() => import("./pages/Maintenance"));
 const Activity = lazy(() => import("./pages/Activity"));
