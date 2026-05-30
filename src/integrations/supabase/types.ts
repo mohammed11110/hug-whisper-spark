@@ -880,15 +880,21 @@ export type Database = {
         Row: {
           addon_units: number
           cancel_at_period_end: boolean | null
+          canceled_at: string | null
           created_at: string | null
           current_period_end: string | null
           current_period_start: string | null
+          data_delete_at: string | null
           environment: string
+          grace_started_at: string | null
           id: string
+          last_reminder_kind: string | null
+          last_reminder_sent_at: string | null
           paddle_customer_id: string
           paddle_subscription_id: string
           price_id: string
           product_id: string
+          reactivated_at: string | null
           status: string
           trial_ends_at: string | null
           updated_at: string | null
@@ -897,15 +903,21 @@ export type Database = {
         Insert: {
           addon_units?: number
           cancel_at_period_end?: boolean | null
+          canceled_at?: string | null
           created_at?: string | null
           current_period_end?: string | null
           current_period_start?: string | null
+          data_delete_at?: string | null
           environment?: string
+          grace_started_at?: string | null
           id?: string
+          last_reminder_kind?: string | null
+          last_reminder_sent_at?: string | null
           paddle_customer_id: string
           paddle_subscription_id: string
           price_id: string
           product_id: string
+          reactivated_at?: string | null
           status?: string
           trial_ends_at?: string | null
           updated_at?: string | null
@@ -914,15 +926,21 @@ export type Database = {
         Update: {
           addon_units?: number
           cancel_at_period_end?: boolean | null
+          canceled_at?: string | null
           created_at?: string | null
           current_period_end?: string | null
           current_period_start?: string | null
+          data_delete_at?: string | null
           environment?: string
+          grace_started_at?: string | null
           id?: string
+          last_reminder_kind?: string | null
+          last_reminder_sent_at?: string | null
           paddle_customer_id?: string
           paddle_subscription_id?: string
           price_id?: string
           product_id?: string
+          reactivated_at?: string | null
           status?: string
           trial_ends_at?: string | null
           updated_at?: string | null
@@ -1293,6 +1311,7 @@ export type Database = {
       }
     }
     Functions: {
+      can_write: { Args: { _user_id: string }; Returns: boolean }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
@@ -1314,6 +1333,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_data_access: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1334,6 +1354,7 @@ export type Database = {
         }
         Returns: number
       }
+      reactivate_subscription: { Args: never; Returns: Json }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {
@@ -1344,6 +1365,7 @@ export type Database = {
       }
       recompute_unit_state: { Args: { _uid: string }; Returns: undefined }
       redeem_promo_code: { Args: { _code: string }; Returns: Json }
+      subscription_phase: { Args: { _user_id: string }; Returns: string }
       user_active_plan: { Args: { _user_id: string }; Returns: string }
       user_unit_allowance: { Args: { _user_id: string }; Returns: number }
     }

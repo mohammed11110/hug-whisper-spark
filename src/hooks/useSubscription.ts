@@ -31,6 +31,8 @@ const PRODUCT_TO_PLAN: Record<string, PlanTier> = {
   amlaki_enterprise: "enterprise",
 };
 
+export type SubscriptionPhase = "active" | "canceled" | "grace" | "deleted" | "free";
+
 export interface SubscriptionState {
   loading: boolean;
   plan: PlanTier;
@@ -44,6 +46,13 @@ export interface SubscriptionState {
   paddleSubscriptionId: string | null;
   unitLimit: number;
   addonUnits: number;
+  // Lifecycle additions
+  phase: SubscriptionPhase;
+  canceledAt: Date | null;
+  dataDeleteAt: Date | null;
+  graceDaysLeft: number | null;
+  isReadOnly: boolean;
+  canExport: boolean;
   refresh: () => Promise<void>;
 }
 
@@ -62,6 +71,12 @@ export function useSubscription(): SubscriptionState {
     paddleSubscriptionId: null,
     unitLimit: PLAN_UNIT_LIMITS.free,
     addonUnits: 0,
+    phase: "free",
+    canceledAt: null,
+    dataDeleteAt: null,
+    graceDaysLeft: null,
+    isReadOnly: false,
+    canExport: true,
   });
 
   const load = useCallback(async () => {
@@ -93,6 +108,12 @@ export function useSubscription(): SubscriptionState {
         paddleSubscriptionId: null,
         unitLimit: PLAN_UNIT_LIMITS.free,
         addonUnits: 0,
+        phase: "free",
+        canceledAt: null,
+        dataDeleteAt: null,
+        graceDaysLeft: null,
+        isReadOnly: false,
+        canExport: true,
       });
       return;
     }
@@ -103,12 +124,25 @@ export function useSubscription(): SubscriptionState {
     const currentPeriodEnd = data.current_period_end
       ? new Date(data.current_period_end as string)
       : null;
+    const canceledAt = (data as any).canceled_at ? new Date((data as any).canceled_at) : null;
+    const dataDeleteAt = (data as any).data_delete_at ? new Date((data as any).data_delete_at) : null;
     const now = Date.now();
     const isTrialing = status === "trialing" && (!trialEndsAt || trialEndsAt.getTime() > now);
-    const isActive =
-      (status === "active" || status === "trialing" || status === "past_due") &&
-      (!currentPeriodEnd || currentPeriodEnd.getTime() > now) ||
-      (status === "canceled" && currentPeriodEnd !== null && currentPeriodEnd.getTime() > now);
+
+    // Derive phase (mirrors public.subscription_phase server-side)
+    let phase: SubscriptionPhase = "free";
+    if (status === "deleted") phase = "deleted";
+    else if (dataDeleteAt && dataDeleteAt.getTime() > now) phase = "grace";
+    else if (dataDeleteAt && dataDeleteAt.getTime() <= now) phase = "deleted";
+    else if (["active", "trialing", "past_due"].includes(status) && (!currentPeriodEnd || currentPeriodEnd.getTime() > now)) phase = "active";
+    else if (status === "canceled" && currentPeriodEnd && currentPeriodEnd.getTime() > now) phase = "canceled";
+    else if (status === "canceled" && currentPeriodEnd && currentPeriodEnd.getTime() <= now && (currentPeriodEnd.getTime() + 30 * 86_400_000) > now) phase = "grace";
+
+    const isActive = phase === "active" || phase === "canceled";
+    const isReadOnly = phase === "grace";
+    const graceDaysLeft = dataDeleteAt
+      ? Math.max(0, Math.ceil((dataDeleteAt.getTime() - now) / 86_400_000))
+      : (phase === "grace" && currentPeriodEnd ? Math.max(0, Math.ceil((currentPeriodEnd.getTime() + 30 * 86_400_000 - now) / 86_400_000)) : null);
 
     const trialDaysLeft = trialEndsAt
       ? Math.max(0, Math.ceil((trialEndsAt.getTime() - now) / 86_400_000))
@@ -129,6 +163,12 @@ export function useSubscription(): SubscriptionState {
       unitLimit:
         PLAN_UNIT_LIMITS[isActive ? plan : "free"] +
         (isActive ? Number((data as any).addon_units ?? 0) : 0),
+      phase,
+      canceledAt,
+      dataDeleteAt,
+      graceDaysLeft,
+      isReadOnly,
+      canExport: phase !== "deleted",
     });
   }, [user]);
 
