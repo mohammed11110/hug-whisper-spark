@@ -37,14 +37,14 @@ const monthYear = (d: Date, lang: "ar" | "en") =>
  * - سابقة + شهور: «متأخر: سابقة → مايو 2026 − 655»
  * صامتة إذا لا متبقٍّ.
  */
-export function ArrearsBadge({ unit, payments, className, block }: Props) {
+export function ArrearsBadge({ unit, payments, className, block, activeTenancyId }: Props) {
   const { lang } = useI18n();
   const { format } = useCurrency();
   const L = lang as "ar" | "en";
 
   const arrears = useMemo(
-    () => getUnitArrears(unit, payments, new Date(), L),
-    [unit, payments, L],
+    () => getUnitArrears(unit, payments, new Date(), L, activeTenancyId),
+    [unit, payments, L, activeTenancyId],
   );
 
   const text = useMemo(() => {
