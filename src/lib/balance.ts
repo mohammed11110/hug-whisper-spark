@@ -607,6 +607,12 @@ export interface UnitBalance {
   nextDueAmount: number;
   /** Whether at least one rent payment has been recorded. */
   hasPayments: boolean;
+  /** Number of full rent-months currently outstanding (ceil(balance / rent)). */
+  monthsLate: number;
+  /** Most recent due-date that has already passed (latest accrued cycle). */
+  upToMonth: Date | null;
+  /** Oldest due-date still unpaid based on `monthsLate`. */
+  fromMonth: Date | null;
 }
 
 export interface UnitForCalc extends UnitForBalance {
