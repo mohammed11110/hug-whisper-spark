@@ -1,78 +1,136 @@
-# خطة اعتماد هيكل الاشتراكات الجديد
 
-## 1) الخطط الجديدة (شهري + سنوي بخصم ~17%)
+## الهدف
+استبدال محرك المتأخرات الحالي بنموذج **الرصيد الجاري** (`balance = totalDue − totalPaid`) كمصدر وحيد للحقيقة، وإصلاح تحديث الواجهة الفوري بعد تسجيل أي دفعة، وإضافة `grace_days` لكل وحدة.
 
-| الخطة | الوحدات | شهري | سنوي | سعر الوحدة الإضافية/شهر |
-|---|---|---|---|---|
-| Free | 3 | $0 | — | لا يمكن (ترقية مطلوبة) |
-| Personal | 10 | $7.99 | $79 | $0.99 |
-| Pro | 25 | $19.99 | $199 | $0.69 |
-| Business | 75 | $49.99 | $499 | $0.49 |
+---
 
-- **إلغاء Enterprise فوراً**: حذفها من صفحة الأسعار + من `PLAN_UNIT_LIMITS` + من خريطة المنتجات. إذا وُجد مشتركون قدامى، يستمر اشتراكهم حتى نهاية الفترة عبر السلوك الطبيعي لـ Paddle، ثم يسقطون إلى Free.
+## 1. قاعدة البيانات (migration واحد)
 
-## 2) منتجات Paddle (بيئة الاختبار، تُزامن مع الإنتاج عند النشر)
+**أ. ترحيل `opening_balance` إلى دفعات افتتاحية:**
+- لكل وحدة فيها `opening_balance > 0`: إنشاء صف في `payments` بمبلغ سالب (`-opening_balance`) بتاريخ `opening_balance_date`، نوع `payment_method='opening'`, وعلم `notes='OPENING_BALANCE_MIGRATION'`، مع `period_start = period_end = opening_balance_date`.
+  - أو بديل أنظف: عمود جديد `payments.kind` بقيم `('rent','opening','adjustment')` — وندخل الدفعة الافتتاحية ككين `opening` بمبلغ موجب يُعامَل كـ "due" لا "paid".
+  - **القرار**: نختار البديل الثاني لتجنّب المبالغ السالبة المربكة في الإيصالات.
+- بعد الترحيل: تصفير `units.opening_balance` و`units.opening_balance_date` وإزالة قيد `protect_unit_opening_balance` (يصبح بلا معنى).
 
-- تحديث الأسعار الموجودة عبر `PATCH /prices`:
-  - `starter_monthly` → إعادة تسمية المنتج إلى **Personal** + سعر `799` cents + إضافة `starter_yearly` بـ `7900`.
-  - `pro_monthly` → `1999` + `pro_yearly` `19900`.
-  - `business_monthly` → `4999` + `business_yearly` `49900`.
-- **أرشفة** `enterprise_monthly` + `enterprise_yearly` + منتج `amlaki_enterprise`.
-- **منتجات إضافية للوحدات** (recurring monthly، quantity-based):
-  - `amlaki_personal_addon` → سعر `personal_addon_unit` $0.99/شهر
-  - `amlaki_pro_addon` → سعر `pro_addon_unit` $0.69/شهر
-  - `amlaki_business_addon` → سعر `business_addon_unit` $0.49/شهر
+**ب. حقل `grace_days`:**
+- `ALTER TABLE units ADD COLUMN grace_days int NOT NULL DEFAULT 0 CHECK (grace_days BETWEEN 0 AND 30)`.
 
-## 3) قاعدة البيانات
+**ج. عمود `payments.kind`:**
+- `ALTER TABLE payments ADD COLUMN kind text NOT NULL DEFAULT 'rent' CHECK (kind IN ('rent','opening','adjustment'))`.
 
-```sql
--- إضافة عمود الوحدات الإضافية المشتراة (من بنود Paddle subscription)
-ALTER TABLE public.subscriptions
-  ADD COLUMN addon_units integer NOT NULL DEFAULT 0;
+**د. تبسيط الـ trigger:**
+- استبدال `recompute_unit_state` بنسخة أبسط: تحسب `balance` من `(cycles_due × rent) − sum(payments where kind='rent') + sum(payments where kind='opening')` وتحدّث `units.status` (`paid|upcoming|due|grace|overdue|critical`).
+- يبقى الـ trigger لتسريع الفلاتر/الإشعارات في الخلفية فقط — الواجهة لا تعتمد عليه.
 
--- تحديث get_plan_unit_limit للأرقام الجديدة
--- free=3, personal=10 (alias starter), pro=25, business=75
--- (إبقاء enterprise=∞ احتياطاً للمشتركين القدامى)
+---
 
--- enforce_unit_quota: استخدام (plan_limit + addon_units) بدلاً من plan_limit وحده
+## 2. محرك حساب موحّد جديد — `src/lib/balance.ts`
+
+استبدال شامل بدالة واحدة:
+
+```ts
+calculateUnitBalance(unit, payments, today) → {
+  totalDue, totalPaid, balance,
+  arrears, credit,
+  status: 'paid'|'upcoming'|'due'|'grace'|'overdue'|'critical',
+  daysLate,                 // أيام منذ أقدم تاريخ استحقاق غير مدفوع
+  nextDueDate, nextDueAmount,
+  cycles: [{periodStart, periodEnd, dueDate, rent, label}],  // للإيصالات
+}
 ```
 
-## 4) Webhook الاشتراك
+منطق محوري:
+- `dueCount` = عدد تواريخ الاستحقاق التي مضت منذ `contract_start_date` حتى `today` بناءً على `due_day` و`rent_timing`.
+- `totalDue = dueCount × rent_amount + Σ opening_payments`.
+- `totalPaid = Σ payments where kind='rent' && !deleted_at && unit_id=...`.
+- `balance = totalDue − totalPaid`.
+- الحالة:
+  - `balance ≤ 0` → `paid` (مع `credit` لو سالب).
+  - `balance > 0` و`today < nextDueDate` → `upcoming`.
+  - `today === nextDueDate` → `due`.
+  - `today ≤ nextDueDate + grace_days` → `grace`.
+  - `balance ≥ 2 × rent` → `critical`.
+  - غير ذلك → `overdue`.
+- `daysLate` = الفرق بالأيام بين `today` وأقدم `dueDate` غير مغطّى من الرصيد.
 
-عند `subscription.updated`/`created` نمر على كل `items[]`:
-- البند الأساسي → `product_id` و `price_id` كما هي.
-- البنود الإضافية (addon) → جمع `quantity` في `addon_units`.
+الاحتفاظ بـ `getNextDueInfo` و`buildReceiptPeriodLabel` و`distributePayment` (الإيصالات لا زالت تحتاج `period_start/period_end`).
 
-## 5) واجهة الشراء عند تجاوز الحد
+اختبارات vitest جديدة تغطّي: دفعة جزئية، دفعة زائدة (credit)، due_day مخصص، رصيد افتتاحي بعد الترحيل، حالة grace.
 
-عند فشل إضافة وحدة بسبب `unit_quota_exceeded`، بدلاً من رسالة خطأ فقط نفتح **مودال "أضف وحدات"**:
+---
 
-- يعرض الباقة الحالية وعدد الوحدات الإضافية الحالية.
-- ثلاثة أزرار: **+1 وحدة**، **+5 وحدات**، **+10 وحدات** مع السعر الإجمالي الشهري لكل خيار حسب الباقة.
-- زر "ترقية الباقة" كبديل.
-- عند الاختيار → استدعاء edge function جديدة `add-subscription-units` تنفذ `PATCH /subscriptions/{id}` لزيادة `quantity` للبند الإضافي (أو إضافته إن لم يكن موجوداً).
-- بعد النجاح، realtime يحدّث `subscriptions` ويعيد محاولة إضافة الوحدة.
+## 3. إصلاح التحديث الفوري (البق الرئيسي)
 
-الوحدات الإضافية تُستخدم في **أي مبنى** (لأن الحد محسوب على إجمالي وحدات المستخدم).
+السبب: `QuickAddPaymentFab` (الزرّ العائم) يفتح `AddPaymentDialog` بدون أي callback لإخبار الصفحات بإعادة التحميل، وصفحات `BuildingDetail` و`Tenants` لا تستمع لأي حدث.
 
-## 6) صفحة الأسعار
+الحل — **bus بسيط بدون إضافة react-query:**
 
-- إعادة كتابة `PLANS` بالقيم الجديدة + حذف Enterprise + إضافة قسم "الوحدات الإضافية" تحت كل خطة مدفوعة يعرض سعر الوحدة.
-- في `Settings`، تحديث `planLabel` (إضافة "personal").
-- `useSubscription.PRODUCT_TO_PLAN`: إضافة `amlaki_personal` ← `personal`، الاحتفاظ بـ `amlaki_starter` كـ alias مؤقت للقدامى → `personal`.
+أ. ملف جديد `src/lib/paymentsBus.ts`:
+```ts
+type Listener = (unitId?: string) => void;
+const listeners = new Set<Listener>();
+export const paymentsBus = {
+  emit: (unitId?: string) => listeners.forEach(l => l(unitId)),
+  subscribe: (l: Listener) => { listeners.add(l); return () => listeners.delete(l); },
+};
+```
 
-## 7) لقطة التغييرات (تقنية)
+ب. كل دالة حفظ/حذف/تعديل دفعة (`AddPaymentDialog`, `EditPaymentDialog`, `PaymentsTrash`, edge functions client side) تنادي `paymentsBus.emit(unitId)` بعد النجاح.
 
-- `src/hooks/useSubscription.ts` — أرقام الحدود، نوع `PlanTier` (إضافة `personal`)، قراءة `addon_units` ودمجها في `unitLimit`.
-- `src/pages/Pricing.tsx` — هيكل الخطط الجديد + قسم الوحدات الإضافية.
-- `src/pages/Settings.tsx` — `planLabel`.
-- `src/components/AddUnitDialog.tsx` + `AddBuildingDialog.tsx` — استدعاء مودال جديد `BuyAddonUnitsDialog` بدل toast الخطأ.
-- `src/components/BuyAddonUnitsDialog.tsx` — جديد.
-- `supabase/functions/add-subscription-units/index.ts` — جديد.
-- `supabase/functions/payments-webhook/index.ts` — تجميع addon items.
-- migration: عمود `addon_units` + تحديث `get_plan_unit_limit` + `enforce_unit_quota`.
+ج. كل صفحة تعرض رصيداً (`UnitDetail`, `BuildingDetail`, `Tenants`, `Payments`, `Dashboard`, `Reports`) تستخدم hook موحّد:
+```ts
+useEffect(() => paymentsBus.subscribe(() => load()), []);
+```
 
-## ملاحظات
+د. تمرير `onSaved` صراحةً في `QuickAddPaymentFab` لينادي `paymentsBus.emit()` أيضاً (احتياط).
 
-- المستخدمون الحاليون على Free بـ 4-5 وحدات: يحتفظون بوحداتهم، لكن لن يستطيعوا إضافة جديدة حتى الترقية أو شراء وحدات إضافية (الوحدات الإضافية متاحة للخطط المدفوعة فقط — Free يجب أن يرقّي).
-- المستخدمون على Starter القديمة (25 وحدة بـ $10): تتحول تلقائياً إلى **Personal** (10 وحدات بـ $7.99) عبر إعادة تسمية المنتج. **هذا يقلّل حدّهم من 25 إلى 10** — هل توافق؟ البديل: إنشاء منتج Personal جديد وترك Starter للقدامى grandfathered.
+---
+
+## 4. مكونات الواجهة
+
+- **`ArrearsBadge`** → يستهلك `calculateUnitBalance` ويعرض شارة بأحد الألوان الست:
+  - `upcoming` slate، `due` gold، `grace` terracotta-light، `overdue` terracotta، `critical` burgundy، `paid` sage.
+- **`UnitHealthBadge`** → يبسَّط على نفس مخرجات الدالة الجديدة.
+- إضافة شارة "رصيد إيجابي" (credit) في `UnitDetail` و`BuildingDetail`.
+- في `EditUnitDialog` و`AddUnitDialog`: حقل `grace_days` (Input number 0–30، افتراضي 0، مع شرح "عدد أيام السماح بعد تاريخ الاستحقاق").
+
+---
+
+## 5. تنظيف
+
+- إزالة `opening_balance` UI من كل المربعات (حقول، تحذيرات، شارات "متأخرات سابقة" في `ArrearsBadge`).
+- حذف الكود الخاص بـ `priorPaid` و"single-day payments" في `balance.ts` (لم يعد له معنى بعد الترحيل).
+- تحديث `protect_unit_opening_balance` → حذفه.
+- اختبار `balance-arrears.test.ts` يُعاد كتابته للسيناريوهات الجديدة.
+
+---
+
+## 6. الإشعارات (المرحلة 9 من الطلب)
+
+**غير مشمولة الآن** — تتطلب جدول قوالب + cron + بوابة SMS/WhatsApp مدفوعة. سأقترحها كخطوة لاحقة بعد تثبيت النواة.
+
+---
+
+## الملفات المتأثرة
+
+```
+supabase migration (واحد)
+src/lib/balance.ts                         ← إعادة كتابة جزئية
+src/lib/paymentsBus.ts                     ← جديد
+src/components/AddPaymentDialog.tsx        ← emit + إزالة منطق opening_balance
+src/components/EditPaymentDialog.tsx       ← emit
+src/components/QuickAddPaymentFab.tsx      ← emit
+src/components/ArrearsBadge.tsx            ← منطق الحالات الستّ
+src/components/UnitHealthBadge.tsx         ← مبسّط
+src/components/EditUnitDialog.tsx          ← حقل grace_days
+src/components/AddUnitDialog.tsx           ← حقل grace_days
+src/pages/UnitDetail.tsx                   ← subscribe + استهلاك calculateUnitBalance
+src/pages/BuildingDetail.tsx               ← subscribe
+src/pages/Tenants.tsx                      ← subscribe
+src/pages/Payments.tsx                     ← subscribe
+src/pages/Dashboard.tsx                    ← subscribe
+src/pages/Reports.tsx                      ← استخدام الدالة الجديدة
+src/test/balance-arrears.test.ts           ← إعادة كتابة
+```
+
+هل أبدأ بهذه الخطة كاملة، أم تريد تقسيمها (1=migration+balance.ts، 2=bus+UI، 3=grace_days) لتراجع كل مرحلة على حدة؟
