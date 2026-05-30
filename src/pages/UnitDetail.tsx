@@ -62,6 +62,7 @@ export default function UnitDetail() {
   const [endOpen, setEndOpen] = useState(false);
   const [newTenantOpen, setNewTenantOpen] = useState(false);
   const [activeTenancyId, setActiveTenancyId] = useState<string | null>(null);
+  const [tenancies, setTenancies] = useState<any[]>([]);
   
 
   const load = async () => {
