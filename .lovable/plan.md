@@ -1,38 +1,28 @@
-## المشكلة
+# Fix "Something went wrong" on Buildings & Settings pages
 
-كل صفحة تنتهي بشاشة "حدث خطأ ما". السبب الجذري ظاهر في الكونسول:
+## Root cause
 
-```
-GET /rest/v1/profiles?... 403 (Forbidden)
-```
+`src/hooks/useSubscription.ts` (line ~168) creates a Supabase realtime channel with a fixed name `subs:${user.id}`. In React StrictMode (dev) the effect runs twice, and on the second run `supabase.channel("subs:...")` returns the **same** channel that is already in the `joined` state. Adding `.on("postgres_changes", ...)` to an already-subscribed channel throws:
 
-عند فحص قاعدة البيانات وجدت أن **لا جدول واحد** في `public` يملك أي `GRANT` للأدوار `anon` / `authenticated` / `service_role`. ترحيل RLS الأخير فعّل السياسات لكنه نسي منح الصلاحيات الأساسية على الجداول، وبدون `GRANT` تُرجع PostgREST خطأ 403 مهما كانت سياسات RLS صحيحة. الـ ErrorBoundary يلتقط الاستثناء من React Query ويُظهر الشاشة الحمراء.
+> cannot add `postgres_changes` callbacks for realtime:subs:... after `subscribe()`.
 
-## الحل
+This uncaught error bubbles up to `ErrorBoundary`, which shows the bilingual "Something went wrong" screen on any page that mounts this hook (Buildings, Settings, sidebar, GraceBanner, etc.).
 
-ترحيل واحد يضيف `GRANT` المناسب لكل جدول، مع احترام سياسات RLS الحالية (القراءة المجهولة فقط حيث تسمح السياسات).
+## Fix
 
-### الجداول المتأثرة (29 جدولاً)
+Edit `src/hooks/useSubscription.ts`:
 
-`activity_log, building_members, buildings, daily_bookings, daily_cleaners, daily_cleaning_tasks, daily_message_templates, daily_pricing_rules, daily_units, email_send_log, email_send_state, email_unsubscribe_tokens, expenses, in_app_notifications, invitations, maintenance_requests, notification_log, notification_preferences, payments, profiles, promo_codes, push_subscriptions, subscription_events, subscriptions, suppressed_emails, tenancies, unit_audit_log, units, user_roles`
+1. Give the channel a unique name per effect run, e.g.
+   ```ts
+   const channel = supabase.channel(`subs:${user.id}:${crypto.randomUUID()}`)
+   ```
+   so a fresh channel is created on every mount and the `.on()` calls always happen before `.subscribe()`.
+2. Keep the existing cleanup `supabase.removeChannel(channel)` so the previous channel is properly torn down on unmount.
 
-### قواعد المنح
+That's the only code change required. No DB, no UI, no schema changes.
 
-- **جداول المستخدم العادية** (مثل `buildings`, `units`, `payments`, `tenancies`, `expenses`, `maintenance_requests`, `notification_preferences`, `push_subscriptions`, `in_app_notifications`, `activity_log`, `invitations`, `building_members`, `daily_*`, `subscriptions`, `subscription_events`, `unit_audit_log`):
-  ```sql
-  GRANT SELECT, INSERT, UPDATE, DELETE ON public.<t> TO authenticated;
-  GRANT ALL ON public.<t> TO service_role;
-  ```
-- **`profiles`, `user_roles`**: نفس ما سبق (authenticated فقط، بدون anon).
-- **جداول يقرأها anon عند صفحات الإلغاء/الترميز**:
-  - `email_unsubscribe_tokens`, `suppressed_emails`, `promo_codes`: تُضاف `GRANT SELECT TO anon` أيضاً إذا وُجدت سياسة قراءة عامة.
-- **جداول إدارية فقط** (`notification_log`, `email_send_log`, `email_send_state`): `GRANT ALL ON ... TO service_role;` فقط (لا تكشف للعميل).
+## Verification
 
-### خطوة التحقق
-
-1. تشغيل الترحيل.
-2. إعادة تحميل `/` — يجب أن تختفي شاشة الخطأ وتظهر لوحة التحكم.
-3. تأكيد أن قائمة العقارات/الدفعات/المستأجرين تعمل.
-4. تشغيل `supabase--linter` للاطمئنان.
-
-لا تغييرات على كود الواجهة — المشكلة كلها في طبقة قاعدة البيانات.
+- Reload `/buildings` and `/settings` — the error screen should be gone.
+- Realtime updates to `subscriptions` / `profiles` should still trigger `load()`.
+- Check console for the original "cannot add postgres_changes callbacks…" error — should not reappear.
