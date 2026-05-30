@@ -21,7 +21,20 @@ export interface PaymentForBalance {
   payment_date?: string | null;
   period_start?: string | null;
   period_end?: string | null;
+  /** 'rent' (default, reduces balance) | 'opening' (adds to balance — legacy
+   *  prior arrears) | 'adjustment'. Opening rows are excluded from "paid"
+   *  sums and instead treated as additional due. */
+  kind?: string | null;
 }
+
+/** Opening-kind payments are NOT real receipts — they represent prior
+ *  arrears converted from the old `units.opening_balance` column. */
+export const isOpeningPayment = (p: PaymentForBalance): boolean =>
+  (p.kind || "rent") === "opening";
+
+/** Rent payments are real receipts the tenant actually paid. */
+export const isRentPayment = (p: PaymentForBalance): boolean =>
+  (p.kind || "rent") === "rent";
 
 /**
  * A payment belongs to the *current* settlement window (i.e. should offset
