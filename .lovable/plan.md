@@ -1,28 +1,34 @@
-# Fix "Something went wrong" on Buildings & Settings pages
+## إضافة خيار إلغاء/إنهاء التجربة المجانية
 
-## Root cause
+حالياً خلال التجربة المجانية لا يوجد اشتراك مدفوع في Paddle، لذلك زر «إدارة الاشتراك» لا يعمل ولا يوجد أي زر «إلغاء». المستخدم يريد طمأنة + إمكانية الإنهاء فوراً.
 
-`src/hooks/useSubscription.ts` (line ~168) creates a Supabase realtime channel with a fixed name `subs:${user.id}`. In React StrictMode (dev) the effect runs twice, and on the second run `supabase.channel("subs:...")` returns the **same** channel that is already in the `joined` state. Adding `.on("postgres_changes", ...)` to an already-subscribed channel throws:
+### التغييرات
 
-> cannot add `postgres_changes` callbacks for realtime:subs:... after `subscribe()`.
+**1. صفحة Pricing (`src/pages/Pricing.tsx`) — لافتة التجربة (سطر 217)**
+أضف داخل اللافتة الموجودة:
+- جملة طمأنة واضحة: «لن تُحسب أي رسوم تلقائياً — التجربة تنتهي من نفسها».
+- زر ثانوي «إنهاء التجربة الآن» يفتح حوار تأكيد.
 
-This uncaught error bubbles up to `ErrorBoundary`, which shows the bilingual "Something went wrong" screen on any page that mounts this hook (Buildings, Settings, sidebar, GraceBanner, etc.).
+**2. صفحة Settings (`src/pages/Settings.tsx`) — قسم الاشتراك**
+عندما `sub.isTrialing` يكون true، أضف:
+- شارة «تجربة مجانية — X يوم متبقي».
+- نص طمأنة قصير: «لا توجد فوترة تلقائية. للاستمرار بعد التجربة اختر خطة من صفحة الأسعار».
+- زر ثانوي بلون terracotta مخفف «إنهاء التجربة الآن».
 
-## Fix
+**3. حوار التأكيد (مكون جديد بسيط داخل نفس الصفحات أو `EndTrialDialog.tsx`)**
+- يشرح: سيتم نقل الحساب لوضع القراءة فقط مع فترة سماح للتصدير قبل الحذف وفق السياسة الحالية.
+- زرّان: «تراجع» / «نعم، إنهاء التجربة».
 
-Edit `src/hooks/useSubscription.ts`:
+**4. منطق الإنهاء (Frontend فقط — يستخدم RPC موجود أو تحديث بسيط للملف الشخصي)**
+الخيار الأبسط: تحديث `profiles.trial_ends_at = now()` للمستخدم الحالي عبر `supabase.from('profiles').update(...).eq('id', user.id)`. دالة `account_phase` ستنقله تلقائياً إلى `readonly_grace`، ثم تستمر السياسة الحالية لفترة السماح والحذف.
+بعد النجاح: `sub.refresh()` + توست تأكيد + التنقل إلى `/backup` لتشجيع التصدير.
 
-1. Give the channel a unique name per effect run, e.g.
-   ```ts
-   const channel = supabase.channel(`subs:${user.id}:${crypto.randomUUID()}`)
-   ```
-   so a fresh channel is created on every mount and the `.on()` calls always happen before `.subscribe()`.
-2. Keep the existing cleanup `supabase.removeChannel(channel)` so the previous channel is properly torn down on unmount.
+### ملاحظات
+- لا تغييرات على قاعدة البيانات أو Paddle.
+- ثنائي اللغة (AR/RTL + EN) مع الالتزام بالـ design tokens (sage/terracotta، بدون hex مباشر).
+- لا تغيير في سياسة فترة السماح/الحذف الحالية.
 
-That's the only code change required. No DB, no UI, no schema changes.
-
-## Verification
-
-- Reload `/buildings` and `/settings` — the error screen should be gone.
-- Realtime updates to `subscriptions` / `profiles` should still trigger `load()`.
-- Check console for the original "cannot add postgres_changes callbacks…" error — should not reappear.
+### ملفات ستُعدَّل
+- `src/pages/Pricing.tsx`
+- `src/pages/Settings.tsx`
+- (اختياري) `src/components/EndTrialDialog.tsx` جديد إن فضّلت مكوناً مشتركاً
