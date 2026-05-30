@@ -175,7 +175,7 @@ export function getNextDueInfo(
   // baked into opening_balance_date (= first unpaid cycle); counting them
   // again would double-advance the next-due cycle.
   const totalPaid = payments
-    .filter((p) => p.unit_id === unit.id && !p.deleted_at && isPostAnchorPayment(p, anchorIso))
+    .filter((p) => p.unit_id === unit.id && !p.deleted_at && isRentPayment(p) && isPostAnchorPayment(p, anchorIso))
     .reduce((s, p) => s + num(p.amount), 0);
 
   const paidCycles = rent > 0 ? Math.floor(totalPaid / rent) : 0;
@@ -221,7 +221,7 @@ export function overdueCyclesCount(
   const due = cyclesDue(unit, asOf);
   const anchorIso = unit.opening_balance_date || unit.contract_start_date || null;
   const paid = payments
-    .filter((p) => p.unit_id === unit.id && !p.deleted_at && isPostAnchorPayment(p, anchorIso))
+    .filter((p) => p.unit_id === unit.id && !p.deleted_at && isRentPayment(p) && isPostAnchorPayment(p, anchorIso))
     .reduce((s, p) => s + num(p.amount), 0);
 
   const paidCycles = Math.floor(paid / rent);
