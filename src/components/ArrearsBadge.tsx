@@ -10,6 +10,8 @@ interface Props {
   className?: string;
   /** When true, renders a slightly larger block-style badge for detail pages. */
   block?: boolean;
+  /** Active lease (tenancy) id used to isolate the current tenant's balance. */
+  activeTenancyId?: string | null;
 }
 
 const MONTHS_AR = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
