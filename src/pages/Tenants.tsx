@@ -106,6 +106,8 @@ export default function Tenants() {
       });
     }
     const { error } = await supabase.from("payments").insert(rows);
+    const { paymentsBus } = await import("@/lib/paymentsBus");
+    if (!error) paymentsBus.emit(r.unit_id);
     if (!error) {
       const collected = r.rent_amount + (collectArrears ? priorArrears : 0);
       // Status is derived — only update last_paid_date for legacy display.

@@ -84,7 +84,8 @@ export default function PaymentsTrash() {
     const target = rows.find((r) => r.id === id);
     const { error } = await supabase.from("payments").update({ deleted_at: null }).eq("id", id);
     if (error) return toast.error(error.message);
-    // Unit status recomputed by DB trigger.
+    const { paymentsBus } = await import("@/lib/paymentsBus");
+    paymentsBus.emit(target?.unit_id ?? null);
     if (target) {
       logActivity({
         entityType: "payment",
@@ -105,7 +106,8 @@ export default function PaymentsTrash() {
     const { error } = await supabase.from("payments").delete().eq("id", pendingPurge);
     setPendingPurge(null);
     if (error) return toast.error(error.message);
-    // Unit status recomputed by DB trigger.
+    const { paymentsBus } = await import("@/lib/paymentsBus");
+    paymentsBus.emit(target?.unit_id ?? null);
     if (target) {
       logActivity({
         entityType: "payment",
