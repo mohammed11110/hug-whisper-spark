@@ -123,7 +123,7 @@ export default function Reports() {
       setExpenses(ex);
       setLoading(false);
     })();
-  }, [user]);
+  }, [user, paymentsTick]);
 
   const now = new Date();
   const months = useMemo(() => {

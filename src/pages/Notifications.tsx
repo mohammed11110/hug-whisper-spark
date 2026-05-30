@@ -105,7 +105,7 @@ export default function Notifications() {
       setItems(out);
       setLoading(false);
     })();
-  }, [user, settings.upcomingDays, settings.contractWarnDays]);
+  }, [user, settings.upcomingDays, settings.contractWarnDays, paymentsTick]);
 
   const filtered = useMemo(() => tab === "all" ? items : items.filter(i => i.kind === tab), [items, tab]);
   const counts = useMemo(() => ({
