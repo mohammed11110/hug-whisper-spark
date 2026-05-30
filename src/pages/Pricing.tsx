@@ -404,6 +404,7 @@ export default function Pricing() {
         </div>
       </div>
       {user && <BottomNav />}
+      <EndTrialDialog open={endTrialOpen} onOpenChange={setEndTrialOpen} onEnded={() => sub.refresh()} />
     </div>
   );
 }
