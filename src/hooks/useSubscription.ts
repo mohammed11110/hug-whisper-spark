@@ -11,10 +11,9 @@ export const PLAN_UNIT_LIMITS: Record<PlanTier, number> = {
   personal: 10,
   pro: 25,
   business: 75,
-  enterprise: Infinity, // legacy grandfathered plan
+  enterprise: Infinity,
 };
 
-// Add-on monthly price per unit (USD) per plan
 export const ADDON_UNIT_PRICE: Record<PlanTier, number> = {
   free: 0,
   personal: 0.99,
@@ -24,14 +23,20 @@ export const ADDON_UNIT_PRICE: Record<PlanTier, number> = {
 };
 
 const PRODUCT_TO_PLAN: Record<string, PlanTier> = {
-  amlaki_starter: "personal", // legacy product, now Personal
+  amlaki_starter: "personal",
   amlaki_personal: "personal",
   amlaki_pro: "pro",
   amlaki_business: "business",
   amlaki_enterprise: "enterprise",
 };
 
-export type SubscriptionPhase = "active" | "canceled" | "grace" | "deleted" | "free";
+export type AccountPhase =
+  | "trial"
+  | "active"
+  | "readonly_grace"
+  | "subscription_grace"
+  | "deleted"
+  | "free";
 
 export interface SubscriptionState {
   loading: boolean;
@@ -41,155 +46,137 @@ export interface SubscriptionState {
   isTrialing: boolean;
   trialEndsAt: Date | null;
   trialDaysLeft: number | null;
+  graceEndsAt: Date | null;
+  graceDaysLeft: number | null;
   currentPeriodEnd: Date | null;
   cancelAtPeriodEnd: boolean;
   paddleSubscriptionId: string | null;
   unitLimit: number;
   addonUnits: number;
-  // Lifecycle additions
-  phase: SubscriptionPhase;
+  phase: AccountPhase;
   canceledAt: Date | null;
   dataDeleteAt: Date | null;
-  graceDaysLeft: number | null;
   isReadOnly: boolean;
   canExport: boolean;
   refresh: () => Promise<void>;
 }
 
+const DEFAULT: Omit<SubscriptionState, "refresh"> = {
+  loading: true,
+  plan: "free",
+  status: "trial",
+  isActive: false,
+  isTrialing: false,
+  trialEndsAt: null,
+  trialDaysLeft: null,
+  graceEndsAt: null,
+  graceDaysLeft: null,
+  currentPeriodEnd: null,
+  cancelAtPeriodEnd: false,
+  paddleSubscriptionId: null,
+  unitLimit: Infinity,
+  addonUnits: 0,
+  phase: "free",
+  canceledAt: null,
+  dataDeleteAt: null,
+  isReadOnly: false,
+  canExport: true,
+};
+
 export function useSubscription(): SubscriptionState {
   const { user } = useAuth();
-  const [state, setState] = useState<Omit<SubscriptionState, "refresh">>({
-    loading: true,
-    plan: "free",
-    status: "inactive",
-    isActive: false,
-    isTrialing: false,
-    trialEndsAt: null,
-    trialDaysLeft: null,
-    currentPeriodEnd: null,
-    cancelAtPeriodEnd: false,
-    paddleSubscriptionId: null,
-    unitLimit: PLAN_UNIT_LIMITS.free,
-    addonUnits: 0,
-    phase: "free",
-    canceledAt: null,
-    dataDeleteAt: null,
-    graceDaysLeft: null,
-    isReadOnly: false,
-    canExport: true,
-  });
+  const [state, setState] = useState<Omit<SubscriptionState, "refresh">>(DEFAULT);
 
   const load = useCallback(async () => {
     if (!user) {
-      setState((s) => ({ ...s, loading: false }));
+      setState({ ...DEFAULT, loading: false });
       return;
     }
     const env = getPaddleEnvironment();
-    const { data } = await supabase
-      .from("subscriptions")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("environment", env)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const [subRes, profileRes, phaseRes] = await Promise.all([
+      supabase
+        .from("subscriptions")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("environment", env)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from("profiles")
+        .select("trial_ends_at, grace_ends_at")
+        .eq("id", user.id)
+        .maybeSingle(),
+      supabase.rpc("account_phase", { _user_id: user.id }),
+    ]);
 
-    if (!data) {
-      setState({
-        loading: false,
-        plan: "free",
-        status: "inactive",
-        isActive: false,
-        isTrialing: false,
-        trialEndsAt: null,
-        trialDaysLeft: null,
-        currentPeriodEnd: null,
-        cancelAtPeriodEnd: false,
-        paddleSubscriptionId: null,
-        unitLimit: PLAN_UNIT_LIMITS.free,
-        addonUnits: 0,
-        phase: "free",
-        canceledAt: null,
-        dataDeleteAt: null,
-        graceDaysLeft: null,
-        isReadOnly: false,
-        canExport: true,
-      });
-      return;
-    }
+    const sub = subRes.data;
+    const profile = profileRes.data as { trial_ends_at: string | null; grace_ends_at: string | null } | null;
+    const phase = ((phaseRes.data as string) ?? "free") as AccountPhase;
 
-    const plan: PlanTier = PRODUCT_TO_PLAN[data.product_id as string] ?? "free";
-    const status = data.status as string;
-    const trialEndsAt = data.trial_ends_at ? new Date(data.trial_ends_at as string) : null;
-    const currentPeriodEnd = data.current_period_end
-      ? new Date(data.current_period_end as string)
-      : null;
-    const canceledAt = (data as any).canceled_at ? new Date((data as any).canceled_at) : null;
-    const dataDeleteAt = (data as any).data_delete_at ? new Date((data as any).data_delete_at) : null;
     const now = Date.now();
-    const isTrialing = status === "trialing" && (!trialEndsAt || trialEndsAt.getTime() > now);
-
-    // Derive phase (mirrors public.subscription_phase server-side)
-    let phase: SubscriptionPhase = "free";
-    if (status === "deleted") phase = "deleted";
-    else if (dataDeleteAt && dataDeleteAt.getTime() > now) phase = "grace";
-    else if (dataDeleteAt && dataDeleteAt.getTime() <= now) phase = "deleted";
-    else if (["active", "trialing", "past_due"].includes(status) && (!currentPeriodEnd || currentPeriodEnd.getTime() > now)) phase = "active";
-    else if (status === "canceled" && currentPeriodEnd && currentPeriodEnd.getTime() > now) phase = "canceled";
-    else if (status === "canceled" && currentPeriodEnd && currentPeriodEnd.getTime() <= now && (currentPeriodEnd.getTime() + 30 * 86_400_000) > now) phase = "grace";
-
-    const isActive = phase === "active" || phase === "canceled";
-    const isReadOnly = phase === "grace";
-    const graceDaysLeft = dataDeleteAt
-      ? Math.max(0, Math.ceil((dataDeleteAt.getTime() - now) / 86_400_000))
-      : (phase === "grace" && currentPeriodEnd ? Math.max(0, Math.ceil((currentPeriodEnd.getTime() + 30 * 86_400_000 - now) / 86_400_000)) : null);
-
+    const trialEndsAt = profile?.trial_ends_at ? new Date(profile.trial_ends_at) : null;
+    const graceEndsAt = profile?.grace_ends_at ? new Date(profile.grace_ends_at) : null;
     const trialDaysLeft = trialEndsAt
       ? Math.max(0, Math.ceil((trialEndsAt.getTime() - now) / 86_400_000))
       : null;
+    const graceDaysLeft = graceEndsAt
+      ? Math.max(0, Math.ceil((graceEndsAt.getTime() - now) / 86_400_000))
+      : null;
+
+    const plan: PlanTier = sub ? PRODUCT_TO_PLAN[sub.product_id as string] ?? "free" : "free";
+    const status = (sub?.status as string) ?? (phase === "trial" ? "trial" : "free");
+    const currentPeriodEnd = sub?.current_period_end ? new Date(sub.current_period_end as string) : null;
+    const canceledAt = sub && (sub as any).canceled_at ? new Date((sub as any).canceled_at) : null;
+    const dataDeleteAt = sub && (sub as any).data_delete_at ? new Date((sub as any).data_delete_at) : null;
+
+    const isActive = phase === "active" || phase === "trial";
+    const isReadOnly = phase === "readonly_grace" || phase === "subscription_grace";
 
     setState({
       loading: false,
       plan: isActive ? plan : "free",
       status,
       isActive,
-      isTrialing,
+      isTrialing: phase === "trial",
       trialEndsAt,
       trialDaysLeft,
+      graceEndsAt,
+      graceDaysLeft,
       currentPeriodEnd,
-      cancelAtPeriodEnd: !!data.cancel_at_period_end,
-      paddleSubscriptionId: (data.paddle_subscription_id as string) ?? null,
-      addonUnits: Number((data as any).addon_units ?? 0),
-      unitLimit:
-        PLAN_UNIT_LIMITS[isActive ? plan : "free"] +
-        (isActive ? Number((data as any).addon_units ?? 0) : 0),
+      cancelAtPeriodEnd: !!sub?.cancel_at_period_end,
+      paddleSubscriptionId: (sub?.paddle_subscription_id as string) ?? null,
+      addonUnits: Number((sub as any)?.addon_units ?? 0),
+      // Trial gets unlimited (Infinity); active paid gets plan+addons; otherwise free tier.
+      unitLimit: phase === "trial"
+        ? Infinity
+        : phase === "active"
+          ? PLAN_UNIT_LIMITS[plan] + Number((sub as any)?.addon_units ?? 0)
+          : PLAN_UNIT_LIMITS.free,
       phase,
       canceledAt,
       dataDeleteAt,
-      graceDaysLeft,
       isReadOnly,
       canExport: phase !== "deleted",
     });
   }, [user]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
-  // Realtime: refresh on any change to this user's subscription rows
   useEffect(() => {
     if (!user) return;
     const channel = supabase
       .channel(`subs:${user.id}`)
-      .on(
-        "postgres_changes",
+      .on("postgres_changes",
         { event: "*", schema: "public", table: "subscriptions", filter: `user_id=eq.${user.id}` },
         () => load(),
       )
+      .on("postgres_changes",
+        { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${user.id}` },
+        () => load(),
+      )
       .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [user, load]);
 
   return { ...state, refresh: load };
@@ -201,33 +188,16 @@ export function useUnitUsage() {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    if (!user) {
-      setUnitCount(0);
-      setLoading(false);
-      return;
-    }
-    // Count units in buildings owned by the user
-    const { data: buildings } = await supabase
-      .from("buildings")
-      .select("id")
-      .eq("user_id", user.id);
+    if (!user) { setUnitCount(0); setLoading(false); return; }
+    const { data: buildings } = await supabase.from("buildings").select("id").eq("user_id", user.id);
     const ids = (buildings ?? []).map((b) => b.id);
-    if (ids.length === 0) {
-      setUnitCount(0);
-      setLoading(false);
-      return;
-    }
-    const { count } = await supabase
-      .from("units")
-      .select("id", { count: "exact", head: true })
-      .in("building_id", ids);
+    if (ids.length === 0) { setUnitCount(0); setLoading(false); return; }
+    const { count } = await supabase.from("units").select("id", { count: "exact", head: true }).in("building_id", ids);
     setUnitCount(count ?? 0);
     setLoading(false);
   }, [user]);
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
+  useEffect(() => { refresh(); }, [refresh]);
 
   return { unitCount, loading, refresh };
 }
