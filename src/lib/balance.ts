@@ -319,9 +319,10 @@ export function getUnitArrears(
   // on the CURRENT unit. EndTenancyDialog clears these fields and
   // NewTenancyDialog re-sets them.
   const cutoffIso =
-    [unit.opening_balance_date, unit.contract_start_date]
+    [unit.paid_up_to, unit.opening_balance_date, unit.contract_start_date]
       .filter((v): v is string => Boolean(v))
-      .sort()[0] || null;
+      .sort()
+      .pop() || null; // largest (most recent) wins — paid_up_to dominates when set
   const inCurrentTenancy = (p: PaymentForBalance): boolean => {
     if (p.unit_id !== unit.id) return true;
     if (activeTenancyId && p.tenancy_id) {
