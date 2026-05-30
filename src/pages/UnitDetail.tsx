@@ -461,6 +461,120 @@ function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLea
       >
         {lang === "ar" ? "تصدير الدورات (CSV)" : "Export cycles (CSV)"}
       </Button>
+      <Button
+        variant="ghost"
+        onClick={() => {
+          // Full ledger: opening + monthly accruals + every payment (rent/adjustment) with running balance.
+          type LedgerRow = {
+            date: string;
+            type: string;
+            description: string;
+            charge: number;
+            payment: number;
+            balance: number;
+            kind?: string;
+            receipt?: string;
+            notes?: string;
+          };
+          const entries: Array<Omit<LedgerRow, "balance"> & { sortKey: string }> = [];
+
+          // 1) Opening balance (as a charge) — once, on opening date.
+          if (arr.openingBalance > 0.009) {
+            const openingDate =
+              (unit as any).opening_balance_date ||
+              (unit as any).contract_start_date ||
+              new Date().toISOString().slice(0, 10);
+            entries.push({
+              date: openingDate,
+              type: lang === "ar" ? "رصيد افتتاحي" : "Opening",
+              description: lang === "ar" ? "متأخرات سابقة" : "Prior arrears",
+              charge: arr.openingBalance,
+              payment: 0,
+              sortKey: openingDate + "0",
+              kind: "opening",
+            });
+          }
+
+          // 2) Monthly accruals (skip the synthetic "prior arrears" cycle from arr.cycles).
+          arr.cycles
+            .filter((c) => c.label !== (lang === "ar" ? "متأخرات سابقة" : "Prior arrears"))
+            .forEach((c) => {
+              entries.push({
+                date: c.periodStartIso,
+                type: lang === "ar" ? "استحقاق" : "Accrual",
+                description: c.label,
+                charge: c.rent,
+                payment: 0,
+                sortKey: c.periodStartIso + "1",
+                kind: "accrual",
+              });
+            });
+
+          // 3) All real payments (rent + adjustment). Opening-kind rows are
+          //    already represented by the opening line above.
+          (payments || [])
+            .filter((p: any) => !p.deleted_at && (p.kind || "rent") !== "opening")
+            .forEach((p: any) => {
+              const amt = Number(p.amount) || 0;
+              const isAdj = (p.kind || "rent") === "adjustment";
+              const date = p.payment_date || p.period_start || "";
+              const descBase = isAdj
+                ? (lang === "ar" ? "تعديل الرصيد" : "Adjustment")
+                : (lang === "ar" ? "دفعة" : "Payment");
+              const desc = descBase +
+                (p.receipt_number ? ` #${p.receipt_number}` : "") +
+                (p.notes ? ` — ${p.notes}` : "");
+              // Positive adjustment = waiver/credit (reduces balance like a payment).
+              // Negative adjustment = extra charge (adds to balance).
+              const charge = isAdj && amt < 0 ? -amt : 0;
+              const payment = isAdj ? (amt > 0 ? amt : 0) : amt;
+              entries.push({
+                date,
+                type: isAdj
+                  ? (amt >= 0 ? (lang === "ar" ? "إعفاء" : "Waiver") : (lang === "ar" ? "رسم إضافي" : "Extra charge"))
+                  : (lang === "ar" ? "دفعة" : "Payment"),
+                description: desc,
+                charge,
+                payment,
+                sortKey: date + "2",
+                kind: p.kind || "rent",
+                receipt: p.receipt_number || "",
+                notes: p.notes || "",
+              });
+            });
+
+          entries.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+
+          let running = 0;
+          const rows: LedgerRow[] = entries.map((e) => {
+            running += (e.charge || 0) - (e.payment || 0);
+            return {
+              date: e.date,
+              type: e.type,
+              description: e.description,
+              charge: e.charge ? Number(e.charge.toFixed(3)) : 0,
+              payment: e.payment ? Number(e.payment.toFixed(3)) : 0,
+              balance: Number(running.toFixed(3)),
+              kind: e.kind || "",
+              receipt: (e as any).receipt || "",
+              notes: (e as any).notes || "",
+            };
+          });
+
+          if (!rows.length) {
+            toast.info(lang === "ar" ? "لا توجد بيانات لكشف الرصيد" : "No ledger data");
+            return;
+          }
+          exportToCSV(
+            `ledger-${unit.unit_number}-${new Date().toISOString().slice(0, 10)}`,
+            rows,
+          );
+        }}
+        className="w-full rounded-xl text-sage-500 h-10 text-xs"
+      >
+        {lang === "ar" ? "تنزيل كشف الرصيد (CSV)" : "Download ledger (CSV)"}
+      </Button>
+
       <Button variant="ghost" onClick={onLeasePrint} className="w-full rounded-xl text-sage-500 h-10 text-xs">
         {lang === "ar" ? "طباعة العقد" : "Print contract"}
       </Button>
