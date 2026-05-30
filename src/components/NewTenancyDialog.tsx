@@ -46,6 +46,11 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
   const [extracting, setExtracting] = useState(false);
   // المتأخرات الافتتاحية — يتم توزيعها تلقائياً على الأشهر السابقة (نفس منطق AddUnitDialog).
   const [arrears, setArrears] = useState<string>("0");
+  // مدفوع حتى (اختياري): تاريخ آخر شهر تم سداده فعلاً قبل بداية هذا العقد —
+  // المتأخرات تبدأ مباشرة بعد هذا التاريخ، ولا يُحتسب أي شيء قبله.
+  const [paidUpTo, setPaidUpTo] = useState<string>("");
+  // أيام السماح بعد يوم الاستحقاق قبل أن يصبح العقد متأخراً.
+  const [graceDays, setGraceDays] = useState<string>("0");
   const guard = useUnsavedGuard({ open, onOpenChange });
 
   const extractFromId = async () => {
@@ -88,6 +93,8 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
     setUnitPhotos([]);
     setPendingPhoto(null);
     setArrears("0");
+    setPaidUpTo("");
+    setGraceDays(String(unit.grace_days ?? "0"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, unit?.id]);
 
@@ -111,6 +118,8 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
     const rentNum = Number(rent) || 0;
     const dueNum = startDate ? Math.min(28, Math.max(1, new Date(startDate).getDate() || 1)) : Math.min(31, Math.max(1, Number(dueDay) || 1));
     const depositNum = Number(deposit) || 0;
+    const graceNum = Math.max(0, Math.min(30, Math.floor(Number(graceDays) || 0)));
+    const paidUpToVal = paidUpTo || null;
     const { error: tErr } = await supabase.from("tenancies").insert({
       building_id: unit.building_id,
       unit_id: unit.id,
@@ -126,10 +135,11 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
       rent_type: rentType,
       due_day: dueNum,
       security_deposit: depositNum,
-
+      paid_up_to: paidUpToVal,
+      grace_days: graceNum,
       deposit_status: depositNum > 0 ? "held" : "none",
       status: "active",
-    });
+    } as any);
     if (tErr) { setSaving(false); return toast.error(tErr.message); }
 
     const updatePayload: any = {
@@ -144,7 +154,8 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
       rent_type: rentType,
       due_day: dueNum,
       rent_timing: rentTiming,
-
+      grace_days: graceNum,
+      paid_up_to: paidUpToVal,
       security_deposit: depositNum,
       deposit_status: depositNum > 0 ? "held" : "none",
       status: "soon",
@@ -255,9 +266,33 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-sage-500">{lang === "ar" ? "تأمين" : "Deposit"}</Label>
+              <Input type="number" inputMode="decimal" value={deposit} onChange={(e) => setDeposit(e.target.value)} className="rounded-xl border-sage-200 h-11" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-sage-500">{lang === "ar" ? "أيام السماح" : "Grace days"}</Label>
+              <Input type="number" inputMode="numeric" min={0} max={30} value={graceDays} onChange={(e) => setGraceDays(e.target.value)} className="rounded-xl border-sage-200 h-11" />
+            </div>
+          </div>
+
+          {/* مدفوع حتى — اختياري: تاريخ آخر شهر سُدِّد فعلاً قبل بدء هذا العقد */}
           <div className="space-y-1.5">
-            <Label className="text-xs text-sage-500">{lang === "ar" ? "تأمين" : "Deposit"}</Label>
-            <Input type="number" inputMode="decimal" value={deposit} onChange={(e) => setDeposit(e.target.value)} className="rounded-xl border-sage-200 h-11" />
+            <Label className="text-xs text-sage-500">
+              {lang === "ar" ? "مدفوع حتى (اختياري)" : "Paid up to (optional)"}
+            </Label>
+            <Input
+              type="date"
+              value={paidUpTo}
+              onChange={(e) => setPaidUpTo(e.target.value)}
+              className="rounded-xl border-sage-200 h-11"
+            />
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              {lang === "ar"
+                ? "تاريخ آخر شهر سُدِّد فعلاً. تبدأ المتأخرات بعد هذا التاريخ — يُغني عن إدخال الإيصالات القديمة."
+                : "Last date already paid. Arrears start the day after — no need to enter old receipts."}
+            </p>
           </div>
 
 

@@ -48,10 +48,10 @@ export function EndTenancyDialog({ open, onOpenChange, unit, tenancyId, onDone }
     (async () => {
       const { data: ps } = await supabase
         .from("payments")
-        .select("unit_id,amount,deleted_at,payment_date,period_start,period_end")
+        .select("unit_id,amount,deleted_at,payment_date,period_start,period_end,tenancy_id,kind")
         .eq("unit_id", unit.id)
         .is("deleted_at", null);
-      const arr = getUnitArrears(unit, (ps || []) as any, new Date(), lang as "ar" | "en");
+      const arr = getUnitArrears(unit, (ps || []) as any, new Date(), lang as "ar" | "en", tenancyId);
       setOutstanding(arr.totalShortfall);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -93,9 +93,10 @@ export function EndTenancyDialog({ open, onOpenChange, unit, tenancyId, onDone }
       deposit_status: "none",
       opening_balance: 0,
       opening_balance_date: null,
+      paid_up_to: null,
       last_paid_date: null,
       status: "vacant",
-    }).eq("id", unit.id);
+    } as any).eq("id", unit.id);
     setSaving(false);
     if (uErr) return toast.error(uErr.message);
     logActivity({

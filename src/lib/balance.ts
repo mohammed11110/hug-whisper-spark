@@ -11,6 +11,9 @@ export interface UnitForBalance {
   opening_balance_date?: string | null;
   /** Day-of-month (1..28) at which monthly rent becomes due. */
   due_day?: number | null;
+  /** Lease-level override: last date already paid before this lease started.
+   *  Arrears accrue strictly AFTER this date — anything before is ignored. */
+  paid_up_to?: string | null;
 }
 
 
@@ -113,8 +116,19 @@ export function cyclesDue(unit: UnitForBalance, asOf: Date = new Date()): number
 const ISO = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
-/** Anchor date for due-day calculations. Prefers opening_balance_date (= last settlement). */
-export function getAnchorDate(unit: { contract_start_date?: string | null; opening_balance_date?: string | null }): Date | null {
+/** Anchor date for due-day calculations. The lease's `paid_up_to` always
+ *  wins when set (arrears start the day after). Otherwise prefers
+ *  `opening_balance_date` (= last settlement), then `contract_start_date`. */
+export function getAnchorDate(unit: { contract_start_date?: string | null; opening_balance_date?: string | null; paid_up_to?: string | null }): Date | null {
+  // paid_up_to: arrears start the next day. We move the anchor forward by 1 day
+  // so cycles align to "first day after the last paid period".
+  if (unit.paid_up_to) {
+    const p = new Date(unit.paid_up_to);
+    if (!Number.isNaN(p.getTime())) {
+      p.setDate(p.getDate() + 1);
+      return p;
+    }
+  }
   const s = unit.opening_balance_date || unit.contract_start_date || null;
   if (!s) return null;
   const d = new Date(s);
@@ -305,9 +319,10 @@ export function getUnitArrears(
   // on the CURRENT unit. EndTenancyDialog clears these fields and
   // NewTenancyDialog re-sets them.
   const cutoffIso =
-    [unit.opening_balance_date, unit.contract_start_date]
+    [unit.paid_up_to, unit.opening_balance_date, unit.contract_start_date]
       .filter((v): v is string => Boolean(v))
-      .sort()[0] || null;
+      .sort()
+      .pop() || null; // largest (most recent) wins — paid_up_to dominates when set
   const inCurrentTenancy = (p: PaymentForBalance): boolean => {
     if (p.unit_id !== unit.id) return true;
     if (activeTenancyId && p.tenancy_id) {
@@ -592,6 +607,12 @@ export interface UnitBalance {
   nextDueAmount: number;
   /** Whether at least one rent payment has been recorded. */
   hasPayments: boolean;
+  /** Number of full rent-months currently outstanding (ceil(balance / rent)). */
+  monthsLate: number;
+  /** Most recent due-date that has already passed (latest accrued cycle). */
+  upToMonth: Date | null;
+  /** Oldest due-date still unpaid based on `monthsLate`. */
+  fromMonth: Date | null;
 }
 
 export interface UnitForCalc extends UnitForBalance {
@@ -711,6 +732,39 @@ export function calculateUnitBalance(
 
   const daysLate = computeDaysLate(unit, balance, today);
 
+  // ----- monthsLate / fromMonth / upToMonth — month-range view of the arrears.
+  // monthsLate = number of full rent-cycles the tenant still owes (ceil).
+  // upToMonth  = latest due-date that has already passed (most recent accrued).
+  // fromMonth  = oldest unpaid due-date based on monthsLate.
+  let monthsLate = 0;
+  let upToMonth: Date | null = null;
+  let fromMonth: Date | null = null;
+  if (arrears > 0 && rent > 0 && (unit.rent_type || "monthly") === "monthly") {
+    monthsLate = Math.ceil(arrears / rent);
+    const anchor = getAnchorDate(unit);
+    if (anchor) {
+      const anchorDay = getAnchorDay(unit);
+      const elapsed = periodsElapsed(anchor, today, "monthly");
+      const timing = (unit.rent_timing || "advance") === "arrears" ? "arrears" : "advance";
+      const latestIdx = Math.max(0, timing === "arrears" ? elapsed - 1 : elapsed);
+      const monthIdxUp = anchor.getMonth() + latestIdx;
+      const upCycle = getCycleByStartMonth(
+        anchor.getFullYear() + Math.floor(monthIdxUp / 12),
+        ((monthIdxUp % 12) + 12) % 12 + 1,
+        anchorDay,
+      );
+      upToMonth = timing === "arrears" ? upCycle.end : upCycle.start;
+      const fromIdx = Math.max(0, latestIdx - (monthsLate - 1));
+      const monthIdxFrom = anchor.getMonth() + fromIdx;
+      const fromCycle = getCycleByStartMonth(
+        anchor.getFullYear() + Math.floor(monthIdxFrom / 12),
+        ((monthIdxFrom % 12) + 12) % 12 + 1,
+        anchorDay,
+      );
+      fromMonth = timing === "arrears" ? fromCycle.end : fromCycle.start;
+    }
+  }
+
   return {
     totalDue,
     totalPaid,
@@ -722,6 +776,9 @@ export function calculateUnitBalance(
     nextDueDate,
     nextDueAmount,
     hasPayments,
+    monthsLate,
+    upToMonth,
+    fromMonth,
   };
 }
 
