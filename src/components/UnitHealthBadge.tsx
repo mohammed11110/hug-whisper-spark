@@ -1,51 +1,65 @@
 import { useMemo } from "react";
-import { getUnitArrears, type UnitForBalance, type PaymentForBalance } from "@/lib/balance";
+import {
+  calculateUnitBalance,
+  type UnitForCalc,
+  type PaymentForBalance,
+  type RentStatus,
+} from "@/lib/balance";
 import { useI18n } from "@/lib/i18n";
 
 interface Props {
-  unit: UnitForBalance;
+  unit: UnitForCalc;
   payments: PaymentForBalance[];
   className?: string;
 }
 
 /**
- * مؤشّر صحة الحساب — قراءة فورية لحالة الوحدة المالية:
- *   ممتاز   → لا متأخرات + يوجد سداد سابق
- *   جيد     → لا متأخرات (مستأجر جديد، لم يحن الاستحقاق)
- *   متأخر   → دورة واحدة أو دورتان غير مكتملتين
- *   حرج    → 3 دورات فأكثر غير مكتملة
- *
- * مصدر الحقيقة: getUnitArrears (نفس منطق الباقي).
+ * Live financial status badge — single source of truth = calculateUnitBalance.
+ * Six states mapped to brand-token colors. Never reads stored `units.status`.
  */
 export function UnitHealthBadge({ unit, payments, className }: Props) {
   const { lang } = useI18n();
   const ar = lang === "ar";
 
-  const level = useMemo(() => {
-    const a = getUnitArrears(unit, payments, new Date(), lang as "ar" | "en");
-    const overdueCycles = a.cycles.filter((c) => c.status !== "paid").length;
-    const hasOpening = (a.openingBalance || 0) > 0.009;
-    const totalOverdue = overdueCycles + (hasOpening ? 1 : 0);
-    const hasPayments = (payments || []).length > 0;
-
-    if (a.totalShortfall < 0.01) {
-      return hasPayments
-        ? { key: "excellent", label: ar ? "ممتاز" : "Excellent", icon: "◆", style: "bg-sage-100 text-sage-700 border-sage-300" }
-        : { key: "good", label: ar ? "جديد" : "New", icon: "○", style: "bg-slate-100 text-slate-700 border-slate-300" };
-    }
-    if (totalOverdue >= 3) {
-      return { key: "critical", label: ar ? "حرج" : "Critical", icon: "▲", style: "bg-burgundy/15 text-burgundy border-burgundy/40" };
-    }
-    return { key: "late", label: ar ? "متأخر" : "Late", icon: "●", style: "bg-terracotta/15 text-terracotta border-terracotta/40" };
-  }, [unit, payments, ar, lang]);
+  const view = useMemo(() => {
+    const b = calculateUnitBalance(unit, payments, new Date());
+    const labelMap: Record<RentStatus, { ar: string; en: string }> = {
+      paid:     { ar: "مسدّد",   en: "Paid" },
+      credit:   { ar: "رصيد دائن", en: "Credit" },
+      upcoming: { ar: "قادم",    en: "Upcoming" },
+      due:      { ar: "مستحق اليوم", en: "Due today" },
+      grace:    { ar: "فترة سماح", en: "Grace" },
+      overdue:  { ar: "متأخّر",  en: "Overdue" },
+      critical: { ar: "حرج",    en: "Critical" },
+    };
+    const styleMap: Record<RentStatus, string> = {
+      paid:     "bg-sage-100 text-sage-700 border-sage-300",
+      credit:   "bg-gold/15 text-[hsl(var(--gold,40_45%_45%))] border-gold/40",
+      upcoming: "bg-slate-100 text-slate-700 border-slate-300",
+      due:      "bg-gold/15 text-gold border-gold/40",
+      grace:    "bg-terracotta/10 text-terracotta border-terracotta/30",
+      overdue:  "bg-terracotta/15 text-terracotta border-terracotta/40",
+      critical: "bg-burgundy/15 text-burgundy border-burgundy/40",
+    };
+    const iconMap: Record<RentStatus, string> = {
+      paid: "◆", credit: "✦", upcoming: "○", due: "●",
+      grace: "◐", overdue: "●", critical: "▲",
+    };
+    return {
+      status: b.status,
+      label: labelMap[b.status][ar ? "ar" : "en"],
+      style: styleMap[b.status],
+      icon: iconMap[b.status],
+    };
+  }, [unit, payments, ar]);
 
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold ${level.style} ${className || ""}`.trim()}
-      title={ar ? "مؤشّر صحة الحساب" : "Account health"}
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold ${view.style} ${className || ""}`.trim()}
+      title={ar ? "حالة الحساب" : "Account status"}
     >
-      <span aria-hidden className="text-[8px] leading-none">{level.icon}</span>
-      <span>{ar ? "الصحة: " : "Health: "}{level.label}</span>
+      <span aria-hidden className="text-[8px] leading-none">{view.icon}</span>
+      <span>{view.label}</span>
     </span>
   );
 }

@@ -58,8 +58,10 @@ export function EditUnitDialog({
   const [rentAmount, setRentAmount] = useState("0");
   const [rentType, setRentType] = useState<string>("monthly");
   const [dueDay, setDueDay] = useState("1");
+  const [graceDays, setGraceDays] = useState("0");
   const [securityDeposit, setSecurityDeposit] = useState("0");
   const [rentTiming, setRentTiming] = useState<"advance" | "arrears">("advance");
+
 
   const [depositStatus, setDepositStatus] = useState<string>("none");
   const [contractType, setContractType] = useState<string>("yearly");
@@ -80,7 +82,9 @@ export function EditUnitDialog({
     setRentAmount(String(unit.rent_amount ?? 0));
     setRentType(unit.rent_type);
     setDueDay(String(unit.due_day ?? 1));
+    setGraceDays(String((unit as any).grace_days ?? 0));
     setRentTiming(((unit as any).rent_timing === "arrears" ? "arrears" : "advance"));
+
 
     setSecurityDeposit(String(unit.security_deposit ?? 0));
     setDepositStatus(unit.deposit_status || "none");
@@ -108,7 +112,9 @@ export function EditUnitDialog({
       rent_amount: parseFloat(rentAmount) || 0,
       rent_type: rentType,
       due_day: Math.min(28, Math.max(1, parseInt(dueDay) || 1)),
+      grace_days: Math.min(30, Math.max(0, parseInt(graceDays) || 0)),
       rent_timing: rentTiming,
+
 
       security_deposit: parseFloat(securityDeposit) || 0,
       deposit_status: depositStatus,
@@ -274,6 +280,24 @@ export function EditUnitDialog({
                 : "Day of each month rent is due. If unpaid after this day, the unit appears in arrears automatically."}
             </p>
           </Field>
+          <Field label={lang === "ar" ? "أيام السماح بعد الاستحقاق (٠–٣٠)" : "Grace days after due (0–30)"}>
+            <Input type="number" inputMode="numeric" min={0} max={30} value={graceDays}
+              onChange={(e) => setGraceDays(e.target.value)}
+              onBlur={() => {
+                const n = parseInt(graceDays);
+                if (!graceDays || isNaN(n) || n < 0) setGraceDays("0");
+                else if (n > 30) setGraceDays("30");
+              }}
+              className="rounded-xl border-sage-200 bg-card" />
+            <p className="text-[11px] text-sage-500 mt-1 leading-relaxed">
+              {lang === "ar"
+                ? "عدد الأيام المسموحة بعد تاريخ الاستحقاق قبل أن تُعدّ الوحدة متأخرة. اتركها 0 لعدم السماح."
+                : "Days allowed after the due date before the unit becomes overdue. Leave 0 for no grace."}
+            </p>
+          </Field>
+
+
+
           <Field label={`${t2("rent_type")} (دورة الدفع)`}>
             <div className="flex gap-1.5">
               {RENT_TYPES.map((rt) => (
