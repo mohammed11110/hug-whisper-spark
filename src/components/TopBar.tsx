@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Settings, Bell, Search, Shield } from "lucide-react";
+import { Settings, Search, Shield } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { useI18n } from "@/lib/i18n";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { useAdmin } from "@/lib/useAdmin";
+import { NotificationBell } from "@/components/NotificationBell";
 
 export function TopBar({ hasAlerts = false }: { hasAlerts?: boolean }) {
   const { t } = useI18n();
