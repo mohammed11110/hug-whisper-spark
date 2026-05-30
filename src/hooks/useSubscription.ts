@@ -31,6 +31,8 @@ const PRODUCT_TO_PLAN: Record<string, PlanTier> = {
   amlaki_enterprise: "enterprise",
 };
 
+export type SubscriptionPhase = "active" | "canceled" | "grace" | "deleted" | "free";
+
 export interface SubscriptionState {
   loading: boolean;
   plan: PlanTier;
@@ -44,6 +46,13 @@ export interface SubscriptionState {
   paddleSubscriptionId: string | null;
   unitLimit: number;
   addonUnits: number;
+  // Lifecycle additions
+  phase: SubscriptionPhase;
+  canceledAt: Date | null;
+  dataDeleteAt: Date | null;
+  graceDaysLeft: number | null;
+  isReadOnly: boolean;
+  canExport: boolean;
   refresh: () => Promise<void>;
 }
 
@@ -62,6 +71,12 @@ export function useSubscription(): SubscriptionState {
     paddleSubscriptionId: null,
     unitLimit: PLAN_UNIT_LIMITS.free,
     addonUnits: 0,
+    phase: "free",
+    canceledAt: null,
+    dataDeleteAt: null,
+    graceDaysLeft: null,
+    isReadOnly: false,
+    canExport: true,
   });
 
   const load = useCallback(async () => {
