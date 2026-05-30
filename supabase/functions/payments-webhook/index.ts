@@ -97,6 +97,11 @@ async function handleSubscriptionCreated(data: any, env: PaddleEnv) {
       trial_ends_at: trialEndsAt,
       addon_units: addonUnits,
       environment: env,
+      // Re-subscribing clears any pending deletion.
+      canceled_at: null,
+      grace_started_at: null,
+      data_delete_at: null,
+      reactivated_at: status === 'active' ? new Date().toISOString() : null,
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'paddle_subscription_id' },
