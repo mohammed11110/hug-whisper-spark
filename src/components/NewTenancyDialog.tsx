@@ -118,6 +118,8 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
     const rentNum = Number(rent) || 0;
     const dueNum = startDate ? Math.min(28, Math.max(1, new Date(startDate).getDate() || 1)) : Math.min(31, Math.max(1, Number(dueDay) || 1));
     const depositNum = Number(deposit) || 0;
+    const graceNum = Math.max(0, Math.min(30, Math.floor(Number(graceDays) || 0)));
+    const paidUpToVal = paidUpTo || null;
     const { error: tErr } = await supabase.from("tenancies").insert({
       building_id: unit.building_id,
       unit_id: unit.id,
@@ -133,10 +135,11 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
       rent_type: rentType,
       due_day: dueNum,
       security_deposit: depositNum,
-
+      paid_up_to: paidUpToVal,
+      grace_days: graceNum,
       deposit_status: depositNum > 0 ? "held" : "none",
       status: "active",
-    });
+    } as any);
     if (tErr) { setSaving(false); return toast.error(tErr.message); }
 
     const updatePayload: any = {
@@ -151,7 +154,8 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
       rent_type: rentType,
       due_day: dueNum,
       rent_timing: rentTiming,
-
+      grace_days: graceNum,
+      paid_up_to: paidUpToVal,
       security_deposit: depositNum,
       deposit_status: depositNum > 0 ? "held" : "none",
       status: "soon",
