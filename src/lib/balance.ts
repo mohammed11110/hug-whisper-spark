@@ -11,6 +11,9 @@ export interface UnitForBalance {
   opening_balance_date?: string | null;
   /** Day-of-month (1..28) at which monthly rent becomes due. */
   due_day?: number | null;
+  /** Lease-level override: last date already paid before this lease started.
+   *  Arrears accrue strictly AFTER this date — anything before is ignored. */
+  paid_up_to?: string | null;
 }
 
 
