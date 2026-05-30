@@ -4,12 +4,8 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ActivityNotifier } from "@/components/ActivityNotifier";
 import { QuickAddPaymentFab } from "@/components/QuickAddPaymentFab";
+import { LifecycleBanner } from "@/components/GraceBanner";
 
-/**
- * Layout shell: on iPad/desktop (md+) shows a collapsible sidebar next to the
- * page content. On phones it renders nothing extra — pages keep their existing
- * TopBar + BottomNav experience untouched.
- */
 export function AppShell() {
   const [defaultOpen, setDefaultOpen] = useState(false);
   useEffect(() => {
@@ -20,6 +16,7 @@ export function AppShell() {
   return (
     <SidebarProvider defaultOpen={defaultOpen}>
       <ActivityNotifier />
+      <LifecycleBanner />
       <div className="flex w-full min-h-svh">
         <div className="hidden md:block">
           <AppSidebar />
@@ -32,4 +29,3 @@ export function AppShell() {
     </SidebarProvider>
   );
 }
-

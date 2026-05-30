@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Settings, Bell, Search, Shield } from "lucide-react";
+import { Settings, Search, Shield } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { useI18n } from "@/lib/i18n";
 import { SettingsPanel } from "@/components/SettingsPanel";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { useAdmin } from "@/lib/useAdmin";
+import { NotificationBell } from "@/components/NotificationBell";
 
 export function TopBar({ hasAlerts = false }: { hasAlerts?: boolean }) {
   const { t } = useI18n();
@@ -45,10 +46,7 @@ export function TopBar({ hasAlerts = false }: { hasAlerts?: boolean }) {
                 </Button>
               </Link>
             )}
-            <Button variant="ghost" size="icon" className="rounded-full h-9 w-9 relative">
-              <Bell className="h-4 w-4 text-sage-500" />
-              {hasAlerts && <span className="absolute top-1.5 end-1.5 h-2 w-2 bg-burgundy rounded-full animate-pulse-soft" />}
-            </Button>
+            <NotificationBell hasAlerts={hasAlerts} />
             <Link to="/settings">
               <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
                 <Settings className="h-4 w-4 text-sage-500" />
