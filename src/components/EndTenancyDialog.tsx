@@ -93,9 +93,10 @@ export function EndTenancyDialog({ open, onOpenChange, unit, tenancyId, onDone }
       deposit_status: "none",
       opening_balance: 0,
       opening_balance_date: null,
+      paid_up_to: null,
       last_paid_date: null,
       status: "vacant",
-    }).eq("id", unit.id);
+    } as any).eq("id", unit.id);
     setSaving(false);
     if (uErr) return toast.error(uErr.message);
     logActivity({
