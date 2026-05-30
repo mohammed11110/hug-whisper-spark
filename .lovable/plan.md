@@ -1,70 +1,38 @@
-# Production-grade upgrades — 3 priorities
+## المشكلة
 
-## P1 — Performance
+كل صفحة تنتهي بشاشة "حدث خطأ ما". السبب الجذري ظاهر في الكونسول:
 
-**Lazy route loading (`src/App.tsx`)**
-- Convert every page import (Dashboard, Buildings, BuildingDetail, UnitDetail, Payments, PaymentsTrash, Settings, Reports, Tenants, BuildingExpenses, Notifications, Backup, Team, Install, Pricing, Terms, Privacy, Refund, Assistant, Admin, Maintenance, Activity, Unsubscribe, NotFound, Welcome, Auth, ForgotPassword, ResetPassword, and all `daily/*`) to `lazy(() => import(...))`.
-- Keep `AppShell`, `RequireAuth`, providers eagerly imported (they're shell, not route bodies).
-- Wrap `<Routes>` in `<Suspense fallback={<LoadingScreen />}>`.
+```
+GET /rest/v1/profiles?... 403 (Forbidden)
+```
 
-**LoadingScreen (`src/components/LoadingScreen.tsx` — new)**
-- Full-viewport, cream background (`bg-[hsl(var(--background))]` → cream `#faf6ee`), centered Amlaki key-logo SVG (reuse existing brand mark), subtle sage spinner ring (`border-[hsl(var(--primary))]` animate-spin), no text spam.
-- Honors `prefers-reduced-motion`.
+عند فحص قاعدة البيانات وجدت أن **لا جدول واحد** في `public` يملك أي `GRANT` للأدوار `anon` / `authenticated` / `service_role`. ترحيل RLS الأخير فعّل السياسات لكنه نسي منح الصلاحيات الأساسية على الجداول، وبدون `GRANT` تُرجع PostgREST خطأ 403 مهما كانت سياسات RLS صحيحة. الـ ErrorBoundary يلتقط الاستثناء من React Query ويُظهر الشاشة الحمراء.
 
-**Image compression (`src/lib/imageCompression.ts` — new)**
-- Install `browser-image-compression`.
-- Helper `compressImage(file, { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true, preserveExif: false })`; return original if not an image or already < 200KB.
-- Integrate at every upload site: `FileUpload.tsx`, `AddMaintenanceDialog.tsx`, `NewTenancyDialog.tsx`, contract / unit-photo / tenant-id / branding flows in `UnitDetail.tsx`. Show inline "…يجري التحسين / Optimizing…" state on the trigger while awaiting compression, then proceed to Supabase upload.
+## الحل
 
-## P2 — Error handling
+ترحيل واحد يضيف `GRANT` المناسب لكل جدول، مع احترام سياسات RLS الحالية (القراءة المجهولة فقط حيث تسمح السياسات).
 
-**Global ErrorBoundary (`src/components/ErrorBoundary.tsx` — new)**
-- Class component wrapping `<App />` content (mount inside providers, outside `<BrowserRouter>` is fine, but inside `I18nProvider` so we can translate).
-- Fallback UI: cream bg, Amlaki logo, bilingual heading "حدث خطأ ما — Something went wrong", short reassurance line, primary sage "إعادة المحاولة / Try Again" button that calls `this.setState({ error: null })` and force-resets a `key` on children, plus a secondary "العودة للرئيسية / Home" link.
-- Forwards error to Sentry via `Sentry.captureException`.
+### الجداول المتأثرة (29 جدولاً)
 
-**Sentry (`src/lib/sentry.ts` — new)**
-- Add `@sentry/react`. Init in `main.tsx` only when `import.meta.env.VITE_SENTRY_DSN` is set: `Sentry.init({ dsn, tracesSampleRate: 0.1, replaysSessionSampleRate: 0, replaysOnErrorSampleRate: 1.0, integrations: [Sentry.browserTracingIntegration(), Sentry.replayIntegration()], environment: import.meta.env.MODE })`.
-- Wrap ErrorBoundary with `Sentry.ErrorBoundary` or call `captureException` from `componentDidCatch`.
-- Set user context from `AuthProvider` (`Sentry.setUser({ id })`) on login, clear on logout.
-- User adds `VITE_SENTRY_DSN` to env; no-op without it.
+`activity_log, building_members, buildings, daily_bookings, daily_cleaners, daily_cleaning_tasks, daily_message_templates, daily_pricing_rules, daily_units, email_send_log, email_send_state, email_unsubscribe_tokens, expenses, in_app_notifications, invitations, maintenance_requests, notification_log, notification_preferences, payments, profiles, promo_codes, push_subscriptions, subscription_events, subscriptions, suppressed_emails, tenancies, unit_audit_log, units, user_roles`
 
-**Friendly error messages + toasts**
-- Audit `catch` blocks in `src/pages/**` and `src/components/**`. Replace raw `error.message` toasts with mapped human strings (bilingual via `useI18n`). Keep raw error in `console.error` + Sentry only.
-- Standardize via `src/lib/notify.ts` (new): `notify.success(msg)` → sonner sage; `notify.error(msg)` → sonner burgundy. Configure sonner `<Toaster />` with `toastOptions` using sage (`hsl(var(--primary))`) success and burgundy (`#a85d5d` mapped to `--destructive`) error styles.
+### قواعد المنح
 
-## P3 — Arrears as derived state
-
-**Single source of truth (`src/lib/balance.ts`)**
-- Already mostly there. Add/export `calculateBalance(unit, payments, today)` with the exact spec:
-  - `n` = count of due-day occurrences from `contract_start_date` (anchored on `due_day` 1–31, clamped to month-end) up to and including `today`.
-  - `totalDue = n * rent`.
-  - `totalPaid = payments.filter(p => p.unit_id === unit.id && !p.deleted_at && p.kind !== 'opening').reduce((s,p) => s + Number(p.amount), 0)`.
-  - `balance`, `arrears`, `credit`, `status` (`paid` if ≤0, `critical` if ≥ 2×rent, else `overdue`) per reference.
-- Use this in `UnitDetail`, `Buildings`, `BuildingDetail`, `Payments`, `Tenants`, `Reports`, `Dashboard`, `Assistant`, and `pdfDocs.ts`. Remove any local "if payments.length > 0 → paid" logic.
-
-**Stop persisting status**
-- Remove all client-side writes that set `units.status = 'paid' | 'overdue' | …` (search `units.*update.*status`). DB trigger `recompute_unit_state` stays for now but UI must never trust `unit.status`; always compute via `calculateBalance`. (Server triggers will be deprecated in a follow-up.)
-- Ensure every payment insert/update writes `period_end` (it already exists in schema; verify `RecordPaymentDialog` / `AddPaymentDialog` populate it; default to the cycle's end when omitted).
-
-**Instant updates**
-- After any payment mutation (insert / update / soft-delete / restore), call:
-  ```ts
-  queryClient.invalidateQueries({ queryKey: ['units'] });
-  queryClient.invalidateQueries({ queryKey: ['payments'] });
+- **جداول المستخدم العادية** (مثل `buildings`, `units`, `payments`, `tenancies`, `expenses`, `maintenance_requests`, `notification_preferences`, `push_subscriptions`, `in_app_notifications`, `activity_log`, `invitations`, `building_members`, `daily_*`, `subscriptions`, `subscription_events`, `unit_audit_log`):
+  ```sql
+  GRANT SELECT, INSERT, UPDATE, DELETE ON public.<t> TO authenticated;
+  GRANT ALL ON public.<t> TO service_role;
   ```
-  Apply in every payment mutation handler — no reliance on cron or page reload.
+- **`profiles`, `user_roles`**: نفس ما سبق (authenticated فقط، بدون anon).
+- **جداول يقرأها anon عند صفحات الإلغاء/الترميز**:
+  - `email_unsubscribe_tokens`, `suppressed_emails`, `promo_codes`: تُضاف `GRANT SELECT TO anon` أيضاً إذا وُجدت سياسة قراءة عامة.
+- **جداول إدارية فقط** (`notification_log`, `email_send_log`, `email_send_state`): `GRANT ALL ON ... TO service_role;` فقط (لا تكشف للعميل).
 
-## Acceptance verification
+### خطوة التحقق
 
-- Bundle: `bun run build` and confirm route chunks split (each page in its own chunk, initial chunk shrinks ~60–70%).
-- Error boundary: throw from a dev-only test route → friendly fallback renders.
-- Arrears 300, pay 100 → UI shows balance 200, status `overdue` immediately.
-- Full payment → status flips to `paid` without refresh.
-- Advance system date past a due day → arrears auto-increments by one month on next render (pure function, no DB write).
+1. تشغيل الترحيل.
+2. إعادة تحميل `/` — يجب أن تختفي شاشة الخطأ وتظهر لوحة التحكم.
+3. تأكيد أن قائمة العقارات/الدفعات/المستأجرين تعمل.
+4. تشغيل `supabase--linter` للاطمئنان.
 
-## Out of scope
-
-- Removing the existing `recompute_unit_state` SQL trigger (kept for backward compatibility; UI no longer depends on it).
-- Backfilling `period_end` on historical rows.
-- Server-side compression / CDN image transforms.
+لا تغييرات على كود الواجهة — المشكلة كلها في طبقة قاعدة البيانات.
