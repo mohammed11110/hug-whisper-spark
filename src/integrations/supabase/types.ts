@@ -1280,6 +1280,7 @@ export type Database = {
           legal_case: Json
           opening_balance: number
           opening_balance_date: string | null
+          paid_up_to: string | null
           photo_kinds: Json
           photo_labels: Json
           rent_amount: number
@@ -1321,6 +1322,7 @@ export type Database = {
           legal_case?: Json
           opening_balance?: number
           opening_balance_date?: string | null
+          paid_up_to?: string | null
           photo_kinds?: Json
           photo_labels?: Json
           rent_amount?: number
@@ -1362,6 +1364,7 @@ export type Database = {
           legal_case?: Json
           opening_balance?: number
           opening_balance_date?: string | null
+          paid_up_to?: string | null
           photo_kinds?: Json
           photo_labels?: Json
           rent_amount?: number
