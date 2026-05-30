@@ -294,6 +294,9 @@ export function EditUnitDialog({
                 ? "عدد الأيام المسموحة بعد تاريخ الاستحقاق قبل أن تُعدّ الوحدة متأخرة. اتركها 0 لعدم السماح."
                 : "Days allowed after the due date before the unit becomes overdue. Leave 0 for no grace."}
             </p>
+          </Field>
+
+
 
           <Field label={`${t2("rent_type")} (دورة الدفع)`}>
             <div className="flex gap-1.5">
