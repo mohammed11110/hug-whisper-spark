@@ -26,6 +26,7 @@ import { useAppSettings, PAGE_SIZES_MM, type PageSize, formatReceipt } from "@/l
 import { useAuth } from "@/lib/auth";
 import { useAdmin } from "@/lib/useAdmin";
 import { DeleteAccountSection } from "@/components/DeleteAccountSection";
+import { EndTrialDialog } from "@/components/EndTrialDialog";
 import { BusinessWhatsAppSection } from "@/components/BusinessWhatsAppSection";
 import { fillTemplate } from "@/lib/whatsapp";
 import { toast } from "sonner";
