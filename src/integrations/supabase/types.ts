@@ -1126,11 +1126,13 @@ export type Database = {
           due_day: number
           ended_at: string | null
           ended_reason: string | null
+          grace_days: number
           id: string
           notes: string | null
           opening_balance: number
           opening_balance_date: string | null
           outstanding_at_end: number | null
+          paid_up_to: string | null
           rent_amount: number
           rent_type: string
           security_deposit: number
@@ -1157,11 +1159,13 @@ export type Database = {
           due_day?: number
           ended_at?: string | null
           ended_reason?: string | null
+          grace_days?: number
           id?: string
           notes?: string | null
           opening_balance?: number
           opening_balance_date?: string | null
           outstanding_at_end?: number | null
+          paid_up_to?: string | null
           rent_amount?: number
           rent_type?: string
           security_deposit?: number
@@ -1188,11 +1192,13 @@ export type Database = {
           due_day?: number
           ended_at?: string | null
           ended_reason?: string | null
+          grace_days?: number
           id?: string
           notes?: string | null
           opening_balance?: number
           opening_balance_date?: string | null
           outstanding_at_end?: number | null
+          paid_up_to?: string | null
           rent_amount?: number
           rent_type?: string
           security_deposit?: number
