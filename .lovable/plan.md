@@ -1,95 +1,118 @@
-# Subscription Cancellation & Data Retention
+# 14-Day Trial + Data Retention Policy
 
-A three-phase lifecycle that respects the paid period, gives users 30 days of read-only access + export, then permanently deletes their data unless they reactivate.
+Builds on the existing grace-period infrastructure (subscriptions.canceled_at, grace_started_at, data_delete_at, subscription_phase, can_write, RESTRICTIVE write-gating RLS, GraceBanner, subscription-lifecycle cron). This plan adds the **trial phase** and the **3-channel staged notification system**.
 
 ## Lifecycle
 
 ```text
-ACTIVE ──cancel──► CANCELED (still paid)
-                       │ period_end reached
-                       ▼
-                    GRACE (30 days, read-only, export + reactivate)
-                       │ data_delete_at reached, no reactivation
-                       ▼
-                    DELETED (data permanently removed)
+SIGNUP ──► TRIAL (14 days, unlimited units)
+            │ trial_ends_at reached, no paid sub
+            ▼
+         READONLY_GRACE (30 days, view + export + reactivate)
+            │ grace_ends_at reached
+            ▼
+         DELETED (permanent)
 ```
 
-Reactivate at any point before deletion → instant return to ACTIVE.
+Subscribing at any point during TRIAL or GRACE → instant ACTIVE.
 
 ## 1. Database
 
-Migration on `public.subscriptions`:
-- `canceled_at timestamptz` — set when user cancels.
-- `data_delete_at timestamptz` — set to `current_period_end + 30 days` when entering grace.
-- `status` already exists; we add two app-level meanings: `'grace'` and `'deleted'`. Paddle still sends `canceled`; our webhook + a scheduled job promote it to `grace` / `deleted`.
-- `reactivated_at timestamptz` — audit trail.
+Migration on `public.profiles`:
+- `trial_started_at timestamptz default now()` — set on signup via existing `handle_new_user` trigger.
+- `trial_ends_at timestamptz` — `trial_started_at + 14 days`.
+- `grace_ends_at timestamptz` — set to `trial_ends_at + 30 days` when trial expires without sub.
+- `account_status` extends to include `'trial' | 'readonly_grace'` (plus existing `'active' | 'deleted'`).
 
-New SQL helper `public.subscription_phase(user_id)` returns `'active' | 'canceled' | 'grace' | 'deleted' | 'free'` so client + RLS both use one source of truth.
+Helper functions:
+- `public.account_phase(uid)` — single source of truth: returns `'trial' | 'active' | 'readonly_grace' | 'subscription_grace' | 'deleted' | 'free'`. Combines paid-sub phase (existing `subscription_phase`) with trial phase from profile. Paid sub always wins over trial.
+- Update `can_write(uid)` to allow writes during `trial | active | canceled`, block during `readonly_grace | subscription_grace | deleted`.
+- Update `has_data_access(uid)` to allow read during everything except `deleted`.
+- During trial: unit-quota trigger (`enforce_unit_quota`) is bypassed — trial users get unlimited units.
 
-Update `has_active_subscription` to treat `grace` as **not** active (so paid features lock), but a new `public.has_data_access(user_id)` returns true for `active | canceled | grace` (used by SELECT / export paths).
+New table `public.notification_log`:
+- `user_id`, `kind` (`trial-d10|trial-d13|trial-end|grace-d7|grace-d37|grace-d43|grace-d1`), `channel` (`email|in_app|push`), `sent_at`, unique on (user_id, kind, channel) for idempotency.
 
-## 2. RLS — read-only enforcement in grace
+New table `public.in_app_notifications`:
+- `user_id`, `title_ar`, `title_en`, `body_ar`, `body_en`, `kind`, `action_url`, `read_at`, `created_at`.
+- RLS: users SELECT/UPDATE (mark read) own rows; service_role inserts.
 
-For each user-owned data table (`buildings`, `units`, `payments`, `expenses`, `tenancies`, `maintenance_requests`, `daily_*`):
-- SELECT policies: unchanged (gated by `has_data_access`).
-- INSERT / UPDATE / DELETE policies: add `AND public.subscription_phase(auth.uid()) IN ('active','canceled')` so writes fail cleanly during grace.
+New table `public.push_subscriptions`:
+- `user_id`, `token` (Capacitor FCM/APNs token), `platform` (`ios|android|web`), `created_at`, unique on token.
 
-Service role bypass preserved (webhooks, scheduled cleanup, exports).
+## 2. Trial provisioning
 
-## 3. Webhook & scheduled job
+Update `handle_new_user()` trigger: on insert, set `trial_started_at = now()`, `trial_ends_at = now() + 14 days`, `account_status = 'trial'`.
 
-`payments-webhook` edge function:
-- On `subscription.canceled` from Paddle → set `status='canceled'`, `canceled_at=now()`. Access continues until `current_period_end`.
-- On `subscription.updated` where renewal resumed → clear `canceled_at`, `data_delete_at`, set `status='active'`, insert reactivation event.
+Backfill migration for existing users without a paid sub: set `trial_ends_at = COALESCE(trial_ends_at, created_at + 14 days)`.
 
-New scheduled edge function `subscription-lifecycle` (pg_cron every hour):
-- Promote `canceled` → `grace` when `current_period_end < now()`; set `data_delete_at = current_period_end + 30 days`.
-- 7-day and 1-day reminder emails (idempotent via `email_send_log` template_name).
-- Promote `grace` → `deleted` when `data_delete_at < now()`: call existing `delete-account` logic scoped to user's data (keep auth user + profile shell so they can log back in and re-subscribe), set `status='deleted'`.
+## 3. Scheduled job (extend existing `subscription-lifecycle`)
 
-## 4. Frontend
+Single cron, every hour, now also handles trial:
 
-`useSubscription` hook additions:
-- `phase: 'active' | 'canceled' | 'grace' | 'deleted' | 'free'`
-- `dataDeleteAt: Date | null`
-- `graceDaysLeft: number | null`
-- `isReadOnly: boolean` (true iff `phase === 'grace'`)
-- `canExport: boolean` (true for `active | canceled | grace`)
+| Day | Action | Channels |
+|-----|--------|----------|
+| -4 (D10)  | "Trial ends in 4 days" | email + in_app + push |
+| -1 (D13)  | "Trial ends tomorrow" | email + in_app + push |
+|  0 (D14)  | Promote → `readonly_grace`, set `grace_ends_at = now() + 30d` | email + in_app + push |
+| +7 (D21)  | "23 days before deletion" | email + in_app + push |
+| +23 (D37) | "Data deleted in 7 days" | email + in_app + push |
+| +29 (D43) | "Deletion tomorrow — export now" | email + in_app + push |
+| +30 (D44) | Permanently delete data, set status=`deleted` | email |
 
-New components:
-- `<GraceBanner />` — sticky yellow banner shown app-wide when `isReadOnly`, with live countdown ("بياناتك محفوظة لمدة X يوم") and two CTAs: **تصدير بياناتي** / **إعادة التفعيل**. Sage-tinted warning (terracotta accent), dismissible per-session but reappears next load.
-- `<ExportMyDataDialog />` — wraps existing `Backup.tsx` export logic + a new PDF/Excel bundle. Always reachable from banner and Settings.
-- Read-only guards: wrap all add/edit FABs and dialog triggers in a `<WriteGate>` that disables + tooltips "وضع القراءة فقط — أعد تفعيل الاشتراك للتعديل" when `isReadOnly`. Targets: `QuickAddPaymentFab`, Add/Edit dialogs across Buildings/Units/Payments/Expenses/Maintenance/Daily.
+Idempotency via `notification_log` unique constraint. Same dispatcher reuses the `enqueue_email` RPC and adds `in_app_notifications` insert + push fan-out.
 
-Settings → Subscription section:
-- During `active`: "إلغاء الاشتراك" button → Paddle customer portal (already wired).
-- During `canceled`: shows "ينتهي في DD/MM/YYYY — استأنف" + reactivate button.
-- During `grace`: countdown card + export + reactivate.
-- During `deleted`: re-subscribe CTA only.
+## 4. Push notifications (Capacitor)
 
-Reactivate flow: opens Paddle customer portal "resume" URL when subscription still exists in Paddle; otherwise redirects to Pricing to start a new subscription. On webhook confirmation the UI auto-updates via realtime.
+- New edge function `send-push` — takes `user_id`, looks up tokens, fans out to FCM (Android/web) + APNs (iOS) via a single provider. Recommend **FCM HTTP v1** (free, handles both with one creds set) — needs one secret: `FCM_SERVICE_ACCOUNT_JSON`.
+- Client registration in `src/lib/push.ts`: on app boot inside Capacitor, request permission via `@capacitor/push-notifications`, upsert token into `push_subscriptions`.
+- Settings → Notifications: toggle to enable/disable + permission state.
 
-## 5. Emails
+## 5. Frontend
 
-New templates in `_shared/transactional-email-templates/`:
-- `grace-started.tsx` — sent when entering grace.
-- `grace-7-days.tsx` — 7 days before deletion.
-- `grace-1-day.tsx` — 1 day before deletion (final warning).
-- `data-deleted.tsx` — confirmation after deletion.
+`useSubscription` → add `phase: 'trial' | ...`, `trialEndsAt`, `trialDaysLeft`, `graceEndsAt`. Replace ad-hoc `phase` derivation with one call to `account_phase` RPC for parity with server.
 
-All trilingual-aware (AR primary), include direct export + reactivate links, and respect existing suppression list.
+Banner system (`<LifecycleBanner />` replaces `<GraceBanner />`):
+- TRIAL with >4 days: subtle sage tint, "تجربتك المجانية: X يوماً متبقياً".
+- TRIAL with ≤4 days: gold tint, prominent "Subscribe" CTA + live countdown.
+- READONLY_GRACE: terracotta tint, countdown "بياناتك محفوظة X يوماً — اشترك الآن"; Export + Subscribe CTAs.
+- All CTAs: **Subscribe button always larger & gold-accented** than secondary actions. "Delete" wording avoided; we say "حذف البيانات بعد X يوماً" only in the final 7 days.
 
-## 6. Export guarantee (PDPL/GDPR)
+In-app notification center:
+- New `<NotificationBell />` in `TopBar`: unread count, dropdown list, mark-as-read on open.
+- Realtime subscription to `in_app_notifications` so bell updates instantly.
+- Tap notification → navigates to `action_url` (Pricing / Backup).
 
-`Backup.tsx` export path uses SELECT-only queries (RLS allows). Add server-side `export-user-data` edge function as a fallback that runs with service role and streams a ZIP (JSON + CSV per table + PDF summary) so export works even if any client-side issue arises during grace. Reachable from banner + Settings + a stable URL `/export`.
+Pricing page upgrade-suggestion:
+- When `unitCount > PLAN_UNIT_LIMITS.business`, show "Business + N addon units" pre-selected with computed monthly price (`PLAN_UNIT_LIMITS.business` base + `(unitCount - 75) * ADDON_UNIT_PRICE.business`).
+- Banner CTA when in grace deeplinks here with `?units=N`.
+
+Export button: already exists in Backup; surface a one-click "Export My Data (ZIP: Excel + PDF)" button in banner + Settings during grace via new `export-user-data` edge function (planned earlier).
+
+## 6. Emails
+
+6 new templates under `_shared/transactional-email-templates/`:
+`trial-d10.tsx`, `trial-d13.tsx`, `trial-ended.tsx`, `grace-d7.tsx` (was grace-started, repurpose), `grace-d37.tsx`, `grace-d43.tsx`, `data-deleted.tsx`. Reuse existing brand template shell; AR primary, EN fallback per profile locale.
+
+## 7. Read-only enforcement
+
+Already done by existing RESTRICTIVE policies via `can_write()`. After updating `can_write()` to include `trial`, no further RLS changes needed for trial users to write.
+
+UX gating: `<WriteGate>` wrapper disables Add/Edit FABs + dialog triggers when `isReadOnly`, with tooltip "وضع القراءة فقط — اشترك لاستئناف التعديل". Applied to: `QuickAddPaymentFab`, Add/Edit dialogs in Buildings/Units/Payments/Expenses/Maintenance/Daily.
+
+## 8. Reactivation
+
+- Banner "اشترك الآن" → `/pricing` with addon-units preselected if quota exceeds plans.
+- Settings → Subscription section: phase-aware copy + primary Subscribe button.
+- On successful Paddle webhook → existing `reactivate_subscription` logic clears grace fields; realtime updates UI.
 
 ## Out of scope
-- Changing trial logic.
-- Changing add-on unit handling beyond following the parent subscription phase.
-- Annual plans — same lifecycle applies automatically since it's keyed off `current_period_end`.
+- Changing existing paid-sub cancellation flow (already implemented).
+- Changing trial length per plan (single 14-day for all).
+- SMS channel (only email + in_app + push as requested).
 
 ## Technical notes
-- All timestamp math in UTC server-side; client formats with user locale.
-- Cron job is idempotent — safe to run hourly.
-- `delete-account` edge function already cascades correctly; the lifecycle job reuses its helpers but keeps `auth.users` + `profiles` so re-subscribing works.
-- Realtime on `subscriptions` table already subscribed in `useSubscription` — banner + gates react instantly to phase changes.
+- All timestamps in UTC server-side; client formats per locale.
+- Trial backfill is one-time, idempotent.
+- Push requires `FCM_SERVICE_ACCOUNT_JSON` secret — will prompt user before scaffolding `send-push`.
+- iOS APNs via FCM works without separate Apple creds for dev; production may need APNs key — surface this only when user publishes to App Store.

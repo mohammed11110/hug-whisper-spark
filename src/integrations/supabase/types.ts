@@ -566,6 +566,45 @@ export type Database = {
         }
         Relationships: []
       }
+      in_app_notifications: {
+        Row: {
+          action_url: string | null
+          body_ar: string
+          body_en: string | null
+          created_at: string
+          id: string
+          kind: string
+          read_at: string | null
+          title_ar: string
+          title_en: string | null
+          user_id: string
+        }
+        Insert: {
+          action_url?: string | null
+          body_ar: string
+          body_en?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          read_at?: string | null
+          title_ar: string
+          title_en?: string | null
+          user_id: string
+        }
+        Update: {
+          action_url?: string | null
+          body_ar?: string
+          body_en?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          read_at?: string | null
+          title_ar?: string
+          title_en?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       invitations: {
         Row: {
           accepted_at: string | null
@@ -664,6 +703,30 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_log: {
+        Row: {
+          channel: string
+          id: string
+          kind: string
+          sent_at: string
+          user_id: string
+        }
+        Insert: {
+          channel: string
+          id?: string
+          kind: string
+          sent_at?: string
+          user_id: string
+        }
+        Update: {
+          channel?: string
+          id?: string
+          kind?: string
+          sent_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           amount: number
@@ -730,6 +793,7 @@ export type Database = {
           country_code: string | null
           created_at: string
           email: string | null
+          grace_ends_at: string | null
           id: string
           name: string | null
           paddle_customer_id: string | null
@@ -740,6 +804,7 @@ export type Database = {
           subscription_plan: string
           subscription_status: string
           trial_ends_at: string | null
+          trial_started_at: string | null
           updated_at: string
           whatsapp_code_expires_at: string | null
           whatsapp_verification_attempts: number
@@ -752,6 +817,7 @@ export type Database = {
           country_code?: string | null
           created_at?: string
           email?: string | null
+          grace_ends_at?: string | null
           id: string
           name?: string | null
           paddle_customer_id?: string | null
@@ -762,6 +828,7 @@ export type Database = {
           subscription_plan?: string
           subscription_status?: string
           trial_ends_at?: string | null
+          trial_started_at?: string | null
           updated_at?: string
           whatsapp_code_expires_at?: string | null
           whatsapp_verification_attempts?: number
@@ -774,6 +841,7 @@ export type Database = {
           country_code?: string | null
           created_at?: string
           email?: string | null
+          grace_ends_at?: string | null
           id?: string
           name?: string | null
           paddle_customer_id?: string | null
@@ -784,6 +852,7 @@ export type Database = {
           subscription_plan?: string
           subscription_status?: string
           trial_ends_at?: string | null
+          trial_started_at?: string | null
           updated_at?: string
           whatsapp_code_expires_at?: string | null
           whatsapp_verification_attempts?: number
@@ -828,6 +897,30 @@ export type Database = {
           redeemed_at?: string | null
           redeemed_by?: string | null
           used_count?: number
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          created_at: string
+          id: string
+          platform: string
+          token: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          platform: string
+          token: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          platform?: string
+          token?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -1311,6 +1404,7 @@ export type Database = {
       }
     }
     Functions: {
+      account_phase: { Args: { _user_id: string }; Returns: string }
       can_write: { Args: { _user_id: string }; Returns: boolean }
       delete_email: {
         Args: { message_id: number; queue_name: string }
