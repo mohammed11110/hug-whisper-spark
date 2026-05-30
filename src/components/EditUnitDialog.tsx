@@ -280,6 +280,21 @@ export function EditUnitDialog({
                 : "Day of each month rent is due. If unpaid after this day, the unit appears in arrears automatically."}
             </p>
           </Field>
+          <Field label={lang === "ar" ? "أيام السماح بعد الاستحقاق (٠–٣٠)" : "Grace days after due (0–30)"}>
+            <Input type="number" inputMode="numeric" min={0} max={30} value={graceDays}
+              onChange={(e) => setGraceDays(e.target.value)}
+              onBlur={() => {
+                const n = parseInt(graceDays);
+                if (!graceDays || isNaN(n) || n < 0) setGraceDays("0");
+                else if (n > 30) setGraceDays("30");
+              }}
+              className="rounded-xl border-sage-200 bg-card" />
+            <p className="text-[11px] text-sage-500 mt-1 leading-relaxed">
+              {lang === "ar"
+                ? "عدد الأيام المسموحة بعد تاريخ الاستحقاق قبل أن تُعدّ الوحدة متأخرة. اتركها 0 لعدم السماح."
+                : "Days allowed after the due date before the unit becomes overdue. Leave 0 for no grace."}
+            </p>
+
           <Field label={`${t2("rent_type")} (دورة الدفع)`}>
             <div className="flex gap-1.5">
               {RENT_TYPES.map((rt) => (
