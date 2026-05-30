@@ -25,6 +25,9 @@ export interface PaymentForBalance {
    *  prior arrears) | 'adjustment'. Opening rows are excluded from "paid"
    *  sums and instead treated as additional due. */
   kind?: string | null;
+  /** Lease (tenancy) this payment belongs to. Source of truth for isolating
+   *  a new tenant's balance from a previous tenant's payments on the same unit. */
+  tenancy_id?: string | null;
 }
 
 /** Opening-kind payments are NOT real receipts — they represent prior
