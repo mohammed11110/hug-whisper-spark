@@ -36,6 +36,11 @@ export const isOpeningPayment = (p: PaymentForBalance): boolean =>
 export const isRentPayment = (p: PaymentForBalance): boolean =>
   (p.kind || "rent") === "rent";
 
+/** Manual balance adjustments (waiver/discount when positive, extra charge when negative). */
+export const isAdjustmentPayment = (p: PaymentForBalance): boolean =>
+  (p.kind || "rent") === "adjustment";
+
+
 /**
  * A payment belongs to the *current* settlement window (i.e. should offset
  * accrued rent from the anchor onward) only if the cycle it covers ends
