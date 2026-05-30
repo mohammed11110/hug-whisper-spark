@@ -223,8 +223,16 @@ export default function Pricing() {
                 : `${sub.trialDaysLeft} days left in your free trial`}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {ar ? "ستبدأ الفوترة تلقائياً بعد انتهاء التجربة." : "Billing starts automatically when the trial ends."}
+              {ar
+                ? "لن تُحسب أي رسوم تلقائياً — اشترك يدوياً للاستمرار بعد التجربة."
+                : "No automatic charges — subscribe manually to continue after the trial."}
             </p>
+            <button
+              onClick={() => setEndTrialOpen(true)}
+              className="mt-3 text-xs font-bold text-terracotta hover:underline"
+            >
+              {ar ? "إنهاء التجربة الآن" : "End trial now"}
+            </button>
           </div>
         )}
 
