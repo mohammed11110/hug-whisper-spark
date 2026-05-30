@@ -53,7 +53,7 @@ const DailyCleaning = lazy(() => import("./pages/daily/DailyCleaning"));
 const DailyMessages = lazy(() => import("./pages/daily/DailyMessages"));
 const DailyReports = lazy(() => import("./pages/daily/DailyReports"));
 
-const queryClient = new QueryClient();
+
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
