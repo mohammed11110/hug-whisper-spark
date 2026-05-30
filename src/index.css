@@ -328,3 +328,27 @@ html[lang="ar"] body {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.6; transform: scale(1.15); }
 }
+
+/* === Safe-area + RTL polish === */
+@layer base {
+  body {
+    /* Honor iPhone notches and Android gesture areas. */
+    padding-inline-start: env(safe-area-inset-left);
+    padding-inline-end: env(safe-area-inset-right);
+  }
+  /* Keep numbers, currency, and Latin code LTR even inside RTL text. */
+  [dir="rtl"] .numeric,
+  [dir="rtl"] code,
+  [dir="rtl"] kbd,
+  [dir="rtl"] samp,
+  [dir="rtl"] .ltr {
+    direction: ltr;
+    unicode-bidi: embed;
+  }
+  /* Minimum touch-target hint for interactive primitives in mobile shells. */
+  @media (max-width: 480px) {
+    button, [role="button"], a[role="link"], input[type="button"], input[type="submit"] {
+      min-height: 44px;
+    }
+  }
+}
