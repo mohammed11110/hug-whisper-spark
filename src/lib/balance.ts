@@ -356,7 +356,7 @@ export function getUnitArrears(
     const baseCycles = timing === "advance" ? elapsed + 1 : elapsed;
 
     const unitPays = payments.filter(
-      (p) => p.unit_id === unit.id && !p.deleted_at && isPostAnchorPayment(p, anchorIso),
+      (p) => p.unit_id === unit.id && !p.deleted_at && isRentPayment(p) && isPostAnchorPayment(p, anchorIso),
     );
 
     // CRITICAL: استبعد دفعات «متأخرات سابقة» من تجميع دفعات الدورات الشهرية.
