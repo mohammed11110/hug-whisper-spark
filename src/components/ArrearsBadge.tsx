@@ -1,7 +1,8 @@
 import { useMemo } from "react";
-import { getUnitArrears, type UnitForBalance, type PaymentForBalance, type ArrearsCycle } from "@/lib/balance";
+import { getUnitArrears, calculateUnitBalance, type UnitForBalance, type PaymentForBalance, type ArrearsCycle } from "@/lib/balance";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
+
 
 interface Props {
   unit: UnitForBalance;
