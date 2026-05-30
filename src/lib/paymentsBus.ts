@@ -5,6 +5,8 @@
 // Built on top of window CustomEvent so it works across React trees
 // without pulling react-query.
 
+import { queryClient } from "@/lib/queryClient";
+
 const EVENT = "amlaki:payment-added" as const;
 
 export interface PaymentBusDetail {
@@ -14,6 +16,9 @@ export interface PaymentBusDetail {
 export const paymentsBus = {
   /** Notify all listeners that the payments dataset changed. */
   emit(unitId?: string | null) {
+    // Invalidate react-query caches so status & balance refresh instantly.
+    queryClient.invalidateQueries({ queryKey: ["units"] });
+    queryClient.invalidateQueries({ queryKey: ["payments"] });
     if (typeof window === "undefined") return;
     window.dispatchEvent(new CustomEvent<PaymentBusDetail>(EVENT, { detail: { unitId: unitId ?? null } }));
   },

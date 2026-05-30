@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { Upload, X, FileText, Image as ImageIcon, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { compressImage } from "@/lib/imageCompression";
 import { Button } from "@/components/ui/button";
 
 type Bucket = "contracts" | "tenant-ids" | "unit-photos" | "branding";
@@ -52,7 +53,12 @@ export function FileUpload({
     if (data?.signedUrl) setSignedUrl(data.signedUrl);
   };
 
-  const handleFile = async (file: File) => {
+  const [optimizing, setOptimizing] = useState(false);
+
+  const handleFile = async (rawFile: File) => {
+    setOptimizing(true);
+    const file = await compressImage(rawFile);
+    setOptimizing(false);
     if (file.size > maxSizeMB * 1024 * 1024) {
       toast.error(`الملف أكبر من ${maxSizeMB} ميغابايت`);
       return;
@@ -85,7 +91,8 @@ export function FileUpload({
 
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
 
-  const uploadOne = async (file: File): Promise<string> => {
+  const uploadOne = async (rawFile: File): Promise<string> => {
+    const file = await compressImage(rawFile);
     if (file.size > maxSizeMB * 1024 * 1024) {
       throw new Error(`${file.name}: > ${maxSizeMB}MB`);
     }
@@ -189,12 +196,14 @@ export function FileUpload({
         <Button
           type="button"
           variant="outline"
-          disabled={busy}
+          disabled={busy || optimizing}
           onClick={() => inputRef.current?.click()}
           className="w-full h-11 rounded-xl border-dashed border-sage-300 text-sage-600 font-medium"
         >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin me-2" /> : <Upload className="h-4 w-4 me-2" />}
-          {busy
+          {busy || optimizing ? <Loader2 className="h-4 w-4 animate-spin me-2" /> : <Upload className="h-4 w-4 me-2" />}
+          {optimizing
+            ? "يجري التحسين…"
+            : busy
             ? progress
               ? `جاري الرفع ${progress.done}/${progress.total}...`
               : "جاري الرفع..."

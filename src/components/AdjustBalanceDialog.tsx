@@ -118,6 +118,8 @@ export function AdjustBalanceDialog({
       period_end: today,
     } as any);
     if (error) { setBusy(false); return toast.error(error.message); }
+    const { paymentsBus } = await import("@/lib/paymentsBus");
+    paymentsBus.emit(unitId);
 
     logActivity({
       entityType: "payment",
@@ -129,8 +131,8 @@ export function AdjustBalanceDialog({
       descriptionEn: `${tag} on unit ${unitNumber || ""} of ${Math.abs(signed)}${reason ? ` — ${reason}` : ""}`,
     });
 
-    const { paymentsBus } = await import("@/lib/paymentsBus");
-    paymentsBus.emit(unitId);
+
+
 
     toast.success(ar ? "تم تعديل الرصيد" : "Balance adjusted");
     setBusy(false);

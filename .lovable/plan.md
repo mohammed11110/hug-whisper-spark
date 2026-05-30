@@ -1,118 +1,70 @@
-# 14-Day Trial + Data Retention Policy
+# Production-grade upgrades — 3 priorities
 
-Builds on the existing grace-period infrastructure (subscriptions.canceled_at, grace_started_at, data_delete_at, subscription_phase, can_write, RESTRICTIVE write-gating RLS, GraceBanner, subscription-lifecycle cron). This plan adds the **trial phase** and the **3-channel staged notification system**.
+## P1 — Performance
 
-## Lifecycle
+**Lazy route loading (`src/App.tsx`)**
+- Convert every page import (Dashboard, Buildings, BuildingDetail, UnitDetail, Payments, PaymentsTrash, Settings, Reports, Tenants, BuildingExpenses, Notifications, Backup, Team, Install, Pricing, Terms, Privacy, Refund, Assistant, Admin, Maintenance, Activity, Unsubscribe, NotFound, Welcome, Auth, ForgotPassword, ResetPassword, and all `daily/*`) to `lazy(() => import(...))`.
+- Keep `AppShell`, `RequireAuth`, providers eagerly imported (they're shell, not route bodies).
+- Wrap `<Routes>` in `<Suspense fallback={<LoadingScreen />}>`.
 
-```text
-SIGNUP ──► TRIAL (14 days, unlimited units)
-            │ trial_ends_at reached, no paid sub
-            ▼
-         READONLY_GRACE (30 days, view + export + reactivate)
-            │ grace_ends_at reached
-            ▼
-         DELETED (permanent)
-```
+**LoadingScreen (`src/components/LoadingScreen.tsx` — new)**
+- Full-viewport, cream background (`bg-[hsl(var(--background))]` → cream `#faf6ee`), centered Amlaki key-logo SVG (reuse existing brand mark), subtle sage spinner ring (`border-[hsl(var(--primary))]` animate-spin), no text spam.
+- Honors `prefers-reduced-motion`.
 
-Subscribing at any point during TRIAL or GRACE → instant ACTIVE.
+**Image compression (`src/lib/imageCompression.ts` — new)**
+- Install `browser-image-compression`.
+- Helper `compressImage(file, { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true, preserveExif: false })`; return original if not an image or already < 200KB.
+- Integrate at every upload site: `FileUpload.tsx`, `AddMaintenanceDialog.tsx`, `NewTenancyDialog.tsx`, contract / unit-photo / tenant-id / branding flows in `UnitDetail.tsx`. Show inline "…يجري التحسين / Optimizing…" state on the trigger while awaiting compression, then proceed to Supabase upload.
 
-## 1. Database
+## P2 — Error handling
 
-Migration on `public.profiles`:
-- `trial_started_at timestamptz default now()` — set on signup via existing `handle_new_user` trigger.
-- `trial_ends_at timestamptz` — `trial_started_at + 14 days`.
-- `grace_ends_at timestamptz` — set to `trial_ends_at + 30 days` when trial expires without sub.
-- `account_status` extends to include `'trial' | 'readonly_grace'` (plus existing `'active' | 'deleted'`).
+**Global ErrorBoundary (`src/components/ErrorBoundary.tsx` — new)**
+- Class component wrapping `<App />` content (mount inside providers, outside `<BrowserRouter>` is fine, but inside `I18nProvider` so we can translate).
+- Fallback UI: cream bg, Amlaki logo, bilingual heading "حدث خطأ ما — Something went wrong", short reassurance line, primary sage "إعادة المحاولة / Try Again" button that calls `this.setState({ error: null })` and force-resets a `key` on children, plus a secondary "العودة للرئيسية / Home" link.
+- Forwards error to Sentry via `Sentry.captureException`.
 
-Helper functions:
-- `public.account_phase(uid)` — single source of truth: returns `'trial' | 'active' | 'readonly_grace' | 'subscription_grace' | 'deleted' | 'free'`. Combines paid-sub phase (existing `subscription_phase`) with trial phase from profile. Paid sub always wins over trial.
-- Update `can_write(uid)` to allow writes during `trial | active | canceled`, block during `readonly_grace | subscription_grace | deleted`.
-- Update `has_data_access(uid)` to allow read during everything except `deleted`.
-- During trial: unit-quota trigger (`enforce_unit_quota`) is bypassed — trial users get unlimited units.
+**Sentry (`src/lib/sentry.ts` — new)**
+- Add `@sentry/react`. Init in `main.tsx` only when `import.meta.env.VITE_SENTRY_DSN` is set: `Sentry.init({ dsn, tracesSampleRate: 0.1, replaysSessionSampleRate: 0, replaysOnErrorSampleRate: 1.0, integrations: [Sentry.browserTracingIntegration(), Sentry.replayIntegration()], environment: import.meta.env.MODE })`.
+- Wrap ErrorBoundary with `Sentry.ErrorBoundary` or call `captureException` from `componentDidCatch`.
+- Set user context from `AuthProvider` (`Sentry.setUser({ id })`) on login, clear on logout.
+- User adds `VITE_SENTRY_DSN` to env; no-op without it.
 
-New table `public.notification_log`:
-- `user_id`, `kind` (`trial-d10|trial-d13|trial-end|grace-d7|grace-d37|grace-d43|grace-d1`), `channel` (`email|in_app|push`), `sent_at`, unique on (user_id, kind, channel) for idempotency.
+**Friendly error messages + toasts**
+- Audit `catch` blocks in `src/pages/**` and `src/components/**`. Replace raw `error.message` toasts with mapped human strings (bilingual via `useI18n`). Keep raw error in `console.error` + Sentry only.
+- Standardize via `src/lib/notify.ts` (new): `notify.success(msg)` → sonner sage; `notify.error(msg)` → sonner burgundy. Configure sonner `<Toaster />` with `toastOptions` using sage (`hsl(var(--primary))`) success and burgundy (`#a85d5d` mapped to `--destructive`) error styles.
 
-New table `public.in_app_notifications`:
-- `user_id`, `title_ar`, `title_en`, `body_ar`, `body_en`, `kind`, `action_url`, `read_at`, `created_at`.
-- RLS: users SELECT/UPDATE (mark read) own rows; service_role inserts.
+## P3 — Arrears as derived state
 
-New table `public.push_subscriptions`:
-- `user_id`, `token` (Capacitor FCM/APNs token), `platform` (`ios|android|web`), `created_at`, unique on token.
+**Single source of truth (`src/lib/balance.ts`)**
+- Already mostly there. Add/export `calculateBalance(unit, payments, today)` with the exact spec:
+  - `n` = count of due-day occurrences from `contract_start_date` (anchored on `due_day` 1–31, clamped to month-end) up to and including `today`.
+  - `totalDue = n * rent`.
+  - `totalPaid = payments.filter(p => p.unit_id === unit.id && !p.deleted_at && p.kind !== 'opening').reduce((s,p) => s + Number(p.amount), 0)`.
+  - `balance`, `arrears`, `credit`, `status` (`paid` if ≤0, `critical` if ≥ 2×rent, else `overdue`) per reference.
+- Use this in `UnitDetail`, `Buildings`, `BuildingDetail`, `Payments`, `Tenants`, `Reports`, `Dashboard`, `Assistant`, and `pdfDocs.ts`. Remove any local "if payments.length > 0 → paid" logic.
 
-## 2. Trial provisioning
+**Stop persisting status**
+- Remove all client-side writes that set `units.status = 'paid' | 'overdue' | …` (search `units.*update.*status`). DB trigger `recompute_unit_state` stays for now but UI must never trust `unit.status`; always compute via `calculateBalance`. (Server triggers will be deprecated in a follow-up.)
+- Ensure every payment insert/update writes `period_end` (it already exists in schema; verify `RecordPaymentDialog` / `AddPaymentDialog` populate it; default to the cycle's end when omitted).
 
-Update `handle_new_user()` trigger: on insert, set `trial_started_at = now()`, `trial_ends_at = now() + 14 days`, `account_status = 'trial'`.
+**Instant updates**
+- After any payment mutation (insert / update / soft-delete / restore), call:
+  ```ts
+  queryClient.invalidateQueries({ queryKey: ['units'] });
+  queryClient.invalidateQueries({ queryKey: ['payments'] });
+  ```
+  Apply in every payment mutation handler — no reliance on cron or page reload.
 
-Backfill migration for existing users without a paid sub: set `trial_ends_at = COALESCE(trial_ends_at, created_at + 14 days)`.
+## Acceptance verification
 
-## 3. Scheduled job (extend existing `subscription-lifecycle`)
-
-Single cron, every hour, now also handles trial:
-
-| Day | Action | Channels |
-|-----|--------|----------|
-| -4 (D10)  | "Trial ends in 4 days" | email + in_app + push |
-| -1 (D13)  | "Trial ends tomorrow" | email + in_app + push |
-|  0 (D14)  | Promote → `readonly_grace`, set `grace_ends_at = now() + 30d` | email + in_app + push |
-| +7 (D21)  | "23 days before deletion" | email + in_app + push |
-| +23 (D37) | "Data deleted in 7 days" | email + in_app + push |
-| +29 (D43) | "Deletion tomorrow — export now" | email + in_app + push |
-| +30 (D44) | Permanently delete data, set status=`deleted` | email |
-
-Idempotency via `notification_log` unique constraint. Same dispatcher reuses the `enqueue_email` RPC and adds `in_app_notifications` insert + push fan-out.
-
-## 4. Push notifications (Capacitor)
-
-- New edge function `send-push` — takes `user_id`, looks up tokens, fans out to FCM (Android/web) + APNs (iOS) via a single provider. Recommend **FCM HTTP v1** (free, handles both with one creds set) — needs one secret: `FCM_SERVICE_ACCOUNT_JSON`.
-- Client registration in `src/lib/push.ts`: on app boot inside Capacitor, request permission via `@capacitor/push-notifications`, upsert token into `push_subscriptions`.
-- Settings → Notifications: toggle to enable/disable + permission state.
-
-## 5. Frontend
-
-`useSubscription` → add `phase: 'trial' | ...`, `trialEndsAt`, `trialDaysLeft`, `graceEndsAt`. Replace ad-hoc `phase` derivation with one call to `account_phase` RPC for parity with server.
-
-Banner system (`<LifecycleBanner />` replaces `<GraceBanner />`):
-- TRIAL with >4 days: subtle sage tint, "تجربتك المجانية: X يوماً متبقياً".
-- TRIAL with ≤4 days: gold tint, prominent "Subscribe" CTA + live countdown.
-- READONLY_GRACE: terracotta tint, countdown "بياناتك محفوظة X يوماً — اشترك الآن"; Export + Subscribe CTAs.
-- All CTAs: **Subscribe button always larger & gold-accented** than secondary actions. "Delete" wording avoided; we say "حذف البيانات بعد X يوماً" only in the final 7 days.
-
-In-app notification center:
-- New `<NotificationBell />` in `TopBar`: unread count, dropdown list, mark-as-read on open.
-- Realtime subscription to `in_app_notifications` so bell updates instantly.
-- Tap notification → navigates to `action_url` (Pricing / Backup).
-
-Pricing page upgrade-suggestion:
-- When `unitCount > PLAN_UNIT_LIMITS.business`, show "Business + N addon units" pre-selected with computed monthly price (`PLAN_UNIT_LIMITS.business` base + `(unitCount - 75) * ADDON_UNIT_PRICE.business`).
-- Banner CTA when in grace deeplinks here with `?units=N`.
-
-Export button: already exists in Backup; surface a one-click "Export My Data (ZIP: Excel + PDF)" button in banner + Settings during grace via new `export-user-data` edge function (planned earlier).
-
-## 6. Emails
-
-6 new templates under `_shared/transactional-email-templates/`:
-`trial-d10.tsx`, `trial-d13.tsx`, `trial-ended.tsx`, `grace-d7.tsx` (was grace-started, repurpose), `grace-d37.tsx`, `grace-d43.tsx`, `data-deleted.tsx`. Reuse existing brand template shell; AR primary, EN fallback per profile locale.
-
-## 7. Read-only enforcement
-
-Already done by existing RESTRICTIVE policies via `can_write()`. After updating `can_write()` to include `trial`, no further RLS changes needed for trial users to write.
-
-UX gating: `<WriteGate>` wrapper disables Add/Edit FABs + dialog triggers when `isReadOnly`, with tooltip "وضع القراءة فقط — اشترك لاستئناف التعديل". Applied to: `QuickAddPaymentFab`, Add/Edit dialogs in Buildings/Units/Payments/Expenses/Maintenance/Daily.
-
-## 8. Reactivation
-
-- Banner "اشترك الآن" → `/pricing` with addon-units preselected if quota exceeds plans.
-- Settings → Subscription section: phase-aware copy + primary Subscribe button.
-- On successful Paddle webhook → existing `reactivate_subscription` logic clears grace fields; realtime updates UI.
+- Bundle: `bun run build` and confirm route chunks split (each page in its own chunk, initial chunk shrinks ~60–70%).
+- Error boundary: throw from a dev-only test route → friendly fallback renders.
+- Arrears 300, pay 100 → UI shows balance 200, status `overdue` immediately.
+- Full payment → status flips to `paid` without refresh.
+- Advance system date past a due day → arrears auto-increments by one month on next render (pure function, no DB write).
 
 ## Out of scope
-- Changing existing paid-sub cancellation flow (already implemented).
-- Changing trial length per plan (single 14-day for all).
-- SMS channel (only email + in_app + push as requested).
 
-## Technical notes
-- All timestamps in UTC server-side; client formats per locale.
-- Trial backfill is one-time, idempotent.
-- Push requires `FCM_SERVICE_ACCOUNT_JSON` secret — will prompt user before scaffolding `send-push`.
-- iOS APNs via FCM works without separate Apple creds for dev; production may need APNs key — surface this only when user publishes to App Store.
+- Removing the existing `recompute_unit_state` SQL trigger (kept for backward compatibility; UI no longer depends on it).
+- Backfilling `period_end` on historical rows.
+- Server-side compression / CDN image transforms.

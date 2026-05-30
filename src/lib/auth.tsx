@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { setSentryUser } from "@/lib/sentry";
 
 interface AuthCtx {
   user: User | null;
@@ -19,10 +20,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
       setLoading(false);
+      setSentryUser(s?.user ? { id: s.user.id, email: s.user.email } : null);
     });
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setLoading(false);
+      setSentryUser(data.session?.user ? { id: data.session.user.id, email: data.session.user.email } : null);
     });
     return () => sub.subscription.unsubscribe();
   }, []);
