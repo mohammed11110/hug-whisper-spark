@@ -282,12 +282,19 @@ export default function UnitDetail() {
       <div className="px-5 py-5 space-y-4 animate-float-up" key={tab}>
         {tab === "details" && (
           unit.tenant_name ? (
-            <DetailsTab unit={unit} payments={payments} format={format} t2={t2} lang={lang}
-              onPay={() => setPayOpen(true)} onLeasePDF={() => exportLease("download")} onLeasePrint={() => exportLease("print")}
-              onStatement={exportStatement}
-              onEnd={() => setEndOpen(true)} reload={load} />
+            <>
+              <DetailsTab unit={unit} payments={payments} format={format} t2={t2} lang={lang}
+                activeTenancyId={activeTenancyId}
+                onPay={() => setPayOpen(true)} onLeasePDF={() => exportLease("download")} onLeasePrint={() => exportLease("print")}
+                onStatement={exportStatement}
+                onEnd={() => setEndOpen(true)} reload={load} />
+              <LeaseHistoryCard unitId={unit.id} tenancies={tenancies} payments={payments} format={format} lang={lang} />
+            </>
           ) : (
-            <VacantState t2={t2} onAdd={() => setNewTenantOpen(true)} />
+            <>
+              <VacantState t2={t2} onAdd={() => setNewTenantOpen(true)} />
+              <LeaseHistoryCard unitId={unit.id} tenancies={tenancies} payments={payments} format={format} lang={lang} />
+            </>
           )
         )}
         {tab === "maintenance" && <MaintenanceTab unit={unit} lang={lang} t2={t2} format={format} />}
