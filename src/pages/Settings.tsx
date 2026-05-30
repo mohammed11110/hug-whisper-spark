@@ -222,6 +222,44 @@ export default function Settings() {
         </div>
       </section>
 
+      {/* Free trial card */}
+      {sub.isTrialing && (
+        <section className="px-5 md:px-8 lg:px-12 mt-3">
+          <div className="rounded-2xl bg-card border-2 border-gold/30 p-4">
+            <div className="flex items-center gap-2 text-gold font-black text-sm">
+              <Crown className="h-4 w-4" />
+              {tr(
+                lang,
+                `تجربة مجانية — ${sub.trialDaysLeft ?? 0} يوم متبقي`,
+                `Free trial — ${sub.trialDaysLeft ?? 0} day${(sub.trialDaysLeft ?? 0) === 1 ? "" : "s"} left`,
+              )}
+            </div>
+            <p className="text-xs text-sage-500 mt-1.5 leading-relaxed">
+              {tr(
+                lang,
+                "لا توجد فوترة تلقائية. لن تُحسب أي رسوم — للاستمرار بعد التجربة اختر خطة من صفحة الأسعار.",
+                "No automatic billing. You won't be charged — pick a plan from Pricing to continue after the trial.",
+              )}
+            </p>
+            <div className="flex gap-2 mt-3">
+              <Button
+                onClick={() => navigate("/pricing")}
+                className="flex-1 bg-gold hover:bg-gold/90 text-white rounded-xl h-9 text-xs font-bold"
+              >
+                {tr(lang, "عرض الخطط", "View plans")}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setEndTrialOpen(true)}
+                className="rounded-xl h-9 text-xs font-bold border-terracotta/40 text-terracotta hover:bg-terracotta/5"
+              >
+                {tr(lang, "إنهاء التجربة الآن", "End trial now")}
+              </Button>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Admin shortcut */}
       {isAdmin && (
         <section className="px-5 md:px-8 lg:px-12 mt-3">
