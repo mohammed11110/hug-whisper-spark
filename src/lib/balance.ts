@@ -284,17 +284,8 @@ export function getUnitArrears(
   asOf: Date = new Date(),
   lang: "ar" | "en" = "ar",
 ): UnitArrears {
-  const opening = Math.max(0, num(unit.opening_balance));
   const anchor = getAnchorDate(unit);
 
-  const cycles: ArrearsCycle[] = [];
-  let totalShortfall = 0;
-  let unpaidCount = 0;
-  let oldestUnpaid: ArrearsCycle | null = null;
-
-  // 1) متأخرات سابقة (opening_balance) — دورة افتراضية في رأس القائمة.
-  //    نخصم منها الدفعات «المُوجَّهة للمتأخرات السابقة» وهي الدفعات ذات
-  //    نطاق يوم واحد (period_start == period_end) على تاريخ المرسى.
   // 1) Prior arrears — either from legacy `unit.opening_balance` (for units
   //    created before the migration) OR from migrated payments rows with
   //    kind='opening'. Both paths sum into `opening`.
