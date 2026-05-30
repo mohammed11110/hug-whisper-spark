@@ -522,4 +522,166 @@ export function distributePayment(
   return { allocations, remainder: Math.max(0, remaining), totalAllocated };
 }
 
+// =====================================================================
+// Six-state running-balance view — single source of truth for UI badges.
+// Computes everything live:
+//   totalDue  = cycles_due * rent + Σ opening payments
+//   totalPaid = Σ rent payments (kind='rent', !deleted_at)
+//   balance   = totalDue − totalPaid
+// Status is derived; nothing is stored. After every payment mutation,
+// callers should invalidate their local payments cache and re-render —
+// see `src/lib/paymentsBus.ts`.
+// =====================================================================
+
+export type RentStatus =
+  | "paid"      // balance <= 0 and at least one payment exists
+  | "credit"    // balance < 0 (tenant paid in advance)
+  | "upcoming"  // balance > 0 but today < nextDueDate
+  | "due"       // today === nextDueDate
+  | "grace"     // nextDueDate < today <= nextDueDate + grace_days
+  | "overdue"   // past grace, balance > 0
+  | "critical"; // balance >= 2 * rent
+
+export interface UnitBalance {
+  totalDue: number;
+  totalPaid: number;
+  /** Positive = tenant owes; negative = credit (paid in advance). */
+  balance: number;
+  /** balance when > 0, else 0. */
+  arrears: number;
+  /** |balance| when < 0, else 0. */
+  credit: number;
+  status: RentStatus;
+  /** Days since the oldest unpaid due_date (0 when not overdue). */
+  daysLate: number;
+  nextDueDate: Date | null;
+  nextDueAmount: number;
+  /** Whether at least one rent payment has been recorded. */
+  hasPayments: boolean;
+}
+
+export interface UnitForCalc extends UnitForBalance {
+  /** Optional grace period (days) after due_day before status becomes 'overdue'. */
+  grace_days?: number | null;
+}
+
+const dayOfMonth = (d: Date) => d.getDate();
+
+/** Find the next due_date relative to `today` for a monthly contract. */
+function nextDueDateFor(unit: UnitForCalc, today: Date): Date | null {
+  const anchor = unit.contract_start_date || unit.opening_balance_date || null;
+  if (!anchor) return null;
+  const dueDay = Math.min(28, Math.max(1, Math.floor(Number(unit.due_day) || dayOfMonth(new Date(anchor)) || 1)));
+  // Start at this month's due_day and walk forward until >= today.
+  const candidate = new Date(today.getFullYear(), today.getMonth(), dueDay);
+  if (candidate < today) candidate.setMonth(candidate.getMonth() + 1);
+  return candidate;
+}
+
+/** Days since the oldest unpaid due_date (0 when none). */
+function computeDaysLate(unit: UnitForCalc, balance: number, today: Date): number {
+  if (balance <= 0.009) return 0;
+  const rent = num(unit.rent_amount);
+  if (rent <= 0) return 0;
+  const anchor = unit.contract_start_date || unit.opening_balance_date || null;
+  if (!anchor) return 0;
+  const start = new Date(anchor);
+  const dueDay = Math.min(28, Math.max(1, Math.floor(Number(unit.due_day) || start.getDate() || 1)));
+  // Walk through every due_date from contract start until today, find oldest
+  // whose cumulative due exceeds the balance (= the period that's unpaid).
+  const cursor = new Date(start.getFullYear(), start.getMonth(), dueDay);
+  if (cursor < start) cursor.setMonth(cursor.getMonth() + 1);
+  // unpaidCycles = how many cycles' worth of rent the tenant currently owes.
+  const unpaidCycles = Math.max(1, Math.ceil(balance / rent));
+  // The oldest unpaid due_date is the (Nth-from-latest) due_date that's <= today.
+  const dues: Date[] = [];
+  while (cursor <= today) {
+    dues.push(new Date(cursor));
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+  if (dues.length === 0) return 0;
+  const oldestUnpaid = dues[Math.max(0, dues.length - unpaidCycles)];
+  const diff = Math.floor((today.getTime() - oldestUnpaid.getTime()) / 86400000);
+  return Math.max(0, diff);
+}
+
+/**
+ * Compute the running-balance view for a unit. The single source of truth
+ * for arrears, status, credit and next-due across the entire app.
+ */
+export function calculateUnitBalance(
+  unit: UnitForCalc,
+  payments: PaymentForBalance[] = [],
+  today: Date = new Date(),
+): UnitBalance {
+  const rent = num(unit.rent_amount);
+  const grace = Math.max(0, Math.min(30, Math.floor(Number(unit.grace_days) || 0)));
+
+  // ----- totalDue: cycles_due × rent + opening rows + legacy opening_balance
+  const dueCycles = cyclesDue(unit, today);
+  const legacyOpening = Math.max(0, num(unit.opening_balance));
+  const openingPays = payments.filter(
+    (p) => p.unit_id === unit.id && !p.deleted_at && isOpeningPayment(p),
+  );
+  const openingDue = legacyOpening > 0
+    ? legacyOpening
+    : openingPays.reduce((s, p) => s + num(p.amount), 0);
+  const totalDue = dueCycles * rent + openingDue;
+
+  // ----- totalPaid: only kind='rent' payments
+  const rentPays = payments.filter(
+    (p) => p.unit_id === unit.id && !p.deleted_at && isRentPayment(p),
+  );
+  const totalPaid = rentPays.reduce((s, p) => s + num(p.amount), 0);
+
+  const balance = totalDue - totalPaid;
+  const arrears = balance > 0.009 ? balance : 0;
+  const credit = balance < -0.009 ? Math.abs(balance) : 0;
+  const hasPayments = rentPays.length > 0;
+
+  const nextDueDate = nextDueDateFor(unit, today);
+  const nextDueAmount = rent;
+
+  // ----- Derive status
+  let status: RentStatus;
+  if (balance < -0.009) {
+    status = "credit";
+  } else if (balance <= 0.009) {
+    status = "paid";
+  } else if (rent > 0 && balance >= 2 * rent) {
+    status = "critical";
+  } else if (nextDueDate) {
+    const todayMs = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+    const dueMs = new Date(nextDueDate.getFullYear(), nextDueDate.getMonth(), nextDueDate.getDate()).getTime();
+    const graceCutoffMs = dueMs + grace * 86400000;
+    if (todayMs < dueMs) {
+      // We owe money but the next due date hasn't arrived → there's an older
+      // unpaid cycle. Treat as overdue (or critical handled above).
+      status = arrears > 0 ? "overdue" : "upcoming";
+    } else if (todayMs === dueMs) {
+      status = "due";
+    } else if (todayMs <= graceCutoffMs) {
+      status = "grace";
+    } else {
+      status = "overdue";
+    }
+  } else {
+    status = arrears > 0 ? "overdue" : "paid";
+  }
+
+  const daysLate = computeDaysLate(unit, balance, today);
+
+  return {
+    totalDue,
+    totalPaid,
+    balance,
+    arrears,
+    credit,
+    status,
+    daysLate,
+    nextDueDate,
+    nextDueAmount,
+    hasPayments,
+  };
+}
 
