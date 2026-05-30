@@ -103,6 +103,7 @@ export default function Pricing() {
   const [code, setCode] = useState("");
   const [redeeming, setRedeeming] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
+  const [endTrialOpen, setEndTrialOpen] = useState(false);
   const { openCheckout, loading: checkoutLoading } = usePaddleCheckout();
   const sub = useSubscription();
   const usage = useUnitUsage();
