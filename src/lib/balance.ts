@@ -696,3 +696,77 @@ export function calculateUnitBalance(
   };
 }
 
+
+// =====================================================================
+// Derived arrears spec (per product brief):
+//   balance = totalDue - totalPaid
+//   totalDue = N(due-day occurrences from contract_start..today) * rent
+//   totalPaid = sum of payment amounts (kind != 'opening', not deleted)
+//   status: balance<=0 → 'paid' | balance>=2*rent → 'critical' | else 'overdue'
+//
+// Pure function — UI must call this on render, never trust persisted status.
+// =====================================================================
+
+export interface DerivedBalance {
+  balance: number;
+  arrears: number;
+  credit: number;
+  totalDue: number;
+  totalPaid: number;
+  status: "paid" | "overdue" | "critical";
+}
+
+export function calculateBalance(
+  unit: {
+    id: string;
+    rent_amount: number | string;
+    due_day?: number | null;
+    contract_start_date?: string | null;
+  },
+  payments: PaymentForBalance[],
+  today: Date = new Date(),
+): DerivedBalance {
+  const rent = num(unit.rent_amount);
+  const startStr = unit.contract_start_date;
+  let n = 0;
+  if (startStr) {
+    const start = new Date(startStr);
+    if (!Number.isNaN(start.getTime()) && today >= start) {
+      const dueDay = Math.min(31, Math.max(1, Number(unit.due_day) || start.getDate()));
+      // First due date >= contract_start, anchored on dueDay (clamped to month-end).
+      const clampedDay = (year: number, monthIdx: number) => {
+        const lastDay = new Date(year, monthIdx + 1, 0).getDate();
+        return Math.min(dueDay, lastDay);
+      };
+      let y = start.getFullYear();
+      let m = start.getMonth();
+      let cur = new Date(y, m, clampedDay(y, m));
+      if (cur < start) {
+        m += 1;
+        if (m > 11) { m = 0; y += 1; }
+        cur = new Date(y, m, clampedDay(y, m));
+      }
+      while (cur <= today) {
+        n += 1;
+        m += 1;
+        if (m > 11) { m = 0; y += 1; }
+        cur = new Date(y, m, clampedDay(y, m));
+      }
+    }
+  }
+  const totalDue = n * rent;
+  const totalPaid = payments
+    .filter((p) => p.unit_id === unit.id && !p.deleted_at && (p.kind || "rent") !== "opening")
+    .reduce((s, p) => s + Number(p.amount || 0), 0);
+  const balance = totalDue - totalPaid;
+  const status: DerivedBalance["status"] =
+    balance <= 0 ? "paid" : balance >= rent * 2 && rent > 0 ? "critical" : "overdue";
+  return {
+    balance,
+    arrears: balance > 0 ? balance : 0,
+    credit: balance < 0 ? Math.abs(balance) : 0,
+    totalDue,
+    totalPaid,
+    status,
+  };
+}
