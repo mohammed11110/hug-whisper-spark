@@ -127,6 +127,9 @@ async function handleSubscriptionUpdated(data: any, env: PaddleEnv) {
   const productId = primary?.product?.importMeta?.externalId;
   const priceId = primary?.price?.importMeta?.externalId;
 
+  // If a previously-scheduled cancel was removed AND status is back to active → reactivation.
+  const isReactivation = status === 'active' && !scheduledChange;
+
   await getSupabase()
     .from('subscriptions')
     .update({
@@ -137,6 +140,14 @@ async function handleSubscriptionUpdated(data: any, env: PaddleEnv) {
       addon_units: addonUnits,
       ...(productId ? { product_id: productId } : {}),
       ...(priceId ? { price_id: priceId } : {}),
+      ...(isReactivation
+        ? {
+            canceled_at: null,
+            grace_started_at: null,
+            data_delete_at: null,
+            reactivated_at: new Date().toISOString(),
+          }
+        : {}),
       updated_at: new Date().toISOString(),
     })
     .eq('paddle_subscription_id', id)
@@ -149,15 +160,23 @@ async function handleSubscriptionUpdated(data: any, env: PaddleEnv) {
     await syncProfile(userId, {
       subscription_status: status,
       subscription_expires_at: currentBillingPeriod?.endsAt,
+      ...(isReactivation ? { canceled_at: null } : {}),
       ...(planLabel ? { subscription_plan: planLabel, subscription_interval: interval } : {}),
     });
   }
 }
 
 async function handleSubscriptionCanceled(data: any, env: PaddleEnv) {
+  // Paddle "canceled" = do-not-renew. User keeps access until current_period_end.
+  // The scheduled lifecycle job promotes the row to grace (data_delete_at = period_end + 30d)
+  // after period_end passes.
   await getSupabase()
     .from('subscriptions')
-    .update({ status: 'canceled', updated_at: new Date().toISOString() })
+    .update({
+      status: 'canceled',
+      canceled_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
     .eq('paddle_subscription_id', data.id)
     .eq('environment', env);
 
