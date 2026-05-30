@@ -56,6 +56,7 @@ export default function Settings() {
   const sub = useSubscription();
 
   const [portalLoading, setPortalLoading] = useState(false);
+  const [endTrialOpen, setEndTrialOpen] = useState(false);
   const [currOpen, setCurrOpen] = useState(false);
   const [testTpl, setTestTpl] = useState<null | "reminder" | "late" | "receipt">(null);
   const fileImportRef = useRef<HTMLInputElement>(null);
