@@ -400,7 +400,24 @@ function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLea
           <Row icon={Wallet} label={t2("total_received")} value={format(bal.paid)} />
           <div className="flex items-center justify-between pt-2 mt-1 border-t border-sage-200/40">
             <span className="text-sm font-bold text-sage-600">{t2("outstanding_balance")}</span>
-            <span className={`text-base font-black ${bal.outstanding > 0 ? "text-burgundy" : "text-sage-600"}`}>{format(bal.outstanding)}</span>
+            <div className="flex items-center gap-2">
+              <span className={`text-base font-black ${bal.outstanding > 0 ? "text-burgundy" : bal.outstanding < 0 ? "text-sage-700" : "text-sage-600"}`}>
+                {format(Math.abs(bal.outstanding))}
+                {bal.outstanding < 0 && (
+                  <span className="ms-1 text-[10px] font-bold text-sage-600 opacity-75">
+                    ({lang === "ar" ? "دائن" : "credit"})
+                  </span>
+                )}
+              </span>
+              <button
+                type="button"
+                onClick={() => setAdjustOpen(true)}
+                className="rounded-lg border border-sage-300 px-2 py-0.5 text-[10px] font-bold text-sage-600 hover:bg-sage-50 transition-colors"
+                aria-label={lang === "ar" ? "تعديل الرصيد" : "Adjust balance"}
+              >
+                {lang === "ar" ? "تعديل" : "Adjust"}
+              </button>
+            </div>
           </div>
         </Card>
       )}
@@ -420,7 +437,7 @@ function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLea
         onClick={() => setAdjustOpen(true)}
         className="w-full rounded-xl border-sage-300 text-sage-600 h-11 font-semibold"
       >
-        {lang === "ar" ? "تعديل الرصيد يدوياً" : "Adjust balance"}
+        {lang === "ar" ? "تعديل الرصيد يدوياً (+/−)" : "Adjust balance (+/−)"}
       </Button>
       <AdjustBalanceDialog
         open={adjustOpen}
@@ -429,6 +446,8 @@ function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLea
         unitNumber={unit.unit_number}
         buildingId={unit.building_id}
         tenantName={unit.tenant_name}
+        currentBalance={bal.outstanding}
+        formatAmount={format}
       />
 
       <Button
