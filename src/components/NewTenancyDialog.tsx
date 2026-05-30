@@ -93,6 +93,8 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
     setUnitPhotos([]);
     setPendingPhoto(null);
     setArrears("0");
+    setPaidUpTo("");
+    setGraceDays(String(unit.grace_days ?? "0"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, unit?.id]);
 
