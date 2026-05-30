@@ -727,6 +727,54 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_preferences: {
+        Row: {
+          channel_email: boolean
+          channel_in_app: boolean
+          channel_push: boolean
+          created_at: string
+          event_contract_expiring: boolean
+          event_deletion_warning: boolean
+          event_payment_received: boolean
+          event_rent_due_soon: boolean
+          event_rent_overdue: boolean
+          event_trial_ending: boolean
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          channel_email?: boolean
+          channel_in_app?: boolean
+          channel_push?: boolean
+          created_at?: string
+          event_contract_expiring?: boolean
+          event_deletion_warning?: boolean
+          event_payment_received?: boolean
+          event_rent_due_soon?: boolean
+          event_rent_overdue?: boolean
+          event_trial_ending?: boolean
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          channel_email?: boolean
+          channel_in_app?: boolean
+          channel_push?: boolean
+          created_at?: string
+          event_contract_expiring?: boolean
+          event_deletion_warning?: boolean
+          event_payment_received?: boolean
+          event_rent_due_soon?: boolean
+          event_rent_overdue?: boolean
+          event_trial_ending?: boolean
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           amount: number
