@@ -8,7 +8,7 @@ import { useI18n } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
 import { useAppSettings } from "@/lib/appSettings";
-import { buildLeaseHTML, downloadHTMLAsPDF, downloadLeasePDF, printHTML, buildTenantStatementHTML, type StatementRow } from "@/lib/pdfDocs";
+import { buildLeaseHTML, buildOmaniLeaseHTML, downloadHTMLAsPDF, downloadLeasePDF, printHTML, buildTenantStatementHTML, type StatementRow } from "@/lib/pdfDocs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
@@ -132,35 +132,53 @@ export default function UnitDetail() {
       security_deposit: Number((unit as any).security_deposit || 0),
       currency: currency.symbol,
       lang: (lang === "ar" ? "ar" : "en") as "ar" | "en",
+      // Omani / municipality optional fields (used only when currency is OMR)
+      contract_number: (tenancies.find((t: any) => t.status === "active") as any)?.official_contract_number
+        || (tenancies.find((t: any) => t.status === "active") as any)?.contract_number || null,
+      electricity_account: (unit as any).electric_account || null,
+      flat_no: unit.unit_number,
+      building_no: buildingName || null,
     };
   };
+
+  // Oman uses an official Royal-Decree-89/6-style lease; other countries use the generic format.
+  const isOman = currency.code === "OMR";
 
   const exportLease = async (mode: "download" | "print" | "preview") => {
     if (!unit) return;
     const leaseData = buildLeaseData();
     if (!leaseData) return;
     const filename = `lease-${unit.unit_number}-${unit.tenant_name || "tenant"}.pdf`;
+    const html = isOman ? buildOmaniLeaseHTML(leaseData) : buildLeaseHTML(leaseData);
+    const doSave = async () => {
+      if (isOman) {
+        await downloadHTMLAsPDF(html, filename, settings);
+      } else {
+        await downloadLeasePDF(leaseData, filename);
+      }
+    };
     if (mode === "print") {
-      printHTML(buildLeaseHTML(leaseData));
+      printHTML(html);
       return;
     }
     if (mode === "download") {
       try {
-        await downloadLeasePDF(leaseData, filename);
+        await doSave();
         toast.success(lang === "ar" ? "تم حفظ الملف ✓" : "Saved ✓");
       } catch (e: any) { toast.error(e.message || "PDF error"); }
       return;
     }
     // preview
-    const html = buildLeaseHTML(leaseData);
     openPreview({
       type: "pdf",
-      title: lang === "ar" ? "عقد الإيجار" : "Lease agreement",
+      title: lang === "ar"
+        ? (isOman ? "عقد إيجار — سلطنة عُمان" : "عقد الإيجار")
+        : (isOman ? "Lease Agreement — Sultanate of Oman" : "Lease agreement"),
       filename,
       html,
       onSave: async () => {
         try {
-          await downloadLeasePDF(leaseData, filename);
+          await doSave();
           toast.success(lang === "ar" ? "تم حفظ الملف ✓" : "Saved ✓");
           closePreview();
         } catch (e: any) { toast.error(e.message || "PDF error"); }
