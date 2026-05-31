@@ -257,8 +257,15 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         .from("tenancies").select("id").eq("unit_id", unitId).eq("status", "active").maybeSingle();
       if (cancelled || !u) return;
 
-      const { getUnitArrears } = await import("@/lib/balance");
-      const arr = getUnitArrears(u as any, (ps || []) as any, new Date(), lang as "ar" | "en", (activeT as any)?.id || null);
+      const { getUnitArrears, getNextDueInfo } = await import("@/lib/balance");
+      // Scope: only payments of the active tenancy contribute to next-due
+      // calculations for the *current* tenant — old leases must not advance
+      // the period.
+      const activeTId: string | null = (activeT as any)?.id || null;
+      const scopedPays = activeTId
+        ? (ps || []).filter((p: any) => !p.tenancy_id || p.tenancy_id === activeTId)
+        : (ps || []);
+      const arr = getUnitArrears(u as any, scopedPays as any, new Date(), lang as "ar" | "en", activeTId);
       const rentAmt = Number((u as any).rent_amount) || 0;
       if (cancelled) return;
 
@@ -285,22 +292,28 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
 
       setUnpaidMonths(entries);
       setAllPaid(entries.length === 0);
-      // Default: manual mode preselecting the oldest unpaid cycle, with the
-      // amount = one month's rent (= قيمة الإيصال = إيجار الشهر). The user
-      // can switch to "Auto-distribute" (= ادفع كل المتأخرات) to pay all.
       setPayMode("manual");
-      // Auto-select the oldest unpaid entry and prefill amount/expected.
       const first = entries[0];
       if (first) {
         setSelectedEntry(first);
         setPeriodYear(first.year);
         setPeriodMonthNum(first.month);
-        // Expected = rent of the selected cycle (or its remaining for prior).
         setExpected(String(first.isPrior ? first.remaining : (rentAmt || first.remaining)));
-        // Default amount = one month's rent (the receipt = one month).
         setAmount(String(rentAmt || first.remaining));
       } else {
+        // No arrears → derive the next-due cycle from the CONTRACT (never
+        // today's date). This prevents recording, e.g., "May 2026" rent
+        // when the contract starts 1/6/2026.
+        const nxt = getNextDueInfo(u as any, scopedPays as any, lang as "ar" | "en");
+        if (nxt) {
+          setPeriodYear(nxt.periodStart.getFullYear());
+          setPeriodMonthNum(nxt.periodStart.getMonth() + 1);
+        }
         setSelectedEntry(null);
+        if (rentAmt > 0) {
+          setExpected(String(rentAmt));
+          setAmount(String(rentAmt));
+        }
       }
     })();
     return () => { cancelled = true; };
