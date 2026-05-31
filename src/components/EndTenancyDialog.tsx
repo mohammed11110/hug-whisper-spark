@@ -161,8 +161,9 @@ export function EndTenancyDialog({ open, onOpenChange, unit, tenancyId, onDone }
       entityId: unit.id,
       entityLabel: unit.tenant_name || "",
       buildingId: unit.building_id,
-      descriptionAr: `إنهاء عقد المستأجر ${unit.tenant_name || ""} — وحدة ${unit.unit_number}`,
-      descriptionEn: `Tenancy ended for ${unit.tenant_name || ""} — unit ${unit.unit_number}`,
+      descriptionAr: `إنهاء ${contractNumber ? `العقد ${contractNumber}` : "عقد"} — ${unit.tenant_name || ""} — وحدة ${unit.unit_number}`,
+      descriptionEn: `Ended ${contractNumber ? `lease ${contractNumber}` : "lease"} — ${unit.tenant_name || ""} — unit ${unit.unit_number}`,
+
       changes: { reason, ended_at: endDate, outstanding: finalOutstanding, deposit_refund: refundNum },
     });
     // Broadcast so every screen (Tenants, Payments, Notifications, Dashboard,
