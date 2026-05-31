@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { Plus, Building2, Users, TrendingUp, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Plus, Building2, Users, TrendingUp, Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
+
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { BotanicalDecor } from "@/components/BotanicalDecor";
