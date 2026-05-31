@@ -1,61 +1,45 @@
-## التفسير
+تعديل `src/pages/UnitDetail.tsx` داخل دالة `exportStatement`:
 
-في الكشف ظهرت دفعتان فقط (لشهري 03 و 05) بدون أي بنود إيجار شهرية، ولذلك لم يظهر "إيجار شهر 4".
-
-السبب في `src/pages/UnitDetail.tsx` داخل `exportStatement`:
-
-```ts
-if (rent > 0 && startStr && unit.rent_type === "monthly") {
-  // توليد إيجار كل شهر من contract_start حتى اليوم
-}
-```
-
-توليد بنود الإيجار الشهري **مشروط بوجود `contract_start_date`**. هذه الوحدة (وغيرها) لا يوجد بها تاريخ بداية عقد مسجّل (يظهر "—" في الكشف)، فلم يُولَّد أي بند إيجار إطلاقاً — لا لشهر 3 ولا 4 ولا 5 — وظهرت الدفعات فقط كأرصدة سالبة.
-
-كذلك حتى لو وُجد `contract_start_date` لاحقاً، فالاعتماد عليه وحده يعني أن أي وحدة بدون تاريخ بداية ستفقد كل بنود الإيجار في الكشف.
-
-## الحل (يُطبَّق مرة واحدة ويعمّ كل الوحدات)
-
-`exportStatement` في `src/pages/UnitDetail.tsx` يُستدعى لكل وحدة، فإصلاحه يعمّم الحل تلقائياً.
-
-### 1. حساب تاريخ بداية احتياطي للإيجار
-
-إذا لم يوجد `contract_start_date`، نستنتج البداية من أقدم معلومة متاحة:
-
+1. **بداية احتياطية أخيرة = الشهر الحالي**
 ```ts
 const fallbackStart =
   (unit as any).contract_start_date ||
   (unit as any).opening_balance_date ||
-  // أقدم period_start من الدفعات
-  (ps || []).map((p:any) => p.period_start).filter(Boolean).sort()[0] ||
-  // أقدم payment_date
-  (ps || []).map((p:any) => p.payment_date).filter(Boolean).sort()[0] ||
-  null;
+  paymentStarts[0] ||
+  paymentDates[0] ||
+  new Date().toISOString().slice(0, 10);
 ```
 
-### 2. إزالة شرط `startStr` من توليد الإيجار الشهري
-
+2. **قبول أي وحدة شهرية أو فارغة النوع**
 ```ts
-if (rent > 0 && fallbackStart && unit.rent_type === "monthly") {
-  const start = new Date(fallbackStart);
-  // باقي الحلقة كما هي: تولّد بند إيجار لكل شهر من البداية حتى الشهر الحالي
+const isMonthly = !unit.rent_type || unit.rent_type === "monthly";
+if (rent > 0 && isMonthly) { ... }
+```
+
+3. **حلقة آمنة من المنطقة الزمنية تصل دائماً للشهر الحالي**
+```ts
+const start = new Date(fallbackStart);
+const now = new Date();
+const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+const endCursor = new Date(now.getFullYear(), now.getMonth(), 1);
+while (cursor <= endCursor) {
+  const d = cursor.toISOString().slice(0, 10);
+  const monthLbl = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`;
+  entries.push({
+    date: d,
+    month: monthLbl,
+    description: (lang === "ar" ? "إيجار شهر " : "Rent ") + monthLbl,
+    charge: rent,
+    payment: 0,
+    sortKey: d + "1",
+  });
+  cursor.setMonth(cursor.getMonth() + 1);
 }
 ```
 
-### 3. النتيجة على هذه الحالة
+### النتيجة
+- وحدة زهير: شارج 120 (مايو) − دفعة 100 = **متبقي 20 ر.ع.** ✓
+- يعمّ على كل الوحدات الشهرية بدون أي تغيير في القاعدة.
 
-- بدون contract_start، يُستخدم أقدم `period_start` = `2026-03`.
-- يولَّد بند إيجار لكل من: مارس، **أبريل**، مايو (200 ر.ع. لكل شهر).
-- يصبح الرصيد متوازناً: شارج 600 − دفعات 400 = 200 ر.ع. مستحق (إيجار أبريل).
-
-### تأثير على بقية الوحدات
-
-- الوحدات التي بها `contract_start_date` صحيح → سلوك مطابق للحالي تماماً.
-- الوحدات بدون `contract_start_date` → سيظهر جدول إيجار صحيح بدل كشف فارغ من الشحنات.
-- لا تغييرات على قاعدة البيانات ولا على منطق التحصيل أو حساب المتأخرات في الصفحات الأخرى — التعديل محصور بمولد كشف الحساب.
-
-### ملف واحد متغيّر
-
-- `src/pages/UnitDetail.tsx` (دالة `exportStatement` فقط).
-
-هل أنفّذ التعديل؟
+### الملف الوحيد المتغيّر
+- `src/pages/UnitDetail.tsx`

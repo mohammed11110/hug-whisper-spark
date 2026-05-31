@@ -220,12 +220,14 @@ export default function UnitDetail() {
       (unit as any).opening_balance_date ||
       paymentStarts[0] ||
       paymentDates[0] ||
-      null;
-    if (rent > 0 && fallbackStart && unit.rent_type === "monthly") {
+      new Date().toISOString().slice(0, 10);
+    const isMonthly = !unit.rent_type || unit.rent_type === "monthly";
+    if (rent > 0 && isMonthly) {
       const start = new Date(fallbackStart);
       const now = new Date();
-      const cursor = new Date(start.getFullYear(), start.getMonth(), Math.min(start.getDate(), 28));
-      while (cursor <= now) {
+      const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+      const endCursor = new Date(now.getFullYear(), now.getMonth(), 1);
+      while (cursor <= endCursor) {
         const d = cursor.toISOString().slice(0, 10);
         const monthLbl = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`;
         entries.push({
@@ -239,6 +241,7 @@ export default function UnitDetail() {
         cursor.setMonth(cursor.getMonth() + 1);
       }
     }
+
 
     (ps || []).forEach((p: any) => {
       const m = (p.period_start || p.payment_date || "").slice(0, 7);
