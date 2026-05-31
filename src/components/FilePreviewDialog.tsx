@@ -1,7 +1,9 @@
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, Printer, X, FileText, Table as TableIcon } from "lucide-react";
+import { Download, Printer, X, FileText, Table as TableIcon, Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { inlinePdfFonts } from "@/lib/pdfDocs";
 
 export type FilePreviewPayload =
   | {
@@ -35,30 +37,31 @@ function approxKB(rows: Record<string, any>[]) {
   return Math.max(1, Math.round(chars / 1024));
 }
 
-// Inject <base href> so relative font URLs (e.g. /fonts/NotoKufiArabic-*.ttf)
-// resolve against the app origin instead of about:srcdoc. Without this, the
-// Arabic font fails to load inside the iframe and letters render disconnected.
-function withBase(html: string) {
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const baseTag = `<base href="${origin}/">`;
-  if (/<head[^>]*>/i.test(html)) {
-    return html.replace(/<head([^>]*)>/i, `<head$1>${baseTag}`);
-  }
-  if (/<html[^>]*>/i.test(html)) {
-    return html.replace(/<html([^>]*)>/i, `<html$1><head>${baseTag}</head>`);
-  }
-  return `<!doctype html><html dir="rtl" lang="ar"><head>${baseTag}</head><body>${html}</body></html>`;
-}
-
 export function FilePreviewDialog({ open, onOpenChange, payload }: Props) {
   const { lang } = useI18n();
   const ar = lang === "ar";
+  const [renderedHtml, setRenderedHtml] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!payload || payload.type !== "pdf") {
+      setRenderedHtml(null);
+      return;
+    }
+    let cancelled = false;
+    setRenderedHtml(null);
+    inlinePdfFonts(payload.html)
+      .then((h) => { if (!cancelled) setRenderedHtml(h); })
+      .catch(() => { if (!cancelled) setRenderedHtml(payload.html); });
+    return () => { cancelled = true; };
+  }, [payload]);
+
   if (!payload) return null;
 
   const labelPreview = ar ? "معاينة الملف" : "File preview";
   const labelSave = ar ? "حفظ الملف" : "Save file";
   const labelPrint = ar ? "طباعة" : "Print";
   const labelCancel = ar ? "إلغاء" : "Cancel";
+  const labelLoading = ar ? "جاري تحضير المعاينة…" : "Preparing preview…";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -85,12 +88,19 @@ export function FilePreviewDialog({ open, onOpenChange, payload }: Props) {
         <div className="px-4 pt-3 pb-4 bg-cream/20">
           {payload.type === "pdf" ? (
             <div className="rounded-2xl overflow-hidden border border-sage-200 bg-white" style={{ height: "65vh" }}>
-              <iframe
-                title={labelPreview}
-                srcDoc={withBase(payload.html)}
-                className="w-full h-full"
-                style={{ border: 0 }}
-              />
+              {renderedHtml ? (
+                <iframe
+                  title={labelPreview}
+                  srcDoc={renderedHtml}
+                  className="w-full h-full"
+                  style={{ border: 0 }}
+                />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-sage-500 text-sm">
+                  <Loader2 className="h-5 w-5 animate-spin text-sage-400" />
+                  <span>{labelLoading}</span>
+                </div>
+              )}
             </div>
           ) : (
             <CsvPreview rows={payload.rows} headerLabels={payload.headerLabels} ar={ar} />
