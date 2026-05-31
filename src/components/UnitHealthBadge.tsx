@@ -60,7 +60,7 @@ export function UnitHealthBadge({ unit, payments, className, activeTenancyId }: 
       style: styleMap[b.status],
       icon: iconMap[b.status],
     };
-  }, [unit, payments, ar]);
+  }, [unit, payments, ar, activeTenancyId]);
 
   return (
     <span
