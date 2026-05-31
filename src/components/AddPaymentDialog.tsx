@@ -875,7 +875,10 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
 
 
           <div className="space-y-1.5">
-            <Label className="text-xs text-sage-500">{t2("rent_month")}</Label>
+            <Label className="text-xs text-sage-500 inline-flex items-center gap-1">
+              {t2("rent_month")}
+              <FieldHelp content={lang === "ar" ? "الشهر/الفترة التي تغطيها هذه الدفعة. اختياره يضبط المتوقع والمدفوع تلقائياً." : "The period this payment covers. Selecting it auto-fills Expected and Paid."} />
+            </Label>
 
             {unitId && unpaidMonths.length > 0 ? (
               <Select
