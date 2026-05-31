@@ -205,7 +205,24 @@ export interface Lease {
   security_deposit?: number | null;
   currency?: string | null;
   lang?: "ar" | "en";
+  // Optional Omani / municipality fields
+  contract_number?: string | null;
+  governorate?: string | null;       // المحافظة (e.g. ظفار)
+  municipality?: string | null;      // البلدية (e.g. بلدية ظفار)
+  wilayat?: string | null;           // الولاية
+  block?: string | null;             // المربع
+  plot_no?: string | null;           // رقم القطعة
+  street?: string | null;            // الشارع
+  building_no?: string | null;       // رقم المبنى
+  flat_no?: string | null;           // رقم الشقة
+  use_type?: string | null;          // نوع الاستعمال (سكني/تجاري...)
+  activities?: string | null;        // الأنشطة
+  landlord_id?: string | null;       // رقم البطاقة/الجواز للمؤجر
+  landlord_nationality?: string | null;
+  tenant_nationality?: string | null;
+  electricity_account?: string | null;
 }
+
 
 export interface StatementRow {
   date: string;
