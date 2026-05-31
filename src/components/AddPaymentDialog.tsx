@@ -1039,7 +1039,10 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs text-sage-500">{t2("receipt_number")}</Label>
+            <Label className="text-xs text-sage-500 inline-flex items-center gap-1">
+              {t2("receipt_number")}
+              <FieldHelp content={lang === "ar" ? "رقم الإيصال أو المرجع البنكي. اختياري — يُستخدم للبحث والمطابقة." : "Receipt or bank reference number. Optional — used for search and reconciliation."} />
+            </Label>
             <Input value={receipt} onChange={(e) => setReceipt(e.target.value)} maxLength={50} className="rounded-xl border-sage-200 bg-card h-11" />
           </div>
           <div className="space-y-1.5">
