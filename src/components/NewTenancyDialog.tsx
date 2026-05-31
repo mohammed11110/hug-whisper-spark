@@ -291,7 +291,10 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
               <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="rounded-xl border-sage-200 h-11" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-sage-500">{t2("contract_end")}</Label>
+              <Label className="text-xs text-sage-500 inline-flex items-center gap-1">
+                {t2("contract_end")}
+                <FieldHelp content={lang === "ar" ? "تاريخ انتهاء العقد. اتركه فارغاً إن لم يكن محدداً — يمكن إضافته لاحقاً." : "Contract end date. Leave empty if open-ended — you can set it later."} />
+              </Label>
               <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="rounded-xl border-sage-200 h-11" />
             </div>
           </div>
