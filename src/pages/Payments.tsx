@@ -190,9 +190,11 @@ export default function Payments() {
       }
       return true;
     });
-    // Receipt number sort: largest → smallest. Rows without a receipt number
-    // sink to the bottom, then ties fall back to payment date (newest first).
-    return list.sort((a, b) => compareReceiptDesc(a, b));
+    // Newest payment first; tie-break by id for stable order.
+    return list.sort((a, b) => {
+      const d = (b.payment_date || "").localeCompare(a.payment_date || "");
+      return d !== 0 ? d : b.id.localeCompare(a.id);
+    });
   }, [rows, search, filter, statusFilter]);
 
   const total = filtered.reduce((s, r) => s + r.amount, 0);
