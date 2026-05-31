@@ -1331,6 +1331,7 @@ export function buildTenantStatementHTML(data: TenantStatementData): string {
       (row) => `
         <tr>
           <td>${formatDate(row.date)}</td>
+          <td>${escapeHtml(row.month || "—")}</td>
           <td>${escapeHtml(row.description)}</td>
           <td>${escapeHtml(formatMoney(row.charge, data.currency))}</td>
           <td>${escapeHtml(formatMoney(row.payment, data.currency))}</td>
