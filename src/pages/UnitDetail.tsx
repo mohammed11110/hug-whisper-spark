@@ -23,6 +23,7 @@ import { AdjustBalanceDialog } from "@/components/AdjustBalanceDialog";
 
 import { UnitHealthBadge } from "@/components/UnitHealthBadge";
 import { exportToCSV } from "@/lib/exportCSV";
+import { FilePreviewDialog, type FilePreviewPayload } from "@/components/FilePreviewDialog";
 
 interface Unit {
   id: string; building_id: string; unit_number: string; floor: number; type: string;
@@ -63,6 +64,10 @@ export default function UnitDetail() {
   const [newTenantOpen, setNewTenantOpen] = useState(false);
   const [activeTenancyId, setActiveTenancyId] = useState<string | null>(null);
   const [tenancies, setTenancies] = useState<any[]>([]);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewPayload, setPreviewPayload] = useState<FilePreviewPayload | null>(null);
+  const openPreview = (p: FilePreviewPayload) => { setPreviewPayload(p); setPreviewOpen(true); };
+  const closePreview = () => setPreviewOpen(false);
   
 
   const load = async () => {
@@ -106,9 +111,9 @@ export default function UnitDetail() {
     navigate(`/buildings/${unit.building_id}`);
   };
 
-  const exportLease = async (mode: "download" | "print") => {
-    if (!unit) return;
-    const leaseData = {
+  const buildLeaseData = () => {
+    if (!unit) return null;
+    return {
       brand: settings.brand,
       building_name: buildingName || "—",
       unit_number: unit.unit_number,
@@ -126,18 +131,42 @@ export default function UnitDetail() {
       due_day: unit.due_day,
       security_deposit: Number((unit as any).security_deposit || 0),
       currency: currency.symbol,
-      lang: lang === "ar" ? "ar" : "en",
-    } as const;
+      lang: (lang === "ar" ? "ar" : "en") as "ar" | "en",
+    };
+  };
 
+  const exportLease = async (mode: "download" | "print" | "preview") => {
+    if (!unit) return;
+    const leaseData = buildLeaseData();
+    if (!leaseData) return;
+    const filename = `lease-${unit.unit_number}-${unit.tenant_name || "tenant"}.pdf`;
     if (mode === "print") {
-      const html = buildLeaseHTML(leaseData);
-      printHTML(html);
-    } else {
-      try {
-        await downloadLeasePDF(leaseData, `lease-${unit.unit_number}-${unit.tenant_name || "tenant"}.pdf`);
-        toast.success("PDF ✓");
-      } catch (e: any) { toast.error(e.message || "PDF error"); }
+      printHTML(buildLeaseHTML(leaseData));
+      return;
     }
+    if (mode === "download") {
+      try {
+        await downloadLeasePDF(leaseData, filename);
+        toast.success(lang === "ar" ? "تم حفظ الملف ✓" : "Saved ✓");
+      } catch (e: any) { toast.error(e.message || "PDF error"); }
+      return;
+    }
+    // preview
+    const html = buildLeaseHTML(leaseData);
+    openPreview({
+      type: "pdf",
+      title: lang === "ar" ? "عقد الإيجار" : "Lease agreement",
+      filename,
+      html,
+      onSave: async () => {
+        try {
+          await downloadLeasePDF(leaseData, filename);
+          toast.success(lang === "ar" ? "تم حفظ الملف ✓" : "Saved ✓");
+          closePreview();
+        } catch (e: any) { toast.error(e.message || "PDF error"); }
+      },
+      onPrint: () => { printHTML(html); },
+    });
   };
 
   const exportStatement = async () => {
@@ -222,10 +251,21 @@ export default function UnitDetail() {
         securityDeposit: Number((unit as any).security_deposit || 0),
       },
     });
-    try {
-      await downloadHTMLAsPDF(html, `statement-${unit.unit_number}-${(unit.tenant_name || "tenant").replace(/\s+/g, "_")}.pdf`, settings);
-      toast.success("PDF ✓");
-    } catch (e: any) { toast.error(e.message || "PDF error"); }
+    const filename = `statement-${unit.unit_number}-${(unit.tenant_name || "tenant").replace(/\s+/g, "_")}.pdf`;
+    openPreview({
+      type: "pdf",
+      title: lang === "ar" ? "كشف حساب المستأجر" : "Tenant statement",
+      filename,
+      html,
+      onSave: async () => {
+        try {
+          await downloadHTMLAsPDF(html, filename, settings);
+          toast.success(lang === "ar" ? "تم حفظ الملف ✓" : "Saved ✓");
+          closePreview();
+        } catch (e: any) { toast.error(e.message || "PDF error"); }
+      },
+      onPrint: () => { printHTML(html); },
+    });
   };
 
   if (!unit) return <div className="mobile-shell flex items-center justify-center min-h-screen"><p className="text-sage-500">{t("loading")}</p></div>;
@@ -296,8 +336,9 @@ export default function UnitDetail() {
             <>
               <DetailsTab unit={unit} payments={payments} format={format} t2={t2} lang={lang}
                 activeTenancyId={activeTenancyId}
-                onPay={() => setPayOpen(true)} onLeasePDF={() => exportLease("download")} onLeasePrint={() => exportLease("print")}
+                onPay={() => setPayOpen(true)} onLeasePDF={() => exportLease("preview")} onLeasePrint={() => exportLease("print")}
                 onStatement={exportStatement}
+                onPreview={openPreview}
                 onEnd={() => setEndOpen(true)} reload={load} />
               <LeaseHistoryCard unitId={unit.id} tenancies={tenancies} payments={payments} format={format} lang={lang} />
             </>
@@ -318,6 +359,7 @@ export default function UnitDetail() {
       <AddPaymentDialog open={payOpen} onOpenChange={setPayOpen} presetUnitId={unit.id} onSaved={load} />
       <EndTenancyDialog open={endOpen} onOpenChange={setEndOpen} unit={unit} tenancyId={activeTenancyId} onDone={load} />
       <NewTenancyDialog open={newTenantOpen} onOpenChange={setNewTenantOpen} unit={unit} onDone={load} />
+      <FilePreviewDialog open={previewOpen} onOpenChange={setPreviewOpen} payload={previewPayload} />
     </div>
   );
 }
@@ -335,7 +377,7 @@ function VacantState({ t2, onAdd }: any) {
   );
 }
 
-function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLeasePrint, onStatement, onEnd, reload, activeTenancyId }: any) {
+function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLeasePrint, onStatement, onPreview, onEnd, reload, activeTenancyId }: any) {
   const [adjustOpen, setAdjustOpen] = useState(false);
   const arr = getUnitArrears(unit, payments, new Date(), lang as "ar" | "en", activeTenancyId);
 
@@ -494,7 +536,19 @@ function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLea
             });
           }
           if (!rows.length) return;
-          exportToCSV(`unit-${unit.unit_number}-cycles-${new Date().toISOString().slice(0,10)}`, rows);
+          const filename = `unit-${unit.unit_number}-cycles-${new Date().toISOString().slice(0,10)}.csv`;
+          const headerLabels = lang === "ar" ? {
+            cycle: "الدورة", period_start: "من", period_end: "إلى",
+            rent: "الإيجار", paid: "المدفوع", shortfall: "العجز", status: "الحالة",
+          } : undefined;
+          onPreview?.({
+            type: "csv",
+            title: lang === "ar" ? "دورات الإيجار" : "Rent cycles",
+            filename,
+            rows,
+            headerLabels,
+            onSave: () => exportToCSV(filename, rows),
+          });
         }}
         className="w-full rounded-xl text-sage-500 h-10 text-xs"
       >
@@ -604,10 +658,20 @@ function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLea
             toast.info(lang === "ar" ? "لا توجد بيانات لكشف الرصيد" : "No ledger data");
             return;
           }
-          exportToCSV(
-            `ledger-${unit.unit_number}-${new Date().toISOString().slice(0, 10)}`,
+          const filename = `ledger-${unit.unit_number}-${new Date().toISOString().slice(0, 10)}.csv`;
+          const headerLabels = lang === "ar" ? {
+            date: "التاريخ", type: "النوع", description: "الوصف",
+            charge: "مستحق", payment: "مدفوع", balance: "الرصيد",
+            kind: "التصنيف", receipt: "رقم الإيصال", notes: "ملاحظات",
+          } : undefined;
+          onPreview?.({
+            type: "csv",
+            title: lang === "ar" ? "كشف الرصيد" : "Ledger",
+            filename,
             rows,
-          );
+            headerLabels,
+            onSave: () => exportToCSV(filename, rows),
+          });
         }}
         className="w-full rounded-xl text-sage-500 h-10 text-xs"
       >
