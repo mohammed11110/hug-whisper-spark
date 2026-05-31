@@ -955,7 +955,10 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs text-sage-500">{lang === "ar" ? "المدفوع" : "Paid"}</Label>
+              <Label className="text-xs text-sage-500 inline-flex items-center gap-1">
+                {lang === "ar" ? "المدفوع" : "Paid"}
+                <FieldHelp content={lang === "ar" ? "المبلغ المستلم فعلياً من المستأجر. إن كان أقل من المتوقع يُسجَّل كدفعة جزئية." : "Amount actually received. If less than Expected it's recorded as a partial payment."} />
+              </Label>
               <Input type="number" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} className="rounded-xl border-sage-200 bg-card h-11" />
             </div>
           </div>
