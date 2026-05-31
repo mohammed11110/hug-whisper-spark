@@ -93,10 +93,8 @@ export function periodsElapsed(start: Date, now: Date, rentType: string): number
  * - arrears: cycle 1 ends after one period, due at its end → elapsed
  */
 export function cyclesDue(unit: UnitForBalance, asOf: Date = new Date()): number {
-  const startStr = unit.opening_balance_date || unit.contract_start_date || null;
-  if (!startStr) return 0;
-  const start = new Date(startStr);
-  if (Number.isNaN(start.getTime()) || asOf < start) return 0;
+  const start = parseLocalDate(unit.opening_balance_date || unit.contract_start_date || null);
+  if (!start || asOf < start) return 0;
   const elapsed = periodsElapsed(start, asOf, unit.rent_type || "monthly");
   const timing = (unit.rent_timing || "advance") === "arrears" ? "arrears" : "advance";
   return timing === "advance" ? elapsed + 1 : elapsed;
@@ -116,23 +114,32 @@ export function cyclesDue(unit: UnitForBalance, asOf: Date = new Date()): number
 const ISO = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
+/** Parse an ISO date (YYYY-MM-DD) as a LOCAL date — never via `new Date(iso)`
+ *  which is parsed as UTC midnight and can shift the day in negative-offset
+ *  timezones. Use this everywhere we read `contract_start_date`,
+ *  `period_start`, `period_end`, `opening_balance_date`, `paid_up_to`. */
+export function parseLocalDate(iso: string | null | undefined): Date | null {
+  if (!iso) return null;
+  const m = String(iso).slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) {
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+}
+
 /** Anchor date for due-day calculations. The lease's `paid_up_to` always
  *  wins when set (arrears start the day after). Otherwise prefers
  *  `opening_balance_date` (= last settlement), then `contract_start_date`. */
 export function getAnchorDate(unit: { contract_start_date?: string | null; opening_balance_date?: string | null; paid_up_to?: string | null }): Date | null {
-  // paid_up_to: arrears start the next day. We move the anchor forward by 1 day
-  // so cycles align to "first day after the last paid period".
   if (unit.paid_up_to) {
-    const p = new Date(unit.paid_up_to);
-    if (!Number.isNaN(p.getTime())) {
+    const p = parseLocalDate(unit.paid_up_to);
+    if (p) {
       p.setDate(p.getDate() + 1);
       return p;
     }
   }
-  const s = unit.opening_balance_date || unit.contract_start_date || null;
-  if (!s) return null;
-  const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? null : d;
+  return parseLocalDate(unit.opening_balance_date || unit.contract_start_date || null);
 }
 
 /** Day-of-month used as the anchor for monthly cycles (1..28).
@@ -143,6 +150,22 @@ export function getAnchorDay(unit: { contract_start_date?: string | null; openin
   if (Number.isFinite(dd) && dd >= 1) return Math.min(28, Math.max(1, Math.floor(dd)));
   const a = getAnchorDate(unit);
   return a ? Math.min(28, Math.max(1, a.getDate())) : 1;
+}
+
+/** Re-build the cycle (start/end/label) for any stored `period_start` ISO.
+ *  Used to render the canonical receipt label for a payment regardless of
+ *  how the period was originally chosen. */
+export function getCycleForPeriodStart(
+  unit: { contract_start_date?: string | null; opening_balance_date?: string | null; due_day?: number | null },
+  periodStartIso: string,
+  lang: "ar" | "en" = "ar",
+) {
+  const ps = parseLocalDate(periodStartIso);
+  if (!ps) return null;
+  const day = ps.getDate();
+  const cycle = getCycleByStartMonth(ps.getFullYear(), ps.getMonth() + 1, day);
+  const label = buildReceiptPeriodLabel(cycle.start, cycle.end, day, lang);
+  return { ...cycle, label, isFullMonth: day === 1, anchorDay: day };
 }
 
 /**

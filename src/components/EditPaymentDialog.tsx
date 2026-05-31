@@ -11,7 +11,7 @@ import { useCurrency } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
-import { getUnitArrears, type UnitForBalance, type PaymentForBalance } from "@/lib/balance";
+import { getUnitArrears, getCycleForPeriodStart, parseLocalDate, type UnitForBalance, type PaymentForBalance } from "@/lib/balance";
 
 const METHODS = ["cash", "transfer", "cheque", "card"] as const;
 
@@ -103,11 +103,20 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
 
   const periodLabel = (() => {
     if (!periodStart) return lang === "ar" ? "— (دفعة بدون فترة)" : "— (no period)";
-    const d = new Date(periodStart);
-    const names = lang === "ar" ? AR_MONTHS : EN_MONTHS;
+    // Canonical label: rebuild from the stored period_start using the same
+    // helper used by AddPaymentDialog and the receipt PDF, so the month/
+    // period shown here always matches what was saved.
+    const cycle = unitData ? getCycleForPeriodStart(unitData as any, periodStart, lang as "ar" | "en") : null;
+    if (cycle) return cycle.label;
+    // Fallback for legacy rows without a matching unit context.
+    const d = parseLocalDate(periodStart);
+    if (!d) return periodStart;
+    const names = lang === "ar"
+      ? ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"]
+      : ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
     if (d.getDate() === 1) return `${names[d.getMonth()]} ${d.getFullYear()}`;
     const fmt = (s: string) => {
-      const x = new Date(s);
+      const x = parseLocalDate(s) || new Date(s);
       return `${x.getDate()}/${x.getMonth() + 1}/${x.getFullYear()}`;
     };
     return periodEnd
