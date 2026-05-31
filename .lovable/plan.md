@@ -1,62 +1,57 @@
-# خطة إصلاح شهر/فترة الإيصال
+## الهدف
+عرض **فترة الإيجار على إيصال الاستلام** (PDF + الـ HTML المعروض داخل قائمة الدفعات) وفق القاعدة المعتمدة، مع كتابتها بعربية سليمة متّصلة واتجاه صحيح للأرقام والتواريخ.
 
-## القاعدة الموحَّدة (تنطبق على كل الوحدات وكل المستأجرين)
+## القاعدة (تذكير)
 
-اعتماداً على **يوم بداية العقد** (`contract_start_date`):
+| بداية العقد | نص الفترة على الإيصال |
+|---|---|
+| اليوم 1 من الشهر | "شهر يونيو 2026" — اسم الشهر كاملاً |
+| أي يوم D ≠ 1 | "من 10/1/2026 إلى 9/2/2026" |
+| الشهر التالي أقصر | يُقصّ على آخر يوم (مثال 31/1 → 28/2) |
 
-| الحالة | تسمية الإيصال | `period_start` المخزَّن | `period_end` المخزَّن |
-|---|---|---|---|
-| البداية = اليوم 1 من الشهر | "إيجار شهر M/YYYY" (شهر كامل) | YYYY-MM-01 | YYYY-MM-(آخر يوم) |
-| البداية = أي يوم D ≠ 1 | "الإيجار من D/M/YYYY إلى (D-1)/(M+1)/YYYY" | YYYY-MM-D | (الشهر التالي)-(D-1) |
-
-أمثلة:
-- بداية 10/1/2026 → الدورة 1: `10/1/2026 → 9/2/2026`، الدورة 2: `10/2/2026 → 9/3/2026`، وهكذا.
-- بداية 15/3/2026 → `15/3/2026 → 14/4/2026`، ثم `15/4/2026 → 14/5/2026`.
-- بداية 1/6/2026 → `يونيو 2026` (شهر كامل بدون تجزئة).
-- إذا كانت بداية الشهر التالي تتجاوز نهايته (مثل 31 يناير → 30 فبراير غير موجود)، نقصّ على آخر يوم في الشهر التالي.
+النص يُبنى مرّة واحدة عبر `formatCycleLabel` / `getCycleForPeriodStart` الموجودَين في `src/lib/balance.ts`، فيتطابق ما في الإيصال مع ما هو محفوظ.
 
 ## التغييرات
 
-### 1) `src/lib/balance.ts` — مصدر الحقيقة الوحيد
-- إضافة `parseLocalDate(iso)` لتفادي انزياح التوقيت (بدلاً من `new Date(ISO)` المباشر).
-- إضافة `getCycleStartDay(unit)` يعيد يوم البداية من `contract_start_date` (إن غاب يستخدم `due_day` أو 1).
-- إضافة `getNextDueCycle(unit, payments, activeTenancyId)` يعيد:
-  ```ts
-  { periodStart: string, periodEnd: string, label: { ar, en }, isFullMonth: boolean }
-  ```
-  يحسب الدورة التالية من `paid_up_to` أو من آخر `period_end` لدفعات العقد النشط، أو من `contract_start_date` لأول دورة.
-- إضافة `getCycleForPeriodStart(unit, periodStartIso)` لإعادة بناء `period_end` و`label` لأي دورة محددة (للتنقّل يدوياً ولعرض الدفعات القديمة).
-- إضافة `formatCycleLabel({periodStart, periodEnd, isFullMonth, lang})` المستخدم في كل الإيصالات والشاشات.
+### 1) `src/pages/Payments.tsx` — مصدر التسمية على الإيصال
+- حذف `monthLabel(dateStr)` المحلية التي تطبع "مايو 2026" دائماً من `period_start` بصرف النظر عن يوم بداية العقد.
+- تمرير كائن الوحدة الكامل داخل `Row` (نحتاج `contract_start_date`, `due_day`, `rent_timing`, `rent_amount`، إلخ — معظمها مجلوب أصلاً في `load()`).
+- إنشاء `cycleLabel(row, lang)` يستدعي `getCycleForPeriodStart(unit, row.period_start, lang)` ويرجع النص الموحَّد.
+- استبدال الاستخدامات الثلاثة:
+  - `buildReceiptHTML` (السطر 276) → `cycleLabel`
+  - بطاقة الدفعة (السطر 437) → `cycleLabel`
+  - تصدير CSV `rent_month` (السطر 353) → `cycleLabel`
 
-### 2) `src/components/AddPaymentDialog.tsx`
-- عند الفتح: جلب العقد النشط ثم `getNextDueCycle(...)` لتعبئة الفترة الافتراضية (بدل `new Date()`).
-- السماح بالتنقّل للأمام/الخلف عبر `getCycleForPeriodStart` بدورة كاملة (شهر) — وليس بتعديل السنة/الشهر يدوياً.
-- منع اختيار دورة قبل `contract_start_date` أو قبل `paid_up_to`.
-- عند الحفظ: تخزين `period_start` و`period_end` المحسوبَين من نفس الدالة (لا من اختيار سنة/شهر منفصل).
-- معاينة الإيصال تستخدم `formatCycleLabel`.
+### 2) `src/lib/pdfDocs.ts` — كتابة عربية متّصلة + اتجاه صحيح
+- `periodLabel` يُمرَّر جاهزاً من المُتّصلين (`AddPaymentDialog`، `Payments`، `UnitDetail`). لا حساب جديد هنا.
+- لفّ التواريخ الرقمية داخل `<bdi dir="ltr">…</bdi>` في الفقرة العربية (السطر 555) وفي بطاقة "عن فترة الإيجار" (573) وصف جدول البنود (581)، حتى لا تنعكس "10/1/2026 → 9/2/2026" داخل سياق RTL.
+- استبدال السهم `→` بكلمة "إلى" داخل النص العربي وبسهم `–` في النص الإنجليزي حتى يظهر بخطّ متّصل ومألوف بلا اعتماد على رمز قد يُكسر الاتصال البصري.
+- التأكد من ضبط `lang="ar"` و`dir="rtl"` على عنصر الفقرة المُتضمِّن للنص + استخدام خط `Noto Kufi Arabic` المُعرَّف بالفعل في `pdfDocs.ts` لضمان التشكيل المتّصل.
 
-### 3) `src/components/EditPaymentDialog.tsx`
-- استبدال `new Date(periodStart)` بـ `parseLocalDate` ثم `formatCycleLabel({periodStart, periodEnd, isFullMonth: day===1, lang})`.
-- لا تغيير على حقول الفترة (تبقى للقراءة فقط كما هي اليوم).
+### 3) `src/components/AddPaymentDialog.tsx`
+- لا تغيير في المنطق؛ فقط التأكد أن `primaryPeriodLabel` المُرسَل لـ `ReceiptData.periodLabel` يأتي من `formatCycleLabel` (موجود). نتحقق من السطر 452 و666.
 
-### 4) قوالب الإيصال والعرض
-- مراجعة كل مكان يطبع شهر الإيجار (شاشة الدفعات، الإيصال PDF، الإشعارات) واستبداله بـ `formatCycleLabel` بناءً على `period_start`/`period_end` المخزَّن. لا يُشتق الشهر من `payment_date` أو `created_at` أبداً.
+### 4) `src/pages/UnitDetail.tsx` — سجلّ الدفعات + إيصال إعادة الطباعة
+- استبدال أي اشتقاق محلي للشهر من `period_start` بـ `getCycleForPeriodStart(unit, p.period_start, lang)` للوحدة الحالية.
+- عند إعادة طباعة إيصال قديم: تمرير `periodLabel` المحسوب من نفس الدالة إلى `buildReceiptHTML`.
 
-### 5) اختبارات تلقائية (`src/test/balance-arrears.test.ts`)
-- بداية 10/1/2026 → الدورات الست الأولى صحيحة بنصّ "10/1 → 9/2"… إلخ.
-- بداية 1/6/2026 → "يونيو 2026" (شهر كامل).
-- بداية 15/3/2026 → "15/3 → 14/4".
-- بداية 31/1/2026 → الدورة التالية تنتهي 28/2 (قصّ آمن).
-- تسجيل اليوم 31/5/2026 لعقد 1/6/2026 → الافتراضي يونيو 2026 وليس مايو.
+### 5) `src/components/EditPaymentDialog.tsx`
+- بالفعل يستخدم `getCycleForPeriodStart` (تمّ سابقاً) — لا تغيير.
 
-### 6) تعميم
-- لا تعديل قاعدة بيانات.
-- التغيير في طبقة الحساب + الـ Dialogs + الإيصال فقط، فينطبق فوراً على **كل الوحدات وكل المستأجرين وكل الأشهر والسنوات الماضية والمستقبلية**.
-- مصدر واحد (`getNextDueCycle` + `formatCycleLabel`) يمنع تعارض الإيصال مع البيانات المحفوظة.
+### 6) اختبارات (`src/test/balance-arrears.test.ts`)
+- التأكد من أن `getCycleForPeriodStart` تعطي:
+  - بداية 10/1/2026 → "من 10/1/2026 إلى 9/2/2026"
+  - بداية 15/3/2026 → "من 15/3/2026 إلى 14/4/2026"
+  - بداية 1/6/2026 → "يونيو 2026"
+  - بداية 31/1/2026 → ينتهي 28/2/2026 (أو 29/2 في الكبيسة)
+
+## ملاحظات
+- لا تغييرات على قاعدة البيانات.
+- مصدر التسمية واحد لكل المسارات: AddPayment + EditPayment + Payments list + UnitDetail history + Receipt PDF → كلها عبر `formatCycleLabel` / `getCycleForPeriodStart`.
+- التطبيق يشمل **كل الوحدات وكل المستأجرين وكل الأشهر والسنوات** تلقائياً.
 
 ## ملفات ستُعدَّل
-- `src/lib/balance.ts` (إضافات فقط، لا حذف للسلوك القديم)
-- `src/components/AddPaymentDialog.tsx`
-- `src/components/EditPaymentDialog.tsx`
-- أي ملف يطبع شهر الإيصال (سيُحدَّد عند الفحص: قائمة `Payments.tsx`، `UnitDetail.tsx`، مولّد PDF إن وُجد)
+- `src/pages/Payments.tsx`
+- `src/lib/pdfDocs.ts`
+- `src/pages/UnitDetail.tsx`
 - `src/test/balance-arrears.test.ts`
