@@ -379,7 +379,10 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
 
 
           <div className="space-y-1.5">
-            <Label className="text-xs text-sage-500">{t2("rent_timing")}</Label>
+            <Label className="text-xs text-sage-500 inline-flex items-center gap-1">
+              {t2("rent_timing")}
+              <FieldHelp content={lang === "ar" ? "مقدّم: يدفع الإيجار في بداية الفترة (1 الشهر). مؤخّر: يدفعه في نهايتها." : "Advance: pays at start of period. Arrears: pays at end of period."} />
+            </Label>
             <div className="flex gap-1.5">
               {(["advance", "arrears"] as const).map((m) => (
                 <button key={m} type="button" onClick={() => setRentTiming(m)}
