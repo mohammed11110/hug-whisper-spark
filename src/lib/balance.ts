@@ -93,15 +93,11 @@ export function periodsElapsed(start: Date, now: Date, rentType: string): number
  * - arrears: cycle 1 ends after one period, due at its end → elapsed
  */
 export function cyclesDue(unit: UnitForBalance, asOf: Date = new Date()): number {
-  const start = parseLocalDateLocal(unit.opening_balance_date || unit.contract_start_date || null);
+  const start = parseLocalDate(unit.opening_balance_date || unit.contract_start_date || null);
   if (!start || asOf < start) return 0;
   const elapsed = periodsElapsed(start, asOf, unit.rent_type || "monthly");
   const timing = (unit.rent_timing || "advance") === "arrears" ? "arrears" : "advance";
   return timing === "advance" ? elapsed + 1 : elapsed;
-}
-// Local stub forwards to parseLocalDate (declared below) to avoid TDZ in hoisting.
-function parseLocalDateLocal(iso: string | null | undefined): Date | null {
-  return parseLocalDate(iso);
 }
 
 
