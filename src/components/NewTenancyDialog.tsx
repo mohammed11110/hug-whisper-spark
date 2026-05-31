@@ -401,7 +401,10 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
 
           {/* المتأخرات الافتتاحية — يُحوَّل المبلغ تلقائياً إلى عدد أشهر متأخرة */}
           <div className="pt-2 border-t border-sage-100 space-y-1.5">
-            <Label className="text-xs text-sage-500">{t2("arrears_amount")}</Label>
+            <Label className="text-xs text-sage-500 inline-flex items-center gap-1">
+              {t2("arrears_amount")}
+              <FieldHelp content={lang === "ar" ? "متأخرات سابقة قبل بداية هذا العقد. النظام يحوّلها تلقائياً إلى عدد أشهر متأخرة بناءً على قيمة الإيجار." : "Outstanding amount from before this lease. Automatically converted to overdue months based on rent."} />
+            </Label>
             <Input
               type="number"
               inputMode="decimal"
