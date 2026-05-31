@@ -322,11 +322,17 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs text-sage-500">{lang === "ar" ? "تأمين" : "Deposit"}</Label>
+              <Label className="text-xs text-sage-500 inline-flex items-center gap-1">
+                {lang === "ar" ? "تأمين" : "Deposit"}
+                <FieldHelp content={lang === "ar" ? "مبلغ ضمان يُحتجز ويُرجع للمستأجر عند انتهاء العقد إن لم تكن هناك أضرار." : "Refundable security deposit returned to the tenant at end of lease if no damages."} />
+              </Label>
               <Input type="number" inputMode="decimal" value={deposit} onChange={(e) => setDeposit(e.target.value)} className="rounded-xl border-sage-200 h-11" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-sage-500">{lang === "ar" ? "أيام السماح" : "Grace days"}</Label>
+              <Label className="text-xs text-sage-500 inline-flex items-center gap-1">
+                {lang === "ar" ? "أيام السماح" : "Grace days"}
+                <FieldHelp content={lang === "ar" ? "عدد الأيام بعد يوم الاستحقاق قبل أن يعتبر النظام الدفعة متأخرة." : "Days after the due date before the payment is flagged as overdue."} />
+              </Label>
               <Input type="number" inputMode="numeric" min={0} max={30} value={graceDays} onChange={(e) => setGraceDays(e.target.value)} className="rounded-xl border-sage-200 h-11" />
             </div>
           </div>
