@@ -225,7 +225,14 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
       descriptionEn: `New lease registered for ${name.trim()} — unit ${unit.unit_number}`,
       changes: { rent_amount: rentNum, contract_type: contractType, start: startDate, end: endDate || null },
     });
-    toast.success(t2("tenancy_started_ok"));
+    toast.success(
+      generatedContractNo
+        ? (lang === "ar"
+            ? `تم إنشاء العقد رقم ${generatedContractNo}`
+            : `Lease ${generatedContractNo} created`)
+        : t2("tenancy_started_ok")
+    );
+
     const { paymentsBus } = await import("@/lib/paymentsBus");
     paymentsBus.emit(unit.id);
     guard.markSaved();
