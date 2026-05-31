@@ -1117,6 +1117,7 @@ export type Database = {
         Row: {
           building_id: string
           contract_end_date: string | null
+          contract_number: string | null
           contract_start_date: string | null
           contract_type: string
           created_at: string
@@ -1129,6 +1130,7 @@ export type Database = {
           grace_days: number
           id: string
           notes: string | null
+          official_contract_number: string | null
           opening_balance: number
           opening_balance_date: string | null
           outstanding_at_end: number | null
@@ -1150,6 +1152,7 @@ export type Database = {
         Insert: {
           building_id: string
           contract_end_date?: string | null
+          contract_number?: string | null
           contract_start_date?: string | null
           contract_type?: string
           created_at?: string
@@ -1162,6 +1165,7 @@ export type Database = {
           grace_days?: number
           id?: string
           notes?: string | null
+          official_contract_number?: string | null
           opening_balance?: number
           opening_balance_date?: string | null
           outstanding_at_end?: number | null
@@ -1183,6 +1187,7 @@ export type Database = {
         Update: {
           building_id?: string
           contract_end_date?: string | null
+          contract_number?: string | null
           contract_start_date?: string | null
           contract_type?: string
           created_at?: string
@@ -1195,6 +1200,7 @@ export type Database = {
           grace_days?: number
           id?: string
           notes?: string | null
+          official_contract_number?: string | null
           opening_balance?: number
           opening_balance_date?: string | null
           outstanding_at_end?: number | null
