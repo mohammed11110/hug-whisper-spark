@@ -51,7 +51,10 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
   const [paidUpTo, setPaidUpTo] = useState<string>("");
   // أيام السماح بعد يوم الاستحقاق قبل أن يصبح العقد متأخراً.
   const [graceDays, setGraceDays] = useState<string>("0");
+  // الرقم الرسمي للعقد من الجهة الحكومية (بلدية / سند) — اختياري.
+  const [officialNumber, setOfficialNumber] = useState<string>("");
   const guard = useUnsavedGuard({ open, onOpenChange });
+
 
   const extractFromId = async () => {
     if (!idImageUrl) return;
@@ -95,8 +98,10 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
     setArrears("0");
     setPaidUpTo("");
     setGraceDays(String(unit.grace_days ?? "0"));
+    setOfficialNumber("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, unit?.id]);
+
 
   // When a new unit photo finishes uploading, push to array and reset slot
   useEffect(() => {
@@ -136,7 +141,7 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
     const depositNum = Number(deposit) || 0;
     const graceNum = Math.max(0, Math.min(30, Math.floor(Number(graceDays) || 0)));
     const paidUpToVal = paidUpTo || null;
-    const { error: tErr } = await supabase.from("tenancies").insert({
+    const { data: insertedTenancy, error: tErr } = await supabase.from("tenancies").insert({
       building_id: unit.building_id,
       unit_id: unit.id,
       tenant_name: name.trim(),
@@ -155,8 +160,11 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
       grace_days: graceNum,
       deposit_status: depositNum > 0 ? "held" : "none",
       status: "active",
-    } as any);
+      official_contract_number: officialNumber.trim() || null,
+    } as any).select("contract_number").single();
     if (tErr) { setSaving(false); return toast.error(tErr.message); }
+    const generatedContractNo = (insertedTenancy as any)?.contract_number || null;
+
 
     const updatePayload: any = {
       tenant_name: name.trim(),
@@ -217,7 +225,14 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
       descriptionEn: `New lease registered for ${name.trim()} — unit ${unit.unit_number}`,
       changes: { rent_amount: rentNum, contract_type: contractType, start: startDate, end: endDate || null },
     });
-    toast.success(t2("tenancy_started_ok"));
+    toast.success(
+      generatedContractNo
+        ? (lang === "ar"
+            ? `تم إنشاء العقد رقم ${generatedContractNo}`
+            : `Lease ${generatedContractNo} created`)
+        : t2("tenancy_started_ok")
+    );
+
     const { paymentsBus } = await import("@/lib/paymentsBus");
     paymentsBus.emit(unit.id);
     guard.markSaved();
@@ -312,6 +327,26 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
                 : "Last date already paid. Arrears start the day after — no need to enter old receipts."}
             </p>
           </div>
+
+          {/* الرقم الرسمي للعقد — اختياري */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-sage-500">
+              {lang === "ar" ? "الرقم الرسمي للعقد (اختياري)" : "Official contract number (optional)"}
+            </Label>
+            <Input
+              value={officialNumber}
+              onChange={(e) => setOfficialNumber(e.target.value)}
+              placeholder={lang === "ar" ? "مثال: رقم بلدية / سند" : "e.g. municipality / sanad #"}
+              className="rounded-xl border-sage-200 h-11"
+            />
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              {lang === "ar"
+                ? "رقم الجهة الحكومية إن وُجد. الرقم الداخلي يُولَّد تلقائياً بعد الحفظ."
+                : "Government registration number if any. An internal lease number is generated automatically."}
+            </p>
+          </div>
+
+
 
 
           <div className="space-y-1.5">

@@ -34,8 +34,10 @@ export function EndTenancyDialog({ open, onOpenChange, unit, tenancyId, onDone }
   const [debtAction, setDebtAction] = useState<"settle" | "carry">("carry");
   const [notes, setNotes] = useState("");
   const [outstanding, setOutstanding] = useState(0);
+  const [contractNumber, setContractNumber] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const guard = useUnsavedGuard({ open, onOpenChange });
+
 
   useEffect(() => {
     if (!open || !unit) return;
@@ -45,6 +47,7 @@ export function EndTenancyDialog({ open, onOpenChange, unit, tenancyId, onDone }
     setRefundAmount(String(Number(unit.security_deposit) || 0));
     setDebtAction("carry");
     setNotes("");
+    setContractNumber(null);
     (async () => {
       const { data: ps } = await supabase
         .from("payments")
@@ -53,9 +56,24 @@ export function EndTenancyDialog({ open, onOpenChange, unit, tenancyId, onDone }
         .is("deleted_at", null);
       const arr = getUnitArrears(unit, (ps || []) as any, new Date(), lang as "ar" | "en", tenancyId);
       setOutstanding(arr.totalShortfall);
+
+      // اجلب رقم العقد لعرضه في العنوان وفي سجل النشاط.
+      let tid = tenancyId;
+      if (!tid) {
+        const { data: latest } = await supabase
+          .from("tenancies").select("id,contract_number")
+          .eq("unit_id", unit.id)
+          .order("created_at", { ascending: false }).limit(1);
+        if (latest?.[0]) setContractNumber((latest[0] as any).contract_number || null);
+      } else {
+        const { data: t } = await supabase
+          .from("tenancies").select("contract_number").eq("id", tid).maybeSingle();
+        setContractNumber((t as any)?.contract_number || null);
+      }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, unit?.id]);
+
 
   const refundNum = depositOutcome === "full"
     ? Number(unit?.security_deposit) || 0
@@ -143,8 +161,9 @@ export function EndTenancyDialog({ open, onOpenChange, unit, tenancyId, onDone }
       entityId: unit.id,
       entityLabel: unit.tenant_name || "",
       buildingId: unit.building_id,
-      descriptionAr: `إنهاء عقد المستأجر ${unit.tenant_name || ""} — وحدة ${unit.unit_number}`,
-      descriptionEn: `Tenancy ended for ${unit.tenant_name || ""} — unit ${unit.unit_number}`,
+      descriptionAr: `إنهاء ${contractNumber ? `العقد ${contractNumber}` : "عقد"} — ${unit.tenant_name || ""} — وحدة ${unit.unit_number}`,
+      descriptionEn: `Ended ${contractNumber ? `lease ${contractNumber}` : "lease"} — ${unit.tenant_name || ""} — unit ${unit.unit_number}`,
+
       changes: { reason, ended_at: endDate, outstanding: finalOutstanding, deposit_refund: refundNum },
     });
     // Broadcast so every screen (Tenants, Payments, Notifications, Dashboard,
@@ -163,7 +182,15 @@ export function EndTenancyDialog({ open, onOpenChange, unit, tenancyId, onDone }
     <Dialog open={open} onOpenChange={guard.handleOpenChange}>
       <DialogContent className="rounded-2xl max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-burgundy">{t2("end_tenancy")} — {unit.tenant_name}</DialogTitle>
+          <DialogTitle className="text-burgundy">
+            {t2("end_tenancy")} — {unit.tenant_name}
+            {contractNumber && (
+              <span className="block text-[11px] font-semibold text-sage-500 mt-0.5 tracking-wide">
+                {contractNumber}
+              </span>
+            )}
+          </DialogTitle>
+
         </DialogHeader>
         <div className="space-y-3" {...guard.formProps}>
           <div className="grid grid-cols-2 gap-3">
