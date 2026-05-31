@@ -940,6 +940,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                     {lang === "ar" ? "محسوب" : "AUTO"}
                   </span>
                 )}
+                <FieldHelp content={lang === "ar" ? "المبلغ المستحق على المستأجر لهذه الفترة. الفرق بينه وبين المدفوع يصبح متأخرات أو رصيد دائن." : "Amount due for this period. Difference with Paid becomes arrears or credit."} />
               </Label>
               <Input
                 type="number"
