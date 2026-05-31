@@ -244,18 +244,20 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     (async () => {
       const { data: u } = await supabase
         .from("units")
-        .select("id, rent_amount, rent_type, rent_timing, contract_start_date, opening_balance, opening_balance_date")
+        .select("id, rent_amount, rent_type, rent_timing, contract_start_date, opening_balance, opening_balance_date, paid_up_to")
         .eq("id", unitId)
         .maybeSingle();
       const { data: ps } = await supabase
         .from("payments")
-        .select("unit_id, amount, deleted_at, payment_date, period_start, period_end")
+        .select("unit_id, amount, deleted_at, payment_date, period_start, period_end, tenancy_id, kind")
         .eq("unit_id", unitId)
         .is("deleted_at", null);
+      const { data: activeT } = await supabase
+        .from("tenancies").select("id").eq("unit_id", unitId).eq("status", "active").maybeSingle();
       if (cancelled || !u) return;
 
       const { getUnitArrears } = await import("@/lib/balance");
-      const arr = getUnitArrears(u as any, (ps || []) as any, new Date(), lang as "ar" | "en");
+      const arr = getUnitArrears(u as any, (ps || []) as any, new Date(), lang as "ar" | "en", (activeT as any)?.id || null);
       const rentAmt = Number((u as any).rent_amount) || 0;
       if (cancelled) return;
 
