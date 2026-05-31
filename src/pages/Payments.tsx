@@ -172,7 +172,7 @@ export default function Payments() {
   const filtered = useMemo(() => {
     const now = new Date();
     const q = search.trim().toLowerCase();
-    return rows.filter((r) => {
+    const list = rows.filter((r) => {
       const d = new Date(r.payment_date);
       if (filter === "month" && (d.getMonth() !== now.getMonth() || d.getFullYear() !== now.getFullYear())) return false;
       if (filter === "year" && d.getFullYear() !== now.getFullYear()) return false;
@@ -188,6 +188,9 @@ export default function Payments() {
       }
       return true;
     });
+    // Receipt number sort: largest → smallest. Rows without a receipt number
+    // sink to the bottom, then ties fall back to payment date (newest first).
+    return list.sort((a, b) => compareReceiptDesc(a, b));
   }, [rows, search, filter, statusFilter]);
 
   const total = filtered.reduce((s, r) => s + r.amount, 0);
