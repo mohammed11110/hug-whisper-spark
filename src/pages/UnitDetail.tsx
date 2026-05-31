@@ -111,9 +111,9 @@ export default function UnitDetail() {
     navigate(`/buildings/${unit.building_id}`);
   };
 
-  const exportLease = async (mode: "download" | "print") => {
-    if (!unit) return;
-    const leaseData = {
+  const buildLeaseData = () => {
+    if (!unit) return null;
+    return {
       brand: settings.brand,
       building_name: buildingName || "—",
       unit_number: unit.unit_number,
@@ -131,18 +131,42 @@ export default function UnitDetail() {
       due_day: unit.due_day,
       security_deposit: Number((unit as any).security_deposit || 0),
       currency: currency.symbol,
-      lang: lang === "ar" ? "ar" : "en",
-    } as const;
+      lang: (lang === "ar" ? "ar" : "en") as "ar" | "en",
+    };
+  };
 
+  const exportLease = async (mode: "download" | "print" | "preview") => {
+    if (!unit) return;
+    const leaseData = buildLeaseData();
+    if (!leaseData) return;
+    const filename = `lease-${unit.unit_number}-${unit.tenant_name || "tenant"}.pdf`;
     if (mode === "print") {
-      const html = buildLeaseHTML(leaseData);
-      printHTML(html);
-    } else {
-      try {
-        await downloadLeasePDF(leaseData, `lease-${unit.unit_number}-${unit.tenant_name || "tenant"}.pdf`);
-        toast.success("PDF ✓");
-      } catch (e: any) { toast.error(e.message || "PDF error"); }
+      printHTML(buildLeaseHTML(leaseData));
+      return;
     }
+    if (mode === "download") {
+      try {
+        await downloadLeasePDF(leaseData, filename);
+        toast.success(lang === "ar" ? "تم حفظ الملف ✓" : "Saved ✓");
+      } catch (e: any) { toast.error(e.message || "PDF error"); }
+      return;
+    }
+    // preview
+    const html = buildLeaseHTML(leaseData);
+    openPreview({
+      type: "pdf",
+      title: lang === "ar" ? "عقد الإيجار" : "Lease agreement",
+      filename,
+      html,
+      onSave: async () => {
+        try {
+          await downloadLeasePDF(leaseData, filename);
+          toast.success(lang === "ar" ? "تم حفظ الملف ✓" : "Saved ✓");
+          closePreview();
+        } catch (e: any) { toast.error(e.message || "PDF error"); }
+      },
+      onPrint: () => { printHTML(html); },
+    });
   };
 
   const exportStatement = async () => {
