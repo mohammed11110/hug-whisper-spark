@@ -380,21 +380,14 @@ const pageShell = (title: string, body: string, options?: { rtl?: boolean }) => 
         font-family: ${options?.rtl ? `"Noto Kufi Arabic", "Noto Naskh Arabic", "Segoe UI", Tahoma, Arial, sans-serif` : `"Outfit", "Inter", "Segoe UI", Tahoma, Arial, sans-serif`};
         color: var(--ink);
         padding: 24px;
-        font-feature-settings: "kern", "liga", "calt", "init", "medi", "fina", "isol";
-        text-rendering: ${options?.rtl ? "geometricPrecision" : "optimizeLegibility"};
+        font-feature-settings: "kern", "liga", "calt";
+        text-rendering: optimizeLegibility;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
-        font-synthesis: none;
-        unicode-bidi: ${options?.rtl ? "plaintext" : "normal"};
       }
-      :lang(ar), [lang="ar"], [dir="rtl"], [dir="rtl"] * {
+      :lang(ar), [lang="ar"], [dir="rtl"] {
         font-family: "Noto Kufi Arabic", "Noto Naskh Arabic", "Segoe UI", Tahoma, Arial, sans-serif;
-        font-feature-settings: "kern", "liga", "calt", "init", "medi", "fina", "isol";
-        text-rendering: geometricPrecision;
-        font-synthesis: none;
-      }
-      [dir="rtl"] .value, [dir="rtl"] .label, [dir="rtl"] td, [dir="rtl"] th, [dir="rtl"] p, [dir="rtl"] div {
-        unicode-bidi: plaintext;
+        font-feature-settings: "kern", "liga", "calt";
       }
       .page {
         width: 794px;
@@ -1770,14 +1763,8 @@ async function renderInMainDocument(html: string): Promise<HTMLCanvasElement> {
     target.style.background = "#ffffff";
     const hasArabic = /[\u0600-\u06FF]/.test(target.innerText || target.textContent || "");
     if (hasArabic) {
-      // Force Arabic font + RTL on the receipt root itself (not just body) so
-      // html2canvas captures correctly-shaped (connected) Arabic letters,
-      // matching the manual download path on the Payments page.
       target.setAttribute("dir", "rtl");
       target.style.fontFamily = '"Noto Kufi Arabic", "Noto Naskh Arabic", "Segoe UI", Tahoma, Arial, sans-serif';
-      (target.style as any).fontFeatureSettings = '"kern","liga","calt","init","medi","fina","isol"';
-      (target.style as any).textRendering = 'geometricPrecision';
-      (target.style as any).fontSynthesis = 'none';
     }
     await inlineImages(target);
     await waitForWebFonts(target);
