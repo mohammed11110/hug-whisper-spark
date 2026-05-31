@@ -226,6 +226,7 @@ export interface Lease {
 
 export interface StatementRow {
   date: string;
+  month?: string;
   description: string;
   charge: number;
   payment: number;
