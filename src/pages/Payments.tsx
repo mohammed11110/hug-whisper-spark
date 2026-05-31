@@ -15,7 +15,7 @@ import { useI18n, docLang } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
 import { useAppSettings, readFilters, writeFilters } from "@/lib/appSettings";
-import { getUnitArrears } from "@/lib/balance";
+import { getUnitArrears, getCycleForPeriodStart } from "@/lib/balance";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
@@ -33,6 +33,10 @@ interface Row {
   unit_status: string;
   period_start: string | null;
   remaining: number;
+  /** Minimal unit context needed to rebuild the canonical cycle label
+   *  (contract_start_date drives whether the receipt shows a full month or
+   *  a D/M → (D-1)/(M+1) range). */
+  unit_ctx: { contract_start_date?: string | null; opening_balance_date?: string | null; due_day?: number | null };
 }
 
 type Filter = "all" | "month" | "year";
@@ -44,9 +48,15 @@ const DEFAULT_FILTERS = { search: "", filter: "month" as Filter, statusFilter: "
 const AR_MONTHS = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
 const EN_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-function monthLabel(dateStr: string | null, lang: string) {
-  if (!dateStr) return "";
-  const d = new Date(dateStr);
+/** Canonical cycle label for a stored payment. Honors contract start day so a
+ *  contract starting 10/1/2026 shows "إيجار الفترة من 10/1/2026 إلى 9/2/2026"
+ *  and a contract starting on the 1st shows "إيجار شهر يونيو 2026". */
+function cycleLabel(r: Row, lang: string): string {
+  if (!r.period_start) return "";
+  const c = getCycleForPeriodStart(r.unit_ctx as any, r.period_start, lang as "ar" | "en");
+  if (c) return c.label;
+  // Legacy fallback: derive a full-month label.
+  const d = new Date(r.period_start);
   const names = lang === "ar" ? AR_MONTHS : EN_MONTHS;
   return `${names[d.getMonth()]} ${d.getFullYear()}`;
 }
@@ -102,7 +112,7 @@ export default function Payments() {
       .limit(500);
     const unitIds = Array.from(new Set((pays || []).map((p: any) => p.unit_id)));
     const { data: units } = unitIds.length
-      ? await supabase.from("units").select("id, unit_number, tenant_name, status, building_id, rent_amount, rent_type, contract_start_date, opening_balance, opening_balance_date, paid_up_to").in("id", unitIds)
+      ? await supabase.from("units").select("id, unit_number, tenant_name, status, building_id, rent_amount, rent_type, contract_start_date, due_day, rent_timing, opening_balance, opening_balance_date, paid_up_to").in("id", unitIds)
       : { data: [] as any[] };
     const buildingIds = Array.from(new Set((units || []).map((u: any) => u.building_id)));
     const { data: builds } = buildingIds.length
@@ -141,6 +151,11 @@ export default function Payments() {
         building_name: b?.name || b?.name_en || "—",
         unit_status: u?.status ?? "soon",
         remaining: remainingMap.get(p.unit_id) ?? 0,
+        unit_ctx: {
+          contract_start_date: u?.contract_start_date ?? null,
+          opening_balance_date: u?.opening_balance_date ?? null,
+          due_day: u?.due_day ?? null,
+        },
       };
     });
     setRows(mapped);
@@ -273,7 +288,7 @@ export default function Payments() {
           <div class="row"><span>${esc(L.unit_number)}</span><b>#${esc(r.unit_number)}</b></div>
           
           <div class="row"><span>${esc(L.tenant_name)}</span><b>${esc(r.tenant_name || "—")}</b></div>
-          ${r.period_start ? `<div class="row"><span>${esc(L.rent_month)}</span><b>${esc(monthLabel(r.period_start, lng))}</b></div>` : ""}
+          ${r.period_start ? `<div class="row"><span>${esc(L.rent_month)}</span><b>${esc(cycleLabel(r, lng))}</b></div>` : ""}
           
           <div style="margin-top:18px;padding:16px 18px;background:#f6faf3;border:1px solid #cdd9c8;border-radius:14px">
             <div style="font-size:11px;color:#7a8a78;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;font-weight:700">${L.summary}</div>
@@ -350,7 +365,7 @@ export default function Payments() {
               filtered.map((r) => ({
                 date: r.payment_date, receipt: r.receipt_number || "", building: r.building_name,
                 unit: r.unit_number, tenant: r.tenant_name || "", amount: r.amount, status: r.unit_status,
-                rent_month: r.period_start ? monthLabel(r.period_start, lang) : "",
+                rent_month: r.period_start ? cycleLabel(r, lang) : "",
               }))
             ))}>
             <Download className="h-3.5 w-3.5 me-1" />CSV
@@ -434,7 +449,7 @@ export default function Payments() {
                     {r.receipt_number && <span className="font-mono">{r.receipt_number}</span>}
                     {r.period_start && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sage-100 text-sage-600 font-semibold">
-                        {lang === "ar" ? "إيجار" : "Rent"} {monthLabel(r.period_start, lang)}
+                        {cycleLabel(r, lang)}
                       </span>
                     )}
                   </div>
