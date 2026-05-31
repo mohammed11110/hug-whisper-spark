@@ -1763,14 +1763,8 @@ async function renderInMainDocument(html: string): Promise<HTMLCanvasElement> {
     target.style.background = "#ffffff";
     const hasArabic = /[\u0600-\u06FF]/.test(target.innerText || target.textContent || "");
     if (hasArabic) {
-      // Force Arabic font + RTL on the receipt root itself (not just body) so
-      // html2canvas captures correctly-shaped (connected) Arabic letters,
-      // matching the manual download path on the Payments page.
       target.setAttribute("dir", "rtl");
       target.style.fontFamily = '"Noto Kufi Arabic", "Noto Naskh Arabic", "Segoe UI", Tahoma, Arial, sans-serif';
-      (target.style as any).fontFeatureSettings = '"kern","liga","calt","init","medi","fina","isol"';
-      (target.style as any).textRendering = 'geometricPrecision';
-      (target.style as any).fontSynthesis = 'none';
     }
     await inlineImages(target);
     await waitForWebFonts(target);
