@@ -358,8 +358,9 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
 
           {/* الرقم الرسمي للعقد — اختياري */}
           <div className="space-y-1.5">
-            <Label className="text-xs text-sage-500">
+            <Label className="text-xs text-sage-500 inline-flex items-center gap-1">
               {lang === "ar" ? "الرقم الرسمي للعقد (اختياري)" : "Official contract number (optional)"}
+              <FieldHelp content={lang === "ar" ? "رقم العقد من البلدية أو سند أو الجهة الحكومية. النظام ينشئ رقم داخلي تلقائياً (AML-YYYY-NNNN)." : "Lease number from municipality/sanad/government. An internal number (AML-YYYY-NNNN) is auto-generated."} />
             </Label>
             <Input
               value={officialNumber}
