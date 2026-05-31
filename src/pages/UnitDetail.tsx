@@ -336,8 +336,9 @@ export default function UnitDetail() {
             <>
               <DetailsTab unit={unit} payments={payments} format={format} t2={t2} lang={lang}
                 activeTenancyId={activeTenancyId}
-                onPay={() => setPayOpen(true)} onLeasePDF={() => exportLease("download")} onLeasePrint={() => exportLease("print")}
+                onPay={() => setPayOpen(true)} onLeasePDF={() => exportLease("preview")} onLeasePrint={() => exportLease("print")}
                 onStatement={exportStatement}
+                onPreview={openPreview}
                 onEnd={() => setEndOpen(true)} reload={load} />
               <LeaseHistoryCard unitId={unit.id} tenancies={tenancies} payments={payments} format={format} lang={lang} />
             </>
@@ -358,6 +359,7 @@ export default function UnitDetail() {
       <AddPaymentDialog open={payOpen} onOpenChange={setPayOpen} presetUnitId={unit.id} onSaved={load} />
       <EndTenancyDialog open={endOpen} onOpenChange={setEndOpen} unit={unit} tenancyId={activeTenancyId} onDone={load} />
       <NewTenancyDialog open={newTenantOpen} onOpenChange={setNewTenantOpen} unit={unit} onDone={load} />
+      <FilePreviewDialog open={previewOpen} onOpenChange={setPreviewOpen} payload={previewPayload} />
     </div>
   );
 }
