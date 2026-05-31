@@ -328,6 +328,26 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
             </p>
           </div>
 
+          {/* الرقم الرسمي للعقد — اختياري */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-sage-500">
+              {lang === "ar" ? "الرقم الرسمي للعقد (اختياري)" : "Official contract number (optional)"}
+            </Label>
+            <Input
+              value={officialNumber}
+              onChange={(e) => setOfficialNumber(e.target.value)}
+              placeholder={lang === "ar" ? "مثال: رقم بلدية / سند" : "e.g. municipality / sanad #"}
+              className="rounded-xl border-sage-200 h-11"
+            />
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              {lang === "ar"
+                ? "رقم الجهة الحكومية إن وُجد. الرقم الداخلي يُولَّد تلقائياً بعد الحفظ."
+                : "Government registration number if any. An internal lease number is generated automatically."}
+            </p>
+          </div>
+
+
+
 
           <div className="space-y-1.5">
             <Label className="text-xs text-sage-500">{t2("rent_timing")}</Label>
