@@ -305,7 +305,10 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
               <Input type="number" inputMode="decimal" value={rent} onChange={(e) => setRent(e.target.value)} className="rounded-xl border-sage-200 h-11" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-sage-500">{t2("rent_type")}</Label>
+              <Label className="text-xs text-sage-500 inline-flex items-center gap-1">
+                {t2("rent_type")}
+                <FieldHelp content={lang === "ar" ? "شهري: يدفع كل شهر. يومي: يحتسب بالأيام (للوحدات اليومية). سنوي: دفعة سنوية." : "Monthly: pays monthly. Daily: per night (daily rentals). Yearly: one annual payment."} />
+              </Label>
               <Select value={rentType} onValueChange={setRentType}>
                 <SelectTrigger className="rounded-xl border-sage-200 h-11"><SelectValue /></SelectTrigger>
                 <SelectContent>
