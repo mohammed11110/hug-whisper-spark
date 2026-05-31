@@ -213,9 +213,16 @@ export default function UnitDetail() {
     }
     // Monthly rent charges
     const rent = Number(unit.rent_amount) || 0;
-    const startStr = (unit as any).contract_start_date;
-    if (rent > 0 && startStr && unit.rent_type === "monthly") {
-      const start = new Date(startStr);
+    const paymentStarts = (ps || []).map((p: any) => p.period_start).filter(Boolean).sort();
+    const paymentDates = (ps || []).map((p: any) => p.payment_date).filter(Boolean).sort();
+    const fallbackStart =
+      (unit as any).contract_start_date ||
+      (unit as any).opening_balance_date ||
+      paymentStarts[0] ||
+      paymentDates[0] ||
+      null;
+    if (rent > 0 && fallbackStart && unit.rent_type === "monthly") {
+      const start = new Date(fallbackStart);
       const now = new Date();
       const cursor = new Date(start.getFullYear(), start.getMonth(), Math.min(start.getDate(), 28));
       while (cursor <= now) {
@@ -232,6 +239,7 @@ export default function UnitDetail() {
         cursor.setMonth(cursor.getMonth() + 1);
       }
     }
+
     (ps || []).forEach((p: any) => {
       const m = (p.period_start || p.payment_date || "").slice(0, 7);
       entries.push({
