@@ -54,6 +54,7 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
   // الرقم الرسمي للعقد من الجهة الحكومية (بلدية / سند) — اختياري.
   const [officialNumber, setOfficialNumber] = useState<string>("");
   const guard = useUnsavedGuard({ open, onOpenChange });
+  const lastExtractedRef = useRef<string | null>(null);
 
 
   const extractFromId = async () => {
