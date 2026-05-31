@@ -112,7 +112,7 @@ export default function Payments() {
       .limit(500);
     const unitIds = Array.from(new Set((pays || []).map((p: any) => p.unit_id)));
     const { data: units } = unitIds.length
-      ? await supabase.from("units").select("id, unit_number, tenant_name, status, building_id, rent_amount, rent_type, contract_start_date, opening_balance, opening_balance_date, paid_up_to").in("id", unitIds)
+      ? await supabase.from("units").select("id, unit_number, tenant_name, status, building_id, rent_amount, rent_type, contract_start_date, due_day, rent_timing, opening_balance, opening_balance_date, paid_up_to").in("id", unitIds)
       : { data: [] as any[] };
     const buildingIds = Array.from(new Set((units || []).map((u: any) => u.building_id)));
     const { data: builds } = buildingIds.length
