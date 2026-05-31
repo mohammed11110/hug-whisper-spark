@@ -449,7 +449,7 @@ export default function Payments() {
                     {r.receipt_number && <span className="font-mono">{r.receipt_number}</span>}
                     {r.period_start && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sage-100 text-sage-600 font-semibold">
-                        {lang === "ar" ? "إيجار" : "Rent"} {monthLabel(r.period_start, lang)}
+                        {cycleLabel(r, lang)}
                       </span>
                     )}
                   </div>
