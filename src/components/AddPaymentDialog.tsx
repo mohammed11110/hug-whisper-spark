@@ -623,17 +623,17 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
       // حتى يتطابق رقم الإيصال مع شارة الوحدة دائمًا بدون أي اشتقاق جانبي.
       const { data: freshUnit } = await supabase
         .from("units")
-        .select("id, rent_amount, rent_type, rent_timing, contract_start_date, opening_balance, opening_balance_date")
+        .select("id, rent_amount, rent_type, rent_timing, contract_start_date, opening_balance, opening_balance_date, paid_up_to")
         .eq("id", unitId)
         .maybeSingle();
       const { data: freshPays } = await supabase
         .from("payments")
-        .select("unit_id, amount, deleted_at, payment_date, period_start, period_end")
+        .select("unit_id, amount, deleted_at, payment_date, period_start, period_end, tenancy_id, kind")
         .eq("unit_id", unitId)
         .is("deleted_at", null);
       const { getUnitArrears } = await import("@/lib/balance");
       const freshArr = freshUnit
-        ? getUnitArrears(freshUnit as any, (freshPays || []) as any, new Date(), lang as "ar" | "en")
+        ? getUnitArrears(freshUnit as any, (freshPays || []) as any, new Date(), lang as "ar" | "en", (activeT as any)?.id || null)
         : null;
       const unpaidTotal = freshArr ? freshArr.totalShortfall : 0;
       const upTo: Array<{ label: string; remaining: number }> = freshArr
