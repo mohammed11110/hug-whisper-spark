@@ -112,13 +112,43 @@ export default function Dashboard() {
         <div className="relative overflow-hidden rounded-3xl bg-gradient-sage p-5 text-primary-foreground shadow-glow animate-float-up" style={{ animationDelay: "0.05s" }}>
           <BotanicalDecor className="absolute -end-6 -top-6 w-44 h-44 text-primary-foreground" />
           <div className="relative z-10">
-            <p className="text-xs uppercase tracking-wider opacity-80">{t("collected_this_month")}</p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs uppercase tracking-wider opacity-80">
+                {monthOffset === 0
+                  ? t("collected_this_month")
+                  : (lang === "ar" ? `المحصل في ${monthLabel}` : `Collected in ${monthLabel}`)}
+              </p>
+              <div className="flex items-center gap-1 bg-card/15 backdrop-blur rounded-full p-0.5">
+                <button
+                  type="button"
+                  aria-label={lang === "ar" ? "الشهر السابق" : "Previous month"}
+                  onClick={() => setMonthOffset((o) => Math.max(-3, o - 1))}
+                  disabled={monthOffset <= -3}
+                  className="h-7 w-7 inline-flex items-center justify-center rounded-full text-primary-foreground hover:bg-card/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronRight className="h-4 w-4 rtl:hidden" />
+                  <ChevronLeft className="h-4 w-4 hidden rtl:inline" />
+                </button>
+                <span className="text-[11px] font-bold tabular-nums min-w-[70px] text-center">{monthLabel}</span>
+                <button
+                  type="button"
+                  aria-label={lang === "ar" ? "الشهر التالي" : "Next month"}
+                  onClick={() => setMonthOffset((o) => Math.min(0, o + 1))}
+                  disabled={monthOffset >= 0}
+                  className="h-7 w-7 inline-flex items-center justify-center rounded-full text-primary-foreground hover:bg-card/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft className="h-4 w-4 rtl:hidden" />
+                  <ChevronRight className="h-4 w-4 hidden rtl:inline" />
+                </button>
+              </div>
+            </div>
             <p className="text-4xl font-black mt-2">{format(stats.collected)}</p>
             <div className="mt-3 inline-flex items-center gap-1 bg-card/15 backdrop-blur rounded-full px-2.5 py-1 text-xs">
               <TrendingUp className="h-3 w-3" /> +0%
             </div>
           </div>
         </div>
+
 
         {/* Subscription */}
         <button className="w-full bg-gradient-gold rounded-2xl p-3.5 flex items-center gap-3 shadow-soft animate-float-up" style={{ animationDelay: "0.1s" }}>
