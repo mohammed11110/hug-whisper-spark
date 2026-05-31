@@ -46,6 +46,22 @@ Deno.serve(async (req) => {
       });
     }
 
+    // جلب الملف وتحويله إلى data URL — يدعم PDF والصور بطريقة موحّدة.
+    const fileResp = await fetch(imageUrl);
+    if (!fileResp.ok) throw new Error("file fetch failed");
+    let mime = fileResp.headers.get("content-type") || "application/octet-stream";
+    const lowerPath = new URL(imageUrl).pathname.toLowerCase();
+    if (lowerPath.endsWith(".pdf")) mime = "application/pdf";
+    else if (mime === "application/octet-stream") {
+      if (lowerPath.endsWith(".png")) mime = "image/png";
+      else if (lowerPath.endsWith(".jpg") || lowerPath.endsWith(".jpeg")) mime = "image/jpeg";
+      else if (lowerPath.endsWith(".webp")) mime = "image/webp";
+    }
+    const buf = new Uint8Array(await fileResp.arrayBuffer());
+    let bin = "";
+    for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
+    const dataUrl = `data:${mime};base64,${btoa(bin)}`;
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -57,13 +73,13 @@ Deno.serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: "You are an OCR assistant that extracts data from ID cards (Saudi/Gulf/Arab national IDs, residency cards, passports). Extract only what is visible. Return clean values without titles or prefixes.",
+            content: "You are an OCR assistant that extracts data from ID cards (Saudi/Gulf/Arab national IDs, residency cards, passports) and passport PDFs. Extract only what is visible. Return clean values without titles or prefixes.",
           },
           {
             role: "user",
             content: [
-              { type: "text", text: "استخرج بيانات المستأجر من صورة الهوية. أعد الاسم الكامل ورقم الهوية والبريد إن وجد." },
-              { type: "image_url", image_url: { url: imageUrl } },
+              { type: "text", text: "استخرج بيانات المستأجر من بطاقة الهوية أو جواز السفر. أعد الاسم الكامل ورقم الهوية والبريد إن وجد." },
+              { type: "image_url", image_url: { url: dataUrl } },
             ],
           },
         ],

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
 import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
-import { X, Image as ImageIcon, Sparkles, Loader2 } from "lucide-react";
+import { X, Image as ImageIcon, Loader2 } from "lucide-react";
 
 
 interface Props {
@@ -54,6 +54,7 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
   // الرقم الرسمي للعقد من الجهة الحكومية (بلدية / سند) — اختياري.
   const [officialNumber, setOfficialNumber] = useState<string>("");
   const guard = useUnsavedGuard({ open, onOpenChange });
+  const lastExtractedRef = useRef<string | null>(null);
 
 
   const extractFromId = async () => {
@@ -99,8 +100,18 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
     setPaidUpTo("");
     setGraceDays(String(unit.grace_days ?? "0"));
     setOfficialNumber("");
+    lastExtractedRef.current = null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, unit?.id]);
+
+  // استخراج تلقائي فور رفع صورة/PDF جديد للهوية — بدون زر.
+  useEffect(() => {
+    if (!idImageUrl) return;
+    if (lastExtractedRef.current === idImageUrl) return;
+    lastExtractedRef.current = idImageUrl;
+    extractFromId();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idImageUrl]);
 
 
   // When a new unit photo finishes uploading, push to array and reset slot
@@ -431,24 +442,16 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
               pathPrefix={pathPrefix}
               value={idImageUrl}
               onChange={setIdImageUrl}
-              accept="image/*"
-              maxSizeMB={5}
-              label={lang === "ar" ? "صورة الهوية" : "ID image"}
+              accept="application/pdf,image/*"
+              maxSizeMB={10}
+              label={lang === "ar" ? "صورة الهوية أو ملف PDF" : "ID image or PDF"}
               isPrivate
             />
-            {idImageUrl && (
-              <Button
-                type="button"
-                variant="outline"
-                disabled={extracting}
-                onClick={extractFromId}
-                className="w-full h-10 rounded-xl border-sage-300 text-sage-700"
-              >
-                {extracting ? <Loader2 className="h-4 w-4 animate-spin me-2" /> : <Sparkles className="h-4 w-4 me-2" />}
-                {extracting
-                  ? (lang === "ar" ? "جاري الاستخراج..." : "Extracting...")
-                  : (lang === "ar" ? "استخراج البيانات تلقائياً" : "Auto-extract data")}
-              </Button>
+            {idImageUrl && extracting && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-sage-50 border border-sage-200/60 text-sage-700 text-sm">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>{lang === "ar" ? "جاري قراءة الهوية..." : "Reading ID..."}</span>
+              </div>
             )}
 
             <FileUpload
