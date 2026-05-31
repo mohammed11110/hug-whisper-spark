@@ -551,9 +551,10 @@ export function buildReceiptHTML(data: ReceiptData): string {
     .join("");
   const amountStr = formatMoney(data.amount, data.currency);
   const dateStr = formatDate(data.paymentDate, rtl);
+  const periodHtml = `<bdi>${escapeHtml(data.periodLabel || "—")}</bdi>`;
   const intro = L(
-    `استلمنا من السيد/ة <strong>${escapeHtml(data.tenantName || "—")}</strong> مبلغاً وقدره <strong>${escapeHtml(amountStr)}</strong> وذلك بدل إيجار الوحدة رقم <strong>${escapeHtml(data.unitNumber || "—")}</strong> بمبنى <strong>${escapeHtml(data.building || "—")}</strong> عن فترة <strong>${escapeHtml(data.periodLabel || "—")}</strong> بتاريخ <strong>${escapeHtml(dateStr)}</strong>.`,
-    `Received from <strong>${escapeHtml(data.tenantName || "—")}</strong> the sum of <strong>${escapeHtml(amountStr)}</strong> as rent for unit <strong>${escapeHtml(data.unitNumber || "—")}</strong> at <strong>${escapeHtml(data.building || "—")}</strong>, for the period <strong>${escapeHtml(data.periodLabel || "—")}</strong>, on <strong>${escapeHtml(dateStr)}</strong>.`
+    `استلمنا من السيد/ة <strong>${escapeHtml(data.tenantName || "—")}</strong> مبلغاً وقدره <strong>${escapeHtml(amountStr)}</strong> وذلك بدل إيجار الوحدة رقم <strong>${escapeHtml(data.unitNumber || "—")}</strong> بمبنى <strong>${escapeHtml(data.building || "—")}</strong> عن فترة <strong>${periodHtml}</strong> بتاريخ <strong>${escapeHtml(dateStr)}</strong>.`,
+    `Received from <strong>${escapeHtml(data.tenantName || "—")}</strong> the sum of <strong>${escapeHtml(amountStr)}</strong> as rent for unit <strong>${escapeHtml(data.unitNumber || "—")}</strong> at <strong>${escapeHtml(data.building || "—")}</strong>, for the period <strong>${periodHtml}</strong>, on <strong>${escapeHtml(dateStr)}</strong>.`
   );
   const body = `
     ${brandBlock(
