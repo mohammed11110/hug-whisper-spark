@@ -138,9 +138,12 @@ export default function NotificationPreferences() {
           {ar ? "الأحداث" : "Events"}
         </h2>
         <div className="rounded-2xl bg-card border border-sage-200/50 shadow-elev divide-y divide-sage-200/40">
-          {events.map(({ key, ar: a, en: e }) => (
+          {events.map(({ key, ar: a, en: e, hint_ar, hint_en }) => (
             <div key={key} className="flex items-center gap-3 p-4">
-              <p className="flex-1 text-sm font-medium text-foreground">{ar ? a : e}</p>
+              <p className="flex-1 text-sm font-medium text-foreground inline-flex items-center gap-1.5">
+                {ar ? a : e}
+                <FieldHelp content={ar ? hint_ar : hint_en} />
+              </p>
               <Switch checked={prefs[key] as boolean} onCheckedChange={(v) => update(key, v)} />
             </div>
           ))}
