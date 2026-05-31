@@ -11,7 +11,7 @@ import { useCurrency } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
-import { getUnitArrears, type UnitForBalance, type PaymentForBalance } from "@/lib/balance";
+import { getUnitArrears, getCycleForPeriodStart, parseLocalDate, type UnitForBalance, type PaymentForBalance } from "@/lib/balance";
 
 const METHODS = ["cash", "transfer", "cheque", "card"] as const;
 
