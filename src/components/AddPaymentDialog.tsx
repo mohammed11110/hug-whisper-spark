@@ -1024,7 +1024,10 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
               <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="rounded-xl border-sage-200 bg-card h-11" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-sage-500">{lang === "ar" ? "الطريقة" : "Method"}</Label>
+              <Label className="text-xs text-sage-500 inline-flex items-center gap-1">
+                {lang === "ar" ? "الطريقة" : "Method"}
+                <FieldHelp content={lang === "ar" ? "طريقة استلام المبلغ (نقد، تحويل، شيك...). لأغراض السجل فقط ولا تؤثر على الحساب." : "How the payment was received. For records only, doesn't affect calculations."} />
+              </Label>
               <Select value={method} onValueChange={setMethod}>
                 <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11"><SelectValue /></SelectTrigger>
                 <SelectContent>
