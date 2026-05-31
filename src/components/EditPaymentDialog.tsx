@@ -43,6 +43,7 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
   const [unitIdRef, setUnitIdRef] = useState<string | null>(null);
   const [unitData, setUnitData] = useState<UnitForBalance | null>(null);
   const [allPayments, setAllPayments] = useState<Array<PaymentForBalance & { id: string }>>([]);
+  const [activeTenancyId, setActiveTenancyId] = useState<string | null>(null);
   const guard = useUnsavedGuard({ open, onOpenChange });
 
   useEffect(() => {
@@ -67,12 +68,14 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
       const uid = (data as any).unit_id ?? null;
       setUnitIdRef(uid);
       if (uid) {
-        const [{ data: u }, { data: pays }] = await Promise.all([
-          supabase.from("units").select("rent_amount, rent_type, due_day, rent_timing, contract_start_date, opening_balance, opening_balance_date").eq("id", uid).maybeSingle(),
-          supabase.from("payments").select("id, amount, payment_date, period_start, period_end").eq("unit_id", uid).is("deleted_at", null),
+        const [{ data: u }, { data: pays }, { data: activeT }] = await Promise.all([
+          supabase.from("units").select("rent_amount, rent_type, due_day, rent_timing, contract_start_date, opening_balance, opening_balance_date, paid_up_to").eq("id", uid).maybeSingle(),
+          supabase.from("payments").select("id, amount, payment_date, period_start, period_end, tenancy_id, kind, deleted_at").eq("unit_id", uid).is("deleted_at", null),
+          supabase.from("tenancies").select("id").eq("unit_id", uid).eq("status", "active").maybeSingle(),
         ]);
         if (u) setUnitData(u as any);
         setAllPayments((pays || []) as any);
+        setActiveTenancyId((activeT as any)?.id || null);
       }
       setLoading(false);
     })();
@@ -85,13 +88,13 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
     const adjusted = allPayments.map((p) =>
       p.id === paymentId ? { ...p, amount: newAmount } : p,
     );
-    return getUnitArrears(unitData, adjusted, new Date(), lang as "ar" | "en");
-  }, [unitData, allPayments, amount, paymentId, lang]);
+    return getUnitArrears(unitData, adjusted as any, new Date(), lang as "ar" | "en", activeTenancyId);
+  }, [unitData, allPayments, amount, paymentId, lang, activeTenancyId]);
 
   const arrearsCurrent = useMemo(() => {
     if (!unitData) return null;
-    return getUnitArrears(unitData, allPayments, new Date(), lang as "ar" | "en");
-  }, [unitData, allPayments, lang]);
+    return getUnitArrears(unitData, allPayments as any, new Date(), lang as "ar" | "en", activeTenancyId);
+  }, [unitData, allPayments, lang, activeTenancyId]);
 
   const diff = useMemo(() => {
     if (!arrearsPreview || !arrearsCurrent) return 0;
