@@ -168,7 +168,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         : { data: [] as any[] };
       const activeMap = new Map<string, string>((activeTs || []).map((t: any) => [t.unit_id, t.id]));
       // مصدر الحقيقة الوحيد للمتأخرات
-      const { getUnitArrears } = await import("@/lib/balance");
+      const { getUnitArrears, parseLocalDate } = await import("@/lib/balance");
       const outstandingMap = new Map<string, number>();
       (us || []).forEach((u: any) => {
         if (!u.tenant_name) return;
@@ -183,7 +183,6 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
           const note = activeOut > 0
             ? (lang === "ar" ? `متأخرات: ${fmtAmt(activeOut)}` : `Arrears: ${fmtAmt(activeOut)}`)
             : null;
-          const { parseLocalDate } = await import("@/lib/balance");
           const anchorSrc = u.opening_balance_date || u.contract_start_date;
           const anchorParsed = parseLocalDate(anchorSrc);
           const anchorDay = anchorParsed ? Math.min(28, Math.max(1, anchorParsed.getDate() || 1)) : 1;
