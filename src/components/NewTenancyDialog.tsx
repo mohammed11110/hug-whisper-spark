@@ -51,7 +51,10 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
   const [paidUpTo, setPaidUpTo] = useState<string>("");
   // أيام السماح بعد يوم الاستحقاق قبل أن يصبح العقد متأخراً.
   const [graceDays, setGraceDays] = useState<string>("0");
+  // الرقم الرسمي للعقد من الجهة الحكومية (بلدية / سند) — اختياري.
+  const [officialNumber, setOfficialNumber] = useState<string>("");
   const guard = useUnsavedGuard({ open, onOpenChange });
+
 
   const extractFromId = async () => {
     if (!idImageUrl) return;
