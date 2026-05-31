@@ -1361,13 +1361,14 @@ export function buildTenantStatementHTML(data: TenantStatementData): string {
         <thead>
           <tr>
             <th>Date / التاريخ</th>
+            <th>Month / الشهر</th>
             <th>Description / البيان</th>
             <th>Charge / مدين</th>
             <th>Payment / دائن</th>
             <th>Balance / الرصيد</th>
           </tr>
         </thead>
-        <tbody>${rows || `<tr><td colspan="5">No records</td></tr>`}</tbody>
+        <tbody>${rows || `<tr><td colspan="6">No records</td></tr>`}</tbody>
       </table>
       <div class="summary">
         <div class="card"><div class="label">Total charges / إجمالي المستحق</div><div class="value">${escapeHtml(formatMoney(data.totals.totalCharges, data.currency))}</div></div>
