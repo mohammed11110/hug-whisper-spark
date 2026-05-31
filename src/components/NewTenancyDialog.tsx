@@ -339,8 +339,9 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
 
           {/* مدفوع حتى — اختياري: تاريخ آخر شهر سُدِّد فعلاً قبل بدء هذا العقد */}
           <div className="space-y-1.5">
-            <Label className="text-xs text-sage-500">
+            <Label className="text-xs text-sage-500 inline-flex items-center gap-1">
               {lang === "ar" ? "مدفوع حتى (اختياري)" : "Paid up to (optional)"}
+              <FieldHelp content={lang === "ar" ? "تاريخ آخر شهر سُدِّد فعلاً قبل بداية هذا العقد. النظام لن يحسب أي متأخرات قبل هذا التاريخ." : "Last date already paid before this lease starts. No arrears will be counted before this date."} />
             </Label>
             <Input
               type="date"
