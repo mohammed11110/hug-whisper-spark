@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Check, ChevronsUpDown, Sparkles } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { FieldHelp } from "@/components/ui/FieldHelp";
 import { useT2 } from "@/lib/i18n2";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
@@ -874,7 +875,10 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
 
 
           <div className="space-y-1.5">
-            <Label className="text-xs text-sage-500">{t2("rent_month")}</Label>
+            <Label className="text-xs text-sage-500 inline-flex items-center gap-1">
+              {t2("rent_month")}
+              <FieldHelp content={lang === "ar" ? "الشهر/الفترة التي تغطيها هذه الدفعة. اختياره يضبط المتوقع والمدفوع تلقائياً." : "The period this payment covers. Selecting it auto-fills Expected and Paid."} />
+            </Label>
 
             {unitId && unpaidMonths.length > 0 ? (
               <Select
@@ -936,6 +940,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                     {lang === "ar" ? "محسوب" : "AUTO"}
                   </span>
                 )}
+                <FieldHelp content={lang === "ar" ? "المبلغ المستحق على المستأجر لهذه الفترة. الفرق بينه وبين المدفوع يصبح متأخرات أو رصيد دائن." : "Amount due for this period. Difference with Paid becomes arrears or credit."} />
               </Label>
               <Input
                 type="number"
@@ -950,7 +955,10 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs text-sage-500">{lang === "ar" ? "المدفوع" : "Paid"}</Label>
+              <Label className="text-xs text-sage-500 inline-flex items-center gap-1">
+                {lang === "ar" ? "المدفوع" : "Paid"}
+                <FieldHelp content={lang === "ar" ? "المبلغ المستلم فعلياً من المستأجر. إن كان أقل من المتوقع يُسجَّل كدفعة جزئية." : "Amount actually received. If less than Expected it's recorded as a partial payment."} />
+              </Label>
               <Input type="number" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} className="rounded-xl border-sage-200 bg-card h-11" />
             </div>
           </div>
@@ -1016,7 +1024,10 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
               <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="rounded-xl border-sage-200 bg-card h-11" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-sage-500">{lang === "ar" ? "الطريقة" : "Method"}</Label>
+              <Label className="text-xs text-sage-500 inline-flex items-center gap-1">
+                {lang === "ar" ? "الطريقة" : "Method"}
+                <FieldHelp content={lang === "ar" ? "طريقة استلام المبلغ (نقد، تحويل، شيك...). لأغراض السجل فقط ولا تؤثر على الحساب." : "How the payment was received. For records only, doesn't affect calculations."} />
+              </Label>
               <Select value={method} onValueChange={setMethod}>
                 <SelectTrigger className="rounded-xl border-sage-200 bg-card h-11"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -1028,7 +1039,10 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs text-sage-500">{t2("receipt_number")}</Label>
+            <Label className="text-xs text-sage-500 inline-flex items-center gap-1">
+              {t2("receipt_number")}
+              <FieldHelp content={lang === "ar" ? "رقم الإيصال أو المرجع البنكي. اختياري — يُستخدم للبحث والمطابقة." : "Receipt or bank reference number. Optional — used for search and reconciliation."} />
+            </Label>
             <Input value={receipt} onChange={(e) => setReceipt(e.target.value)} maxLength={50} className="rounded-xl border-sage-200 bg-card h-11" />
           </div>
           <div className="space-y-1.5">

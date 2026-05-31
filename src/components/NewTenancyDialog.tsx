@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileUpload } from "@/components/FileUpload";
+import { FieldHelp } from "@/components/ui/FieldHelp";
 import { useT2 } from "@/lib/i18n2";
 import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
@@ -272,7 +273,10 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
               <Input value={phone} onChange={(e) => setPhone(e.target.value)} className="rounded-xl border-sage-200 h-11" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-sage-500">ID</Label>
+              <Label className="text-xs text-sage-500 inline-flex items-center gap-1">
+                ID
+                <FieldHelp content={lang === "ar" ? "رقم الهوية الوطنية / الإقامة / جواز السفر. يُستخرج تلقائياً عند رفع صورة الهوية." : "National ID / residency / passport number. Auto-extracted when you upload the ID image."} />
+              </Label>
               <Input value={idNumber} onChange={(e) => setIdNumber(e.target.value)} className="rounded-xl border-sage-200 h-11" />
             </div>
           </div>
@@ -287,7 +291,10 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
               <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="rounded-xl border-sage-200 h-11" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-sage-500">{t2("contract_end")}</Label>
+              <Label className="text-xs text-sage-500 inline-flex items-center gap-1">
+                {t2("contract_end")}
+                <FieldHelp content={lang === "ar" ? "تاريخ انتهاء العقد. اتركه فارغاً إن لم يكن محدداً — يمكن إضافته لاحقاً." : "Contract end date. Leave empty if open-ended — you can set it later."} />
+              </Label>
               <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="rounded-xl border-sage-200 h-11" />
             </div>
           </div>
@@ -298,7 +305,10 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
               <Input type="number" inputMode="decimal" value={rent} onChange={(e) => setRent(e.target.value)} className="rounded-xl border-sage-200 h-11" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-sage-500">{t2("rent_type")}</Label>
+              <Label className="text-xs text-sage-500 inline-flex items-center gap-1">
+                {t2("rent_type")}
+                <FieldHelp content={lang === "ar" ? "شهري: يدفع كل شهر. يومي: يحتسب بالأيام (للوحدات اليومية). سنوي: دفعة سنوية." : "Monthly: pays monthly. Daily: per night (daily rentals). Yearly: one annual payment."} />
+              </Label>
               <Select value={rentType} onValueChange={setRentType}>
                 <SelectTrigger className="rounded-xl border-sage-200 h-11"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -312,19 +322,26 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-xs text-sage-500">{lang === "ar" ? "تأمين" : "Deposit"}</Label>
+              <Label className="text-xs text-sage-500 inline-flex items-center gap-1">
+                {lang === "ar" ? "تأمين" : "Deposit"}
+                <FieldHelp content={lang === "ar" ? "مبلغ ضمان يُحتجز ويُرجع للمستأجر عند انتهاء العقد إن لم تكن هناك أضرار." : "Refundable security deposit returned to the tenant at end of lease if no damages."} />
+              </Label>
               <Input type="number" inputMode="decimal" value={deposit} onChange={(e) => setDeposit(e.target.value)} className="rounded-xl border-sage-200 h-11" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-sage-500">{lang === "ar" ? "أيام السماح" : "Grace days"}</Label>
+              <Label className="text-xs text-sage-500 inline-flex items-center gap-1">
+                {lang === "ar" ? "أيام السماح" : "Grace days"}
+                <FieldHelp content={lang === "ar" ? "عدد الأيام بعد يوم الاستحقاق قبل أن يعتبر النظام الدفعة متأخرة." : "Days after the due date before the payment is flagged as overdue."} />
+              </Label>
               <Input type="number" inputMode="numeric" min={0} max={30} value={graceDays} onChange={(e) => setGraceDays(e.target.value)} className="rounded-xl border-sage-200 h-11" />
             </div>
           </div>
 
           {/* مدفوع حتى — اختياري: تاريخ آخر شهر سُدِّد فعلاً قبل بدء هذا العقد */}
           <div className="space-y-1.5">
-            <Label className="text-xs text-sage-500">
+            <Label className="text-xs text-sage-500 inline-flex items-center gap-1">
               {lang === "ar" ? "مدفوع حتى (اختياري)" : "Paid up to (optional)"}
+              <FieldHelp content={lang === "ar" ? "تاريخ آخر شهر سُدِّد فعلاً قبل بداية هذا العقد. النظام لن يحسب أي متأخرات قبل هذا التاريخ." : "Last date already paid before this lease starts. No arrears will be counted before this date."} />
             </Label>
             <Input
               type="date"
@@ -341,8 +358,9 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
 
           {/* الرقم الرسمي للعقد — اختياري */}
           <div className="space-y-1.5">
-            <Label className="text-xs text-sage-500">
+            <Label className="text-xs text-sage-500 inline-flex items-center gap-1">
               {lang === "ar" ? "الرقم الرسمي للعقد (اختياري)" : "Official contract number (optional)"}
+              <FieldHelp content={lang === "ar" ? "رقم العقد من البلدية أو سند أو الجهة الحكومية. النظام ينشئ رقم داخلي تلقائياً (AML-YYYY-NNNN)." : "Lease number from municipality/sanad/government. An internal number (AML-YYYY-NNNN) is auto-generated."} />
             </Label>
             <Input
               value={officialNumber}
@@ -361,7 +379,10 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
 
 
           <div className="space-y-1.5">
-            <Label className="text-xs text-sage-500">{t2("rent_timing")}</Label>
+            <Label className="text-xs text-sage-500 inline-flex items-center gap-1">
+              {t2("rent_timing")}
+              <FieldHelp content={lang === "ar" ? "مقدّم: يدفع الإيجار في بداية الفترة (1 الشهر). مؤخّر: يدفعه في نهايتها." : "Advance: pays at start of period. Arrears: pays at end of period."} />
+            </Label>
             <div className="flex gap-1.5">
               {(["advance", "arrears"] as const).map((m) => (
                 <button key={m} type="button" onClick={() => setRentTiming(m)}
@@ -380,7 +401,10 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
 
           {/* المتأخرات الافتتاحية — يُحوَّل المبلغ تلقائياً إلى عدد أشهر متأخرة */}
           <div className="pt-2 border-t border-sage-100 space-y-1.5">
-            <Label className="text-xs text-sage-500">{t2("arrears_amount")}</Label>
+            <Label className="text-xs text-sage-500 inline-flex items-center gap-1">
+              {t2("arrears_amount")}
+              <FieldHelp content={lang === "ar" ? "متأخرات سابقة قبل بداية هذا العقد. النظام يحوّلها تلقائياً إلى عدد أشهر متأخرة بناءً على قيمة الإيجار." : "Outstanding amount from before this lease. Automatically converted to overdue months based on rent."} />
+            </Label>
             <Input
               type="number"
               inputMode="decimal"
