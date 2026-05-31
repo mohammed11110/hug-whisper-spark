@@ -23,6 +23,7 @@ import { AdjustBalanceDialog } from "@/components/AdjustBalanceDialog";
 
 import { UnitHealthBadge } from "@/components/UnitHealthBadge";
 import { exportToCSV } from "@/lib/exportCSV";
+import { FilePreviewDialog, type FilePreviewPayload } from "@/components/FilePreviewDialog";
 
 interface Unit {
   id: string; building_id: string; unit_number: string; floor: number; type: string;
