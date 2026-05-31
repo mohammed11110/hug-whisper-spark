@@ -98,8 +98,10 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
     setArrears("0");
     setPaidUpTo("");
     setGraceDays(String(unit.grace_days ?? "0"));
+    setOfficialNumber("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, unit?.id]);
+
 
   // When a new unit photo finishes uploading, push to array and reset slot
   useEffect(() => {
