@@ -75,13 +75,13 @@ export default function NotificationPreferences() {
     { key: "channel_push", icon: Smartphone, ar: "إشعارات الجوال", en: "Push", hint_ar: "تنبيهات فورية على جهازك", hint_en: "Instant device alerts" },
   ];
 
-  const events: { key: keyof Prefs; ar: string; en: string }[] = [
-    { key: "event_rent_due_soon", ar: "إيجار قريب الاستحقاق", en: "Rent due soon" },
-    { key: "event_rent_overdue", ar: "إيجار متأخر", en: "Rent overdue" },
-    { key: "event_contract_expiring", ar: "عقد قارب على الانتهاء", en: "Contract expiring" },
-    { key: "event_payment_received", ar: "استلام دفعة", en: "Payment received" },
-    { key: "event_trial_ending", ar: "انتهاء الفترة التجريبية", en: "Trial ending" },
-    { key: "event_deletion_warning", ar: "تحذير حذف البيانات", en: "Data deletion warning" },
+  const events: { key: keyof Prefs; ar: string; en: string; hint_ar: string; hint_en: string }[] = [
+    { key: "event_rent_due_soon", ar: "إيجار قريب الاستحقاق", en: "Rent due soon", hint_ar: "تنبيه قبل 3 أيام من موعد استحقاق الإيجار.", hint_en: "Alert 3 days before rent is due." },
+    { key: "event_rent_overdue", ar: "إيجار متأخر", en: "Rent overdue", hint_ar: "تنبيه بعد انتهاء أيام السماح وعدم السداد.", hint_en: "Alert after grace days pass without payment." },
+    { key: "event_contract_expiring", ar: "عقد قارب على الانتهاء", en: "Contract expiring", hint_ar: "تنبيه قبل 30 يوماً من انتهاء عقد الإيجار للتجديد.", hint_en: "Alert 30 days before lease end for renewal." },
+    { key: "event_payment_received", ar: "استلام دفعة", en: "Payment received", hint_ar: "تأكيد فوري عند تسجيل أي دفعة جديدة.", hint_en: "Instant confirmation when a new payment is recorded." },
+    { key: "event_trial_ending", ar: "انتهاء الفترة التجريبية", en: "Trial ending", hint_ar: "تذكير قبل انتهاء فترتك التجريبية المجانية.", hint_en: "Reminder before your free trial ends." },
+    { key: "event_deletion_warning", ar: "تحذير حذف البيانات", en: "Data deletion warning", hint_ar: "تنبيه قبل حذف بياناتك نهائياً (بعد انتهاء فترة السماح).", hint_en: "Alert before your data is permanently deleted (after grace period)." },
   ];
 
   if (loading) {
