@@ -64,10 +64,10 @@ export function EndTenancyDialog({ open, onOpenChange, unit, tenancyId, onDone }
       : Number(refundAmount) || 0;
 
   const submit = async () => {
-    if (!unit || !tenancyId) return;
+    if (!unit) return;
     setSaving(true);
     const finalOutstanding = debtAction === "settle" ? 0 : outstanding;
-    const { error: tErr } = await supabase.from("tenancies").update({
+    const tenancyPayload = {
       status: "ended",
       ended_at: endDate,
       ended_reason: reason,
@@ -76,8 +76,46 @@ export function EndTenancyDialog({ open, onOpenChange, unit, tenancyId, onDone }
       deposit_refund_amount: refundNum,
       deposit_refunded_at: refundNum > 0 ? endDate : null,
       notes: notes || null,
-    }).eq("id", tenancyId);
-    if (tErr) { setSaving(false); return toast.error(tErr.message); }
+    };
+
+    let resolvedTenancyId = tenancyId;
+
+    if (resolvedTenancyId) {
+      const { error: tErr } = await supabase.from("tenancies").update(tenancyPayload).eq("id", resolvedTenancyId);
+      if (tErr) { setSaving(false); return toast.error(tErr.message); }
+    } else {
+      // Fallback: no active tenancy linked. Try to find the most recent tenancy row
+      // for this unit and close it; otherwise create a historical record so the
+      // tenancy still appears in the lease history.
+      const { data: existing } = await supabase
+        .from("tenancies")
+        .select("id,status")
+        .eq("unit_id", unit.id)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      const fallback = (existing || [])[0];
+      if (fallback?.id) {
+        resolvedTenancyId = fallback.id;
+        const { error: tErr } = await supabase.from("tenancies").update(tenancyPayload).eq("id", resolvedTenancyId);
+        if (tErr) { setSaving(false); return toast.error(tErr.message); }
+      } else {
+        const { error: insErr } = await supabase.from("tenancies").insert({
+          unit_id: unit.id,
+          building_id: unit.building_id,
+          tenant_name: unit.tenant_name || null,
+          tenant_phone: unit.tenant_phone || null,
+          tenant_email: unit.tenant_email || null,
+          contract_start_date: unit.contract_start_date || endDate,
+          contract_end_date: unit.contract_end_date || endDate,
+          rent_amount: Number(unit.rent_amount) || 0,
+          rent_type: unit.rent_type || "monthly",
+          due_day: unit.due_day || 1,
+          security_deposit: Number(unit.security_deposit) || 0,
+          ...tenancyPayload,
+        } as any);
+        if (insErr) { setSaving(false); return toast.error(insErr.message); }
+      }
+    }
 
     // Clear tenant info from unit + mark vacant
     const { error: uErr } = await supabase.from("units").update({
