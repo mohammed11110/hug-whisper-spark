@@ -157,16 +157,22 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
       const unitIds = (us || []).map((u: any) => u.id);
       const { data: pays } = unitIds.length
         ? await supabase.from("payments")
-            .select("unit_id, amount, deleted_at, payment_date, period_start, period_end")
+            .select("unit_id, amount, deleted_at, payment_date, period_start, period_end, tenancy_id, kind")
             .in("unit_id", unitIds)
             .is("deleted_at", null)
         : { data: [] as any[] };
+      // Active-lease map — outstanding shown next to each unit must be the
+      // current tenant's balance only, not an inherited one from an old lease.
+      const { data: activeTs } = unitIds.length
+        ? await supabase.from("tenancies").select("id, unit_id").in("unit_id", unitIds).eq("status", "active")
+        : { data: [] as any[] };
+      const activeMap = new Map<string, string>((activeTs || []).map((t: any) => [t.unit_id, t.id]));
       // مصدر الحقيقة الوحيد للمتأخرات
       const { getUnitArrears } = await import("@/lib/balance");
       const outstandingMap = new Map<string, number>();
       (us || []).forEach((u: any) => {
         if (!u.tenant_name) return;
-        const { totalShortfall } = getUnitArrears(u as any, (pays || []) as any, new Date(), lang as "ar" | "en");
+        const { totalShortfall } = getUnitArrears(u as any, (pays || []) as any, new Date(), lang as "ar" | "en", activeMap.get(u.id) || null);
         if (totalShortfall > 0.009) outstandingMap.set(u.id, totalShortfall);
       });
       const fmtAmt = (n: number) => n.toLocaleString(lang === "ar" ? "ar" : "en", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
