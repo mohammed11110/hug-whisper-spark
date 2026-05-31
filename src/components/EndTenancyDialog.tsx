@@ -47,6 +47,7 @@ export function EndTenancyDialog({ open, onOpenChange, unit, tenancyId, onDone }
     setRefundAmount(String(Number(unit.security_deposit) || 0));
     setDebtAction("carry");
     setNotes("");
+    setContractNumber(null);
     (async () => {
       const { data: ps } = await supabase
         .from("payments")
@@ -55,9 +56,24 @@ export function EndTenancyDialog({ open, onOpenChange, unit, tenancyId, onDone }
         .is("deleted_at", null);
       const arr = getUnitArrears(unit, (ps || []) as any, new Date(), lang as "ar" | "en", tenancyId);
       setOutstanding(arr.totalShortfall);
+
+      // اجلب رقم العقد لعرضه في العنوان وفي سجل النشاط.
+      let tid = tenancyId;
+      if (!tid) {
+        const { data: latest } = await supabase
+          .from("tenancies").select("id,contract_number")
+          .eq("unit_id", unit.id)
+          .order("created_at", { ascending: false }).limit(1);
+        if (latest?.[0]) setContractNumber((latest[0] as any).contract_number || null);
+      } else {
+        const { data: t } = await supabase
+          .from("tenancies").select("contract_number").eq("id", tid).maybeSingle();
+        setContractNumber((t as any)?.contract_number || null);
+      }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, unit?.id]);
+
 
   const refundNum = depositOutcome === "full"
     ? Number(unit?.security_deposit) || 0
