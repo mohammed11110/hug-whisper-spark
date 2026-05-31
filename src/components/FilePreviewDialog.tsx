@@ -35,6 +35,27 @@ function approxKB(rows: Record<string, any>[]) {
   return Math.max(1, Math.round(chars / 1024));
 }
 
+// Inject <base href> so relative font URLs (e.g. /fonts/NotoKufiArabic-*.ttf)
+// resolve against the app origin instead of about:srcdoc. Without this, the
+// Arabic font fails to load inside the iframe and letters render disconnected.
+function withBase(html: string) {
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const baseTag = `<base href="${origin}/">`;
+  if (/<head[^>]*>/i.test(html)) {
+    return html.replace(/<head([^>]*)>/i, `<head$1>${baseTag}`);
+  }
+  if (/<html[^>]*>/i.test(html)) {
+    return html.replace(/<html([^>]*)>/i, `<html$1><head>${baseTag}</head>`);
+  }
+  return `<!doctype html><html dir="rtl" lang="ar"><head>${baseTag}</head><body>${html}</body></html>`;
+}
+  if (!rows.length) return 0;
+  const headers = Object.keys(rows[0]);
+  let chars = headers.join(",").length + 1;
+  for (const r of rows) chars += headers.map((h) => String(r[h] ?? "")).join(",").length + 1;
+  return Math.max(1, Math.round(chars / 1024));
+}
+
 export function FilePreviewDialog({ open, onOpenChange, payload }: Props) {
   const { lang } = useI18n();
   const ar = lang === "ar";
