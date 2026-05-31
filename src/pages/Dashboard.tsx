@@ -29,6 +29,10 @@ export default function Dashboard() {
   const { settings } = useAppSettings();
   const [stats, setStats] = useState<Stats>({ buildings: 0, units: 0, collected: 0, expected: 0, paidUnits: 0, occupiedUnits: 0 });
   const [profileName, setProfileName] = useState("");
+  const [monthOffset, setMonthOffset] = useState(0);
+  const [allPayments, setAllPayments] = useState<any[]>([]);
+  const [expectedBase, setExpectedBase] = useState(0);
+  const [occupiedCount, setOccupiedCount] = useState(0);
 
   useEffect(() => {
     if (!user) return;
@@ -42,6 +46,7 @@ export default function Dashboard() {
 
       if (!bIds.length) {
         setStats({ buildings: 0, units: 0, collected: 0, expected: 0, paidUnits: 0, occupiedUnits: 0 });
+        setAllPayments([]);
         return;
       }
 
@@ -49,22 +54,39 @@ export default function Dashboard() {
       const units = uRows?.length ?? 0;
       const occupied = (uRows || []).filter((u: any) => u.status !== "vacant");
       const expected = occupied.reduce((s: number, u: any) => s + Number(u.rent_amount || 0), 0);
+      setExpectedBase(expected);
+      setOccupiedCount(occupied.length);
 
-      const today = new Date();
       const unitIds = (uRows || []).map((u: any) => u.id);
-      let collected = 0;
-      let paidUnits = 0;
       if (unitIds.length) {
-        const monthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
         const { data: pays } = await supabase.from("payments").select("amount, unit_id, payment_date, period_start").in("unit_id", unitIds).is("deleted_at", null);
-        const thisMonth = (pays || []).filter((p: any) => ((p.period_start || p.payment_date) || "").slice(0, 7) === monthKey);
-        collected = thisMonth.reduce((s: number, p: any) => s + Number(p.amount), 0);
-        paidUnits = new Set(thisMonth.map((p: any) => p.unit_id)).size;
+        setAllPayments(pays || []);
+      } else {
+        setAllPayments([]);
       }
 
-      setStats({ buildings, units, collected, expected, paidUnits, occupiedUnits: occupied.length });
+      setStats((s) => ({ ...s, buildings, units, expected, occupiedUnits: occupied.length }));
     })();
   }, [user]);
+
+  // Selected month key from offset
+  const { monthKey, monthLabel } = useMemo(() => {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + monthOffset);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const label = d.toLocaleDateString(lang === "ar" ? "ar" : "en", { month: "long", year: "numeric" });
+    return { monthKey: key, monthLabel: label };
+  }, [monthOffset, lang]);
+
+  // Recompute collected for selected month
+  useEffect(() => {
+    const inMonth = allPayments.filter((p: any) => ((p.period_start || p.payment_date) || "").slice(0, 7) === monthKey);
+    const collected = inMonth.reduce((s: number, p: any) => s + Number(p.amount), 0);
+    const paidUnits = new Set(inMonth.map((p: any) => p.unit_id)).size;
+    setStats((s) => ({ ...s, collected, paidUnits, expected: expectedBase, occupiedUnits: occupiedCount }));
+  }, [allPayments, monthKey, expectedBase, occupiedCount]);
+
 
   const greeting = (() => {
     const h = new Date().getHours();
