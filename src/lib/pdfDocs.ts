@@ -740,6 +740,325 @@ export function buildLeaseHTML(data: Lease): string {
   return pageShell(L("عقد إيجار", "Lease Agreement"), body, { rtl });
 }
 
+// =============================================================
+// Omani lease (Royal Decree 89/6) — bilingual official-style form
+// =============================================================
+
+export function buildOmaniLeaseHTML(data: Lease): string {
+  const startDate = formatDate(data.contract_start_date, true);
+  const endDate = formatDate(data.contract_end_date, true);
+  const today = formatDate(new Date().toISOString().slice(0, 10), true);
+  const landlordAr = [data.brand.landlordName, data.brand.landlordNameEn].filter(Boolean).join(" / ") || data.brand.name || "—";
+  const tenantAr = [data.tenant_name, data.tenant_name_en].filter(Boolean).join(" / ") || data.tenant_name || "—";
+  const rent = Number(data.rent_amount || 0).toLocaleString("en-US", { maximumFractionDigits: 3 });
+  const rentPeriodAr = data.rent_type === "yearly" ? "كل سنة" : data.rent_type === "weekly" ? "كل أسبوع" : data.rent_type === "daily" ? "كل يوم" : "كل شهر";
+  const rentPeriodEn = data.rent_type === "yearly" ? "every year" : data.rent_type === "weekly" ? "every week" : data.rent_type === "daily" ? "every day" : "every month";
+  const useTypeAr = data.use_type || (data.unit_type ? arOr(UNIT_TYPE_AR, data.unit_type) : "سكني");
+
+  const dash = "—";
+  const v = (x?: string | number | null) => {
+    const s = String(x ?? "").trim();
+    return s || dash;
+  };
+
+  const articles: Array<{ ar: string; en: string; n: number; ar_title: string; en_title: string }> = [
+    {
+      n: 4,
+      ar_title: "البند الرابع",
+      en_title: "Article (4)",
+      ar: "يلتزم الطرف الثاني بسداد قيمة استهلاك الكهرباء والماء والهاتف والصرف الصحي وأية رسوم أخرى يلتزم بأدائها قانوناً، وذلك اعتباراً من تاريخ استلام المحل المؤجَّر حتى تاريخ إعادة تسليمه إلى الطرف الأول ما لم يُتَّفق على غير ذلك.",
+      en: "The second party shall pay all electricity, water, telephone, sewage and any other legally-required fees, from the date of receiving the leased premises until handing them back to the first party, unless otherwise agreed.",
+    },
+    {
+      n: 5,
+      ar_title: "البند الخامس",
+      en_title: "Article (5)",
+      ar: "يلتزم الطرف الأول بإجراء الترميمات وأعمال الصيانة اللازمة لبقاء المحل المؤجَّر صالحاً لتحقيق الغرض المؤجَّر من أجله.",
+      en: "The first party shall undertake all necessary renovation and maintenance to keep the leased premises fit for the purpose of the lease.",
+    },
+    {
+      n: 6,
+      ar_title: "البند السادس",
+      en_title: "Article (6)",
+      ar: "يلتزم الطرف الثاني بتسليم المحل المؤجَّر إلى الطرف الأول عند انتهاء العقد، ويلتزم بإصلاح أي تلفٍ في المحل المؤجَّر ناتج عن سوء الاستعمال.",
+      en: "The second party shall hand over the leased premises to the first party upon expiry of the lease and shall repair any damage caused by misuse.",
+    },
+    {
+      n: 7,
+      ar_title: "البند السابع",
+      en_title: "Article (7)",
+      ar: "تسري أحكام المرسوم السلطاني رقم 6/89 وتعديلاته المشار إليه فيما لم يرد بشأنه نصٌّ في هذا العقد.",
+      en: "The provisions of Royal Decree No. 6/89 and its amendments shall apply to any matter not provided for herein.",
+    },
+    {
+      n: 8,
+      ar_title: "البند الثامن",
+      en_title: "Article (8)",
+      ar: "لا يجوز للمؤجِّر زيادة أجرة المحال التجارية والسكنية والصناعية إلا بعد ثلاث سنوات من تاريخ آخر زيادة متفقٍ عليها، ما لم يُتَّفق على غير ذلك.",
+      en: "The lessor shall not increase the rent of commercial, residential or industrial premises except after three years from the last agreed increase, unless agreed otherwise.",
+    },
+    {
+      n: 9,
+      ar_title: "البند التاسع",
+      en_title: "Article (9)",
+      ar: "لا يجوز للمؤجِّر إخراج المستأجر من المحل المؤجَّر إلا للأسباب المنصوص عليها قانوناً.",
+      en: "The lessor may not evict the tenant from the leased premises except for the reasons stipulated by law.",
+    },
+    {
+      n: 10,
+      ar_title: "البند العاشر",
+      en_title: "Article (10)",
+      ar: "يحرَّر هذا العقد من ثلاث نسخ، تُسلَّم نسخةٌ للمؤجِّر، ونسخةٌ للمستأجر، وتودع النسخة الثالثة لدى البلدية المختصة لتسجيلها.",
+      en: "This contract is made in three counterparts: one for the lessor, one for the lessee, and the third deposited with the competent Municipality for registration.",
+    },
+    {
+      n: 11,
+      ar_title: "البند الحادي عشر",
+      en_title: "Article (11)",
+      ar: "يترتَّب على عدم تسجيل عقد الإيجار وسداد الرسم المقرَّر خلال شهرٍ من تاريخ إبرامه عدم جواز الاعتداد بهذا العقد أمام أي جهةٍ رسميةٍ في السلطنة، بالإضافة إلى دفع غرامةٍ ماليةٍ تعادل ثلاثة أضعاف الرسم المقرَّر.",
+      en: "Failure to register the lease and pay the prescribed fee within one month from its execution renders the contract inadmissible before any official authority in the Sultanate, in addition to a fine equal to three times the prescribed fee.",
+    },
+    {
+      n: 12,
+      ar_title: "البند الثاني عشر",
+      en_title: "Article (12)",
+      ar: "لا يجوز للمستأجر أن يحوِّل عقد الإيجار إلى أي جهةٍ أخرى، كما يحظر عليه أن يؤجِّر المحل المؤجَّر من الباطن إلا بعد الحصول على موافقةٍ كتابيةٍ من المؤجِّر، باستثناء المحال التجارية والصناعية والمهنية فإنه يجوز التنازل عنها شاملاً عقد الإيجار.",
+      en: "The lessee may not assign the lease to a third party nor sublet the premises without the lessor's prior written approval, except commercial, industrial and occupational premises which may be transferred along with the lease.",
+    },
+    {
+      n: 13,
+      ar_title: "البند الثالث عشر",
+      en_title: "Article (13)",
+      ar: "بدء عقد الإيجار: التاريخ الذي تُفتتح به العلاقة الإيجارية بين المؤجِّر والمستأجر بموجب العقد المبرم بينهما ابتداءً، لا بموجب التجديد الدوري الذي يتم تسجيله لدى البلدية.",
+      en: "Lease commencement date is the date the lease relationship initially started between the parties, not the periodic renewal date registered with the Municipality.",
+    },
+    {
+      n: 14,
+      ar_title: "البند الرابع عشر",
+      en_title: "Article (14)",
+      ar: "يجوز للطرفين إضافة شروطٍ أخرى تُعتبر جزءاً لا يتجزأ من هذا العقد، تُقرأ وتُفسَّر معه بشرط ألا تتعارض مع الأحكام المنظِّمة للعلاقة الإيجارية.",
+      en: "The parties may add further clauses which shall form an integral part of this contract, read and construed together with it, provided they do not conflict with the governing tenancy provisions.",
+    },
+  ];
+
+  const articleBlock = (a: typeof articles[number]) => `
+    <div class="om-article">
+      <div class="om-art-head"><span>${a.en_title}</span><span>${a.ar_title}</span></div>
+      <div class="om-art-body">
+        <div class="om-en">${escapeHtml(a.en)}</div>
+        <div class="om-ar">${escapeHtml(a.ar)}</div>
+      </div>
+    </div>`;
+
+  const body = `
+    <div class="om-page">
+      <div class="om-banner">
+        <div class="om-banner-ar">
+          <div class="om-country">سلطنة عُمان</div>
+          <div class="om-gov">${escapeHtml(data.governorate ? "محافظة " + data.governorate : "محافظة …")}</div>
+          <div class="om-muni">${escapeHtml(data.municipality || "البلدية المختصة")}</div>
+        </div>
+        <div class="om-banner-mid">
+          <div class="om-title">عقد إيجار<br/><span>محل سكني / تجاري / صناعي / مهني</span></div>
+          <div class="om-title-en">Lease Agreement — Residential / Commercial / Industrial / Occupational</div>
+        </div>
+        <div class="om-banner-en">
+          <div class="om-contract-no">${escapeHtml("رقم العقد: " + (data.contract_number || "—"))}</div>
+          <div class="om-date">${escapeHtml("تاريخ التحرير: " + today)}</div>
+        </div>
+      </div>
+
+      <p class="om-intro">
+        <span class="ar">إنه في تاريخ <strong>${escapeHtml(today)}</strong> تم الاتفاق بين كلٍّ من:</span>
+        <span class="en">This agreement is made on <strong>${escapeHtml(today)}</strong> between:</span>
+      </p>
+
+      <div class="om-party">
+        <div class="om-party-head">
+          <span class="ar"><strong>أولاً:</strong> المؤجِّر أو من ينوب عنه <em>(الطرف الأول)</em></span>
+          <span class="en"><strong>First:</strong> Lessor or his representative <em>(First Party)</em></span>
+        </div>
+        <div class="om-party-name">${escapeHtml(landlordAr)}</div>
+        <div class="om-party-grid">
+          <div><span class="lbl">الجنسية / Nationality</span><span class="val">${escapeHtml(v(data.landlord_nationality || "عمان"))}</span></div>
+          <div><span class="lbl">رقم الهاتف / Phone</span><span class="val">${escapeHtml(v(data.brand.phone))}</span></div>
+          <div><span class="lbl">رقم البطاقة / ID</span><span class="val">${escapeHtml(v(data.landlord_id))}</span></div>
+          <div><span class="lbl">العنوان / Address</span><span class="val">${escapeHtml(v(data.brand.address))}</span></div>
+        </div>
+      </div>
+
+      <div class="om-party">
+        <div class="om-party-head">
+          <span class="ar"><strong>ثانياً:</strong> المستأجر أو من ينوب عنه <em>(الطرف الثاني)</em></span>
+          <span class="en"><strong>Second:</strong> Lessee <em>(Second Party)</em></span>
+        </div>
+        <div class="om-party-name">${escapeHtml(tenantAr)}</div>
+        <div class="om-party-grid">
+          <div><span class="lbl">الجنسية / Nationality</span><span class="val">${escapeHtml(v(data.tenant_nationality))}</span></div>
+          <div><span class="lbl">رقم الهاتف / Phone</span><span class="val">${escapeHtml(v(data.tenant_phone))}</span></div>
+          <div><span class="lbl">رقم البطاقة أو الجواز / ID or Passport</span><span class="val">${escapeHtml(v(data.tenant_id_number))}</span></div>
+          <div><span class="lbl">حساب الكهرباء / Electricity Account</span><span class="val">${escapeHtml(v(data.electricity_account))}</span></div>
+        </div>
+      </div>
+
+      <p class="om-intro"><span class="ar">على الآتي:</span><span class="en">And agreed upon the following:</span></p>
+
+      <div class="om-article">
+        <div class="om-art-head"><span>Article (1)</span><span>البند الأول</span></div>
+        <div class="om-art-body">
+          <div class="om-en">The first party leases to the second party the premises located in wilayat <strong>${escapeHtml(v(data.wilayat))}</strong>, block <strong>${escapeHtml(v(data.block))}</strong>, plot <strong>${escapeHtml(v(data.plot_no))}</strong>, street <strong>${escapeHtml(v(data.street))}</strong>, building <strong>${escapeHtml(v(data.building_no || data.building_name))}</strong>, flat <strong>${escapeHtml(v(data.flat_no || data.unit_number))}</strong>, type of use: <strong>${escapeHtml(v(useTypeAr))}</strong>${data.activities ? `, activities: <strong>${escapeHtml(data.activities)}</strong>` : ""}.</div>
+          <div class="om-ar">أجَّر الطرف الأول إلى الطرف الثاني المحلَّ الكائن في ولاية <strong>${escapeHtml(v(data.wilayat))}</strong>، المربع <strong>${escapeHtml(v(data.block))}</strong>، رقم القطعة <strong>${escapeHtml(v(data.plot_no))}</strong>، الشارع <strong>${escapeHtml(v(data.street))}</strong>، رقم المبنى <strong>${escapeHtml(v(data.building_no || data.building_name))}</strong>، رقم الشقة <strong>${escapeHtml(v(data.flat_no || data.unit_number))}</strong>، نوع الاستعمال: <strong>${escapeHtml(v(useTypeAr))}</strong>${data.activities ? `، الأنشطة: <strong>${escapeHtml(data.activities)}</strong>` : ""}.</div>
+        </div>
+      </div>
+
+      <div class="om-article">
+        <div class="om-art-head"><span>Article (2)</span><span>البند الثاني</span></div>
+        <div class="om-art-body">
+          <div class="om-en">The lease shall be valid for a period starting from <strong>${escapeHtml(startDate)}</strong> and expiring on <strong>${escapeHtml(endDate)}</strong>, and shall be renewed spontaneously in accordance with Royal Decree No. (6/89) and its amendments, unless the lessee notifies the lessor in writing of his intention to vacate the premises at least three months prior to the expiry of the lease.</div>
+          <div class="om-ar">يسري عقد الإيجار لمدةٍ تبدأ من <strong>${escapeHtml(startDate)}</strong> وتنتهي في <strong>${escapeHtml(endDate)}</strong>، ويتجدَّد تلقائياً طبقاً لأحكام المرسوم السلطاني رقم 89/6 وتعديلاته في شأن تنظيم العلاقة بين ملاك ومستأجري المساكن والمحال التجارية والصناعية وتسجيل عقود الإيجار الخاصة بها، ما لم يخطر المستأجر المؤجِّر كتابةً برغبته في إخلاء المحل المؤجَّر قبل انتهاء مدة العقد بثلاثة أشهرٍ على الأقل.</div>
+        </div>
+      </div>
+
+      <div class="om-article">
+        <div class="om-art-head"><span>Article (3)</span><span>البند الثالث</span></div>
+        <div class="om-art-body">
+          <div class="om-en">The second party shall pay to the first party a rent of <strong>(${escapeHtml(rent)}) Omani Riyals</strong>, payable in advance at the beginning of <strong>${escapeHtml(rentPeriodEn)}</strong>, within fifteen days from the due date, against a receipt evidencing payment, unless otherwise agreed.</div>
+          <div class="om-ar">يلتزم الطرف الثاني بأن يؤدِّي إلى الطرف الأول أجرةً مقدارها <strong>(${escapeHtml(rent)}) ريالاً عمانياً</strong>، تُدفع مقدماً في بداية <strong>${escapeHtml(rentPeriodAr)}</strong>، خلال مدةٍ لا تتجاوز خمسة عشر يوماً من تاريخ استحقاقها، مقابل إيصالٍ يُفيد الأداء، ما لم يقضِ الاتفاق بخلاف ذلك.</div>
+        </div>
+      </div>
+
+      ${articles.map(articleBlock).join("\n")}
+
+      <div class="om-signatures">
+        <div class="om-sig">
+          <div class="om-sig-title"><span>الطرف الأول — المؤجِّر</span><span>First Party — Lessor</span></div>
+          <div class="om-sig-name">${escapeHtml(landlordAr)}</div>
+          <div class="om-sig-line"></div>
+          <div class="om-sig-meta">${escapeHtml(v(data.brand.phone))}</div>
+        </div>
+        <div class="om-sig">
+          <div class="om-sig-title"><span>الطرف الثاني — المستأجر</span><span>Second Party — Lessee</span></div>
+          <div class="om-sig-name">${escapeHtml(tenantAr)}</div>
+          <div class="om-sig-line"></div>
+          <div class="om-sig-meta">${escapeHtml(v(data.tenant_phone))}</div>
+        </div>
+      </div>
+
+      <div class="om-footnote">
+        <div class="ar">يخضع هذا العقد لأحكام المرسوم السلطاني رقم 6/89 وتعديلاته. ${data.municipality ? "تُسجَّل النسخة الرسمية لدى " + escapeHtml(data.municipality) + "." : "تُسجَّل النسخة الرسمية لدى البلدية المختصة."}</div>
+        <div class="en">This contract is governed by Royal Decree No. 6/89 and its amendments. The official copy is registered with the competent Municipality.</div>
+      </div>
+    </div>
+
+    <style>
+      .om-page { padding: 4px; }
+      .om-banner {
+        display: grid;
+        grid-template-columns: 1fr 1.4fr 1fr;
+        gap: 12px;
+        align-items: center;
+        padding: 18px 20px;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: linear-gradient(180deg, #f7f3ea, #ffffff);
+        margin-bottom: 18px;
+      }
+      .om-banner-ar { text-align: right; font-size: 12.5px; line-height: 1.7; color: var(--ink); }
+      .om-banner-en { text-align: left; font-size: 11.5px; line-height: 1.7; color: var(--muted); direction: ltr; }
+      .om-banner-mid { text-align: center; }
+      .om-country { font-weight: 900; font-size: 17px; color: var(--primary); letter-spacing: 0.3px; }
+      .om-gov, .om-muni { color: var(--muted); font-size: 12px; }
+      .om-title { font-size: 20px; font-weight: 900; color: var(--ink); line-height: 1.35; }
+      .om-title span { font-size: 12px; font-weight: 600; color: var(--muted); }
+      .om-title-en { margin-top: 4px; font-size: 11px; color: var(--muted); direction: ltr; font-weight: 600; }
+      .om-contract-no, .om-date { font-weight: 700; }
+
+      .om-intro {
+        display: flex; justify-content: space-between; gap: 12px;
+        background: var(--soft); border: 1px solid var(--line); border-radius: 12px;
+        padding: 10px 14px; font-size: 12px; margin: 14px 0;
+      }
+      .om-intro .ar { direction: rtl; text-align: right; }
+      .om-intro .en { direction: ltr; text-align: left; color: var(--muted); }
+
+      .om-party {
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 14px 16px;
+        margin-bottom: 12px;
+        background: #ffffff;
+      }
+      .om-party-head {
+        display: flex; justify-content: space-between; gap: 10px;
+        font-size: 12px; color: var(--primary); font-weight: 800;
+        border-bottom: 1px dashed var(--line); padding-bottom: 8px; margin-bottom: 10px;
+      }
+      .om-party-head .ar { direction: rtl; }
+      .om-party-head .en { direction: ltr; color: var(--muted); font-weight: 600; }
+      .om-party-name { font-size: 16px; font-weight: 800; margin-bottom: 10px; }
+      .om-party-grid {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px;
+      }
+      .om-party-grid > div {
+        display: flex; justify-content: space-between; gap: 10px;
+        font-size: 12px; padding: 6px 10px;
+        background: var(--soft); border-radius: 10px;
+      }
+      .om-party-grid .lbl { color: var(--muted); font-weight: 600; }
+      .om-party-grid .val { font-weight: 700; }
+
+      .om-article {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        margin-bottom: 10px;
+        overflow: hidden;
+        background: #fff;
+      }
+      .om-art-head {
+        display: flex; justify-content: space-between;
+        background: #f1f5ee;
+        padding: 8px 14px;
+        font-size: 12px; font-weight: 800; color: var(--primary);
+      }
+      .om-art-head span:first-child { direction: ltr; }
+      .om-art-body {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+        padding: 12px 14px; font-size: 12px; line-height: 1.85;
+      }
+      .om-en { direction: ltr; text-align: left; color: var(--ink); }
+      .om-ar { direction: rtl; text-align: right; color: var(--ink); }
+
+      .om-signatures {
+        margin-top: 22px;
+        display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+      }
+      .om-sig {
+        border: 1px solid var(--line); border-radius: 16px;
+        padding: 14px 16px; background: #fff; min-height: 130px;
+      }
+      .om-sig-title {
+        display: flex; justify-content: space-between;
+        font-size: 11px; color: var(--muted); font-weight: 700;
+        margin-bottom: 10px;
+      }
+      .om-sig-name { font-weight: 800; font-size: 14px; margin-bottom: 24px; }
+      .om-sig-line { border-bottom: 1px dashed var(--line); margin-bottom: 6px; }
+      .om-sig-meta { font-size: 11px; color: var(--muted); }
+
+      .om-footnote {
+        margin-top: 16px; padding: 12px 14px;
+        background: var(--soft); border: 1px solid var(--line); border-radius: 12px;
+        font-size: 11px; color: var(--muted); line-height: 1.7;
+      }
+      .om-footnote .ar { direction: rtl; text-align: right; }
+      .om-footnote .en { direction: ltr; text-align: left; margin-top: 4px; }
+    </style>
+  `;
+
+  return pageShell("عقد إيجار — سلطنة عُمان", body, { rtl: true });
+}
+
+
 export async function downloadLeasePDF(data: Lease, filename: string) {
   const rtl = data.lang !== "en";
   const L = (ar: string, en: string) => (rtl ? ar : en);
