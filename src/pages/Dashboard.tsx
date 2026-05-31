@@ -176,8 +176,11 @@ export default function Dashboard() {
             <div className="relative z-10">
               <div className="flex items-baseline justify-between mb-1">
                 <p className="text-xs uppercase tracking-wider text-sage-600 font-bold">
-                  {lang === "ar" ? "نسبة التحصيل لهذا الشهر" : "This month's collection"}
+                  {monthOffset === 0
+                    ? (lang === "ar" ? "نسبة التحصيل لهذا الشهر" : "This month's collection")
+                    : (lang === "ar" ? `نسبة التحصيل — ${monthLabel}` : `Collection — ${monthLabel}`)}
                 </p>
+
                 <span className="text-2xl font-black text-sage-600 tabular-nums">{collectionPct}%</span>
               </div>
               <div className="h-2.5 rounded-full bg-sage-100 overflow-hidden mt-2">
