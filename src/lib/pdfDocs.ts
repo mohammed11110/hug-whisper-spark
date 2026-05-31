@@ -579,7 +579,7 @@ export function buildReceiptHTML(data: ReceiptData): string {
         <table>
           <thead><tr><th>${L("البند", "Item")}</th><th>${L("المبلغ", "Amount")}</th></tr></thead>
           <tbody>
-            <tr><td>${L("إيجار", "Rent")} — ${escapeHtml(data.periodLabel || "—")}</td><td>${escapeHtml(formatMoney(data.amount - (data.collectedArrears.reduce((s,a)=>s+a.amount,0)), data.currency))}</td></tr>
+            <tr><td>${L("إيجار", "Rent")} — ${periodHtml}</td><td>${escapeHtml(formatMoney(data.amount - (data.collectedArrears.reduce((s,a)=>s+a.amount,0)), data.currency))}</td></tr>
             ${data.collectedArrears.map(a => `<tr><td>${L("متأخرات", "Arrears")} — ${escapeHtml(a.label)}</td><td>${escapeHtml(formatMoney(a.amount, data.currency))}</td></tr>`).join("")}
             <tr style="font-weight:800;background:#f5f0e0;"><td>${L("الإجمالي المحصَّل", "Total collected")}</td><td class="amount-positive">${escapeHtml(formatMoney(data.grandTotal ?? data.amount, data.currency))}</td></tr>
           </tbody>
