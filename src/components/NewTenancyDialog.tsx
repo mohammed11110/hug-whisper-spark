@@ -100,8 +100,18 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
     setPaidUpTo("");
     setGraceDays(String(unit.grace_days ?? "0"));
     setOfficialNumber("");
+    lastExtractedRef.current = null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, unit?.id]);
+
+  // استخراج تلقائي فور رفع صورة/PDF جديد للهوية — بدون زر.
+  useEffect(() => {
+    if (!idImageUrl) return;
+    if (lastExtractedRef.current === idImageUrl) return;
+    lastExtractedRef.current = idImageUrl;
+    extractFromId();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idImageUrl]);
 
 
   // When a new unit photo finishes uploading, push to array and reset slot
