@@ -49,12 +49,6 @@ function withBase(html: string) {
   }
   return `<!doctype html><html dir="rtl" lang="ar"><head>${baseTag}</head><body>${html}</body></html>`;
 }
-  if (!rows.length) return 0;
-  const headers = Object.keys(rows[0]);
-  let chars = headers.join(",").length + 1;
-  for (const r of rows) chars += headers.map((h) => String(r[h] ?? "")).join(",").length + 1;
-  return Math.max(1, Math.round(chars / 1024));
-}
 
 export function FilePreviewDialog({ open, onOpenChange, payload }: Props) {
   const { lang } = useI18n();
