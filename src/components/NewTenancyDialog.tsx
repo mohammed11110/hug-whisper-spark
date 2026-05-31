@@ -273,7 +273,10 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
               <Input value={phone} onChange={(e) => setPhone(e.target.value)} className="rounded-xl border-sage-200 h-11" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-sage-500">ID</Label>
+              <Label className="text-xs text-sage-500 inline-flex items-center gap-1">
+                ID
+                <FieldHelp content={lang === "ar" ? "رقم الهوية الوطنية / الإقامة / جواز السفر. يُستخرج تلقائياً عند رفع صورة الهوية." : "National ID / residency / passport number. Auto-extracted when you upload the ID image."} />
+              </Label>
               <Input value={idNumber} onChange={(e) => setIdNumber(e.target.value)} className="rounded-xl border-sage-200 h-11" />
             </div>
           </div>
