@@ -658,10 +658,20 @@ function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLea
             toast.info(lang === "ar" ? "لا توجد بيانات لكشف الرصيد" : "No ledger data");
             return;
           }
-          exportToCSV(
-            `ledger-${unit.unit_number}-${new Date().toISOString().slice(0, 10)}`,
+          const filename = `ledger-${unit.unit_number}-${new Date().toISOString().slice(0, 10)}.csv`;
+          const headerLabels = lang === "ar" ? {
+            date: "التاريخ", type: "النوع", description: "الوصف",
+            charge: "مستحق", payment: "مدفوع", balance: "الرصيد",
+            kind: "التصنيف", receipt: "رقم الإيصال", notes: "ملاحظات",
+          } : undefined;
+          onPreview?.({
+            type: "csv",
+            title: lang === "ar" ? "كشف الرصيد" : "Ledger",
+            filename,
             rows,
-          );
+            headerLabels,
+            onSave: () => exportToCSV(filename, rows),
+          });
         }}
         className="w-full rounded-xl text-sage-500 h-10 text-xs"
       >
