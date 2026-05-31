@@ -250,12 +250,23 @@ export default function UnitDetail() {
             <h1 className="text-3xl font-black mt-1">{unit.unit_number}</h1>
             {buildingName && <p className="text-xs opacity-75 mt-1">🏢 {buildingName}</p>}
             {unit.tenant_name && <p className="text-sm opacity-90 mt-0.5">{unit.tenant_name}</p>}
+            {unit.tenant_name && (() => {
+              const active = tenancies.find((t: any) => t.status === "active");
+              if (!active?.contract_number) return null;
+              return (
+                <p className="text-[10px] opacity-80 mt-0.5 font-semibold tracking-wide">
+                  {active.contract_number}
+                  {active.official_contract_number ? ` · ${active.official_contract_number}` : ""}
+                </p>
+              );
+            })()}
             {unit.tenant_name && (
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                 <UnitHealthBadge unit={unit as any} payments={payments} activeTenancyId={activeTenancyId} />
                 <ArrearsBadge unit={unit as any} payments={payments} activeTenancyId={activeTenancyId} block />
               </div>
             )}
+
           </div>
           <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase ${STATUS_STYLES[unit.status]}`}>{t2(unit.status as any)}</span>
         </div>
