@@ -8,6 +8,7 @@ import { notify } from "@/lib/notify";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { SEO } from "@/components/SEO";
+import { FieldHelp } from "@/components/ui/FieldHelp";
 
 type Prefs = {
   channel_email: boolean;
