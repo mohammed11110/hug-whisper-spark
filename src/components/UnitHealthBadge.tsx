@@ -11,18 +11,27 @@ interface Props {
   unit: UnitForCalc;
   payments: PaymentForBalance[];
   className?: string;
+  /** Active lease id — used to exclude any payment that belongs to an
+   *  ended lease so a new tenant never inherits an old tenant's balance. */
+  activeTenancyId?: string | null;
 }
 
 /**
  * Live financial status badge — single source of truth = calculateUnitBalance.
  * Six states mapped to brand-token colors. Never reads stored `units.status`.
  */
-export function UnitHealthBadge({ unit, payments, className }: Props) {
+export function UnitHealthBadge({ unit, payments, className, activeTenancyId }: Props) {
   const { lang } = useI18n();
   const ar = lang === "ar";
 
   const view = useMemo(() => {
-    const b = calculateUnitBalance(unit, payments, new Date());
+    // CRITICAL: when an active lease is known, drop every payment that has
+    // a different tenancy_id. Payments with NULL tenancy_id fall through
+    // and are filtered later by the date-cutoff inside calculateUnitBalance.
+    const scoped = activeTenancyId
+      ? payments.filter((p) => !p.tenancy_id || p.tenancy_id === activeTenancyId)
+      : payments;
+    const b = calculateUnitBalance(unit, scoped, new Date());
     const labelMap: Record<RentStatus, { ar: string; en: string }> = {
       paid:     { ar: "مسدّد",   en: "Paid" },
       credit:   { ar: "رصيد دائن", en: "Credit" },
