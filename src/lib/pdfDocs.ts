@@ -226,6 +226,7 @@ export interface Lease {
 
 export interface StatementRow {
   date: string;
+  month?: string;
   description: string;
   charge: number;
   payment: number;
@@ -1330,6 +1331,7 @@ export function buildTenantStatementHTML(data: TenantStatementData): string {
       (row) => `
         <tr>
           <td>${formatDate(row.date)}</td>
+          <td>${escapeHtml(row.month || "—")}</td>
           <td>${escapeHtml(row.description)}</td>
           <td>${escapeHtml(formatMoney(row.charge, data.currency))}</td>
           <td>${escapeHtml(formatMoney(row.payment, data.currency))}</td>
@@ -1359,13 +1361,14 @@ export function buildTenantStatementHTML(data: TenantStatementData): string {
         <thead>
           <tr>
             <th>Date / التاريخ</th>
+            <th>Month / الشهر</th>
             <th>Description / البيان</th>
             <th>Charge / مدين</th>
             <th>Payment / دائن</th>
             <th>Balance / الرصيد</th>
           </tr>
         </thead>
-        <tbody>${rows || `<tr><td colspan="5">No records</td></tr>`}</tbody>
+        <tbody>${rows || `<tr><td colspan="6">No records</td></tr>`}</tbody>
       </table>
       <div class="summary">
         <div class="card"><div class="label">Total charges / إجمالي المستحق</div><div class="value">${escapeHtml(formatMoney(data.totals.totalCharges, data.currency))}</div></div>
