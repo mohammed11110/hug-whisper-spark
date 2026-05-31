@@ -442,24 +442,16 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
               pathPrefix={pathPrefix}
               value={idImageUrl}
               onChange={setIdImageUrl}
-              accept="image/*"
-              maxSizeMB={5}
-              label={lang === "ar" ? "صورة الهوية" : "ID image"}
+              accept="application/pdf,image/*"
+              maxSizeMB={10}
+              label={lang === "ar" ? "صورة الهوية أو ملف PDF" : "ID image or PDF"}
               isPrivate
             />
-            {idImageUrl && (
-              <Button
-                type="button"
-                variant="outline"
-                disabled={extracting}
-                onClick={extractFromId}
-                className="w-full h-10 rounded-xl border-sage-300 text-sage-700"
-              >
-                {extracting ? <Loader2 className="h-4 w-4 animate-spin me-2" /> : <Sparkles className="h-4 w-4 me-2" />}
-                {extracting
-                  ? (lang === "ar" ? "جاري الاستخراج..." : "Extracting...")
-                  : (lang === "ar" ? "استخراج البيانات تلقائياً" : "Auto-extract data")}
-              </Button>
+            {idImageUrl && extracting && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-sage-50 border border-sage-200/60 text-sage-700 text-sm">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>{lang === "ar" ? "جاري قراءة الهوية..." : "Reading ID..."}</span>
+              </div>
             )}
 
             <FileUpload
