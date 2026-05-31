@@ -288,7 +288,7 @@ export default function Payments() {
           <div class="row"><span>${esc(L.unit_number)}</span><b>#${esc(r.unit_number)}</b></div>
           
           <div class="row"><span>${esc(L.tenant_name)}</span><b>${esc(r.tenant_name || "—")}</b></div>
-          ${r.period_start ? `<div class="row"><span>${esc(L.rent_month)}</span><b>${esc(monthLabel(r.period_start, lng))}</b></div>` : ""}
+          ${r.period_start ? `<div class="row"><span>${esc(L.rent_month)}</span><b>${esc(cycleLabel(r, lng))}</b></div>` : ""}
           
           <div style="margin-top:18px;padding:16px 18px;background:#f6faf3;border:1px solid #cdd9c8;border-radius:14px">
             <div style="font-size:11px;color:#7a8a78;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;font-weight:700">${L.summary}</div>
