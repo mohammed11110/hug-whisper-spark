@@ -1536,18 +1536,46 @@ export function buildCollectionHTML(data: CollectionPdfData): string {
 
 
 
-export function printHTML(html: string) {
+/**
+ * Inject the @font-face declarations (as data URLs) into the HTML produced by
+ * pageShell. Fills the `<style id="pdf-fonts">` placeholder so Arabic letters
+ * shape (join) correctly in preview iframes, print windows, and PDF renders.
+ */
+export async function inlinePdfFonts(html: string): Promise<string> {
+  const urls = await getFontDataUrls();
+  const css = buildFontFaceCss(urls);
+  if (/<style[^>]*id=["']pdf-fonts["'][^>]*>[\s\S]*?<\/style>/i.test(html)) {
+    return html.replace(
+      /<style([^>]*)id=["']pdf-fonts["']([^>]*)>[\s\S]*?<\/style>/i,
+      `<style$1id="pdf-fonts"$2>${css}</style>`
+    );
+  }
+  const styleTag = `<style id="pdf-fonts">${css}</style>`;
+  if (/<head[^>]*>/i.test(html)) {
+    return html.replace(/<head([^>]*)>/i, `<head$1>${styleTag}`);
+  }
+  if (/<html[^>]*>/i.test(html)) {
+    return html.replace(/<html([^>]*)>/i, `<html$1><head>${styleTag}</head>`);
+  }
+  return `<!doctype html><html dir="rtl" lang="ar"><head>${styleTag}</head><body>${html}</body></html>`;
+}
+
+export async function printHTML(html: string) {
+  const finalHtml = await inlinePdfFonts(html);
   const win = window.open("", "_blank", "noopener,noreferrer,width=1024,height=768");
   if (!win) throw new Error("Could not open print window");
   win.document.open();
-  win.document.write(html);
+  win.document.write(finalHtml);
   win.document.close();
   win.focus();
-  const runPrint = () => win.print();
+  const runPrint = async () => {
+    try { await (win.document as any).fonts?.ready; } catch { /* noop */ }
+    setTimeout(() => win.print(), 250);
+  };
   if (win.document.readyState === "complete") {
-    setTimeout(runPrint, 150);
+    runPrint();
   } else {
-    win.onload = () => setTimeout(runPrint, 150);
+    win.onload = () => runPrint();
   }
 }
 
@@ -1868,19 +1896,20 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
   const pageSize = settings?.pageSize || DEFAULT_PAGE_SIZE;
   const margins = settings?.margins || DEFAULT_MARGINS;
 
+  // Inject @font-face (data URLs) so both render paths see the Arabic font
+  // declarations inline — no reliance on relative /fonts/ URLs.
+  const finalHtml = await inlinePdfFonts(html);
+
   let canvas: HTMLCanvasElement | null = null;
 
-  // Preferred path: render inside the main document so the app's already-loaded
-  // Arabic font produces correctly-joined letters (matches the manual download
-  // path used on the Payments page).
   try {
-    canvas = await renderInMainDocument(html);
+    canvas = await renderInMainDocument(finalHtml);
   } catch (e) {
     console.warn("[pdf] main-document render failed, falling back to iframe", e);
   }
 
   if (!canvas) {
-    canvas = await renderInIframe(html);
+    canvas = await renderInIframe(finalHtml);
   }
 
   buildPdfFromCanvas(canvas, filename, pageSize, margins);
