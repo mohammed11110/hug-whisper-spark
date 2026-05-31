@@ -183,8 +183,10 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
           const note = activeOut > 0
             ? (lang === "ar" ? `متأخرات: ${fmtAmt(activeOut)}` : `Arrears: ${fmtAmt(activeOut)}`)
             : null;
+          const { parseLocalDate } = await import("@/lib/balance");
           const anchorSrc = u.opening_balance_date || u.contract_start_date;
-          const anchorDay = anchorSrc ? Math.min(28, Math.max(1, new Date(anchorSrc).getDate() || 1)) : 1;
+          const anchorParsed = parseLocalDate(anchorSrc);
+          const anchorDay = anchorParsed ? Math.min(28, Math.max(1, anchorParsed.getDate() || 1)) : 1;
           return {
             id: u.id,
             unit_number: u.unit_number,
