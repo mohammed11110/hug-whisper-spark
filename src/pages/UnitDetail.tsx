@@ -251,10 +251,21 @@ export default function UnitDetail() {
         securityDeposit: Number((unit as any).security_deposit || 0),
       },
     });
-    try {
-      await downloadHTMLAsPDF(html, `statement-${unit.unit_number}-${(unit.tenant_name || "tenant").replace(/\s+/g, "_")}.pdf`, settings);
-      toast.success("PDF ✓");
-    } catch (e: any) { toast.error(e.message || "PDF error"); }
+    const filename = `statement-${unit.unit_number}-${(unit.tenant_name || "tenant").replace(/\s+/g, "_")}.pdf`;
+    openPreview({
+      type: "pdf",
+      title: lang === "ar" ? "كشف حساب المستأجر" : "Tenant statement",
+      filename,
+      html,
+      onSave: async () => {
+        try {
+          await downloadHTMLAsPDF(html, filename, settings);
+          toast.success(lang === "ar" ? "تم حفظ الملف ✓" : "Saved ✓");
+          closePreview();
+        } catch (e: any) { toast.error(e.message || "PDF error"); }
+      },
+      onPrint: () => { printHTML(html); },
+    });
   };
 
   if (!unit) return <div className="mobile-shell flex items-center justify-center min-h-screen"><p className="text-sage-500">{t("loading")}</p></div>;
