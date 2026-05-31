@@ -377,7 +377,7 @@ function VacantState({ t2, onAdd }: any) {
   );
 }
 
-function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLeasePrint, onStatement, onEnd, reload, activeTenancyId }: any) {
+function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLeasePrint, onStatement, onPreview, onEnd, reload, activeTenancyId }: any) {
   const [adjustOpen, setAdjustOpen] = useState(false);
   const arr = getUnitArrears(unit, payments, new Date(), lang as "ar" | "en", activeTenancyId);
 
