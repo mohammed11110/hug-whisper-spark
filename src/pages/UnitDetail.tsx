@@ -197,13 +197,14 @@ export default function UnitDetail() {
       .is("deleted_at", null)
       .order("payment_date", { ascending: true });
 
-    type Entry = { date: string; description: string; charge: number; payment: number; sortKey: string };
+    type Entry = { date: string; month?: string; description: string; charge: number; payment: number; sortKey: string };
     const entries: Entry[] = [];
     const opening = Number((unit as any).opening_balance || 0);
     const openingDate = (unit as any).opening_balance_date || (unit as any).contract_start_date || new Date().toISOString().slice(0, 10);
     if (opening > 0) {
       entries.push({
         date: openingDate,
+        month: openingDate.slice(0, 7),
         description: lang === "ar" ? "رصيد افتتاحي (متأخرات سابقة)" : "Opening balance (prior arrears)",
         charge: opening,
         payment: 0,
@@ -222,6 +223,7 @@ export default function UnitDetail() {
         const monthLbl = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`;
         entries.push({
           date: d,
+          month: monthLbl,
           description: (lang === "ar" ? "إيجار شهر " : "Rent ") + monthLbl,
           charge: rent,
           payment: 0,
@@ -231,8 +233,10 @@ export default function UnitDetail() {
       }
     }
     (ps || []).forEach((p: any) => {
+      const m = (p.period_start || p.payment_date || "").slice(0, 7);
       entries.push({
         date: p.payment_date,
+        month: m || undefined,
         description: (lang === "ar" ? "دفعة" : "Payment") + (p.receipt_number ? ` #${p.receipt_number}` : "") + (p.notes ? ` — ${p.notes}` : ""),
         charge: 0,
         payment: Number(p.amount),
@@ -243,7 +247,7 @@ export default function UnitDetail() {
     let bal = 0;
     const rows: StatementRow[] = entries.map((e) => {
       bal += e.charge - e.payment;
-      return { date: e.date, description: e.description, charge: e.charge, payment: e.payment, balance: bal };
+      return { date: e.date, month: e.month, description: e.description, charge: e.charge, payment: e.payment, balance: bal };
     });
     const totalCharges = entries.reduce((s, e) => s + e.charge, 0);
     const totalPaid = entries.reduce((s, e) => s + e.payment, 0);
