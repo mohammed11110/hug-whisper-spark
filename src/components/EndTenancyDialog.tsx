@@ -34,8 +34,10 @@ export function EndTenancyDialog({ open, onOpenChange, unit, tenancyId, onDone }
   const [debtAction, setDebtAction] = useState<"settle" | "carry">("carry");
   const [notes, setNotes] = useState("");
   const [outstanding, setOutstanding] = useState(0);
+  const [contractNumber, setContractNumber] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const guard = useUnsavedGuard({ open, onOpenChange });
+
 
   useEffect(() => {
     if (!open || !unit) return;
