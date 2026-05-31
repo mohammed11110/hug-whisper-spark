@@ -72,7 +72,7 @@ export function FilePreviewDialog({ open, onOpenChange, payload }: Props) {
             <div className="rounded-2xl overflow-hidden border border-sage-200 bg-white" style={{ height: "65vh" }}>
               <iframe
                 title={labelPreview}
-                srcDoc={payload.html}
+                srcDoc={withBase(payload.html)}
                 className="w-full h-full"
                 style={{ border: 0 }}
               />
