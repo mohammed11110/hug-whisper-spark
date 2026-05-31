@@ -115,6 +115,22 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
     if (!unit) return;
     if (!name.trim()) return toast.error(lang === "ar" ? "اسم المستأجر مطلوب" : "Tenant name required");
     setSaving(true);
+
+    // GUARD: refuse to start a new lease while one is still active on this
+    // unit. The DB partial-unique index would reject this anyway, but the
+    // explicit check lets us surface a friendly Arabic message instead of a
+    // raw constraint error and keeps a half-saved state from happening.
+    const { data: existingActive } = await supabase
+      .from("tenancies").select("id, tenant_name").eq("unit_id", unit.id).eq("status", "active").maybeSingle();
+    if (existingActive) {
+      setSaving(false);
+      return toast.error(
+        lang === "ar"
+          ? `يوجد عقد نشط لـ ${(existingActive as any).tenant_name || "مستأجر سابق"}. أنهِ العقد الحالي أولاً.`
+          : `An active lease for ${(existingActive as any).tenant_name || "the previous tenant"} still exists. End it first.`
+      );
+    }
+
     const rentNum = Number(rent) || 0;
     const dueNum = startDate ? Math.min(28, Math.max(1, new Date(startDate).getDate() || 1)) : Math.min(31, Math.max(1, Number(dueDay) || 1));
     const depositNum = Number(deposit) || 0;
@@ -202,6 +218,8 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
       changes: { rent_amount: rentNum, contract_type: contractType, start: startDate, end: endDate || null },
     });
     toast.success(t2("tenancy_started_ok"));
+    const { paymentsBus } = await import("@/lib/paymentsBus");
+    paymentsBus.emit(unit.id);
     guard.markSaved();
     onOpenChange(false);
     onDone();

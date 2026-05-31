@@ -252,7 +252,7 @@ export default function UnitDetail() {
             {unit.tenant_name && <p className="text-sm opacity-90 mt-0.5">{unit.tenant_name}</p>}
             {unit.tenant_name && (
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                <UnitHealthBadge unit={unit as any} payments={payments} />
+                <UnitHealthBadge unit={unit as any} payments={payments} activeTenancyId={activeTenancyId} />
                 <ArrearsBadge unit={unit as any} payments={payments} activeTenancyId={activeTenancyId} block />
               </div>
             )}

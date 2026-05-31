@@ -109,6 +109,10 @@ export function EndTenancyDialog({ open, onOpenChange, unit, tenancyId, onDone }
       descriptionEn: `Tenancy ended for ${unit.tenant_name || ""} — unit ${unit.unit_number}`,
       changes: { reason, ended_at: endDate, outstanding: finalOutstanding, deposit_refund: refundNum },
     });
+    // Broadcast so every screen (Tenants, Payments, Notifications, Dashboard,
+    // UnitDetail) drops the previous tenant's cached balance immediately.
+    const { paymentsBus } = await import("@/lib/paymentsBus");
+    paymentsBus.emit(unit.id);
     toast.success(t2("tenancy_ended_ok"));
     guard.markSaved();
     onOpenChange(false);

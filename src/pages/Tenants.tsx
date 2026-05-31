@@ -130,13 +130,19 @@ export default function Tenants() {
       if (!ids.length) { setRows([]); setLoading(false); return; }
       const bMap = new Map((bs || []).map((b: any) => [b.id, b.name || b.name_en || "—"]));
       const { data: us } = await supabase.from("units")
-        .select("id, unit_number, building_id, tenant_name, tenant_phone, rent_amount, rent_type, rent_timing, status, last_paid_date, contract_end_date, contract_start_date, opening_balance, opening_balance_date")
+        .select("id, unit_number, building_id, tenant_name, tenant_phone, rent_amount, rent_type, rent_timing, status, last_paid_date, contract_end_date, contract_start_date, opening_balance, opening_balance_date, paid_up_to")
         .in("building_id", ids)
         .not("tenant_name", "is", null);
       const unitIds = (us || []).map((u: any) => u.id);
       const { data: ps } = unitIds.length
-        ? await supabase.from("payments").select("unit_id, amount, payment_date, deleted_at, period_start, period_end").in("unit_id", unitIds).is("deleted_at", null)
+        ? await supabase.from("payments").select("unit_id, amount, payment_date, deleted_at, period_start, period_end, tenancy_id, kind").in("unit_id", unitIds).is("deleted_at", null)
         : { data: [] as any[] };
+      // Active-lease map: unit_id → active tenancy_id, so every arrears
+      // calculation can ignore payments tied to ENDED leases.
+      const { data: activeTs } = unitIds.length
+        ? await supabase.from("tenancies").select("id, unit_id").in("unit_id", unitIds).eq("status", "active")
+        : { data: [] as any[] };
+      const activeMap = new Map<string, string>((activeTs || []).map((t: any) => [t.unit_id, t.id]));
       const totals = new Map<string, number>();
       const lastPay = new Map<string, { date: string; amount: number }>();
       (ps || []).forEach((p: any) => {
@@ -147,7 +153,8 @@ export default function Tenants() {
         }
       });
       const mapped: TenantRow[] = (us || []).map((u: any) => {
-        const arr = getUnitArrears(u as any, (ps || []) as PaymentForBalance[], new Date(), lang as "ar" | "en");
+        const activeTid = activeMap.get(u.id) || null;
+        const arr = getUnitArrears(u as any, (ps || []) as PaymentForBalance[], new Date(), lang as "ar" | "en", activeTid);
         const lp = lastPay.get(u.id);
         return {
           unit_id: u.id,
