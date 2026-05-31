@@ -536,7 +536,19 @@ function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLea
             });
           }
           if (!rows.length) return;
-          exportToCSV(`unit-${unit.unit_number}-cycles-${new Date().toISOString().slice(0,10)}`, rows);
+          const filename = `unit-${unit.unit_number}-cycles-${new Date().toISOString().slice(0,10)}.csv`;
+          const headerLabels = lang === "ar" ? {
+            cycle: "الدورة", period_start: "من", period_end: "إلى",
+            rent: "الإيجار", paid: "المدفوع", shortfall: "العجز", status: "الحالة",
+          } : undefined;
+          onPreview?.({
+            type: "csv",
+            title: lang === "ar" ? "دورات الإيجار" : "Rent cycles",
+            filename,
+            rows,
+            headerLabels,
+            onSave: () => exportToCSV(filename, rows),
+          });
         }}
         className="w-full rounded-xl text-sage-500 h-10 text-xs"
       >
