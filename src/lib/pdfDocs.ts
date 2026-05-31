@@ -571,7 +571,7 @@ export function buildReceiptHTML(data: ReceiptData): string {
         <div class="card"><div class="label">${L("اسم المستأجر", "Tenant")}</div><div class="value">${escapeHtml(data.tenantName || "—")}</div></div>
         <div class="card"><div class="label">${L("طريقة السداد", "Method")}</div><div class="value">${escapeHtml(data.method || "—")}</div></div>
         <div class="card"><div class="label">${L("المبلغ المستلم", "Amount paid")}</div><div class="value amount-positive">${escapeHtml(amountStr)}</div></div>
-        <div class="card"><div class="label">${L("عن فترة الإيجار", "Rent period")}</div><div class="value">${escapeHtml(data.periodLabel || "—")}</div></div>
+        <div class="card"><div class="label">${L("عن فترة الإيجار", "Rent period")}</div><div class="value">${periodHtml}</div></div>
       </div>
       ${data.settlementNote ? `<div class="note" style="background:#eef5ec;border-color:#cfe0ce;color:#2c5a36;"><strong>${L("إشعار سداد", "Settlement notice")}:</strong> ${escapeHtml(data.settlementNote)}</div>` : ""}
       ${(data.collectedArrears && data.collectedArrears.length) ? `
