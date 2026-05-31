@@ -61,31 +61,7 @@ function cycleLabel(r: Row, lang: string): string {
   return `${names[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-/** Sort receipts descending by receipt_number. Pure-numeric strings compare
- *  numerically; mixed strings (e.g. "R-1004", "2026-12") extract the LAST
- *  numeric run for comparison, then fall back to a locale-aware numeric
- *  string compare. Rows without a receipt number sink to the bottom, and
- *  ties resolve by newest payment_date first. */
-function extractReceiptNum(s: string | null | undefined): number | null {
-  if (!s) return null;
-  const m = String(s).match(/(\d+)(?!.*\d)/); // last numeric run
-  return m ? Number(m[1]) : null;
-}
-function compareReceiptDesc(a: { receipt_number: string | null; payment_date: string },
-                            b: { receipt_number: string | null; payment_date: string }): number {
-  const ar = a.receipt_number?.trim();
-  const br = b.receipt_number?.trim();
-  // Missing receipt numbers go to the bottom regardless of direction.
-  if (!ar && !br) return (b.payment_date || "").localeCompare(a.payment_date || "");
-  if (!ar) return 1;
-  if (!br) return -1;
-  const an = extractReceiptNum(ar);
-  const bn = extractReceiptNum(br);
-  if (an != null && bn != null && an !== bn) return bn - an;
-  const cmp = br.localeCompare(ar, undefined, { numeric: true, sensitivity: "base" });
-  if (cmp !== 0) return cmp;
-  return (b.payment_date || "").localeCompare(a.payment_date || "");
-}
+
 
 const RECEIPT_TXT = {
   ar: {
