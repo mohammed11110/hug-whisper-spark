@@ -151,6 +151,11 @@ export default function Payments() {
         building_name: b?.name || b?.name_en || "—",
         unit_status: u?.status ?? "soon",
         remaining: remainingMap.get(p.unit_id) ?? 0,
+        unit_ctx: {
+          contract_start_date: u?.contract_start_date ?? null,
+          opening_balance_date: u?.opening_balance_date ?? null,
+          due_day: u?.due_day ?? null,
+        },
       };
     });
     setRows(mapped);
