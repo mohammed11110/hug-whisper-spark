@@ -218,6 +218,8 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
       changes: { rent_amount: rentNum, contract_type: contractType, start: startDate, end: endDate || null },
     });
     toast.success(t2("tenancy_started_ok"));
+    const { paymentsBus } = await import("@/lib/paymentsBus");
+    paymentsBus.emit(unit.id);
     guard.markSaved();
     onOpenChange(false);
     onDone();
