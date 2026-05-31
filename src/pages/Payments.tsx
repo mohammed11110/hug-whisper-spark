@@ -102,7 +102,7 @@ export default function Payments() {
       .limit(500);
     const unitIds = Array.from(new Set((pays || []).map((p: any) => p.unit_id)));
     const { data: units } = unitIds.length
-      ? await supabase.from("units").select("id, unit_number, tenant_name, status, building_id, rent_amount, rent_type, contract_start_date, opening_balance, opening_balance_date").in("id", unitIds)
+      ? await supabase.from("units").select("id, unit_number, tenant_name, status, building_id, rent_amount, rent_type, contract_start_date, opening_balance, opening_balance_date, paid_up_to").in("id", unitIds)
       : { data: [] as any[] };
     const buildingIds = Array.from(new Set((units || []).map((u: any) => u.building_id)));
     const { data: builds } = buildingIds.length
@@ -110,13 +110,19 @@ export default function Payments() {
       : { data: [] as any[] };
     // All non-deleted payments for involved units (used for outstanding balance)
     const { data: allPays } = unitIds.length
-      ? await supabase.from("payments").select("unit_id, amount, deleted_at, payment_date, period_start, period_end").in("unit_id", unitIds).is("deleted_at", null)
+      ? await supabase.from("payments").select("unit_id, amount, deleted_at, payment_date, period_start, period_end, tenancy_id, kind").in("unit_id", unitIds).is("deleted_at", null)
       : { data: [] as any[] };
+    // Active-lease map keeps each unit's outstanding limited to the
+    // current tenant — past tenant payments stay archived but don't bleed in.
+    const { data: activeTs } = unitIds.length
+      ? await supabase.from("tenancies").select("id, unit_id").in("unit_id", unitIds).eq("status", "active")
+      : { data: [] as any[] };
+    const activeMap = new Map<string, string>((activeTs || []).map((t: any) => [t.unit_id, t.id]));
     const uMap = new Map((units || []).map((u: any) => [u.id, u]));
     const bMap = new Map((builds || []).map((b: any) => [b.id, b]));
     const remainingMap = new Map<string, number>();
     (units || []).forEach((u: any) => {
-      const { totalShortfall } = getUnitArrears(u, allPays || [], new Date(), lang as "ar" | "en");
+      const { totalShortfall } = getUnitArrears(u, allPays || [], new Date(), lang as "ar" | "en", activeMap.get(u.id) || null);
       remainingMap.set(u.id, totalShortfall);
     });
     const mapped: Row[] = (pays || []).map((p: any) => {
