@@ -64,6 +64,10 @@ export default function UnitDetail() {
   const [newTenantOpen, setNewTenantOpen] = useState(false);
   const [activeTenancyId, setActiveTenancyId] = useState<string | null>(null);
   const [tenancies, setTenancies] = useState<any[]>([]);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewPayload, setPreviewPayload] = useState<FilePreviewPayload | null>(null);
+  const openPreview = (p: FilePreviewPayload) => { setPreviewPayload(p); setPreviewOpen(true); };
+  const closePreview = () => setPreviewOpen(false);
   
 
   const load = async () => {
