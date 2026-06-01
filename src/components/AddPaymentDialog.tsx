@@ -89,7 +89,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const t2 = useT2();
   const { lang } = useI18n();
   const { format } = useCurrency();
-  const { settings, refreshReceiptCounter } = useAppSettings();
+  const { settings, update, refreshReceiptCounter } = useAppSettings();
   const [units, setUnits] = useState<UnitOpt[]>([]);
   const [buildings, setBuildings] = useState<BuildingOpt[]>([]);
   const [buildingId, setBuildingId] = useState<string>("");
