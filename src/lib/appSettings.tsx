@@ -34,7 +34,10 @@ export interface AppSettings {
   showAiFab: boolean;
   /** Receipt numbering preferences */
   receipt: ReceiptNumbering;
+  /** Auto-open WhatsApp after a payment is registered */
+  autoSendReceiptWhatsApp: boolean;
 }
+
 
 export function formatReceipt(r: ReceiptNumbering, n?: number): string {
   const num = n ?? r.nextNumber ?? r.startNumber ?? 1;
