@@ -34,6 +34,8 @@ export default function Team() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<Role>("viewer");
   const [busy, setBusy] = useState(false);
+  const [allowance, setAllowance] = useState<number>(0);
+  const [usage, setUsage] = useState<number>(0);
 
   const load = async () => {
     if (!user) return;
@@ -56,12 +58,26 @@ export default function Team() {
         setMemberProfiles(map);
       }
     }
+    const [{ data: allow }, { data: cnt }] = await Promise.all([
+      (supabase.rpc as any)("user_member_allowance", { _user_id: user.id }),
+      (supabase.rpc as any)("user_member_count", { _user_id: user.id }),
+    ]);
+    setAllowance(Number(allow ?? 0));
+    setUsage(Number(cnt ?? 0));
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [user]);
 
+  const isUnlimited = allowance >= 2147483647;
+  const atLimit = !isUnlimited && usage >= allowance;
+  const allowanceLabel = isUnlimited ? "∞" : String(allowance);
+
   const invite = async () => {
     if (!email.trim() || !building || !user) return;
+    if (atLimit) {
+      toast.error(ar ? "وصلت لحد الباقة. رقّ الباقة لإضافة المزيد." : "Plan limit reached. Upgrade to add more.");
+      return;
+    }
     setBusy(true);
     const { error } = await supabase.from("invitations").insert({
       building_id: building,
@@ -70,7 +86,12 @@ export default function Team() {
       invited_by: user.id,
     });
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) {
+      if (error.message?.includes("member_quota_exceeded")) {
+        return toast.error(ar ? "وصلت لحد الباقة. رقّ الباقة لإضافة المزيد." : "Plan limit reached. Upgrade to add more.");
+      }
+      return toast.error(error.message);
+    }
     toast.success(ar ? "تم إرسال الدعوة" : "Invitation sent");
     setEmail("");
     load();
@@ -113,10 +134,20 @@ export default function Team() {
         <div className="px-5 pt-5 space-y-5">
           {/* Invite form */}
           <div className="bg-card border border-sage-200/60 rounded-2xl p-4 shadow-soft space-y-3">
-            <div className="flex items-center gap-2 text-sage-600">
-              <UserPlus className="h-4 w-4" />
-              <p className="font-bold text-sm">{ar ? "دعوة عضو جديد" : "Invite a new member"}</p>
+            <div className="flex items-center justify-between gap-2 text-sage-600">
+              <div className="flex items-center gap-2">
+                <UserPlus className="h-4 w-4" />
+                <p className="font-bold text-sm">{ar ? "دعوة عضو جديد" : "Invite a new member"}</p>
+              </div>
+              <span className={`text-[11px] font-bold px-2 py-1 rounded-full ${atLimit ? "bg-burgundy/10 text-burgundy" : "bg-sage-100 text-sage-600"}`}>
+                {usage} / {allowanceLabel} {ar ? "عضو" : "members"}
+              </span>
             </div>
+            {atLimit && (
+              <div className="text-[11px] bg-terracotta/10 text-terracotta rounded-xl p-2.5 leading-relaxed">
+                {ar ? "وصلت لحد الباقة. رقّ الباقة لإضافة أعضاء إضافيين." : "Plan limit reached. Upgrade to add more members."}
+              </div>
+            )}
             <div className="space-y-2">
               <Label className="text-xs text-sage-600 font-semibold">{ar ? "المبنى" : "Building"}</Label>
               <select value={building} onChange={(e) => setBuilding(e.target.value)}
@@ -140,7 +171,7 @@ export default function Team() {
                 ))}
               </div>
             </div>
-            <Button onClick={invite} disabled={busy || !email.trim()}
+            <Button onClick={invite} disabled={busy || !email.trim() || atLimit}
               className="w-full rounded-xl bg-gradient-sage text-primary-foreground font-semibold">
               {ar ? "إرسال الدعوة" : "Send invitation"}
             </Button>

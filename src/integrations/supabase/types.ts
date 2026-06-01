@@ -1513,6 +1513,7 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      get_plan_member_limit: { Args: { _plan: string }; Returns: number }
       get_plan_unit_limit: { Args: { _plan: string }; Returns: number }
       has_active_subscription: {
         Args: { check_env?: string; user_uuid: string }
@@ -1583,6 +1584,8 @@ export type Database = {
         }
       }
       user_active_plan: { Args: { _user_id: string }; Returns: string }
+      user_member_allowance: { Args: { _user_id: string }; Returns: number }
+      user_member_count: { Args: { _user_id: string }; Returns: number }
       user_unit_allowance: { Args: { _user_id: string }; Returns: number }
     }
     Enums: {
