@@ -616,6 +616,8 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         newNumbersConsumed += 1;
       }
     });
+
+    const { error } = await supabase.from("payments").insert(rows);
     // Unit state (last_paid_date + status) is recomputed automatically by the
     // DB trigger `sync_unit_state_from_payments_trg` — no client-side recompute
     // is needed. This keeps a single source of truth and avoids races.
