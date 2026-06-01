@@ -34,7 +34,13 @@ interface Row {
   tenant_name: string | null;
   unit_status: string;
   period_start: string | null;
+  period_end: string | null;
+  tenancy_id: string | null;
   remaining: number;
+  /** Display-only suffix derived from cycle context when the stored
+   *  `receipt_number` has none. Lets legacy receipts visually join the new
+   *  partial-cycle system without DB writes. */
+  derivedMeta?: DerivedPartialMeta;
   /** Minimal unit context needed to rebuild the canonical cycle label
    *  (contract_start_date drives whether the receipt shows a full month or
    *  a D/M → (D-1)/(M+1) range). */
