@@ -134,10 +134,20 @@ export default function Team() {
         <div className="px-5 pt-5 space-y-5">
           {/* Invite form */}
           <div className="bg-card border border-sage-200/60 rounded-2xl p-4 shadow-soft space-y-3">
-            <div className="flex items-center gap-2 text-sage-600">
-              <UserPlus className="h-4 w-4" />
-              <p className="font-bold text-sm">{ar ? "دعوة عضو جديد" : "Invite a new member"}</p>
+            <div className="flex items-center justify-between gap-2 text-sage-600">
+              <div className="flex items-center gap-2">
+                <UserPlus className="h-4 w-4" />
+                <p className="font-bold text-sm">{ar ? "دعوة عضو جديد" : "Invite a new member"}</p>
+              </div>
+              <span className={`text-[11px] font-bold px-2 py-1 rounded-full ${atLimit ? "bg-burgundy/10 text-burgundy" : "bg-sage-100 text-sage-600"}`}>
+                {usage} / {allowanceLabel} {ar ? "عضو" : "members"}
+              </span>
             </div>
+            {atLimit && (
+              <div className="text-[11px] bg-terracotta/10 text-terracotta rounded-xl p-2.5 leading-relaxed">
+                {ar ? "وصلت لحد الباقة. رقّ الباقة لإضافة أعضاء إضافيين." : "Plan limit reached. Upgrade to add more members."}
+              </div>
+            )}
             <div className="space-y-2">
               <Label className="text-xs text-sage-600 font-semibold">{ar ? "المبنى" : "Building"}</Label>
               <select value={building} onChange={(e) => setBuilding(e.target.value)}
@@ -161,7 +171,7 @@ export default function Team() {
                 ))}
               </div>
             </div>
-            <Button onClick={invite} disabled={busy || !email.trim()}
+            <Button onClick={invite} disabled={busy || !email.trim() || atLimit}
               className="w-full rounded-xl bg-gradient-sage text-primary-foreground font-semibold">
               {ar ? "إرسال الدعوة" : "Send invitation"}
             </Button>
