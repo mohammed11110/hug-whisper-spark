@@ -10,7 +10,20 @@ import { useCurrency } from "@/lib/currency";
 import { AddMaintenanceDialog } from "@/components/AddMaintenanceDialog";
 import { EditMaintenanceDialog } from "@/components/EditMaintenanceDialog";
 import { logActivity } from "@/lib/activityLogger";
+import { resolveMaintenancePhotoUrl } from "@/lib/maintenancePhotos";
 import { toast } from "sonner";
+
+function MaintenancePhoto({ value }: { value: string }) {
+  const [url, setUrl] = useState<string>("");
+  useEffect(() => { let alive = true; resolveMaintenancePhotoUrl(value).then((u) => { if (alive) setUrl(u); }); return () => { alive = false; }; }, [value]);
+  if (!url) return <div className="aspect-square rounded-lg bg-sage-100/40 border border-sage-200 animate-pulse" />;
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer" className="aspect-square rounded-lg overflow-hidden border border-sage-200 block">
+      <img src={url} alt="" loading="lazy" className="w-full h-full object-cover" />
+    </a>
+  );
+}
+
 
 interface Req {
   id: string; building_id: string; unit_id: string | null;
