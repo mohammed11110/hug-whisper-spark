@@ -196,6 +196,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
             unit_number: u.unit_number,
             building_id: u.building_id,
             tenant_name: u.tenant_name,
+            tenant_phone: u.tenant_phone,
             rent_amount: Number(u.rent_amount),
             rent_type: u.rent_type || "monthly",
             building_name: bMap.get(u.building_id)?.name || bMap.get(u.building_id)?.name_en || "—",
