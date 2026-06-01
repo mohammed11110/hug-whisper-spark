@@ -139,8 +139,8 @@ export default function Settings() {
 
 
   // ---- Receipt builder helpers ----
-  const setPrefix = (p: string) => update({ receipt: { ...settings.receipt, prefix: p } });
-  const setPadding = (n: number) => update({ receipt: { ...settings.receipt, padding: Math.max(0, Math.min(6, n)) } });
+  const setPrefix = (p: string) => { update({ receipt: { ...settings.receipt, prefix: p } }); void saveReceiptSettings({ prefix: p }); };
+  const setPadding = (n: number) => { const v = Math.max(0, Math.min(6, n)); update({ receipt: { ...settings.receipt, padding: v } }); void saveReceiptSettings({ padding: v }); };
   const receiptPreview = useMemo(() => formatReceipt(settings.receipt), [settings.receipt]);
 
   // ---- Import / Export settings ----
