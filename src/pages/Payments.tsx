@@ -345,7 +345,7 @@ export default function Payments() {
           <div style="margin-top:18px;padding:16px 18px;background:#f6faf3;border:1px solid #cdd9c8;border-radius:14px">
             <div style="font-size:11px;color:#7a8a78;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;font-weight:700">${L.summary}</div>
             <div class="row"><span>${L.total_due}</span><b>${format(receiptTotalDue)}</b></div>
-            <div class="row" style="border-bottom:none"><span>${L.amount_paid}</span><b style="color:#3a6b3a;font-size:15px">− ${format(r.amount)}</b></div>
+            <div class="row" style="border-bottom:none"><span>${L.amount_paid}</span><b style="color:#3a6b3a;font-size:15px">− ${format(cumulativePaid)}${cumulativePaid !== r.amount ? ` <span style="font-weight:600;font-size:11px;color:#7a8a78">(${lng === "ar" ? "هذه الدفعة" : "this payment"}: ${format(r.amount)})</span>` : ''}</b></div>
           </div>
 
           <div class="total"><span>${L.amount_paid}</span><span>${format(r.amount)}</span></div>
