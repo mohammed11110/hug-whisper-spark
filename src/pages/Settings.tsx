@@ -653,44 +653,71 @@ export default function Settings() {
                   <Printer className="h-4 w-4 text-sage-600" />
                   <p className="font-bold text-sm text-sage-600">{tr(lang, "ترقيم الإيصالات", "Receipt numbering")}</p>
                 </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  {tr(lang,
+                    "اكتب أول رقم تريد أن يظهر على إيصالاتك. سنستخرج البادئة وعدد الخانات تلقائياً.",
+                    "Type the first number you want to appear on your receipts. We'll detect the prefix and digit count automatically.")}
+                </p>
 
-                <div className="flex flex-wrap gap-1.5">
-                  {PREFIX_PRESETS.map((p) => (
-                    <button key={p} onClick={() => setPrefix(p)}
-                      className={`text-xs font-mono font-bold rounded-lg px-2.5 py-1 transition ${
-                        settings.receipt.prefix === p ? "bg-sage-500 text-white" : "bg-sage-100 text-sage-600 hover:bg-sage-200"
-                      }`}>{p}</button>
-                  ))}
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <Field label={tr(lang, "بادئة مخصصة", "Custom prefix")}>
-                    <Input value={settings.receipt.prefix} maxLength={10}
-                      onChange={(e) => setPrefix(e.target.value)}
-                      className="rounded-xl border-sage-200 bg-card h-10 font-mono" />
-                  </Field>
-                  <Field label={tr(lang, "خانات الرقم", "Number digits")}>
-                    <div className="flex items-center gap-2 h-10 bg-card border border-sage-200 rounded-xl px-3">
-                      <input type="range" min={1} max={6} value={settings.receipt.padding || 1}
-                        onChange={(e) => setPadding(parseInt(e.target.value))}
-                        className="flex-1 accent-sage-500" />
-                      <span className="font-mono font-bold text-sage-600 text-sm w-5 text-center">{settings.receipt.padding || 1}</span>
-                    </div>
-                  </Field>
-                </div>
+                <Field label={tr(lang, "أول رقم على إيصالاتك", "Your first receipt number")}>
+                  <Input
+                    value={receiptDraft}
+                    maxLength={20}
+                    placeholder="R-01001"
+                    onChange={(e) => setReceiptDraft(e.target.value)}
+                    className="rounded-xl border-sage-200 bg-card h-12 font-mono text-base font-bold text-center tracking-wider"
+                    dir="ltr"
+                  />
+                </Field>
 
                 <div className="flex items-center justify-between gap-2 bg-sage-100/70 rounded-xl px-4 py-3">
                   <div className="text-[11px] text-sage-600">
-                    <p className="opacity-70">{tr(lang, "معاينة الرقم التالي", "Next number preview")}</p>
-                    <p className="font-mono font-black text-lg text-sage-700">{receiptPreview}</p>
+                    <p className="opacity-70">{tr(lang, "هكذا سيظهر", "It will look like")}</p>
+                    <p className="font-mono font-black text-lg text-sage-700">{parsedDraft ? draftPreview : "—"}</p>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => resetReceiptNumber()}
-                    className="rounded-lg h-8 text-xs border-sage-300">
-                    <RotateCcw className="h-3 w-3 me-1" /> {tr(lang, "صفر", "Reset")}
+                  <Button
+                    size="sm"
+                    onClick={saveReceiptDraft}
+                    disabled={!parsedDraft || !draftDirty || savingReceipt}
+                    className="rounded-lg h-9 text-xs bg-sage-500 hover:bg-sage-600 text-white disabled:opacity-50"
+                  >
+                    {savingReceipt
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      : <><Check className="h-3.5 w-3.5 me-1" /> {tr(lang, "حفظ التغيير", "Save change")}</>
+                    }
                   </Button>
                 </div>
+
+                {!parsedDraft && receiptDraft && (
+                  <p className="text-[11px] text-burgundy">
+                    {tr(lang, "يجب أن ينتهي الرقم بأرقام (مثال: R-01001).", "The value must end with digits (e.g. R-01001).")}
+                  </p>
+                )}
+
+                <div className="flex items-start gap-2 bg-sage-50 border border-sage-100 rounded-xl px-3 py-2.5">
+                  <Mail className="h-3.5 w-3.5 text-sage-500 mt-0.5 shrink-0" />
+                  <p className="text-[11px] text-sage-600 leading-relaxed">
+                    {tr(lang,
+                      "لحماية حسابك: سيصلك إيميل تأكيد على بريد حسابك في كل مرة يتغيّر فيها ترقيم الإيصالات.",
+                      "For your security: a confirmation email is sent to your account address every time the receipt numbering changes.")}
+                  </p>
+                </div>
+
+                <details className="text-[11px] text-sage-500">
+                  <summary className="cursor-pointer hover:text-sage-700 transition">
+                    {tr(lang, "خيارات متقدمة", "Advanced")}
+                  </summary>
+                  <div className="mt-2 flex items-center justify-between gap-2 bg-card border border-sage-100 rounded-xl px-3 py-2">
+                    <span>{tr(lang, "إعادة العداد إلى رقم البداية", "Reset counter to start number")}</span>
+                    <Button variant="outline" size="sm" onClick={() => resetReceiptNumber()}
+                      className="rounded-lg h-7 text-[11px] border-sage-300">
+                      <RotateCcw className="h-3 w-3 me-1" /> {tr(lang, "صفر", "Reset")}
+                    </Button>
+                  </div>
+                </details>
               </div>
             </Card>
+
           </TabsContent>
 
           {/* ============== SECURE ============== */}
