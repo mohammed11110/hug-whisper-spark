@@ -1,5 +1,6 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
 import { DEFAULT_TEMPLATES } from "@/lib/whatsapp";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface StatusColor { bg: string; fg: string }
 export type PageSize = "A4" | "A5" | "Letter";
