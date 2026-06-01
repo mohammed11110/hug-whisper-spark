@@ -19,6 +19,7 @@ import type { ReceiptNumbering } from "@/lib/appSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { buildReceiptHTML, downloadHTMLAsPDF } from "@/lib/pdfDocs";
+import { openWhatsApp, fillTemplate } from "@/lib/whatsapp";
 import { logActivity } from "@/lib/activityLogger";
 import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
 import { z } from "zod";
