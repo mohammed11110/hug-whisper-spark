@@ -68,7 +68,7 @@ interface Ctx {
   update: (patch: Partial<AppSettings>) => void;
   setStatusColor: (k: keyof AppSettings["statusColors"], c: StatusColor) => void;
   reset: () => void;
-  bumpReceiptNumber: () => void;
+  bumpReceiptNumber: (delta?: number) => void;
   resetReceiptNumber: () => void;
 }
 
