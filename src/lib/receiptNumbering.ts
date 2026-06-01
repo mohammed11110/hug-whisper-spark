@@ -307,6 +307,8 @@ export function derivePartialMetaForDisplay(
         cycleClosed: true,
         positionInCycle: 1,
         cycleSize: 1,
+        cycleDue: Number(p.amount) || 0,
+        cumulativePaid: Number(p.amount) || 0,
       });
     }
   }
