@@ -197,6 +197,10 @@ export interface DerivedPartialMeta {
   positionInCycle: number;
   /** Number of installments in the cycle (including this one). */
   cycleSize: number;
+  /** Declared total due for the cycle (expected_amount or sum fallback). */
+  cycleDue: number;
+  /** Sum of all non-deleted payments in this cycle UP TO AND INCLUDING this one. */
+  cumulativePaid: number;
 }
 
 export function derivePartialMetaForDisplay(
