@@ -81,12 +81,17 @@ const COPY: Record<Kind, Copy> = {
   },
 };
 
+function escHtml(v: string) {
+  return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 function emailHtml(c: Copy, name: string) {
+  const safeName = escHtml(name || 'عميلنا الكريم');
   return `<!doctype html><html lang="ar" dir="rtl"><body style="font-family:-apple-system,Tahoma,Arial;background:#faf6ee;padding:32px;color:#2c3a2e">
 <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:24px;padding:32px;border:1px solid rgba(95,126,101,.12)">
 <h1 style="color:#5f7e65;font-size:24px;margin:0 0 16px">أملاكي</h1>
 <h2 style="font-size:20px;margin:0 0 12px">${c.title_ar}</h2>
-<p style="font-size:15px;line-height:1.7;color:#4a5a4d">مرحباً ${name || 'عميلنا الكريم'}،</p>
+<p style="font-size:15px;line-height:1.7;color:#4a5a4d">مرحباً ${safeName}،</p>
 <p style="font-size:15px;line-height:1.7">${c.body_ar}</p>
 <div style="margin:24px 0">
 <a href="https://amlaki1.app${c.action_url}" style="display:inline-block;background:#a89456;color:#fff;padding:14px 28px;border-radius:12px;text-decoration:none;font-weight:700">${c.action_url === '/backup' ? 'تصدير البيانات' : 'اشترك الآن'}</a>
