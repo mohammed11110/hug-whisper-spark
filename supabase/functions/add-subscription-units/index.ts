@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    if (subErr) return jsonResponse({ error: 'db_error', details: subErr.message }, 500);
+    if (subErr) { console.error('add-subscription-units db error', subErr); return jsonResponse({ error: 'db_error' }, 500); }
     if (!sub?.paddle_subscription_id) {
       return jsonResponse({ error: 'no_active_subscription' }, 400);
     }
