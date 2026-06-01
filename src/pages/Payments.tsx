@@ -70,16 +70,18 @@ const RECEIPT_TXT = {
     unit_number: "رقم الوحدة", status: "الحالة", tenant_name: "المستأجر",
     rent_month: "شهر الإيجار", amount_paid: "المبلغ المدفوع", receipt: "إيصال استلام",
     paid: "مدفوع", late: "متأخر", soon: "قريباً",
-    total_due: "إجمالي المستحق قبل الدفع", remaining_after: "المتبقي بعد الدفع", settled: "مسدد بالكامل",
+    total_due: "إجمالي مستحق الدورة", remaining_after: "المتبقي على الدورة", settled: "مسدد بالكامل",
     summary: "ملخص الدفعة",
+    other_outstanding: "متأخرات أخرى على الوحدة",
   },
   en: {
     receipt_number: "Receipt #", payment_date: "Payment date", building_name: "Building",
     unit_number: "Unit #", status: "Status", tenant_name: "Tenant",
     rent_month: "Rent month", amount_paid: "Amount paid", receipt: "Payment Receipt",
     paid: "Paid", late: "Late", soon: "Upcoming",
-    total_due: "Total due before payment", remaining_after: "Remaining after payment", settled: "Fully settled",
+    total_due: "Cycle total due", remaining_after: "Cycle remaining", settled: "Fully settled",
     summary: "Payment summary",
+    other_outstanding: "Other outstanding on unit",
   },
 } as const;
 type RLang = keyof typeof RECEIPT_TXT;
@@ -241,16 +243,23 @@ export default function Payments() {
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#39;");
-    const receiptTotalDue = r.expected_amount && r.expected_amount > 0 ? r.expected_amount : r.remaining + r.amount;
-    const receiptRemaining = Math.max(0, receiptTotalDue - r.amount);
+    // Cycle-only totals — never mix in arrears from other months.
+    const cycleDue =
+      r.expected_amount && r.expected_amount > 0 ? r.expected_amount : r.amount;
+    const receiptTotalDue = cycleDue;
+    const receiptRemaining = Math.max(0, cycleDue - r.amount);
+    // Outstanding on the unit that belongs to OTHER cycles (informative only).
+    const otherOutstanding = Math.max(0, r.remaining - receiptRemaining);
     const sc = settings.statusColors;
     const statusColors: Record<string, { bg: string; fg: string; label: string }> = {
       paid: { bg: sc.paid.bg, fg: sc.paid.fg, label: L.paid },
       late: { bg: sc.late.bg, fg: sc.late.fg, label: L.late },
       soon: { bg: sc.soon.bg, fg: sc.soon.fg, label: L.soon },
     };
-    const us = statusColors[r.unit_status] || statusColors.soon;
-    const showStatus = r.unit_status !== "soon";
+    // Status describes THIS receipt's cycle, not the whole unit.
+    const cycleStatusKey = receiptRemaining <= 0.009 ? "paid" : "late";
+    const us = statusColors[cycleStatusKey];
+    const showStatus = true;
     const brand = settings.brand;
     const brandHeader = brand.logo
       ? `<img src="${esc(brand.logo)}" style="height:46px;object-fit:contain"/>`
@@ -308,6 +317,10 @@ export default function Payments() {
           <div class="remaining" style="margin-top:10px;padding:14px 18px;border-radius:14px;display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:14px;${receiptRemaining > 0 ? 'background:#f8e6e6;color:#8a2a2a;border:1px solid #e8c2c2' : 'background:#e7f1de;color:#3a6b3a;border:1px solid #bcd4ad'}">
             <span>${L.remaining_after}</span><span>${format(receiptRemaining)}${receiptRemaining === 0 ? ` · ${L.settled}` : ''}</span>
           </div>
+          ${otherOutstanding > 0.009 ? `
+          <div style="margin-top:8px;padding:10px 16px;border-radius:12px;display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:12px;background:#f7ede4;color:#8a5a2a;border:1px dashed #d9b893">
+            <span>${L.other_outstanding}</span><span>${format(otherOutstanding)}</span>
+          </div>` : ""}
           <div class="footer">— ${L.receipt} —</div>
         </div>
       </body></html>`;
