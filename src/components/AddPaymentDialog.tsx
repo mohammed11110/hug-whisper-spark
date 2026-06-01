@@ -793,7 +793,32 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     } catch (e: any) {
       console.warn("receipt PDF failed", e);
     }
+    // Auto-open WhatsApp with the receipt message if enabled.
+    try {
+      if (!settings.autoSendReceiptWhatsApp) return;
+      const u = units.find((x) => x.id === unitId);
+      const phone = u?.tenant_phone || "";
+      if (!phone) {
+        toast.message(lang === "ar" ? "لا يوجد رقم واتساب للمستأجر" : "No WhatsApp number for tenant");
+        return;
+      }
+      const ba = payload.baseArgs;
+      const remaining = Number(payload.unpaidTotal) || 0;
+      const msg = fillTemplate(settings.templates.receipt, {
+        tenant: ba.tenantName || "",
+        unit: ba.unitNumber || "",
+        building: ba.building || "",
+        amount: format(Number(ba.amount) || 0),
+        date: ba.paymentDate || "",
+        remaining: format(remaining),
+      });
+      // Slight delay so the PDF download finishes/UI updates first.
+      setTimeout(() => openWhatsApp(phone, msg), 300);
+    } catch (e: any) {
+      console.warn("whatsapp open failed", e);
+    }
   };
+
 
   const finishAndClose = () => {
     setAmount(""); setReceipt(""); setNotes(""); setCollectPriorArrears(false); setIncludeArrearsInReceipt(false); if (!presetUnitId) setUnitId("");
