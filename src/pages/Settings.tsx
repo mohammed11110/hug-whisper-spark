@@ -52,7 +52,7 @@ export default function Settings() {
   const { isAdmin } = useAdmin();
   const navigate = useNavigate();
   const { currency, setCurrency } = useCurrency();
-  const { settings, update, reset, resetReceiptNumber } = useAppSettings();
+  const { settings, update, reset, resetReceiptNumber, saveReceiptSettings } = useAppSettings();
   const { theme, setTheme } = useTheme();
   const sub = useSubscription();
 
