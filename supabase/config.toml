@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.get-paddle-price]
 verify_jwt = false
+
+[functions.subscription-lifecycle]
+verify_jwt = true

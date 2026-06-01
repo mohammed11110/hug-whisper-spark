@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    if (subErr) return jsonResponse({ error: 'db_error', details: subErr.message }, 500);
+    if (subErr) { console.error('add-subscription-units db error', subErr); return jsonResponse({ error: 'db_error' }, 500); }
     if (!sub?.paddle_subscription_id) {
       return jsonResponse({ error: 'no_active_subscription' }, 400);
     }
@@ -89,7 +89,8 @@ Deno.serve(async (req) => {
     const subRes = await gatewayFetch(env, `/subscriptions/${sub.paddle_subscription_id}`);
     if (!subRes.ok) {
       const text = await subRes.text();
-      return jsonResponse({ error: 'paddle_fetch_failed', details: text }, 502);
+      console.error('paddle_fetch_failed', text);
+      return jsonResponse({ error: 'paddle_fetch_failed' }, 502);
     }
     const subJson = await subRes.json();
     const currentItems = subJson?.data?.items ?? [];
@@ -123,7 +124,8 @@ Deno.serve(async (req) => {
     });
     if (!patchRes.ok) {
       const text = await patchRes.text();
-      return jsonResponse({ error: 'paddle_update_failed', details: text }, 502);
+      console.error('paddle_update_failed', text);
+      return jsonResponse({ error: 'paddle_update_failed' }, 502);
     }
 
     // Webhook will update addon_units; but also patch the row immediately so the UI reflects it.
@@ -136,6 +138,6 @@ Deno.serve(async (req) => {
     return jsonResponse({ success: true, added: quantity, total_addon_units: (sub.addon_units ?? 0) + quantity });
   } catch (e) {
     console.error('add-subscription-units error', e);
-    return jsonResponse({ error: 'internal_error', details: String(e) }, 500);
+    return jsonResponse({ error: 'internal_error' }, 500);
   }
 });
