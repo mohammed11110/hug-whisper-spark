@@ -153,7 +153,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   useEffect(() => {
     if (!open) return;
     (async () => {
-      const { data: us } = await supabase.from("units").select("id, unit_number, tenant_name, rent_amount, rent_type, rent_timing, building_id, contract_start_date, opening_balance, opening_balance_date").order("unit_number");
+      const { data: us } = await supabase.from("units").select("id, unit_number, tenant_name, tenant_phone, rent_amount, rent_type, rent_timing, building_id, contract_start_date, opening_balance, opening_balance_date").order("unit_number");
       const ids = Array.from(new Set((us || []).map((u: any) => u.building_id)));
       const { data: bs } = ids.length
         ? await supabase.from("buildings").select("id, name, name_en").in("id", ids)
