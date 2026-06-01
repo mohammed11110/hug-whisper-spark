@@ -139,9 +139,104 @@ export default function Settings() {
 
 
   // ---- Receipt builder helpers ----
-  const setPrefix = (p: string) => { update({ receipt: { ...settings.receipt, prefix: p } }); void saveReceiptSettings({ prefix: p }); };
-  const setPadding = (n: number) => { const v = Math.max(0, Math.min(6, n)); update({ receipt: { ...settings.receipt, padding: v } }); void saveReceiptSettings({ padding: v }); };
+  // Live preview uses the *current saved* settings.
   const receiptPreview = useMemo(() => formatReceipt(settings.receipt), [settings.receipt]);
+
+  // Simplified wizard: one input "first receipt number" → derive prefix/start/padding.
+  // Examples:  "R-01001" → { prefix: "R-", start: 1001, padding: 4 }
+  //            "INV-100" → { prefix: "INV-", start: 100, padding: 3 }
+  //            "0001"    → { prefix: "",   start: 1,    padding: 4 }
+  const composedReceipt = useMemo(() => {
+    const base = formatReceipt(settings.receipt, settings.receipt.startNumber);
+    // formatReceipt always inserts a leading 0 before the numeric block — strip it for editing.
+    const m = base.match(/^(.*?)0(\d+)$/);
+    return m ? `${m[1]}${m[2]}` : base;
+  }, [settings.receipt]);
+
+  const [receiptDraft, setReceiptDraft] = useState<string>(composedReceipt);
+  const [savingReceipt, setSavingReceipt] = useState(false);
+
+  // Keep draft synced when server reloads settings (initial fetch / external change).
+  React.useEffect(() => { setReceiptDraft(composedReceipt); }, [composedReceipt]);
+
+  const parseReceiptDraft = (raw: string) => {
+    const v = (raw || "").trim();
+    const m = v.match(/^(.*?)(\d+)$/);
+    if (!m) return null;
+    const prefix = m[1] || "";
+    const numStr = m[2];
+    const startNumber = Math.max(1, parseInt(numStr, 10) || 1);
+    const padding = Math.min(6, Math.max(0, numStr.length));
+    return { prefix, startNumber, padding };
+  };
+
+  const parsedDraft = useMemo(() => parseReceiptDraft(receiptDraft), [receiptDraft]);
+  const draftDirty = useMemo(() => {
+    if (!parsedDraft) return false;
+    const r = settings.receipt;
+    return parsedDraft.prefix !== (r.prefix || "")
+      || parsedDraft.startNumber !== (r.startNumber || 1)
+      || parsedDraft.padding !== (r.padding || 0);
+  }, [parsedDraft, settings.receipt]);
+
+  const draftPreview = useMemo(() => {
+    if (!parsedDraft) return "—";
+    return formatReceipt(
+      { ...settings.receipt, prefix: parsedDraft.prefix, padding: parsedDraft.padding, startNumber: parsedDraft.startNumber, nextNumber: parsedDraft.startNumber },
+      parsedDraft.startNumber,
+    );
+  }, [parsedDraft, settings.receipt]);
+
+  const saveReceiptDraft = async () => {
+    if (!parsedDraft || !draftDirty || savingReceipt) return;
+    setSavingReceipt(true);
+    const before = {
+      prefix: settings.receipt.prefix || "",
+      startNumber: settings.receipt.startNumber || 1,
+      padding: settings.receipt.padding || 0,
+    };
+    try {
+      update({ receipt: { ...settings.receipt, prefix: parsedDraft.prefix, padding: parsedDraft.padding, startNumber: parsedDraft.startNumber, nextNumber: parsedDraft.startNumber } });
+      await saveReceiptSettings({ prefix: parsedDraft.prefix, padding: parsedDraft.padding, startNumber: parsedDraft.startNumber });
+      // Reset counter so the new start applies immediately to future receipts.
+      await resetReceiptNumber();
+
+      // Fire-and-await confirmation email (non-blocking on failure).
+      const recipient = user?.email;
+      if (recipient) {
+        try {
+          await supabase.functions.invoke("send-transactional-email", {
+            body: {
+              templateName: "receipt-numbering-changed",
+              recipientEmail: recipient,
+              idempotencyKey: `receipt-num-change-${user?.id}-${Date.now()}`,
+              templateData: {
+                name: (user?.user_metadata as any)?.name || recipient,
+                oldPrefix: before.prefix || "—",
+                oldStart: String(before.startNumber),
+                oldPadding: String(before.padding),
+                newPrefix: parsedDraft.prefix || "—",
+                newStart: String(parsedDraft.startNumber),
+                newPadding: String(parsedDraft.padding),
+                nextPreview: draftPreview,
+                changedAt: new Date().toLocaleString(lang === "ar" ? "ar" : "en"),
+              },
+            },
+          });
+          toast.success(tr(lang, "تم الحفظ ✓ — أرسلنا تأكيداً إلى بريدك", "Saved ✓ — confirmation sent to your email"));
+        } catch {
+          toast.success(tr(lang, "تم الحفظ ✓", "Saved ✓"));
+        }
+      } else {
+        toast.success(tr(lang, "تم الحفظ ✓", "Saved ✓"));
+      }
+    } catch {
+      toast.error(tr(lang, "تعذّر الحفظ", "Couldn't save"));
+    } finally {
+      setSavingReceipt(false);
+    }
+  };
+
 
   // ---- Import / Export settings ----
   const exportSettings = () => {
