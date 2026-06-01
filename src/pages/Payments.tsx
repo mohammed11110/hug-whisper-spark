@@ -122,7 +122,7 @@ export default function Payments() {
     setLoading(true);
     const { data: pays } = await supabase
       .from("payments")
-      .select("id, unit_id, amount, expected_amount, payment_date, receipt_number, period_start")
+      .select("id, unit_id, amount, expected_amount, payment_date, receipt_number, period_start, period_end, tenancy_id, created_at, kind, deleted_at")
       .is("deleted_at", null)
       .order("payment_date", { ascending: false })
       .limit(500);
@@ -134,9 +134,9 @@ export default function Payments() {
     const { data: builds } = buildingIds.length
       ? await supabase.from("buildings").select("id, name, name_en").in("id", buildingIds)
       : { data: [] as any[] };
-    // All non-deleted payments for involved units (used for outstanding balance)
+    // All non-deleted payments for involved units (used for outstanding balance + cycle derivation).
     const { data: allPays } = unitIds.length
-      ? await supabase.from("payments").select("unit_id, amount, deleted_at, payment_date, period_start, period_end, tenancy_id, kind").in("unit_id", unitIds).is("deleted_at", null)
+      ? await supabase.from("payments").select("id, unit_id, amount, expected_amount, deleted_at, payment_date, period_start, period_end, tenancy_id, created_at, receipt_number, kind").in("unit_id", unitIds).is("deleted_at", null)
       : { data: [] as any[] };
     // Active-lease map keeps each unit's outstanding limited to the
     // current tenant — past tenant payments stay archived but don't bleed in.
@@ -144,6 +144,7 @@ export default function Payments() {
       ? await supabase.from("tenancies").select("id, unit_id").in("unit_id", unitIds).eq("status", "active")
       : { data: [] as any[] };
     const activeMap = new Map<string, string>((activeTs || []).map((t: any) => [t.unit_id, t.id]));
+    const activeTenancyIds = new Set<string>((activeTs || []).map((t: any) => t.id));
     const uMap = new Map((units || []).map((u: any) => [u.id, u]));
     const bMap = new Map((builds || []).map((b: any) => [b.id, b]));
     const remainingMap = new Map<string, number>();
@@ -151,6 +152,8 @@ export default function Payments() {
       const { totalShortfall } = getUnitArrears(u, allPays || [], new Date(), lang as "ar" | "en", activeMap.get(u.id) || null);
       remainingMap.set(u.id, totalShortfall);
     });
+    // Compute display-only partial metadata for every payment in scope.
+    const derivedMap = derivePartialMetaForDisplay((allPays || []) as any, { activeTenancyIds });
     const mapped: Row[] = (pays || []).map((p: any) => {
       const u: any = uMap.get(p.unit_id);
       const b: any = u ? bMap.get(u.building_id) : null;
@@ -162,11 +165,14 @@ export default function Payments() {
         payment_date: p.payment_date,
         receipt_number: p.receipt_number,
         period_start: p.period_start,
+        period_end: p.period_end ?? null,
+        tenancy_id: p.tenancy_id ?? null,
         unit_number: u?.unit_number ?? "—",
         tenant_name: u?.tenant_name ?? null,
         building_name: b?.name || b?.name_en || "—",
         unit_status: u?.status ?? "soon",
         remaining: remainingMap.get(p.unit_id) ?? 0,
+        derivedMeta: derivedMap.get(p.id),
         unit_ctx: {
           contract_start_date: u?.contract_start_date ?? null,
           opening_balance_date: u?.opening_balance_date ?? null,
@@ -177,6 +183,7 @@ export default function Payments() {
     setRows(mapped);
     setLoading(false);
   };
+
 
   useEffect(() => { load(); }, []);
   useEffect(() => {
