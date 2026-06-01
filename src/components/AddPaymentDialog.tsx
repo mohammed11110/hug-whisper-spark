@@ -591,13 +591,47 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     const suggested = formatReceipt(settings.receipt);
     const typed = receipt.trim();
     const userOverride = typed && typed !== suggested && !typed.includes("/") ? typed : null;
+
+    // ---- DRY RUN: count how many fresh numbers we need ----
+    const dryPriors: Record<string, CyclePaymentRef[]> = JSON.parse(JSON.stringify(priorByCycle));
+    let needed = 0;
+    rows.forEach((r, idx) => {
+      const k = cycleKey(r.period_start, r.period_end);
+      const prior = dryPriors[k] || [];
+      const res = computeReceiptNumber({
+        receipt: settings.receipt,
+        nextCounter: 0,
+        rowAmount: Number(r.amount) || 0,
+        rowExpected: r.expected_amount,
+        priorInCycle: prior,
+        userOverride: idx === 0 ? userOverride : null,
+      });
+      (dryPriors[k] ||= []).push({
+        amount: Number(r.amount) || 0,
+        expected_amount: r.expected_amount,
+        receipt_number: res.receiptNumber,
+      });
+      if (res.consumesNewNumber) needed += 1;
+    });
+
+    // ---- Atomic server-side reservation (shared across devices) ----
+    let receiptConfig: ReceiptNumbering = settings.receipt;
     let localCounter = settings.receipt.nextNumber || settings.receipt.startNumber || 1;
-    let newNumbersConsumed = 0;
+    if (needed > 0) {
+      const alloc = await allocateReceiptNumbers(needed);
+      if (!alloc) {
+        setSaving(false);
+        return toast.error(lang === "ar" ? "تعذّر حجز رقم الإيصال — حاول مرة أخرى" : "Failed to reserve receipt number — try again");
+      }
+      receiptConfig = { prefix: alloc.prefix, padding: alloc.padding, startNumber: alloc.startNumber, nextNumber: alloc.startNumber };
+      localCounter = alloc.startNumber;
+    }
+
     rows.forEach((r, idx) => {
       const k = cycleKey(r.period_start, r.period_end);
       const prior = priorByCycle[k] || [];
       const res = computeReceiptNumber({
-        receipt: settings.receipt,
+        receipt: receiptConfig,
         nextCounter: localCounter,
         rowAmount: Number(r.amount) || 0,
         rowExpected: r.expected_amount,
@@ -614,7 +648,6 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
       });
       if (res.consumesNewNumber) {
         localCounter += 1;
-        newNumbersConsumed += 1;
       }
     });
 
