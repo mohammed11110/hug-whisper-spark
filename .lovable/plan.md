@@ -1,64 +1,30 @@
-## الهدف
+## المشكلة
+دالة `redeem_promo_code` تُحدّث `profiles.subscription_plan` فقط، لكن واجهة المستخدم (`useSubscription`, `user_active_plan`, `account_phase`) تقرأ من جدول `subscriptions` حصراً، فلا يظهر أثر الكود.
 
-تبسيط ضبط ترقيم الإيصالات في الإعدادات، وإرسال إيميل تأكيد للمالك في كل مرة يتغيّر فيها أي حقل من حقول الترقيم (البادئة / الخانات / رقم البداية).
+## الحل
+ترحيل واحد على قاعدة البيانات — لا تغيير في الواجهة أو منطق Paddle.
 
----
+### 1) تحديث `public.redeem_promo_code`
+بعد تحديث `profiles`، إدراج صف اصطناعي في `subscriptions`:
+- `user_id` = المستخدم
+- `paddle_subscription_id` = `'promo_' || code` (فريد)
+- `paddle_customer_id` = `'promo_customer'`
+- `product_id` = `'amlaki_' || plan` (مثلاً `amlaki_business`)
+- `price_id` = `'promo_' || plan`
+- `status` = `'active'`
+- `environment` = `'live'` (يلتقطه `useSubscription`)
+- `current_period_end` = تاريخ الانتهاء المحسوب
+- `current_period_start` = `now()`
 
-## 1) تبسيط واجهة الضبط (Settings.tsx — تبويب Print)
+مع `ON CONFLICT (paddle_subscription_id)` لتجنّب التكرار.
 
-استبدال البطاقة الحالية المزدحمة (بادئات سريعة + بادئة مخصصة + سلايدر خانات + زر Reset + معاينة) ببطاقة موحّدة "ويزارد سريع" أبسط:
+### 2) إصلاح يدوي للمستخدم الذي استخدم الكود مسبقاً
+`INSERT` واحد يقرأ من `promo_codes` حيث `code = 'AMLAKI-LIFE-0NXS9QNW'` وينشئ صف الاشتراك له الآن.
 
-- **حقل واحد كبير "أول رقم سيظهر على إيصالاتك"** يكتب فيه المالك مثلاً `R-01001` ونحن نفصله تلقائياً إلى:
-  - بادئة = `R-`
-  - رقم البداية = `1001`
-  - الخانات = `4` (تُستنتج من طول الجزء الرقمي)
-- معاينة حيّة كبيرة أسفل الحقل (الرقم التالي، نفس الـ token سيج المستخدم اليوم).
-- **زر واحد فقط "حفظ التغيير"** يظهر فقط عند وجود تعديل غير محفوظ (بدلاً من الحفظ الفوري في كل ضغطة).
-- إزالة شريط الـ presets المنفصل + السلايدر + الحقل المخصص + زر Reset من الواجهة الأمامية (يبقى منطق الـ reset متاحاً من Server لكن مخفي خلف "خيارات متقدمة" قابلة للطي).
-- شارة صغيرة تحت الحقل: "سيصلك إيميل تأكيد على بريد حسابك في كل تغيير".
+## لا تغيير في
+- `useSubscription.ts`، `Settings.tsx`، الواجهة
+- سياسات RLS، الأكواد الحالية، دوال Paddle، Webhooks
+- بيانات Paddle الحقيقية (الصف الاصطناعي معزول بـ `paddle_subscription_id` يبدأ بـ `promo_`)
 
----
-
-## 2) إيميل تأكيد التغيير
-
-عند ضغط "حفظ التغيير" بنجاح:
-
-- يُستدعى `send-transactional-email` من الواجهة مع:
-  - `templateName: 'receipt-numbering-changed'`
-  - `recipientEmail`: بريد الحساب (`user.email`)
-  - `idempotencyKey`: `receipt-num-change-${userId}-${timestamp}`
-  - `templateData`: `{ name, oldPrefix, oldStart, oldPadding, newPrefix, newStart, newPadding, nextPreview, changedAt }`
-- التوست في الواجهة يخبر المستخدم: "تم الحفظ ✓ — أرسلنا تأكيداً إلى بريدك".
-- لا يُرسل إيميل إذا لم تتغيّر أي قيمة فعلياً (مقارنة قبل/بعد).
-
----
-
-## 3) قالب الإيميل الجديد
-
-ملف React Email جديد:
-`supabase/functions/_shared/transactional-email-templates/receipt-numbering-changed.tsx`
-
-- التزام بالهوية البصرية للتطبيق (سيج/كريم، Outfit + Noto Kufi Arabic، حواف 12-16px، خلفية بيضاء للـ Body).
-- بنية: عنوان "تم تحديث ترقيم الإيصالات" + جدول صغير مقارن (قبل ← بعد) + سطر "الرقم التالي سيكون: R-01002" + تذنيب "إن لم يكن هذا أنت، راجع الإعدادات فوراً".
-- subject: `'تم تحديث ترقيم الإيصالات في حسابك على أملاكي'` (دالة تختار AR/EN حسب lang إن أمكن).
-- تسجيله في `_shared/transactional-email-templates/registry.ts`.
-
----
-
-## 4) المتطلبات قبل البث
-
-- التحقق من حالة نطاق البريد عبر `email_domain--check_email_domain_status`.
-- إن لم تكن البنية التحتية للإيميل جاهزة → `email_domain--setup_email_infra` ثم `email_domain--scaffold_transactional_email` (لأول مرة فقط — لاحقاً فقط إضافة القالب الجديد ونشره).
-- نشر الـ Edge Functions بعد إضافة القالب: `deploy_edge_functions(['send-transactional-email'])`.
-- لا تغيير على قاعدة البيانات إطلاقاً (نستخدم `update_receipt_settings` الموجود حالياً).
-
----
-
-## ملفات ستتغيّر
-
-- `src/pages/Settings.tsx` — استبدال بطاقة ترقيم الإيصالات بواجهة الويزارد المبسّطة + استدعاء إيميل التأكيد.
-- `supabase/functions/_shared/transactional-email-templates/receipt-numbering-changed.tsx` — قالب جديد.
-- `supabase/functions/_shared/transactional-email-templates/registry.ts` — تسجيل القالب.
-- (احتمال) `email_domain--setup_email_infra` + `scaffold_transactional_email` إذا لم تكن البنية موجودة بعد.
-
-لا تغيير على: `appSettings.tsx`, `receiptNumbering.ts`, قاعدة البيانات، RLS، أو منطق إنشاء الدفعات.
+## النتيجة
+بمجرد تنفيذ الترحيل: الباقة تظهر **Business** فوراً في كل أنحاء التطبيق، وأي كود مستقبلي يعمل تلقائياً.
