@@ -201,10 +201,8 @@ export default function Maintenance() {
             )}
             {r.photos && r.photos.length > 0 && (
               <div className="grid grid-cols-4 gap-1.5">
-                {r.photos.map((url, i) => (
-                  <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="aspect-square rounded-lg overflow-hidden border border-sage-200 block">
-                    <img src={url} alt="" loading="lazy" className="w-full h-full object-cover" />
-                  </a>
+                {r.photos.map((val, i) => (
+                  <MaintenancePhoto key={i} value={val} />
                 ))}
               </div>
             )}
