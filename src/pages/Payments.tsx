@@ -497,13 +497,34 @@ export default function Payments() {
                   {r.tenant_name && <p className="text-xs text-muted-foreground truncate mt-0.5">{r.tenant_name}</p>}
                   <div className="flex flex-wrap items-center gap-3 mt-2 text-[11px] text-sage-500">
                     <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{r.payment_date}</span>
-                    {r.receipt_number && <span className="font-mono">{r.receipt_number}</span>}
+                    {r.receipt_number && (
+                      <span className="font-mono inline-flex items-center gap-1">
+                        {r.receipt_number}
+                        {r.derivedMeta?.isComputed && r.derivedMeta.derivedSuffix && (
+                          <span className="font-sans not-italic text-[9px] font-bold px-1.5 py-0.5 rounded bg-sage-100 text-sage-500 tracking-normal" title={lang === "ar" ? "اللاحقة مُحتسبة من دورة الإيجار — رقم الإيصال الأصلي لم يتغيّر" : "Suffix derived from rent cycle — stored receipt # unchanged"}>
+                            /{r.derivedMeta.derivedSuffix} · {lang === "ar" ? "محسوب" : "auto"}
+                          </span>
+                        )}
+                      </span>
+                    )}
+                    {(() => {
+                      const sfx = r.derivedMeta?.derivedSuffix ?? suffixOf(r.receipt_number);
+                      if (!sfx) return null;
+                      if (isFinalSuffix(sfx)) {
+                        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sage-100 text-sage-600 font-bold" title={lang === "ar" ? "الدفعة الختامية — الدورة مسدّدة" : "Final payment — cycle settled"}>{lang === "ar" ? "ختامي" : "Final"}</span>;
+                      }
+                      if (isPartialSuffix(sfx)) {
+                        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-bold" style={{ background: "#f5e3cf", color: "#8a5a2a" }} title={lang === "ar" ? `دفعة جزئية ${sfx} — مرتبطة بدورة الإيجار` : `Partial installment ${sfx} — linked to rent cycle`}>{lang === "ar" ? `جزئي ${sfx}` : `Partial ${sfx}`}</span>;
+                      }
+                      return null;
+                    })()}
                     {r.period_start && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sage-100 text-sage-600 font-semibold">
                         {cycleLabel(r, lang)}
                       </span>
                     )}
                   </div>
+
                 </Link>
                 <div className="text-end">
                   <p className="font-black text-sage-600 text-lg whitespace-nowrap">{format(r.amount)}</p>
