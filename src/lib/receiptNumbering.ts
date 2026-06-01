@@ -197,6 +197,10 @@ export interface DerivedPartialMeta {
   positionInCycle: number;
   /** Number of installments in the cycle (including this one). */
   cycleSize: number;
+  /** Declared total due for the cycle (expected_amount or sum fallback). */
+  cycleDue: number;
+  /** Sum of all non-deleted payments in this cycle UP TO AND INCLUDING this one. */
+  cumulativePaid: number;
 }
 
 export function derivePartialMetaForDisplay(
@@ -220,6 +224,8 @@ export function derivePartialMetaForDisplay(
         cycleClosed: true,
         positionInCycle: 1,
         cycleSize: 1,
+        cycleDue: Number(p.amount) || 0,
+        cumulativePaid: Number(p.amount) || 0,
       });
       continue;
     }
@@ -233,6 +239,8 @@ export function derivePartialMetaForDisplay(
         cycleClosed: true,
         positionInCycle: 1,
         cycleSize: 1,
+        cycleDue: Number(p.amount) || 0,
+        cumulativePaid: Number(p.amount) || 0,
       });
       continue;
     }
@@ -282,6 +290,8 @@ export function derivePartialMetaForDisplay(
         cycleClosed: willClose,
         positionInCycle: idx + 1,
         cycleSize: list.length,
+        cycleDue: cycleDue as number,
+        cumulativePaid: running,
       });
     });
   }
@@ -297,6 +307,8 @@ export function derivePartialMetaForDisplay(
         cycleClosed: true,
         positionInCycle: 1,
         cycleSize: 1,
+        cycleDue: Number(p.amount) || 0,
+        cumulativePaid: Number(p.amount) || 0,
       });
     }
   }

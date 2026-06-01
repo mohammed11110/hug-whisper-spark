@@ -261,11 +261,15 @@ export default function Payments() {
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#39;");
-    // Cycle-only totals — never mix in arrears from other months.
-    const cycleDue =
-      r.expected_amount && r.expected_amount > 0 ? r.expected_amount : r.amount;
+    // Cycle-only totals — use cumulative cycle data so receipts reflect ALL
+    // installments of the same (unit + period), not just this single row.
+    const meta = r.derivedMeta;
+    const cycleDue = meta?.cycleDue && meta.cycleDue > 0
+      ? meta.cycleDue
+      : (r.expected_amount && r.expected_amount > 0 ? r.expected_amount : r.amount);
+    const cumulativePaid = meta?.cumulativePaid ?? r.amount;
     const receiptTotalDue = cycleDue;
-    const receiptRemaining = Math.max(0, cycleDue - r.amount);
+    const receiptRemaining = Math.max(0, cycleDue - cumulativePaid);
     // Outstanding on the unit that belongs to OTHER cycles (informative only).
     const otherOutstanding = Math.max(0, r.remaining - receiptRemaining);
     const sc = settings.statusColors;
@@ -275,18 +279,19 @@ export default function Payments() {
       soon: { bg: sc.soon.bg, fg: sc.soon.fg, label: L.soon },
       partial: { bg: "#f5e3cf", fg: "#8a5a2a", label: L.partial },
     };
-    // Cycle-level installment context (from receipt number suffix).
-    const sfx = suffixOf(r.receipt_number);
+    // Cycle-level installment context (suffix can come from stored or derived).
+    const sfx = meta?.derivedSuffix ?? suffixOf(r.receipt_number);
     const isPartialInstallment = isPartialSuffix(sfx);
-    const isFinalInstallment = isFinalSuffix(sfx);
+    const isFinalInstallment = isFinalSuffix(sfx) || (meta?.cycleClosed && (meta?.cycleSize ?? 1) > 1 && !isPartialInstallment);
     const partialIndex = isPartialInstallment ? parseInt(sfx as string, 10) : 0;
     const installmentNote = isPartialInstallment
       ? L.partial_note(partialIndex)
       : (isFinalInstallment ? L.final_note : "");
     // Status describes THIS receipt's cycle, not the whole unit.
+    const cycleClosed = receiptRemaining <= 0.009 || !!meta?.cycleClosed;
     const cycleStatusKey = isPartialInstallment
       ? "partial"
-      : (receiptRemaining <= 0.009 ? "paid" : "late");
+      : (cycleClosed ? "paid" : "late");
     const us = statusColors[cycleStatusKey];
     const showStatus = true;
     const brand = settings.brand;
@@ -340,7 +345,7 @@ export default function Payments() {
           <div style="margin-top:18px;padding:16px 18px;background:#f6faf3;border:1px solid #cdd9c8;border-radius:14px">
             <div style="font-size:11px;color:#7a8a78;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;font-weight:700">${L.summary}</div>
             <div class="row"><span>${L.total_due}</span><b>${format(receiptTotalDue)}</b></div>
-            <div class="row" style="border-bottom:none"><span>${L.amount_paid}</span><b style="color:#3a6b3a;font-size:15px">− ${format(r.amount)}</b></div>
+            <div class="row" style="border-bottom:none"><span>${L.amount_paid}</span><b style="color:#3a6b3a;font-size:15px">− ${format(cumulativePaid)}${cumulativePaid !== r.amount ? ` <span style="font-weight:600;font-size:11px;color:#7a8a78">(${lng === "ar" ? "هذه الدفعة" : "this payment"}: ${format(r.amount)})</span>` : ''}</b></div>
           </div>
 
           <div class="total"><span>${L.amount_paid}</span><span>${format(r.amount)}</span></div>
