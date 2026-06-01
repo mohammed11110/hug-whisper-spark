@@ -17,6 +17,7 @@ import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
 import { useAppSettings, readFilters, writeFilters } from "@/lib/appSettings";
 import { getUnitArrears, getCycleForPeriodStart } from "@/lib/balance";
+import { suffixOf, isPartialSuffix, isFinalSuffix } from "@/lib/receiptNumbering";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
@@ -69,19 +70,23 @@ const RECEIPT_TXT = {
     receipt_number: "رقم الإيصال", payment_date: "تاريخ الدفع", building_name: "المبنى",
     unit_number: "رقم الوحدة", status: "الحالة", tenant_name: "المستأجر",
     rent_month: "شهر الإيجار", amount_paid: "المبلغ المدفوع", receipt: "إيصال استلام",
-    paid: "مدفوع", late: "متأخر", soon: "قريباً",
+    paid: "مدفوع", late: "متأخر", soon: "قريباً", partial: "جزئي",
     total_due: "إجمالي مستحق الدورة", remaining_after: "المتبقي على الدورة", settled: "مسدد بالكامل",
     summary: "ملخص الدفعة",
     other_outstanding: "متأخرات أخرى على الوحدة",
+    partial_note: (n: number) => `دفعة جزئية رقم ${n} — الدورة قيد التحصيل`,
+    final_note: "الدفعة الختامية — الدورة مسدّدة بالكامل",
   },
   en: {
     receipt_number: "Receipt #", payment_date: "Payment date", building_name: "Building",
     unit_number: "Unit #", status: "Status", tenant_name: "Tenant",
     rent_month: "Rent month", amount_paid: "Amount paid", receipt: "Payment Receipt",
-    paid: "Paid", late: "Late", soon: "Upcoming",
+    paid: "Paid", late: "Late", soon: "Upcoming", partial: "Partial",
     total_due: "Cycle total due", remaining_after: "Cycle remaining", settled: "Fully settled",
     summary: "Payment summary",
     other_outstanding: "Other outstanding on unit",
+    partial_note: (n: number) => `Partial payment ${n} — cycle in progress`,
+    final_note: "Final payment — cycle fully settled",
   },
 } as const;
 type RLang = keyof typeof RECEIPT_TXT;
@@ -255,9 +260,20 @@ export default function Payments() {
       paid: { bg: sc.paid.bg, fg: sc.paid.fg, label: L.paid },
       late: { bg: sc.late.bg, fg: sc.late.fg, label: L.late },
       soon: { bg: sc.soon.bg, fg: sc.soon.fg, label: L.soon },
+      partial: { bg: "#f5e3cf", fg: "#8a5a2a", label: L.partial },
     };
+    // Cycle-level installment context (from receipt number suffix).
+    const sfx = suffixOf(r.receipt_number);
+    const isPartialInstallment = isPartialSuffix(sfx);
+    const isFinalInstallment = isFinalSuffix(sfx);
+    const partialIndex = isPartialInstallment ? parseInt(sfx as string, 10) : 0;
+    const installmentNote = isPartialInstallment
+      ? L.partial_note(partialIndex)
+      : (isFinalInstallment ? L.final_note : "");
     // Status describes THIS receipt's cycle, not the whole unit.
-    const cycleStatusKey = receiptRemaining <= 0.009 ? "paid" : "late";
+    const cycleStatusKey = isPartialInstallment
+      ? "partial"
+      : (receiptRemaining <= 0.009 ? "paid" : "late");
     const us = statusColors[cycleStatusKey];
     const showStatus = true;
     const brand = settings.brand;
@@ -294,6 +310,7 @@ export default function Payments() {
             <div>
               ${brandHeader}
               <p class="sub">${esc(L.receipt_number)} · ${esc(r.receipt_number || "—")}</p>
+              ${installmentNote ? `<p style="margin:4px 0 0;font-size:11px;font-weight:700;color:${isFinalInstallment ? "#3a6b3a" : "#8a5a2a"}">${esc(installmentNote)}</p>` : ""}
               ${brand.address || brand.phone ? `<p class="brand-meta">${esc(brand.address || "")} ${brand.phone ? "· " + esc(brand.phone) : ""}</p>` : ""}
             </div>
             ${showStatus ? `<span class="badge">${esc(us.label)}</span>` : ""}

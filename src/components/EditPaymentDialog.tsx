@@ -212,7 +212,20 @@ export function EditPaymentDialog({ open, onOpenChange, paymentId, onSaved }: Pr
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-sage-500">{t2("receipt_number")}</Label>
-              <Input value={receipt} onChange={(e) => setReceipt(e.target.value)} maxLength={50} className="rounded-xl border-sage-200 bg-card h-11" />
+              {receipt.includes("/") ? (
+                <>
+                  <div className="rounded-xl border border-dashed border-sage-200 bg-sage-100/30 px-3 py-2.5">
+                    <p className="text-sm font-mono font-bold text-sage-700">{receipt}</p>
+                  </div>
+                  <p className="text-[10px] text-sage-400 leading-relaxed">
+                    {lang === "ar"
+                      ? "هذا الإيصال جزء من دورة دفعات مرتبطة — لا يمكن تعديل الرقم."
+                      : "This receipt is part of a linked installment cycle — number can't be edited."}
+                  </p>
+                </>
+              ) : (
+                <Input value={receipt} onChange={(e) => setReceipt(e.target.value)} maxLength={50} className="rounded-xl border-sage-200 bg-card h-11" />
+              )}
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-sage-500">{t2("notes")}</Label>

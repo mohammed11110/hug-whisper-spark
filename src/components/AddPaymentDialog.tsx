@@ -14,6 +14,7 @@ import { useT2 } from "@/lib/i18n2";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
 import { useAppSettings, formatReceipt } from "@/lib/appSettings";
+import { computeReceiptNumber, type CyclePaymentRef } from "@/lib/receiptNumbering";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { buildReceiptHTML, downloadHTMLAsPDF } from "@/lib/pdfDocs";
@@ -493,7 +494,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     setSaving(true);
     const { data: activeT } = await supabase.from("tenancies").select("id").eq("unit_id", unitId).eq("status", "active").maybeSingle();
     const mergedNotes = [settlementNote, notes.trim()].filter(Boolean).join(" — ") || null;
-    const sharedReceipt = receipt.trim() || null;
+    // Per-row receipt numbers are computed below from cycle context.
     const rows: any[] = [];
 
     if (payMode === "auto" && distribution && distribution.allocations.length > 0) {
@@ -511,7 +512,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
           amount: a.amount,
           expected_amount: a.expected || null,
           payment_date: date,
-          receipt_number: sharedReceipt,
+          receipt_number: null,
           payment_method: method,
           notes: noteParts.join(" — "),
           period_start: a.periodStartIso,
@@ -527,7 +528,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
           amount: distribution.remainder,
           expected_amount: null,
           payment_date: date,
-          receipt_number: sharedReceipt,
+          receipt_number: null,
           payment_method: method,
           notes: (lang === "ar" ? "رصيد دائن" : "Credit balance") + (notes.trim() ? ` — ${notes.trim()}` : ""),
           period_start: null,
@@ -542,7 +543,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         amount: Number(amount),
         expected_amount: Number(expected) || null,
         payment_date: date,
-        receipt_number: sharedReceipt,
+        receipt_number: null,
         payment_method: method,
         notes: mergedNotes,
         period_start: submitPeriodStartIso || null,
@@ -556,7 +557,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
             amount: m.remaining,
             expected_amount: activeRent || null,
             payment_date: date,
-            receipt_number: sharedReceipt,
+            receipt_number: null,
             payment_method: method,
             notes: (lang === "ar" ? "تحصيل متأخرات" : "Arrears collection") + ` — ${m.label}`,
             period_start: m.periodStartIso,
@@ -565,6 +566,56 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         }
       }
     }
+
+    // === Assign receipt numbers per row with /1, /2, /D suffixes. ===
+    // Fetch all current non-deleted payments for this unit, then derive
+    // prior-in-cycle context per row (existing DB + earlier rows in this batch).
+    const { data: existingForUnit } = await supabase
+      .from("payments")
+      .select("amount, expected_amount, receipt_number, period_start, period_end")
+      .eq("unit_id", unitId)
+      .is("deleted_at", null);
+    const cycleKey = (s: string | null, e: string | null) => `${s || ""}|${e || ""}`;
+    const priorByCycle: Record<string, CyclePaymentRef[]> = {};
+    (existingForUnit || []).forEach((p: any) => {
+      const k = cycleKey(p.period_start, p.period_end);
+      (priorByCycle[k] ||= []).push({
+        amount: Number(p.amount) || 0,
+        expected_amount: p.expected_amount != null ? Number(p.expected_amount) : null,
+        receipt_number: p.receipt_number || null,
+      });
+    });
+    // Honor user override only if they typed something different from the
+    // suggested next number — and only apply it to the FIRST row.
+    const suggested = formatReceipt(settings.receipt);
+    const typed = receipt.trim();
+    const userOverride = typed && typed !== suggested && !typed.includes("/") ? typed : null;
+    let localCounter = settings.receipt.nextNumber || settings.receipt.startNumber || 1;
+    let newNumbersConsumed = 0;
+    rows.forEach((r, idx) => {
+      const k = cycleKey(r.period_start, r.period_end);
+      const prior = priorByCycle[k] || [];
+      const res = computeReceiptNumber({
+        receipt: settings.receipt,
+        nextCounter: localCounter,
+        rowAmount: Number(r.amount) || 0,
+        rowExpected: r.expected_amount,
+        priorInCycle: prior,
+        userOverride: idx === 0 ? userOverride : null,
+      });
+      r.receipt_number = res.receiptNumber;
+      // Append this row into the per-cycle prior list so the NEXT row in this
+      // same batch (same cycle) sees it as already-paid.
+      (priorByCycle[k] ||= []).push({
+        amount: Number(r.amount) || 0,
+        expected_amount: r.expected_amount,
+        receipt_number: res.receiptNumber,
+      });
+      if (res.consumesNewNumber) {
+        localCounter += 1;
+        newNumbersConsumed += 1;
+      }
+    });
 
     const { error } = await supabase.from("payments").insert(rows);
     // Unit state (last_paid_date + status) is recomputed automatically by the
@@ -605,7 +656,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
       descriptionEn: `Collected ${Number(amount).toLocaleString()} from ${_tenant || "tenant"} — unit ${_unitNum}${isPartial ? " (partial)" : ""}`,
       changes: { amount: Number(amount), expected: Number(expected) || null, partial: isPartial },
     });
-    bumpReceiptNumber();
+    if (newNumbersConsumed > 0) bumpReceiptNumber(newNumbersConsumed);
     // Prepare receipt args; ask user whether to include arrears if any remain
     try {
       const u = units.find((x) => x.id === unitId);
