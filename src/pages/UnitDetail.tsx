@@ -193,7 +193,7 @@ export default function UnitDetail() {
     // Build statement timeline: opening balance + monthly charges from contract start + actual payments
     const { data: ps } = await supabase
       .from("payments")
-      .select("amount, payment_date, period_start, receipt_number, notes")
+      .select("id, amount, expected_amount, payment_date, period_start, period_end, receipt_number, notes, kind, tenancy_id, created_at, deleted_at, unit_id")
       .eq("unit_id", unit.id)
       .is("deleted_at", null)
       .order("payment_date", { ascending: true });
