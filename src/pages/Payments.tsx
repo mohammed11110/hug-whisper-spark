@@ -17,7 +17,7 @@ import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
 import { useAppSettings, readFilters, writeFilters } from "@/lib/appSettings";
 import { getUnitArrears, getCycleForPeriodStart } from "@/lib/balance";
-import { suffixOf, isPartialSuffix, isFinalSuffix } from "@/lib/receiptNumbering";
+import { suffixOf, isPartialSuffix, isFinalSuffix, derivePartialMetaForDisplay, type DerivedPartialMeta } from "@/lib/receiptNumbering";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
