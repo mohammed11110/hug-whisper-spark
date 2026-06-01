@@ -14,6 +14,7 @@ import { RequireAuth } from "@/components/RequireAuth";
 import { OnboardingTour } from "@/components/OnboardingTour";
 import { AppShell } from "./components/AppShell";
 import { LoadingScreen } from "@/components/LoadingScreen";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const Welcome = lazy(() => import("./pages/Welcome"));
 const Auth = lazy(() => import("./pages/Auth"));
@@ -68,6 +69,7 @@ const App = () => (
                 <Sonner />
                 <BrowserRouter>
                   <OnboardingTour />
+                  <ErrorBoundary>
                   <Suspense fallback={<LoadingScreen />}>
                     <Routes>
                       <Route path="/welcome" element={<Welcome />} />
@@ -113,6 +115,7 @@ const App = () => (
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </Suspense>
+                  </ErrorBoundary>
                 </BrowserRouter>
               </TooltipProvider>
             </AuthProvider>
