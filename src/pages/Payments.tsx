@@ -260,9 +260,20 @@ export default function Payments() {
       paid: { bg: sc.paid.bg, fg: sc.paid.fg, label: L.paid },
       late: { bg: sc.late.bg, fg: sc.late.fg, label: L.late },
       soon: { bg: sc.soon.bg, fg: sc.soon.fg, label: L.soon },
+      partial: { bg: "#f5e3cf", fg: "#8a5a2a", label: L.partial },
     };
+    // Cycle-level installment context (from receipt number suffix).
+    const sfx = suffixOf(r.receipt_number);
+    const isPartialInstallment = isPartialSuffix(sfx);
+    const isFinalInstallment = isFinalSuffix(sfx);
+    const partialIndex = isPartialInstallment ? parseInt(sfx as string, 10) : 0;
+    const installmentNote = isPartialInstallment
+      ? L.partial_note(partialIndex)
+      : (isFinalInstallment ? L.final_note : "");
     // Status describes THIS receipt's cycle, not the whole unit.
-    const cycleStatusKey = receiptRemaining <= 0.009 ? "paid" : "late";
+    const cycleStatusKey = isPartialInstallment
+      ? "partial"
+      : (receiptRemaining <= 0.009 ? "paid" : "late");
     const us = statusColors[cycleStatusKey];
     const showStatus = true;
     const brand = settings.brand;
