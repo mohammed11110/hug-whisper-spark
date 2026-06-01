@@ -72,6 +72,11 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
   const [payMethod, setPayMethod] = useState<typeof PAYMENT_METHODS[number]>("cash");
   const [busy, setBusy] = useState(false);
   const guard = useUnsavedGuard({ open, onOpenChange });
+  const { unitLimit, phase, plan } = useSubscription();
+  const { unitCount } = useUnitUsage();
+  const showQuota = phase !== "trial" && Number.isFinite(unitLimit);
+  const atLimit = showQuota && unitCount >= unitLimit;
+  const nearLimit = showQuota && !atLimit && unitCount >= unitLimit - 1;
 
   const reset = () => {
     setUnitNumber(""); setFloor("1"); setType("apartment"); setOccupied(false);
