@@ -1182,6 +1182,10 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                   <span className="block text-sage-600 mt-1">
                     {lang === "ar" ? "الإجمالي المحصَّل" : "Total to collect"}: <b>{format(grandCollected)}</b>
                   </span>
+                  </span>
+                )}
+              </span>
+            </label>
           )}
 
           {/* Auto-send via WhatsApp toggle */}
@@ -1202,9 +1206,6 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                     ? "يفتح واتساب على رقم المستأجر مع رسالة الإيصال جاهزة، وينزّل ملف PDF لإرفاقه."
                     : "Opens WhatsApp to the tenant with the receipt message ready; the PDF downloads to attach."}
                 </span>
-              </span>
-            </label>
-          )}
               </span>
             </label>
           )}
