@@ -1182,7 +1182,6 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                   <span className="block text-sage-600 mt-1">
                     {lang === "ar" ? "الإجمالي المحصَّل" : "Total to collect"}: <b>{format(grandCollected)}</b>
                   </span>
-                  </span>
                 )}
               </span>
             </label>
