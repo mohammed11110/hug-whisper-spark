@@ -317,6 +317,10 @@ export default function Payments() {
           <div class="remaining" style="margin-top:10px;padding:14px 18px;border-radius:14px;display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:14px;${receiptRemaining > 0 ? 'background:#f8e6e6;color:#8a2a2a;border:1px solid #e8c2c2' : 'background:#e7f1de;color:#3a6b3a;border:1px solid #bcd4ad'}">
             <span>${L.remaining_after}</span><span>${format(receiptRemaining)}${receiptRemaining === 0 ? ` · ${L.settled}` : ''}</span>
           </div>
+          ${otherOutstanding > 0.009 ? `
+          <div style="margin-top:8px;padding:10px 16px;border-radius:12px;display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:12px;background:#f7ede4;color:#8a5a2a;border:1px dashed #d9b893">
+            <span>${L.other_outstanding}</span><span>${format(otherOutstanding)}</span>
+          </div>` : ""}
           <div class="footer">— ${L.receipt} —</div>
         </div>
       </body></html>`;
