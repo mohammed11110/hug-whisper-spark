@@ -138,6 +138,6 @@ Deno.serve(async (req) => {
     return jsonResponse({ success: true, added: quantity, total_addon_units: (sub.addon_units ?? 0) + quantity });
   } catch (e) {
     console.error('add-subscription-units error', e);
-    return jsonResponse({ error: 'internal_error', details: String(e) }, 500);
+    return jsonResponse({ error: 'internal_error' }, 500);
   }
 });
