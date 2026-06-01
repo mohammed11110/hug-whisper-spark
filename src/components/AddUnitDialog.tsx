@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
 import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
 import { BuyAddonUnitsDialog } from "@/components/BuyAddonUnitsDialog";
+import { useSubscription, useUnitUsage } from "@/hooks/useSubscription";
 
 const UNIT_TYPES = ["apartment", "shop", "room", "villa"] as const;
 const RENT_TYPES = ["monthly", "daily", "yearly"] as const;
@@ -71,6 +72,11 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
   const [payMethod, setPayMethod] = useState<typeof PAYMENT_METHODS[number]>("cash");
   const [busy, setBusy] = useState(false);
   const guard = useUnsavedGuard({ open, onOpenChange });
+  const { unitLimit, phase, plan } = useSubscription();
+  const { unitCount } = useUnitUsage();
+  const showQuota = phase !== "trial" && Number.isFinite(unitLimit);
+  const atLimit = showQuota && unitCount >= unitLimit;
+  const nearLimit = showQuota && !atLimit && unitCount >= unitLimit - 1;
 
   const reset = () => {
     setUnitNumber(""); setFloor("1"); setType("apartment"); setOccupied(false);
@@ -187,6 +193,36 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
           <DialogTitle className="text-sage-600 text-xl font-black">{t2("add_unit")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3 mt-2" {...guard.formProps}>
+          {showQuota && (
+            <div className={`rounded-2xl border px-3 py-2.5 text-xs ${
+              atLimit
+                ? "border-burgundy/30 bg-burgundy/5 text-burgundy"
+                : nearLimit
+                  ? "border-terracotta/30 bg-terracotta/5 text-terracotta"
+                  : "border-sage-200 bg-sage-50/60 text-sage-600"
+            }`}>
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-semibold">
+                  {lang === "ar"
+                    ? `الوحدات: ${unitCount} / ${unitLimit}`
+                    : `Units: ${unitCount} / ${unitLimit}`}
+                </span>
+                {(atLimit || nearLimit) && (
+                  <button type="button" onClick={() => setShowAddons(true)}
+                    className="text-[11px] font-bold underline underline-offset-2">
+                    {lang === "ar" ? "ترقية / شراء وحدات" : "Upgrade / buy units"}
+                  </button>
+                )}
+              </div>
+              {atLimit && (
+                <p className="mt-1 leading-relaxed opacity-90">
+                  {lang === "ar"
+                    ? `وصلت إلى الحد الأقصى لخطة ${plan}. الرجاء الترقية لإضافة وحدة جديدة.`
+                    : `You've reached the ${plan} plan limit. Upgrade to add more units.`}
+                </p>
+              )}
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <Field label={t2("unit_number")}>
               <Input value={unitNumber} onChange={(e) => setUnitNumber(e.target.value)} className="rounded-xl border-sage-200 bg-card" />
