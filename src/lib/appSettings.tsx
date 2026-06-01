@@ -34,7 +34,10 @@ export interface AppSettings {
   showAiFab: boolean;
   /** Receipt numbering preferences */
   receipt: ReceiptNumbering;
+  /** Auto-open WhatsApp after a payment is registered */
+  autoSendReceiptWhatsApp: boolean;
 }
+
 
 export function formatReceipt(r: ReceiptNumbering, n?: number): string {
   const num = n ?? r.nextNumber ?? r.startNumber ?? 1;
@@ -60,7 +63,9 @@ const DEFAULTS: AppSettings = {
   brand: { name: "أملاكي · Amlaki", logo: null, phone: "", address: "", landlordName: "", landlordNameEn: "" },
   showAiFab: false,
   receipt: { prefix: "R-", startNumber: 1, padding: 0, nextNumber: 1 },
+  autoSendReceiptWhatsApp: true,
 };
+
 
 const KEY = "amlaki.appSettings.v1";
 

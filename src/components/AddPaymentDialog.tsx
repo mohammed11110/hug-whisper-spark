@@ -19,6 +19,7 @@ import type { ReceiptNumbering } from "@/lib/appSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { buildReceiptHTML, downloadHTMLAsPDF } from "@/lib/pdfDocs";
+import { openWhatsApp, fillTemplate } from "@/lib/whatsapp";
 import { logActivity } from "@/lib/activityLogger";
 import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
 import { z } from "zod";
@@ -31,6 +32,8 @@ interface UnitOpt {
   rent_amount: number;
   rent_type?: string;
   tenant_name: string | null;
+  tenant_phone?: string | null;
+
   arrears_note?: string | null;
   anchor_day?: number;
   rent_timing?: "advance" | "arrears";
@@ -86,7 +89,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const t2 = useT2();
   const { lang } = useI18n();
   const { format } = useCurrency();
-  const { settings, refreshReceiptCounter } = useAppSettings();
+  const { settings, update, refreshReceiptCounter } = useAppSettings();
   const [units, setUnits] = useState<UnitOpt[]>([]);
   const [buildings, setBuildings] = useState<BuildingOpt[]>([]);
   const [buildingId, setBuildingId] = useState<string>("");
@@ -151,7 +154,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   useEffect(() => {
     if (!open) return;
     (async () => {
-      const { data: us } = await supabase.from("units").select("id, unit_number, tenant_name, rent_amount, rent_type, rent_timing, building_id, contract_start_date, opening_balance, opening_balance_date").order("unit_number");
+      const { data: us } = await supabase.from("units").select("id, unit_number, tenant_name, tenant_phone, rent_amount, rent_type, rent_timing, building_id, contract_start_date, opening_balance, opening_balance_date").order("unit_number");
       const ids = Array.from(new Set((us || []).map((u: any) => u.building_id)));
       const { data: bs } = ids.length
         ? await supabase.from("buildings").select("id, name, name_en").in("id", ids)
@@ -194,6 +197,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
             unit_number: u.unit_number,
             building_id: u.building_id,
             tenant_name: u.tenant_name,
+            tenant_phone: u.tenant_phone,
             rent_amount: Number(u.rent_amount),
             rent_type: u.rent_type || "monthly",
             building_name: bMap.get(u.building_id)?.name || bMap.get(u.building_id)?.name_en || "—",
@@ -789,7 +793,32 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     } catch (e: any) {
       console.warn("receipt PDF failed", e);
     }
+    // Auto-open WhatsApp with the receipt message if enabled.
+    try {
+      if (!settings.autoSendReceiptWhatsApp) return;
+      const u = units.find((x) => x.id === unitId);
+      const phone = u?.tenant_phone || "";
+      if (!phone) {
+        toast.message(lang === "ar" ? "لا يوجد رقم واتساب للمستأجر" : "No WhatsApp number for tenant");
+        return;
+      }
+      const ba = payload.baseArgs;
+      const remaining = Number(payload.unpaidTotal) || 0;
+      const msg = fillTemplate(settings.templates.receipt, {
+        tenant: ba.tenantName || "",
+        unit: ba.unitNumber || "",
+        building: ba.building || "",
+        amount: format(Number(ba.amount) || 0),
+        date: ba.paymentDate || "",
+        remaining: format(remaining),
+      });
+      // Slight delay so the PDF download finishes/UI updates first.
+      setTimeout(() => openWhatsApp(phone, msg), 300);
+    } catch (e: any) {
+      console.warn("whatsapp open failed", e);
+    }
   };
+
 
   const finishAndClose = () => {
     setAmount(""); setReceipt(""); setNotes(""); setCollectPriorArrears(false); setIncludeArrearsInReceipt(false); if (!presetUnitId) setUnitId("");
@@ -1154,6 +1183,28 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                     {lang === "ar" ? "الإجمالي المحصَّل" : "Total to collect"}: <b>{format(grandCollected)}</b>
                   </span>
                 )}
+              </span>
+            </label>
+          )}
+
+          {/* Auto-send via WhatsApp toggle */}
+          {unitId && (
+            <label className="flex items-start gap-2.5 rounded-xl border border-sage-200 bg-sage-100/30 px-3 py-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={settings.autoSendReceiptWhatsApp}
+                onChange={(e) => update({ autoSendReceiptWhatsApp: e.target.checked })}
+                className="h-4 w-4 mt-0.5 rounded border-sage-300 accent-[hsl(var(--primary))]"
+              />
+              <span className="text-xs flex-1">
+                <span className="font-extrabold text-sage-700 block">
+                  {lang === "ar" ? "فتح واتساب تلقائياً بعد الحفظ" : "Open WhatsApp automatically after save"}
+                </span>
+                <span className="text-sage-500 block mt-0.5 text-[11px] leading-relaxed">
+                  {lang === "ar"
+                    ? "يفتح واتساب على رقم المستأجر مع رسالة الإيصال جاهزة، وينزّل ملف PDF لإرفاقه."
+                    : "Opens WhatsApp to the tenant with the receipt message ready; the PDF downloads to attach."}
+                </span>
               </span>
             </label>
           )}
