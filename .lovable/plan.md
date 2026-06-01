@@ -1,34 +1,85 @@
-# Receipt: choose Arabic or English on print/download
+## المشكلة الجذرية
 
-## Goal
-In صفحة المدفوعات (Payments), each receipt currently has a Print button and a Download PDF button — both use the current app language. Add an explicit AR / EN choice so the user can print or download a receipt in either language regardless of the UI language.
+الإيصال يحسب "إجمالي المستحق قبل الدفع" و"المتبقي بعد الدفع" بناءً على **إجمالي متأخرات الوحدة كلها**، وليس على دورة الإيجار التي يخص هذا الإيصال:
 
-## Scope
-- File only: `src/pages/Payments.tsx`
-- No DB changes, no changes to receipt HTML/PDF generation (already supports both languages via `buildReceiptHTML(r, lng)`).
-- No changes to UnitDetail or other pages.
+```ts
+// src/pages/Payments.tsx:244
+const receiptTotalDue =
+  r.expected_amount && r.expected_amount > 0
+    ? r.expected_amount
+    : r.remaining + r.amount;        // ← r.remaining = إجمالي المتأخرات على الوحدة
+const receiptRemaining = Math.max(0, receiptTotalDue - r.amount);
+```
 
-## UX
-Replace the two single icon buttons (Printer, Download) with two **DropdownMenu** triggers:
+و`r.remaining` يأتي من `getUnitArrears(...)` على كامل الوحدة، فيُجمَع فيه أي شهر سابق غير مسدّد.
 
-1. **Print** (Printer icon) → opens menu with:
-   - `طباعة بالعربية` / Print (Arabic)
-   - `Print in English` / طباعة بالإنجليزية
-2. **Download PDF** (Download icon) → opens menu with:
-   - `تحميل PDF بالعربية` / Download PDF (Arabic)
-   - `Download PDF in English` / تحميل PDF بالإنجليزية
+نتيجة الحالة في الصورة: إيجار الوحدة 80، دُفعت كاملة عن شهر يونيو 2026 → الإيصال صحيح كدفعة شهرية مسدّدة بالكامل، لكنه يُظهر:
+- *Total due before payment* = 110 (80 إيجار الشهر + 30 متأخّر شهر سابق غير مرتبط بهذا الإيصال)
+- *Amount paid* = 80
+- *Remaining after payment* = 30 (متأخرات شهر آخر)
+- *PAID* (لأن دفعة الشهر فعلًا كاملة)
 
-Labels follow `lang` for the UI text; the action passes the chosen `RLang` (`"ar"` or `"en"`) to existing `printReceipt(r, lng)` / `downloadReceiptPDF(r, lng)` (signatures already accept it).
+فيظهر تناقض ظاهري: ختم PAID مع متبقي 30. هذه ليست مشكلة في بيانات هذا المستأجر تحديدًا — كل إيصال يُحتسب بنفس الطريقة، فالأثر يطال جميع الوحدات.
 
-Buttons keep current size (h-7 w-7), styling, and icons. The dropdown uses the existing `@/components/ui/dropdown-menu` primitives already used in the project.
+## الإصلاح الجذري (ملف واحد فقط)
 
-## Technical notes
-- Import `DropdownMenu`, `DropdownMenuTrigger`, `DropdownMenuContent`, `DropdownMenuItem` from `@/components/ui/dropdown-menu`.
-- `printReceipt` and `downloadReceiptPDF` already take an optional `lng: RLang` argument — no changes needed to those functions.
-- Remove default-language behavior at call sites; always pass the explicit chosen language from the menu item.
-- RTL is already handled by the dropdown primitives.
+**الملف:** `src/pages/Payments.tsx` — منطق `buildReceiptHTML` فقط. لا تعديلات على قاعدة البيانات، ولا على `pdfDocs.ts`، ولا على نموذج إضافة الدفعة.
 
-## Out of scope
-- Adding receipt print/download inside UnitDetail.
-- Changing receipt template content or styling.
-- A global default-language setting for receipts.
+### المبدأ الجديد
+
+الإيصال يصف **هذه الدفعة وحدها** عن **دورتها**:
+
+1. **Total due (للدورة):**
+   - إذا توفّر `r.expected_amount` → يُستخدم كما هو (إيجار الدورة).
+   - وإلا، إذا كانت `r.amount` > 0 ولا توجد دورة → يساوي `r.amount` (تعتبر الدفعة مغلقة بذاتها).
+   - لا يُضاف إليه أبدًا متأخرات أشهر أخرى.
+
+2. **Remaining after payment (للدورة):**
+   - `max(0, totalDueForCycle − r.amount)`.
+   - مستقل تمامًا عن إجمالي متأخرات الوحدة.
+
+3. **المتأخرات الأخرى (سطر معلوماتي منفصل):**
+   - يُحسب من `r.remaining` المتاح أصلًا (إجمالي متأخرات الوحدة الآن).
+   - إذا `r.remaining > 0.009` يُضاف سطر تحت ملخص الدفع بصياغة:
+     - AR: «متأخرات أخرى على الوحدة: 30.000 ر.ع» — بلون تحذيري لطيف (terracotta) وبدون كلمة "بعد الدفع".
+     - EN: "Other outstanding on unit: 30.000 OMR".
+   - إذا `= 0` لا يظهر السطر إطلاقًا.
+
+4. **شارة الحالة (PAID/LATE):**
+   - تعتمد على دورة هذا الإيصال فقط (`receiptRemaining === 0` → PAID).
+   - بهذا تختفي حالة "PAID + متبقي 30" المتناقضة.
+
+### التغييرات الفعلية
+
+في `buildReceiptHTML` (حول السطور 244–315):
+
+- استبدال حساب `receiptTotalDue` ليصبح:
+  ```ts
+  const cycleDue =
+    r.expected_amount && r.expected_amount > 0
+      ? r.expected_amount
+      : r.amount;
+  const cycleRemaining = Math.max(0, cycleDue - r.amount);
+  const otherOutstanding = Math.max(0, r.remaining - cycleRemaining); // متأخرات أشهر أخرى فقط
+  ```
+- بطاقة "Payment Summary" تستخدم `cycleDue` و`cycleRemaining`.
+- إضافة سطر معلوماتي منفصل أسفل صندوق "Amount paid" يظهر فقط عند `otherOutstanding > 0.009`، بنص ولوني محايد (لا أحمر صارخ، استخدم #b8895a/terracotta).
+- إزالة شارة "late" من رأس الإيصال متى كانت دورة الإيصال نفسها مسدّدة (`cycleRemaining === 0`) حتى لو على الوحدة متأخرات أخرى — فالشارة تصف الإيصال لا الوحدة.
+
+### مفاتيح الترجمة (RECEIPT_TXT)
+
+- إضافة:
+  - `other_outstanding`: AR «متأخرات أخرى على الوحدة» / EN "Other outstanding on unit".
+- الإبقاء على المفاتيح الحالية (`total_due`, `remaining_after`, `settled`) دون تغيير لمعناها — الآن تشير حصرًا للدورة.
+
+## خارج النطاق
+
+- لا تغييرات في `EditPaymentDialog` أو `AddPaymentDialog` أو منطق التوزيع التلقائي للمتأخرات.
+- لا تعديل على جدول `payments` أو على `getUnitArrears`.
+- لا تغيير على إيصال `pdfDocs.ts` (مستخدم من معاينة إضافة الدفعة) — يستخدم بالفعل حقولًا منفصلة (`expectedAmount`, `unpaidMonths`).
+- لا تعديل على لوحة المتأخرات في صفحات أخرى — تبقى تعرض الإجمالي الحقيقي للوحدة.
+
+## النتيجة المتوقعة
+
+- إيصال الصورة سيظهر: Total due 80 · Paid 80 · Settled (بدون متبقي 30 في خانة "Remaining"). وإن وُجدت متأخرات شهر سابق ستظهر بسطر منفصل واضح: «متأخرات أخرى على الوحدة: 30.000».
+- يطبَّق المنطق نفسه على جميع الوحدات والإيصالات تلقائيًا — لا حاجة لأي ترحيل بيانات.
