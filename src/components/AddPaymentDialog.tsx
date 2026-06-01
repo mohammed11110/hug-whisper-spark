@@ -1182,7 +1182,29 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                   <span className="block text-sage-600 mt-1">
                     {lang === "ar" ? "الإجمالي المحصَّل" : "Total to collect"}: <b>{format(grandCollected)}</b>
                   </span>
-                )}
+          )}
+
+          {/* Auto-send via WhatsApp toggle */}
+          {unitId && (
+            <label className="flex items-start gap-2.5 rounded-xl border border-sage-200 bg-sage-100/30 px-3 py-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={settings.autoSendReceiptWhatsApp}
+                onChange={(e) => update({ autoSendReceiptWhatsApp: e.target.checked })}
+                className="h-4 w-4 mt-0.5 rounded border-sage-300 accent-[hsl(var(--primary))]"
+              />
+              <span className="text-xs flex-1">
+                <span className="font-extrabold text-sage-700 block">
+                  {lang === "ar" ? "فتح واتساب تلقائياً بعد الحفظ" : "Open WhatsApp automatically after save"}
+                </span>
+                <span className="text-sage-500 block mt-0.5 text-[11px] leading-relaxed">
+                  {lang === "ar"
+                    ? "يفتح واتساب على رقم المستأجر مع رسالة الإيصال جاهزة، وينزّل ملف PDF لإرفاقه."
+                    : "Opens WhatsApp to the tenant with the receipt message ready; the PDF downloads to attach."}
+                </span>
+              </span>
+            </label>
+          )}
               </span>
             </label>
           )}
