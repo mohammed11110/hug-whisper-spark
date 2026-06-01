@@ -244,12 +244,26 @@ export default function UnitDetail() {
     }
 
 
+    const activeSetStmt = activeTenancyId ? new Set([activeTenancyId]) : new Set<string>();
+    const derivedStmt = derivePartialMetaForDisplay((ps || []) as any, { activeTenancyIds: activeSetStmt });
     (ps || []).forEach((p: any) => {
       const m = (p.period_start || p.payment_date || "").slice(0, 7);
+      const meta = derivedStmt.get(p.id);
+      const sfx = meta?.derivedSuffix;
+      const fullReceipt = p.receipt_number
+        ? (sfx && meta?.isComputed && !p.receipt_number.includes("/")
+            ? `${p.receipt_number}/${sfx}`
+            : p.receipt_number)
+        : "";
+      const sfxLabel = sfx && meta?.isComputed
+        ? (lang === "ar"
+            ? ` ‹${sfx === "D" ? "ختامي" : `جزئي ${sfx}`} · محسوب›`
+            : ` ‹${sfx === "D" ? "Final" : `Partial ${sfx}`} · auto›`)
+        : "";
       entries.push({
         date: p.payment_date,
         month: m || undefined,
-        description: (lang === "ar" ? "دفعة" : "Payment") + (p.receipt_number ? ` #${p.receipt_number}` : "") + (p.notes ? ` — ${p.notes}` : ""),
+        description: (lang === "ar" ? "دفعة" : "Payment") + (fullReceipt ? ` #${fullReceipt}` : "") + sfxLabel + (p.notes ? ` — ${p.notes}` : ""),
         charge: 0,
         payment: Number(p.amount),
         sortKey: p.payment_date + "2",
