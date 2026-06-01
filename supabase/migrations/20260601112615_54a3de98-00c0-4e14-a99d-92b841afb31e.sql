@@ -1,0 +1,1 @@
+DELETE FROM public.promo_codes WHERE code = 'AMLAKI-LIFE-';
