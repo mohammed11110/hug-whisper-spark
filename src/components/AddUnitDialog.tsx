@@ -223,6 +223,10 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
               )}
             </div>
           )}
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={t2("unit_number")}>
+              <Input value={unitNumber} onChange={(e) => setUnitNumber(e.target.value)} className="rounded-xl border-sage-200 bg-card" />
+            </Field>
             <Field label={t2("floors")}>
               <Input type="number" inputMode="numeric" min={1} max={floors} value={floor}
                 onChange={(e) => setFloor(e.target.value)}
