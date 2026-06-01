@@ -54,16 +54,17 @@ export function AddMaintenanceDialog({ open, onOpenChange, onCreated, presetBuil
     const { data: ud } = await supabase.auth.getUser();
     const uid = ud.user?.id;
     if (!uid) { setUploading(false); return; }
-    const urls: string[] = [];
+    const paths: string[] = [];
     for (const file of Array.from(files)) {
       const ext = file.name.split(".").pop() || "jpg";
       const path = `${uid}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
       const { error } = await supabase.storage.from("maintenance-photos").upload(path, file, { upsert: false });
       if (error) { toast.error(error.message); continue; }
-      const { data } = supabase.storage.from("maintenance-photos").getPublicUrl(path);
-      urls.push(data.publicUrl);
+      // Store the storage path (bucket is private). Display code resolves a
+      // short-lived signed URL via resolveMaintenancePhotoUrl().
+      paths.push(path);
     }
-    setPhotos((p) => [...p, ...urls]);
+    setPhotos((p) => [...p, ...paths]);
     setUploading(false);
     if (fileRef.current) fileRef.current.value = "";
   };
