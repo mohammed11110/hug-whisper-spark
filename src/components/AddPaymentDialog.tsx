@@ -31,6 +31,8 @@ interface UnitOpt {
   rent_amount: number;
   rent_type?: string;
   tenant_name: string | null;
+  tenant_phone?: string | null;
+
   arrears_note?: string | null;
   anchor_day?: number;
   rent_timing?: "advance" | "arrears";
