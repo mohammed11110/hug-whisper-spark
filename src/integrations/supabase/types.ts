@@ -972,6 +972,33 @@ export type Database = {
         }
         Relationships: []
       }
+      receipt_counters: {
+        Row: {
+          next_number: number
+          padding: number
+          prefix: string
+          start_number: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          next_number?: number
+          padding?: number
+          prefix?: string
+          start_number?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          next_number?: number
+          padding?: number
+          prefix?: string
+          start_number?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       subscription_events: {
         Row: {
           amount: number | null
@@ -1468,6 +1495,14 @@ export type Database = {
     }
     Functions: {
       account_phase: { Args: { _user_id: string }; Returns: string }
+      allocate_receipt_numbers: {
+        Args: { _delta?: number }
+        Returns: {
+          padding: number
+          prefix: string
+          start_number: number
+        }[]
+      }
       can_write: { Args: { _user_id: string }; Returns: boolean }
       delete_email: {
         Args: { message_id: number; queue_name: string }
@@ -1523,7 +1558,30 @@ export type Database = {
       }
       recompute_unit_state: { Args: { _uid: string }; Returns: undefined }
       redeem_promo_code: { Args: { _code: string }; Returns: Json }
+      seed_receipt_counter: { Args: { _seed: number }; Returns: undefined }
       subscription_phase: { Args: { _user_id: string }; Returns: string }
+      update_receipt_settings: {
+        Args: {
+          _padding?: number
+          _prefix?: string
+          _reset?: boolean
+          _start_number?: number
+        }
+        Returns: {
+          next_number: number
+          padding: number
+          prefix: string
+          start_number: number
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "receipt_counters"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       user_active_plan: { Args: { _user_id: string }; Returns: string }
       user_unit_allowance: { Args: { _user_id: string }; Returns: number }
     }

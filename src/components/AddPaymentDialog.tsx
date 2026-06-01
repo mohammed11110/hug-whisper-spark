@@ -14,7 +14,8 @@ import { useT2 } from "@/lib/i18n2";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
 import { useAppSettings, formatReceipt } from "@/lib/appSettings";
-import { computeReceiptNumber, type CyclePaymentRef } from "@/lib/receiptNumbering";
+import { computeReceiptNumber, allocateReceiptNumbers, type CyclePaymentRef } from "@/lib/receiptNumbering";
+import type { ReceiptNumbering } from "@/lib/appSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { buildReceiptHTML, downloadHTMLAsPDF } from "@/lib/pdfDocs";
@@ -85,7 +86,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const t2 = useT2();
   const { lang } = useI18n();
   const { format } = useCurrency();
-  const { settings, bumpReceiptNumber } = useAppSettings();
+  const { settings, refreshReceiptCounter } = useAppSettings();
   const [units, setUnits] = useState<UnitOpt[]>([]);
   const [buildings, setBuildings] = useState<BuildingOpt[]>([]);
   const [buildingId, setBuildingId] = useState<string>("");
@@ -590,13 +591,47 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     const suggested = formatReceipt(settings.receipt);
     const typed = receipt.trim();
     const userOverride = typed && typed !== suggested && !typed.includes("/") ? typed : null;
+
+    // ---- DRY RUN: count how many fresh numbers we need ----
+    const dryPriors: Record<string, CyclePaymentRef[]> = JSON.parse(JSON.stringify(priorByCycle));
+    let needed = 0;
+    rows.forEach((r, idx) => {
+      const k = cycleKey(r.period_start, r.period_end);
+      const prior = dryPriors[k] || [];
+      const res = computeReceiptNumber({
+        receipt: settings.receipt,
+        nextCounter: 0,
+        rowAmount: Number(r.amount) || 0,
+        rowExpected: r.expected_amount,
+        priorInCycle: prior,
+        userOverride: idx === 0 ? userOverride : null,
+      });
+      (dryPriors[k] ||= []).push({
+        amount: Number(r.amount) || 0,
+        expected_amount: r.expected_amount,
+        receipt_number: res.receiptNumber,
+      });
+      if (res.consumesNewNumber) needed += 1;
+    });
+
+    // ---- Atomic server-side reservation (shared across devices) ----
+    let receiptConfig: ReceiptNumbering = settings.receipt;
     let localCounter = settings.receipt.nextNumber || settings.receipt.startNumber || 1;
-    let newNumbersConsumed = 0;
+    if (needed > 0) {
+      const alloc = await allocateReceiptNumbers(needed);
+      if (!alloc) {
+        setSaving(false);
+        return toast.error(lang === "ar" ? "تعذّر حجز رقم الإيصال — حاول مرة أخرى" : "Failed to reserve receipt number — try again");
+      }
+      receiptConfig = { prefix: alloc.prefix, padding: alloc.padding, startNumber: alloc.startNumber, nextNumber: alloc.startNumber };
+      localCounter = alloc.startNumber;
+    }
+
     rows.forEach((r, idx) => {
       const k = cycleKey(r.period_start, r.period_end);
       const prior = priorByCycle[k] || [];
       const res = computeReceiptNumber({
-        receipt: settings.receipt,
+        receipt: receiptConfig,
         nextCounter: localCounter,
         rowAmount: Number(r.amount) || 0,
         rowExpected: r.expected_amount,
@@ -613,7 +648,6 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
       });
       if (res.consumesNewNumber) {
         localCounter += 1;
-        newNumbersConsumed += 1;
       }
     });
 
@@ -656,7 +690,8 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
       descriptionEn: `Collected ${Number(amount).toLocaleString()} from ${_tenant || "tenant"} — unit ${_unitNum}${isPartial ? " (partial)" : ""}`,
       changes: { amount: Number(amount), expected: Number(expected) || null, partial: isPartial },
     });
-    if (newNumbersConsumed > 0) bumpReceiptNumber(newNumbersConsumed);
+    // Server already advanced the counter atomically via allocate_receipt_numbers.
+    void refreshReceiptCounter();
     // Prepare receipt args; ask user whether to include arrears if any remain
     try {
       const u = units.find((x) => x.id === unitId);

@@ -1,4 +1,31 @@
 import { formatReceipt, type ReceiptNumbering } from "./appSettings";
+import { supabase } from "@/integrations/supabase/client";
+
+/* -------------------------------------------------------------------------- */
+/*           Atomic server-side allocation (shared across devices)            */
+/* -------------------------------------------------------------------------- */
+export interface AllocatedRange {
+  startNumber: number;
+  prefix: string;
+  padding: number;
+}
+
+/**
+ * Reserves `delta` consecutive receipt numbers atomically on the server.
+ * Returns the starting number plus the active prefix/padding for the user.
+ * Returns `null` on failure (caller should abort save).
+ */
+export async function allocateReceiptNumbers(delta: number): Promise<AllocatedRange | null> {
+  const n = Math.max(1, Math.floor(delta));
+  const { data, error } = await supabase.rpc("allocate_receipt_numbers", { _delta: n });
+  if (error || !data || !Array.isArray(data) || data.length === 0) return null;
+  const row: any = data[0];
+  return {
+    startNumber: Number(row.start_number),
+    prefix: row.prefix ?? "R-",
+    padding: Number(row.padding ?? 0),
+  };
+}
 
 /**
  * Receipt numbering with partial-payment suffixes:
