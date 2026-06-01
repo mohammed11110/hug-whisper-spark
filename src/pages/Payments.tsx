@@ -243,16 +243,23 @@ export default function Payments() {
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#39;");
-    const receiptTotalDue = r.expected_amount && r.expected_amount > 0 ? r.expected_amount : r.remaining + r.amount;
-    const receiptRemaining = Math.max(0, receiptTotalDue - r.amount);
+    // Cycle-only totals — never mix in arrears from other months.
+    const cycleDue =
+      r.expected_amount && r.expected_amount > 0 ? r.expected_amount : r.amount;
+    const receiptTotalDue = cycleDue;
+    const receiptRemaining = Math.max(0, cycleDue - r.amount);
+    // Outstanding on the unit that belongs to OTHER cycles (informative only).
+    const otherOutstanding = Math.max(0, r.remaining - receiptRemaining);
     const sc = settings.statusColors;
     const statusColors: Record<string, { bg: string; fg: string; label: string }> = {
       paid: { bg: sc.paid.bg, fg: sc.paid.fg, label: L.paid },
       late: { bg: sc.late.bg, fg: sc.late.fg, label: L.late },
       soon: { bg: sc.soon.bg, fg: sc.soon.fg, label: L.soon },
     };
-    const us = statusColors[r.unit_status] || statusColors.soon;
-    const showStatus = r.unit_status !== "soon";
+    // Status describes THIS receipt's cycle, not the whole unit.
+    const cycleStatusKey = receiptRemaining <= 0.009 ? "paid" : "late";
+    const us = statusColors[cycleStatusKey];
+    const showStatus = true;
     const brand = settings.brand;
     const brandHeader = brand.logo
       ? `<img src="${esc(brand.logo)}" style="height:46px;object-fit:contain"/>`
