@@ -639,17 +639,35 @@ function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLea
 
           // 3) All real payments (rent + adjustment). Opening-kind rows are
           //    already represented by the opening line above.
+          // Derive partial-cycle metadata for the active tenancy so legacy
+          // receipts (issued before the /1, /D system) visually join the
+          // same cycle when shown in the ledger.
+          const activeSet = activeTenancyId ? new Set([activeTenancyId]) : new Set<string>();
+          const derived = derivePartialMetaForDisplay(payments as any, { activeTenancyIds: activeSet });
           (payments || [])
             .filter((p: any) => !p.deleted_at && (p.kind || "rent") !== "opening")
             .forEach((p: any) => {
               const amt = Number(p.amount) || 0;
               const isAdj = (p.kind || "rent") === "adjustment";
               const date = p.payment_date || p.period_start || "";
+              const meta = derived.get(p.id);
+              const sfx = meta?.derivedSuffix;
+              const sfxLabel = sfx && meta?.isComputed
+                ? (lang === "ar"
+                    ? ` ‹${sfx === "D" ? "ختامي" : `جزئي ${sfx}`} · محسوب›`
+                    : ` ‹${sfx === "D" ? "Final" : `Partial ${sfx}`} · auto›`)
+                : "";
               const descBase = isAdj
                 ? (lang === "ar" ? "تعديل الرصيد" : "Adjustment")
                 : (lang === "ar" ? "دفعة" : "Payment");
+              const fullReceipt = p.receipt_number
+                ? (sfx && meta?.isComputed && !p.receipt_number.includes("/")
+                    ? `${p.receipt_number}/${sfx}`
+                    : p.receipt_number)
+                : "";
               const desc = descBase +
-                (p.receipt_number ? ` #${p.receipt_number}` : "") +
+                (fullReceipt ? ` #${fullReceipt}` : "") +
+                sfxLabel +
                 (p.notes ? ` — ${p.notes}` : "");
               // Positive adjustment = waiver/credit (reduces balance like a payment).
               // Negative adjustment = extra charge (adds to balance).
@@ -665,10 +683,12 @@ function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLea
                 payment,
                 sortKey: date + "2",
                 kind: p.kind || "rent",
-                receipt: p.receipt_number || "",
+                receipt: fullReceipt,
                 notes: p.notes || "",
               });
             });
+
+
 
           entries.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
 
