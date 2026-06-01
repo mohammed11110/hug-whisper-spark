@@ -55,7 +55,7 @@ export default function Activity() {
     })();
 
     const channel = supabase
-      .channel("activity_log_page")
+      .channel(`activity_log_page:${crypto.randomUUID()}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "activity_log" }, (payload) => {
         setRows((prev) => [payload.new as Row, ...prev]);
       })

@@ -110,7 +110,7 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
       due_day: Math.min(28, Math.max(1, parseInt(dueDay) || 1)),
       rent_timing: rentTiming,
 
-      status: occupied ? "soon" : "vacant",
+      // status omitted — derived by DB trigger (recompute_unit_state)
       contract_type: contractType,
       contract_start_date: contractStart || null,
       ...(occupied && arrN > 0 && rentN > 0 && rentType === "monthly"

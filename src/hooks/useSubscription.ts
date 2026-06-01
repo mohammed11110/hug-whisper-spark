@@ -99,6 +99,7 @@ export function useSubscription(): SubscriptionState {
         .select("*")
         .eq("user_id", user.id)
         .eq("environment", env)
+        .not("product_id", "like", "%_addon")
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
@@ -124,11 +125,12 @@ export function useSubscription(): SubscriptionState {
       ? Math.max(0, Math.ceil((graceEndsAt.getTime() - now) / 86_400_000))
       : null;
 
-    const plan: PlanTier = sub ? PRODUCT_TO_PLAN[sub.product_id as string] ?? "free" : "free";
-    const status = (sub?.status as string) ?? (phase === "trial" ? "trial" : "free");
-    const currentPeriodEnd = sub?.current_period_end ? new Date(sub.current_period_end as string) : null;
-    const canceledAt = sub && (sub as any).canceled_at ? new Date((sub as any).canceled_at) : null;
-    const dataDeleteAt = sub && (sub as any).data_delete_at ? new Date((sub as any).data_delete_at) : null;
+    const plan: PlanTier = sub ? PRODUCT_TO_PLAN[sub.product_id] ?? "free" : "free";
+    const status = sub?.status ?? (phase === "trial" ? "trial" : "free");
+    const currentPeriodEnd = sub?.current_period_end ? new Date(sub.current_period_end) : null;
+    const canceledAt = sub?.canceled_at ? new Date(sub.canceled_at) : null;
+    const dataDeleteAt = sub?.data_delete_at ? new Date(sub.data_delete_at) : null;
+    const addonUnits = Number(sub?.addon_units ?? 0);
 
     const isActive = phase === "active" || phase === "trial";
     const isReadOnly = phase === "readonly_grace" || phase === "subscription_grace";
@@ -145,13 +147,12 @@ export function useSubscription(): SubscriptionState {
       graceDaysLeft,
       currentPeriodEnd,
       cancelAtPeriodEnd: !!sub?.cancel_at_period_end,
-      paddleSubscriptionId: (sub?.paddle_subscription_id as string) ?? null,
-      addonUnits: Number((sub as any)?.addon_units ?? 0),
-      // Trial gets unlimited (Infinity); active paid gets plan+addons; otherwise free tier.
+      paddleSubscriptionId: sub?.paddle_subscription_id ?? null,
+      addonUnits,
       unitLimit: phase === "trial"
         ? Infinity
         : phase === "active"
-          ? PLAN_UNIT_LIMITS[plan] + Number((sub as any)?.addon_units ?? 0)
+          ? PLAN_UNIT_LIMITS[plan] + addonUnits
           : PLAN_UNIT_LIMITS.free,
       phase,
       canceledAt,

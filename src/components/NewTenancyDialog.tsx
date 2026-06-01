@@ -171,7 +171,7 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
       paid_up_to: paidUpToVal,
       grace_days: graceNum,
       deposit_status: depositNum > 0 ? "held" : "none",
-      status: "active",
+      // tenancies.status defaults to 'active' in DB
       official_contract_number: officialNumber.trim() || null,
     } as any).select("contract_number").single();
     if (tErr) { setSaving(false); return toast.error(tErr.message); }
@@ -194,7 +194,7 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
       paid_up_to: paidUpToVal,
       security_deposit: depositNum,
       deposit_status: depositNum > 0 ? "held" : "none",
-      status: "soon",
+      // units.status omitted — derived by DB trigger
     };
     if (idImageUrl) updatePayload.tenant_id_image_url = idImageUrl;
     if (contractFileUrl) updatePayload.contract_file_url = contractFileUrl;

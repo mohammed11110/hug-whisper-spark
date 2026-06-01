@@ -57,7 +57,7 @@ export function AddBuildingDialog({ open, onOpenChange, onCreated }: { open: boo
         unit_number: String(i + 1),
         floor: 1,
         type: "apartment",
-        status: "vacant",
+        // status omitted — derived by DB trigger
         rent_amount: 0,
         rent_type: "monthly",
         due_day: 1,
