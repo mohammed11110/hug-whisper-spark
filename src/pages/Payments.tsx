@@ -310,6 +310,7 @@ export default function Payments() {
             <div>
               ${brandHeader}
               <p class="sub">${esc(L.receipt_number)} · ${esc(r.receipt_number || "—")}</p>
+              ${installmentNote ? `<p style="margin:4px 0 0;font-size:11px;font-weight:700;color:${isFinalInstallment ? "#3a6b3a" : "#8a5a2a"}">${esc(installmentNote)}</p>` : ""}
               ${brand.address || brand.phone ? `<p class="brand-meta">${esc(brand.address || "")} ${brand.phone ? "· " + esc(brand.phone) : ""}</p>` : ""}
             </div>
             ${showStatus ? `<span class="badge">${esc(us.label)}</span>` : ""}
