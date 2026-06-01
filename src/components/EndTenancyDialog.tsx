@@ -151,7 +151,7 @@ export function EndTenancyDialog({ open, onOpenChange, unit, tenancyId, onDone }
       opening_balance_date: null,
       paid_up_to: null,
       last_paid_date: null,
-      status: "vacant",
+      // units.status omitted — derived by DB trigger (will become 'vacant' once tenant cleared)
     } as any).eq("id", unit.id);
     setSaving(false);
     if (uErr) return toast.error(uErr.message);

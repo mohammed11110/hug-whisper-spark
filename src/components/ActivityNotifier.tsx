@@ -17,7 +17,7 @@ export function ActivityNotifier() {
   useEffect(() => {
     if (!user) return;
     const channel = supabase
-      .channel("activity_log_global")
+      .channel(`activity_log_global:${user.id}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "activity_log" },

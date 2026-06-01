@@ -54,7 +54,7 @@ export function RecentActivityCard({ limit = 8 }: { limit?: number }) {
     })();
 
     const channel = supabase
-      .channel("activity_log_dash")
+      .channel(`activity_log_dash:${crypto.randomUUID()}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "activity_log" }, (payload) => {
         setRows((prev) => [payload.new as Row, ...prev].slice(0, limit));
       })
