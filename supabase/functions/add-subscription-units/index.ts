@@ -89,7 +89,8 @@ Deno.serve(async (req) => {
     const subRes = await gatewayFetch(env, `/subscriptions/${sub.paddle_subscription_id}`);
     if (!subRes.ok) {
       const text = await subRes.text();
-      return jsonResponse({ error: 'paddle_fetch_failed', details: text }, 502);
+      console.error('paddle_fetch_failed', text);
+      return jsonResponse({ error: 'paddle_fetch_failed' }, 502);
     }
     const subJson = await subRes.json();
     const currentItems = subJson?.data?.items ?? [];
