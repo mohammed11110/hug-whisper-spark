@@ -69,8 +69,14 @@ interface Ctx {
   update: (patch: Partial<AppSettings>) => void;
   setStatusColor: (k: keyof AppSettings["statusColors"], c: StatusColor) => void;
   reset: () => void;
+  /** @deprecated Server allocates atomically on insert; kept as no-op for backwards compat. */
   bumpReceiptNumber: (delta?: number) => void;
-  resetReceiptNumber: () => void;
+  /** Reset server-side counter back to startNumber. */
+  resetReceiptNumber: () => Promise<void>;
+  /** Persist prefix / padding / startNumber on the server. */
+  saveReceiptSettings: (patch: Partial<Pick<ReceiptNumbering, "prefix" | "padding" | "startNumber">>) => Promise<void>;
+  /** Re-read counter from server (call after any external change). */
+  refreshReceiptCounter: () => Promise<void>;
 }
 
 const C = createContext<Ctx | null>(null);
@@ -98,16 +104,92 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => { localStorage.setItem(KEY, JSON.stringify(settings)); }, [settings]);
 
+  // ---- Server-synced receipt counter ----
+  const applyReceiptFromServer = useCallback((row: any) => {
+    if (!row) return;
+    setSettings((s) => ({
+      ...s,
+      receipt: {
+        prefix: row.prefix ?? s.receipt.prefix,
+        padding: Number(row.padding ?? s.receipt.padding ?? 0),
+        startNumber: Number(row.start_number ?? s.receipt.startNumber ?? 1),
+        nextNumber: Number(row.next_number ?? s.receipt.nextNumber ?? 1),
+      },
+    }));
+  }, []);
+
+  const refreshReceiptCounter = useCallback(async () => {
+    const { data: auth } = await supabase.auth.getUser();
+    const uid = auth?.user?.id;
+    if (!uid) return;
+    const { data, error } = await supabase
+      .from("receipt_counters")
+      .select("prefix, padding, start_number, next_number")
+      .eq("user_id", uid)
+      .maybeSingle();
+    if (error) return;
+    if (data) { applyReceiptFromServer(data); return; }
+
+    // First time ever for this user → seed from any pre-existing receipts.
+    try {
+      const { data: pays } = await supabase
+        .from("payments")
+        .select("receipt_number")
+        .not("receipt_number", "is", null)
+        .limit(2000);
+      let maxNum = 0;
+      (pays || []).forEach((p: any) => {
+        const base = String(p.receipt_number || "").split("/")[0];
+        const m = base.match(/(\d+)$/);
+        if (m) { const n = parseInt(m[1], 10); if (n > maxNum) maxNum = n; }
+      });
+      const seed = maxNum + 1;
+      await supabase.rpc("seed_receipt_counter", { _seed: seed });
+      const { data: data2 } = await supabase
+        .from("receipt_counters")
+        .select("prefix, padding, start_number, next_number")
+        .eq("user_id", uid)
+        .maybeSingle();
+      if (data2) applyReceiptFromServer(data2);
+    } catch { /* swallow — non-fatal */ }
+  }, [applyReceiptFromServer]);
+
+  useEffect(() => {
+    refreshReceiptCounter();
+    const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
+      if (session?.user) refreshReceiptCounter();
+    });
+    return () => { sub.subscription.unsubscribe(); };
+  }, [refreshReceiptCounter]);
+
   const update = (patch: Partial<AppSettings>) => setSettings((s) => ({ ...s, ...patch }));
   const setStatusColor: Ctx["setStatusColor"] = (k, c) =>
     setSettings((s) => ({ ...s, statusColors: { ...s.statusColors, [k]: c } }));
   const reset = () => setSettings(DEFAULTS);
-  const bumpReceiptNumber = (delta: number = 1) =>
-    setSettings((s) => ({ ...s, receipt: { ...s.receipt, nextNumber: (s.receipt.nextNumber || s.receipt.startNumber || 1) + Math.max(0, delta) } }));
-  const resetReceiptNumber = () =>
-    setSettings((s) => ({ ...s, receipt: { ...s.receipt, nextNumber: s.receipt.startNumber || 1 } }));
 
-  return <C.Provider value={{ settings, update, setStatusColor, reset, bumpReceiptNumber, resetReceiptNumber }}>{children}</C.Provider>;
+  // Server allocates atomically at insert time — local bump is no longer needed.
+  const bumpReceiptNumber = (_delta: number = 1) => { /* no-op */ void _delta; };
+
+  const resetReceiptNumber = async () => {
+    const { data, error } = await supabase.rpc("update_receipt_settings", {
+      _prefix: null, _padding: null, _start_number: null, _reset: true,
+    });
+    if (error) return;
+    applyReceiptFromServer(Array.isArray(data) ? data[0] : data);
+  };
+
+  const saveReceiptSettings: Ctx["saveReceiptSettings"] = async (patch) => {
+    const { data, error } = await supabase.rpc("update_receipt_settings", {
+      _prefix: patch.prefix ?? null,
+      _padding: patch.padding ?? null,
+      _start_number: patch.startNumber ?? null,
+      _reset: false,
+    });
+    if (error) return;
+    applyReceiptFromServer(Array.isArray(data) ? data[0] : data);
+  };
+
+  return <C.Provider value={{ settings, update, setStatusColor, reset, bumpReceiptNumber, resetReceiptNumber, saveReceiptSettings, refreshReceiptCounter }}>{children}</C.Provider>;
 }
 
 export const useAppSettings = () => {
