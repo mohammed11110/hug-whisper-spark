@@ -124,7 +124,8 @@ Deno.serve(async (req) => {
     });
     if (!patchRes.ok) {
       const text = await patchRes.text();
-      return jsonResponse({ error: 'paddle_update_failed', details: text }, 502);
+      console.error('paddle_update_failed', text);
+      return jsonResponse({ error: 'paddle_update_failed' }, 502);
     }
 
     // Webhook will update addon_units; but also patch the row immediately so the UI reflects it.
