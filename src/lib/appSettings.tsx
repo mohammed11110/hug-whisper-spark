@@ -101,8 +101,8 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
   const setStatusColor: Ctx["setStatusColor"] = (k, c) =>
     setSettings((s) => ({ ...s, statusColors: { ...s.statusColors, [k]: c } }));
   const reset = () => setSettings(DEFAULTS);
-  const bumpReceiptNumber = () =>
-    setSettings((s) => ({ ...s, receipt: { ...s.receipt, nextNumber: (s.receipt.nextNumber || s.receipt.startNumber || 1) + 1 } }));
+  const bumpReceiptNumber = (delta: number = 1) =>
+    setSettings((s) => ({ ...s, receipt: { ...s.receipt, nextNumber: (s.receipt.nextNumber || s.receipt.startNumber || 1) + Math.max(0, delta) } }));
   const resetReceiptNumber = () =>
     setSettings((s) => ({ ...s, receipt: { ...s.receipt, nextNumber: s.receipt.startNumber || 1 } }));
 
