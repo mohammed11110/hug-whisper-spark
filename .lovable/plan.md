@@ -1,37 +1,36 @@
-## السبب الجذري
+# إضافة حدود عدد أعضاء الفريق حسب الباقة
 
-صفحتا **الإعدادات** و**المباني** تتعطلان بسبب خطأ في `src/hooks/useSubscription.ts:169-179`:
+## الحدود المقترحة (لكل مالك حساب)
 
-```
-cannot add `postgres_changes` callbacks for realtime:subs:<uid> after `subscribe()`.
-```
+| الباقة | الحد الأقصى للأعضاء (بدون المالك) |
+|---|---|
+| Free | 0 |
+| Personal | 1 |
+| Pro | 3 |
+| Business | 10 |
+| Enterprise | غير محدود |
+| Trial | غير محدود (مثل الوحدات) |
 
-اسم القناة ثابت `` `subs:${user.id}` ``. في React StrictMode (وضع التطوير) أو عند إعادة تنفيذ الـeffect سريعاً:
-1. التشغيل الأول: ينشئ القناة → `.on().on().subscribe()`.
-2. الـcleanup يستدعي `removeChannel` لكنه غير متزامن.
-3. التشغيل الثاني: `supabase.channel("subs:<uid>")` يُرجع نفس الـinstance المشتركة سابقاً، فيستدعي `.on()` بعد `subscribe()` ← يرمي خطأ يُسقط الشجرة عبر `ErrorBoundary`.
+العدّ يشمل: أعضاء `building_members` النشطين + الدعوات `invitations` المعلّقة، عبر جميع مباني المالك، مجموعةً بـ `user_id`/`email` فريد لتفادي العدّ المزدوج لنفس الشخص في عدة مبانٍ.
 
-نفس النمط حدث سابقاً مع قنوات `activity_log_*` وتم إصلاحه بإضافة `crypto.randomUUID()`؛ هذه القناة لم تُحدّث.
+## التغييرات
 
-## الإصلاح
+### 1) قاعدة البيانات (migration)
+- دالة `public.get_plan_member_limit(_plan text)` تُرجع الحد.
+- دالة `public.user_member_allowance(_user_id uuid)` تُرجع الحد للمالك حسب باقته الفعّالة (trial = ∞).
+- دالة `public.user_member_count(_user_id uuid)` تحسب الأعضاء الفريدين + الدعوات المعلّقة عبر مباني المالك.
+- Trigger `enforce_member_quota` على `building_members` (BEFORE INSERT) و`invitations` (BEFORE INSERT حين status='pending') يرفع خطأ `member_quota_exceeded` عند التجاوز.
 
-في `src/hooks/useSubscription.ts` — استخدام معرف فريد لكل اشتراك:
+### 2) الواجهة `src/pages/Team.tsx`
+- جلب `user_member_allowance` و`user_member_count` عبر RPC وعرض شريط الاستخدام (مثال: «3 / 10 أعضاء»).
+- تعطيل زر «إرسال الدعوة» عند بلوغ الحد مع رسالة: «وصلت لحد الباقة. رقّ الباقة لإضافة المزيد».
+- التقاط خطأ `member_quota_exceeded` من Supabase وعرض toast واضح.
 
-```ts
-useEffect(() => {
-  if (!user) return;
-  const channelName = `subs:${user.id}:${crypto.randomUUID()}`;
-  const channel = supabase
-    .channel(channelName)
-    .on("postgres_changes", { ... }, () => load())
-    .on("postgres_changes", { ... }, () => load())
-    .subscribe();
-  return () => { supabase.removeChannel(channel); };
-}, [user, load]);
-```
+### 3) صفحة التسعير (اختياري — عرض فقط)
+- إضافة سطر «الفريق» في بطاقات الباقات في `src/pages/Pricing.tsx` بالأرقام أعلاه.
 
-تغيير سطر واحد. يحل عطل صفحة الإعدادات وصفحة المباني (وأي صفحة تستهلك `useSubscription`).
-
-## التحقق
-
-بعد التعديل، أعيد تحميل `/settings` و`/buildings` في المعاينة وأتأكد من عدم ظهور شاشة "حدث خطأ ما" ومن خلو الكونسول من الخطأ.
+## ملاحظات تقنية
+- المالك نفسه غير محسوب ضمن الحد.
+- الدعوات المعلّقة محسوبة حتى لا يُتجاوز الحد عبر دعوات متعددة.
+- لا تعديل على RLS الحالية؛ التحقق يتم عبر triggers SECURITY DEFINER.
+- لا تُمسّ بيانات موجودة؛ التحقق على الإدراج فقط.
