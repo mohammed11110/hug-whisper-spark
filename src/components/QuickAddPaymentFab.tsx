@@ -36,6 +36,7 @@ export function QuickAddPaymentFab() {
     <>
       <button
         type="button"
+        data-tour="quick-payment"
         onClick={() => setOpen(true)}
         aria-label={lang === "ar" ? "تسجيل دفعة" : "Register payment"}
         className="fixed bottom-24 md:bottom-6 end-5 z-40 h-14 w-14 rounded-full bg-gradient-sage text-primary-foreground flex items-center justify-center active:scale-95 transition-transform"

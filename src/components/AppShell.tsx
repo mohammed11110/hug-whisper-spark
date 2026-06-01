@@ -3,6 +3,7 @@ import { Outlet } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ActivityNotifier } from "@/components/ActivityNotifier";
+import { TourLauncher } from "@/components/TourLauncher";
 import { QuickAddPaymentFab } from "@/components/QuickAddPaymentFab";
 import { LifecycleBanner } from "@/components/GraceBanner";
 import { InstallPrompt } from "@/components/InstallPrompt";
@@ -27,6 +28,7 @@ export function AppShell() {
   return (
     <SidebarProvider defaultOpen={defaultOpen}>
       <ActivityNotifier />
+      <TourLauncher />
       <OfflineBanner />
       <LifecycleBanner />
       <div className="flex w-full min-h-svh">
