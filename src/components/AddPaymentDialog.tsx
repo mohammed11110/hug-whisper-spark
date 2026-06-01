@@ -690,7 +690,8 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
       descriptionEn: `Collected ${Number(amount).toLocaleString()} from ${_tenant || "tenant"} — unit ${_unitNum}${isPartial ? " (partial)" : ""}`,
       changes: { amount: Number(amount), expected: Number(expected) || null, partial: isPartial },
     });
-    if (newNumbersConsumed > 0) bumpReceiptNumber(newNumbersConsumed);
+    // Server already advanced the counter atomically via allocate_receipt_numbers.
+    void refreshReceiptCounter();
     // Prepare receipt args; ask user whether to include arrears if any remain
     try {
       const u = units.find((x) => x.id === unitId);
