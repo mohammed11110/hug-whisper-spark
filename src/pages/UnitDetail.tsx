@@ -78,7 +78,7 @@ export default function UnitDetail() {
       const { data: b } = await supabase.from("buildings").select("name, name_en").eq("id", data.building_id).maybeSingle();
       if (b) setBuildingName((b as any).name || (b as any).name_en || "");
     }
-    const { data: ps } = await supabase.from("payments").select("unit_id,amount,deleted_at,payment_date,period_start,period_end,tenancy_id,kind").eq("unit_id", id).is("deleted_at", null);
+    const { data: ps } = await supabase.from("payments").select("id,unit_id,amount,expected_amount,deleted_at,payment_date,period_start,period_end,tenancy_id,kind,receipt_number,created_at,notes").eq("unit_id", id).is("deleted_at", null);
     setPayments((ps || []) as any);
     const { data: ts } = await supabase.from("tenancies").select("id,status,tenant_name,contract_number,official_contract_number,contract_start_date,contract_end_date,ended_at,rent_amount,outstanding_at_end,deposit_status,deposit_refund_amount").eq("unit_id", id).order("contract_start_date", { ascending: false });
     setTenancies((ts || []) as any);
