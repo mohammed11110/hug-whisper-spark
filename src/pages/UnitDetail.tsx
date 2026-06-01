@@ -18,6 +18,7 @@ import { NewTenancyDialog } from "@/components/NewTenancyDialog";
 import { AddMaintenanceDialog } from "@/components/AddMaintenanceDialog";
 import { FileUpload } from "@/components/FileUpload";
 import { getUnitArrears, type PaymentForBalance } from "@/lib/balance";
+import { derivePartialMetaForDisplay } from "@/lib/receiptNumbering";
 import { ArrearsBadge } from "@/components/ArrearsBadge";
 import { AdjustBalanceDialog } from "@/components/AdjustBalanceDialog";
 
@@ -78,7 +79,7 @@ export default function UnitDetail() {
       const { data: b } = await supabase.from("buildings").select("name, name_en").eq("id", data.building_id).maybeSingle();
       if (b) setBuildingName((b as any).name || (b as any).name_en || "");
     }
-    const { data: ps } = await supabase.from("payments").select("unit_id,amount,deleted_at,payment_date,period_start,period_end,tenancy_id,kind").eq("unit_id", id).is("deleted_at", null);
+    const { data: ps } = await supabase.from("payments").select("id,unit_id,amount,expected_amount,deleted_at,payment_date,period_start,period_end,tenancy_id,kind,receipt_number,created_at,notes").eq("unit_id", id).is("deleted_at", null);
     setPayments((ps || []) as any);
     const { data: ts } = await supabase.from("tenancies").select("id,status,tenant_name,contract_number,official_contract_number,contract_start_date,contract_end_date,ended_at,rent_amount,outstanding_at_end,deposit_status,deposit_refund_amount").eq("unit_id", id).order("contract_start_date", { ascending: false });
     setTenancies((ts || []) as any);
@@ -192,7 +193,7 @@ export default function UnitDetail() {
     // Build statement timeline: opening balance + monthly charges from contract start + actual payments
     const { data: ps } = await supabase
       .from("payments")
-      .select("amount, payment_date, period_start, receipt_number, notes")
+      .select("id, amount, expected_amount, payment_date, period_start, period_end, receipt_number, notes, kind, tenancy_id, created_at, deleted_at, unit_id")
       .eq("unit_id", unit.id)
       .is("deleted_at", null)
       .order("payment_date", { ascending: true });
@@ -243,12 +244,26 @@ export default function UnitDetail() {
     }
 
 
+    const activeSetStmt = activeTenancyId ? new Set([activeTenancyId]) : new Set<string>();
+    const derivedStmt = derivePartialMetaForDisplay((ps || []) as any, { activeTenancyIds: activeSetStmt });
     (ps || []).forEach((p: any) => {
       const m = (p.period_start || p.payment_date || "").slice(0, 7);
+      const meta = derivedStmt.get(p.id);
+      const sfx = meta?.derivedSuffix;
+      const fullReceipt = p.receipt_number
+        ? (sfx && meta?.isComputed && !p.receipt_number.includes("/")
+            ? `${p.receipt_number}/${sfx}`
+            : p.receipt_number)
+        : "";
+      const sfxLabel = sfx && meta?.isComputed
+        ? (lang === "ar"
+            ? ` ‹${sfx === "D" ? "ختامي" : `جزئي ${sfx}`} · محسوب›`
+            : ` ‹${sfx === "D" ? "Final" : `Partial ${sfx}`} · auto›`)
+        : "";
       entries.push({
         date: p.payment_date,
         month: m || undefined,
-        description: (lang === "ar" ? "دفعة" : "Payment") + (p.receipt_number ? ` #${p.receipt_number}` : "") + (p.notes ? ` — ${p.notes}` : ""),
+        description: (lang === "ar" ? "دفعة" : "Payment") + (fullReceipt ? ` #${fullReceipt}` : "") + sfxLabel + (p.notes ? ` — ${p.notes}` : ""),
         charge: 0,
         payment: Number(p.amount),
         sortKey: p.payment_date + "2",
@@ -638,17 +653,35 @@ function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLea
 
           // 3) All real payments (rent + adjustment). Opening-kind rows are
           //    already represented by the opening line above.
+          // Derive partial-cycle metadata for the active tenancy so legacy
+          // receipts (issued before the /1, /D system) visually join the
+          // same cycle when shown in the ledger.
+          const activeSet = activeTenancyId ? new Set([activeTenancyId]) : new Set<string>();
+          const derived = derivePartialMetaForDisplay(payments as any, { activeTenancyIds: activeSet });
           (payments || [])
             .filter((p: any) => !p.deleted_at && (p.kind || "rent") !== "opening")
             .forEach((p: any) => {
               const amt = Number(p.amount) || 0;
               const isAdj = (p.kind || "rent") === "adjustment";
               const date = p.payment_date || p.period_start || "";
+              const meta = derived.get(p.id);
+              const sfx = meta?.derivedSuffix;
+              const sfxLabel = sfx && meta?.isComputed
+                ? (lang === "ar"
+                    ? ` ‹${sfx === "D" ? "ختامي" : `جزئي ${sfx}`} · محسوب›`
+                    : ` ‹${sfx === "D" ? "Final" : `Partial ${sfx}`} · auto›`)
+                : "";
               const descBase = isAdj
                 ? (lang === "ar" ? "تعديل الرصيد" : "Adjustment")
                 : (lang === "ar" ? "دفعة" : "Payment");
+              const fullReceipt = p.receipt_number
+                ? (sfx && meta?.isComputed && !p.receipt_number.includes("/")
+                    ? `${p.receipt_number}/${sfx}`
+                    : p.receipt_number)
+                : "";
               const desc = descBase +
-                (p.receipt_number ? ` #${p.receipt_number}` : "") +
+                (fullReceipt ? ` #${fullReceipt}` : "") +
+                sfxLabel +
                 (p.notes ? ` — ${p.notes}` : "");
               // Positive adjustment = waiver/credit (reduces balance like a payment).
               // Negative adjustment = extra charge (adds to balance).
@@ -664,10 +697,12 @@ function DetailsTab({ unit, payments, format, t2, lang, onPay, onLeasePDF, onLea
                 payment,
                 sortKey: date + "2",
                 kind: p.kind || "rent",
-                receipt: p.receipt_number || "",
+                receipt: fullReceipt,
                 notes: p.notes || "",
               });
             });
+
+
 
           entries.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
 

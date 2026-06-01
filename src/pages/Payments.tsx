@@ -17,7 +17,7 @@ import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
 import { useAppSettings, readFilters, writeFilters } from "@/lib/appSettings";
 import { getUnitArrears, getCycleForPeriodStart } from "@/lib/balance";
-import { suffixOf, isPartialSuffix, isFinalSuffix } from "@/lib/receiptNumbering";
+import { suffixOf, isPartialSuffix, isFinalSuffix, derivePartialMetaForDisplay, type DerivedPartialMeta } from "@/lib/receiptNumbering";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
@@ -34,7 +34,13 @@ interface Row {
   tenant_name: string | null;
   unit_status: string;
   period_start: string | null;
+  period_end: string | null;
+  tenancy_id: string | null;
   remaining: number;
+  /** Display-only suffix derived from cycle context when the stored
+   *  `receipt_number` has none. Lets legacy receipts visually join the new
+   *  partial-cycle system without DB writes. */
+  derivedMeta?: DerivedPartialMeta;
   /** Minimal unit context needed to rebuild the canonical cycle label
    *  (contract_start_date drives whether the receipt shows a full month or
    *  a D/M → (D-1)/(M+1) range). */
@@ -116,7 +122,7 @@ export default function Payments() {
     setLoading(true);
     const { data: pays } = await supabase
       .from("payments")
-      .select("id, unit_id, amount, expected_amount, payment_date, receipt_number, period_start")
+      .select("id, unit_id, amount, expected_amount, payment_date, receipt_number, period_start, period_end, tenancy_id, created_at, kind, deleted_at")
       .is("deleted_at", null)
       .order("payment_date", { ascending: false })
       .limit(500);
@@ -128,9 +134,9 @@ export default function Payments() {
     const { data: builds } = buildingIds.length
       ? await supabase.from("buildings").select("id, name, name_en").in("id", buildingIds)
       : { data: [] as any[] };
-    // All non-deleted payments for involved units (used for outstanding balance)
+    // All non-deleted payments for involved units (used for outstanding balance + cycle derivation).
     const { data: allPays } = unitIds.length
-      ? await supabase.from("payments").select("unit_id, amount, deleted_at, payment_date, period_start, period_end, tenancy_id, kind").in("unit_id", unitIds).is("deleted_at", null)
+      ? await supabase.from("payments").select("id, unit_id, amount, expected_amount, deleted_at, payment_date, period_start, period_end, tenancy_id, created_at, receipt_number, kind").in("unit_id", unitIds).is("deleted_at", null)
       : { data: [] as any[] };
     // Active-lease map keeps each unit's outstanding limited to the
     // current tenant — past tenant payments stay archived but don't bleed in.
@@ -138,6 +144,7 @@ export default function Payments() {
       ? await supabase.from("tenancies").select("id, unit_id").in("unit_id", unitIds).eq("status", "active")
       : { data: [] as any[] };
     const activeMap = new Map<string, string>((activeTs || []).map((t: any) => [t.unit_id, t.id]));
+    const activeTenancyIds = new Set<string>((activeTs || []).map((t: any) => t.id));
     const uMap = new Map((units || []).map((u: any) => [u.id, u]));
     const bMap = new Map((builds || []).map((b: any) => [b.id, b]));
     const remainingMap = new Map<string, number>();
@@ -145,6 +152,8 @@ export default function Payments() {
       const { totalShortfall } = getUnitArrears(u, allPays || [], new Date(), lang as "ar" | "en", activeMap.get(u.id) || null);
       remainingMap.set(u.id, totalShortfall);
     });
+    // Compute display-only partial metadata for every payment in scope.
+    const derivedMap = derivePartialMetaForDisplay((allPays || []) as any, { activeTenancyIds });
     const mapped: Row[] = (pays || []).map((p: any) => {
       const u: any = uMap.get(p.unit_id);
       const b: any = u ? bMap.get(u.building_id) : null;
@@ -156,11 +165,14 @@ export default function Payments() {
         payment_date: p.payment_date,
         receipt_number: p.receipt_number,
         period_start: p.period_start,
+        period_end: p.period_end ?? null,
+        tenancy_id: p.tenancy_id ?? null,
         unit_number: u?.unit_number ?? "—",
         tenant_name: u?.tenant_name ?? null,
         building_name: b?.name || b?.name_en || "—",
         unit_status: u?.status ?? "soon",
         remaining: remainingMap.get(p.unit_id) ?? 0,
+        derivedMeta: derivedMap.get(p.id),
         unit_ctx: {
           contract_start_date: u?.contract_start_date ?? null,
           opening_balance_date: u?.opening_balance_date ?? null,
@@ -171,6 +183,7 @@ export default function Payments() {
     setRows(mapped);
     setLoading(false);
   };
+
 
   useEffect(() => { load(); }, []);
   useEffect(() => {
@@ -484,13 +497,34 @@ export default function Payments() {
                   {r.tenant_name && <p className="text-xs text-muted-foreground truncate mt-0.5">{r.tenant_name}</p>}
                   <div className="flex flex-wrap items-center gap-3 mt-2 text-[11px] text-sage-500">
                     <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{r.payment_date}</span>
-                    {r.receipt_number && <span className="font-mono">{r.receipt_number}</span>}
+                    {r.receipt_number && (
+                      <span className="font-mono inline-flex items-center gap-1">
+                        {r.receipt_number}
+                        {r.derivedMeta?.isComputed && r.derivedMeta.derivedSuffix && (
+                          <span className="font-sans not-italic text-[9px] font-bold px-1.5 py-0.5 rounded bg-sage-100 text-sage-500 tracking-normal" title={lang === "ar" ? "اللاحقة مُحتسبة من دورة الإيجار — رقم الإيصال الأصلي لم يتغيّر" : "Suffix derived from rent cycle — stored receipt # unchanged"}>
+                            /{r.derivedMeta.derivedSuffix} · {lang === "ar" ? "محسوب" : "auto"}
+                          </span>
+                        )}
+                      </span>
+                    )}
+                    {(() => {
+                      const sfx = r.derivedMeta?.derivedSuffix ?? suffixOf(r.receipt_number);
+                      if (!sfx) return null;
+                      if (isFinalSuffix(sfx)) {
+                        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sage-100 text-sage-600 font-bold" title={lang === "ar" ? "الدفعة الختامية — الدورة مسدّدة" : "Final payment — cycle settled"}>{lang === "ar" ? "ختامي" : "Final"}</span>;
+                      }
+                      if (isPartialSuffix(sfx)) {
+                        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-bold" style={{ background: "#f5e3cf", color: "#8a5a2a" }} title={lang === "ar" ? `دفعة جزئية ${sfx} — مرتبطة بدورة الإيجار` : `Partial installment ${sfx} — linked to rent cycle`}>{lang === "ar" ? `جزئي ${sfx}` : `Partial ${sfx}`}</span>;
+                      }
+                      return null;
+                    })()}
                     {r.period_start && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sage-100 text-sage-600 font-semibold">
                         {cycleLabel(r, lang)}
                       </span>
                     )}
                   </div>
+
                 </Link>
                 <div className="text-end">
                   <p className="font-black text-sage-600 text-lg whitespace-nowrap">{format(r.amount)}</p>
