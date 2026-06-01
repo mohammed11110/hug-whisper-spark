@@ -34,6 +34,8 @@ export default function Team() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<Role>("viewer");
   const [busy, setBusy] = useState(false);
+  const [allowance, setAllowance] = useState<number>(0);
+  const [usage, setUsage] = useState<number>(0);
 
   const load = async () => {
     if (!user) return;
@@ -56,12 +58,26 @@ export default function Team() {
         setMemberProfiles(map);
       }
     }
+    const [{ data: allow }, { data: cnt }] = await Promise.all([
+      (supabase.rpc as any)("user_member_allowance", { _user_id: user.id }),
+      (supabase.rpc as any)("user_member_count", { _user_id: user.id }),
+    ]);
+    setAllowance(Number(allow ?? 0));
+    setUsage(Number(cnt ?? 0));
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [user]);
 
+  const isUnlimited = allowance >= 2147483647;
+  const atLimit = !isUnlimited && usage >= allowance;
+  const allowanceLabel = isUnlimited ? "∞" : String(allowance);
+
   const invite = async () => {
     if (!email.trim() || !building || !user) return;
+    if (atLimit) {
+      toast.error(ar ? "وصلت لحد الباقة. رقّ الباقة لإضافة المزيد." : "Plan limit reached. Upgrade to add more.");
+      return;
+    }
     setBusy(true);
     const { error } = await supabase.from("invitations").insert({
       building_id: building,
@@ -70,7 +86,12 @@ export default function Team() {
       invited_by: user.id,
     });
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) {
+      if (error.message?.includes("member_quota_exceeded")) {
+        return toast.error(ar ? "وصلت لحد الباقة. رقّ الباقة لإضافة المزيد." : "Plan limit reached. Upgrade to add more.");
+      }
+      return toast.error(error.message);
+    }
     toast.success(ar ? "تم إرسال الدعوة" : "Invitation sent");
     setEmail("");
     load();
