@@ -1,30 +1,34 @@
-إضافة تنقّل شهري على بطاقة "المحصل هذا الشهر" في `src/pages/Dashboard.tsx` للرجوع حتى 3 أشهر للخلف.
+# Receipt: choose Arabic or English on print/download
 
-## السلوك
+## Goal
+In صفحة المدفوعات (Payments), each receipt currently has a Print button and a Download PDF button — both use the current app language. Add an explicit AR / EN choice so the user can print or download a receipt in either language regardless of the UI language.
 
-- يظهر سهمان صغيران على جانبَي اسم الشهر داخل البطاقة الخضراء:
-  - **‹ السابق**: ينتقل شهراً للخلف (حتى -3 أشهر).
-  - **التالي ›**: يعود حتى الشهر الحالي فقط (لا مستقبل).
-- يظهر اسم الشهر بجانب الأسهم (مثل: "مايو 2026").
-- المبلغ المعروض والـ "نسبة التحصيل" تتحدّث فوراً للشهر المختار.
+## Scope
+- File only: `src/pages/Payments.tsx`
+- No DB changes, no changes to receipt HTML/PDF generation (already supports both languages via `buildReceiptHTML(r, lng)`).
+- No changes to UnitDetail or other pages.
 
-## التغييرات
+## UX
+Replace the two single icon buttons (Printer, Download) with two **DropdownMenu** triggers:
 
-`src/pages/Dashboard.tsx`:
+1. **Print** (Printer icon) → opens menu with:
+   - `طباعة بالعربية` / Print (Arabic)
+   - `Print in English` / طباعة بالإنجليزية
+2. **Download PDF** (Download icon) → opens menu with:
+   - `تحميل PDF بالعربية` / Download PDF (Arabic)
+   - `Download PDF in English` / تحميل PDF بالإنجليزية
 
-1. حالة جديدة `monthOffset` (0 = الحالي، -1 / -2 / -3 = الأشهر السابقة).
-2. حساب `monthKey` من `monthOffset` بدل `today` مباشرة.
-3. تصفية الدفعات بناء على `monthKey` المختار.
-4. إضافة شريط تنقّل داخل البطاقة الخضراء:
-   - يسار: زر `‹` معطّل عند `monthOffset === -3`.
-   - وسط: تسمية الشهر بالعربية/الإنجليزية حسب `lang`.
-   - يمين: زر `›` معطّل عند `monthOffset === 0`.
-5. تحديث نص العنوان: "المحصل هذا الشهر" عند 0، وإلا "المحصل في {الشهر}".
-6. تحديث بطاقة "نسبة التحصيل" لتقول اسم الشهر المختار بدل "هذا الشهر" عند الرجوع.
-7. الأسهم تستخدم أيقونات `ChevronLeft` / `ChevronRight` من lucide-react مع `rtl:rotate-180`، ألوان شفافة فوق الخلفية السايج، ارتفاع لمس ≥ 36px.
+Labels follow `lang` for the UI text; the action passes the chosen `RLang` (`"ar"` or `"en"`) to existing `printReceipt(r, lng)` / `downloadReceiptPDF(r, lng)` (signatures already accept it).
 
-## ملاحظات
+Buttons keep current size (h-7 w-7), styling, and icons. The dropdown uses the existing `@/components/ui/dropdown-menu` primitives already used in the project.
 
-- لا تغييرات في القاعدة أو RLS.
-- التوقع (`expected`) يظل مبنياً على الإيجارات الحالية للوحدات المشغولة (تقدير مقبول؛ بناء توقّع دقيق تاريخي يحتاج عمل أكبر — يمكن لاحقاً).
-- ملف واحد فقط متغيّر: `src/pages/Dashboard.tsx`.
+## Technical notes
+- Import `DropdownMenu`, `DropdownMenuTrigger`, `DropdownMenuContent`, `DropdownMenuItem` from `@/components/ui/dropdown-menu`.
+- `printReceipt` and `downloadReceiptPDF` already take an optional `lng: RLang` argument — no changes needed to those functions.
+- Remove default-language behavior at call sites; always pass the explicit chosen language from the menu item.
+- RTL is already handled by the dropdown primitives.
+
+## Out of scope
+- Adding receipt print/download inside UnitDetail.
+- Changing receipt template content or styling.
+- A global default-language setting for receipts.
