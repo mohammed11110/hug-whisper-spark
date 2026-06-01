@@ -290,6 +290,8 @@ export function derivePartialMetaForDisplay(
         cycleClosed: willClose,
         positionInCycle: idx + 1,
         cycleSize: list.length,
+        cycleDue: cycleDue as number,
+        cumulativePaid: running,
       });
     });
   }
