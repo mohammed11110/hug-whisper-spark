@@ -10,7 +10,9 @@ export interface TemplateEntry {
 }
 
 import { template as subscriptionInvoice } from './subscription-invoice.tsx'
+import { template as receiptNumberingChanged } from './receipt-numbering-changed.tsx'
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
   'subscription-invoice': subscriptionInvoice,
+  'receipt-numbering-changed': receiptNumberingChanged,
 }
