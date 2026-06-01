@@ -119,3 +119,160 @@ export function computeReceiptNumber({
     isFinal: false,
   };
 }
+
+/* -------------------------------------------------------------------------- */
+/*                  Display-time derivation for legacy receipts               */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Given a unit's payments, derives a per-payment view of partial-cycle
+ * metadata WITHOUT mutating any stored `receipt_number`. Used by the unit
+ * statement and the payments list to retroactively present old receipts as
+ * if they had been issued under the new `/1`, `/2`, `/D` system.
+ *
+ * - If a payment already has a stored suffix (`/1`, `/2`, `/D`), it is kept
+ *   as-is and `isComputed = false`.
+ * - Otherwise, suffixes are computed within each cycle group
+ *   (`unit_id + period_start + period_end`) ordered by `payment_date` then
+ *   `created_at`. `isComputed = true` so the UI can show a small "computed"
+ *   hint next to the suffix.
+ * - Cycles that already have only one payment which fully covers
+ *   `expected_amount` get NO suffix — exactly like a brand-new full receipt.
+ */
+export interface DerivablePayment {
+  id: string;
+  unit_id?: string | null;
+  tenancy_id?: string | null;
+  period_start?: string | null;
+  period_end?: string | null;
+  payment_date?: string | null;
+  created_at?: string | null;
+  amount: number;
+  expected_amount?: number | null;
+  receipt_number?: string | null;
+  kind?: string | null;
+  deleted_at?: string | null;
+}
+
+export interface DerivedPartialMeta {
+  /** "1" | "2" | "D" | null */
+  derivedSuffix: string | null;
+  /** True when the suffix was derived (not stored on receipt_number). */
+  isComputed: boolean;
+  /** Group key (unit_id|period_start|period_end). Empty when the payment
+   *  has no cycle (e.g. ad-hoc adjustment) — no grouping in that case. */
+  cycleKey: string;
+  /** Remaining amount on the cycle after this payment, never below zero. */
+  cycleRemaining: number;
+  /** True if this payment closes the cycle (or the cycle is fully paid). */
+  cycleClosed: boolean;
+  /** Index of this payment within the cycle (1-based). */
+  positionInCycle: number;
+  /** Number of installments in the cycle (including this one). */
+  cycleSize: number;
+}
+
+export function derivePartialMetaForDisplay(
+  payments: DerivablePayment[],
+  opts?: { activeTenancyIds?: Set<string> }
+): Map<string, DerivedPartialMeta> {
+  const result = new Map<string, DerivedPartialMeta>();
+  const active = opts?.activeTenancyIds;
+
+  // Bucket non-deleted, non-adjustment payments by cycle key.
+  const groups = new Map<string, DerivablePayment[]>();
+  for (const p of payments) {
+    if (p.deleted_at) continue;
+    if ((p.kind || "rent") === "adjustment" || (p.kind || "rent") === "opening") continue;
+    if (!p.period_start || !p.period_end || !p.unit_id) {
+      result.set(p.id, {
+        derivedSuffix: suffixOf(p.receipt_number),
+        isComputed: false,
+        cycleKey: "",
+        cycleRemaining: 0,
+        cycleClosed: true,
+        positionInCycle: 1,
+        cycleSize: 1,
+      });
+      continue;
+    }
+    // Restrict grouping to active-tenancy payments when caller asked.
+    if (active && p.tenancy_id && !active.has(p.tenancy_id)) {
+      result.set(p.id, {
+        derivedSuffix: suffixOf(p.receipt_number),
+        isComputed: false,
+        cycleKey: "",
+        cycleRemaining: 0,
+        cycleClosed: true,
+        positionInCycle: 1,
+        cycleSize: 1,
+      });
+      continue;
+    }
+    const key = `${p.unit_id}|${p.period_start}|${p.period_end}`;
+    const arr = groups.get(key) || [];
+    arr.push(p);
+    groups.set(key, arr);
+  }
+
+  for (const [cycleKey, list] of groups) {
+    list.sort((a, b) => {
+      const ad = (a.payment_date || "") + (a.created_at || "");
+      const bd = (b.payment_date || "") + (b.created_at || "");
+      return ad.localeCompare(bd);
+    });
+    const cycleDue =
+      list.find((p) => p.expected_amount && (p.expected_amount as number) > 0)
+        ?.expected_amount || list.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+    let running = 0;
+    let partialIndex = 0;
+    list.forEach((p, idx) => {
+      running += Number(p.amount) || 0;
+      const willClose = running >= (cycleDue as number) - 0.009;
+      const storedSfx = suffixOf(p.receipt_number);
+      let derivedSuffix: string | null = null;
+      let isComputed = false;
+      if (storedSfx) {
+        derivedSuffix = storedSfx;
+        isComputed = false;
+        if (isPartialSuffix(storedSfx)) partialIndex++;
+      } else if (list.length === 1 && willClose) {
+        derivedSuffix = null;
+        isComputed = false;
+      } else if (willClose) {
+        derivedSuffix = "D";
+        isComputed = true;
+      } else {
+        partialIndex++;
+        derivedSuffix = String(partialIndex);
+        isComputed = true;
+      }
+      result.set(p.id, {
+        derivedSuffix,
+        isComputed,
+        cycleKey,
+        cycleRemaining: Math.max(0, (cycleDue as number) - running),
+        cycleClosed: willClose,
+        positionInCycle: idx + 1,
+        cycleSize: list.length,
+      });
+    });
+  }
+
+  // Any payment not yet visited (e.g. deleted/adjustment) gets a passthrough.
+  for (const p of payments) {
+    if (!result.has(p.id)) {
+      result.set(p.id, {
+        derivedSuffix: suffixOf(p.receipt_number),
+        isComputed: false,
+        cycleKey: "",
+        cycleRemaining: 0,
+        cycleClosed: true,
+        positionInCycle: 1,
+        cycleSize: 1,
+      });
+    }
+  }
+  return result;
+}
+
