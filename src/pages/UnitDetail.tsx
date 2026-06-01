@@ -18,6 +18,7 @@ import { NewTenancyDialog } from "@/components/NewTenancyDialog";
 import { AddMaintenanceDialog } from "@/components/AddMaintenanceDialog";
 import { FileUpload } from "@/components/FileUpload";
 import { getUnitArrears, type PaymentForBalance } from "@/lib/balance";
+import { derivePartialMetaForDisplay } from "@/lib/receiptNumbering";
 import { ArrearsBadge } from "@/components/ArrearsBadge";
 import { AdjustBalanceDialog } from "@/components/AdjustBalanceDialog";
 
