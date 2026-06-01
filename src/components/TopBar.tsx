@@ -8,6 +8,7 @@ import { SettingsPanel } from "@/components/SettingsPanel";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { useAdmin } from "@/lib/useAdmin";
 import { NotificationBell } from "@/components/NotificationBell";
+import { HelpMenu } from "@/components/HelpMenu";
 
 export function TopBar({ hasAlerts = false }: { hasAlerts?: boolean }) {
   const { t } = useI18n();
@@ -46,6 +47,7 @@ export function TopBar({ hasAlerts = false }: { hasAlerts?: boolean }) {
                 </Button>
               </Link>
             )}
+            <HelpMenu />
             <NotificationBell hasAlerts={hasAlerts} />
             <Link to="/settings">
               <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">

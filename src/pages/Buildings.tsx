@@ -179,7 +179,7 @@ export default function Buildings() {
                 </DropdownMenuRadioGroup>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button onClick={() => setOpen(true)} size="sm" className="rounded-full bg-gradient-sage text-primary-foreground shadow-soft h-9 px-3.5">
+            <Button data-tour="add-building" onClick={() => setOpen(true)} size="sm" className="rounded-full bg-gradient-sage text-primary-foreground shadow-soft h-9 px-3.5">
               <Plus className="h-4 w-4 me-1" /> {t2("add_unit").includes("ضافة") ? "إضافة" : "Add"}
             </Button>
           </div>
