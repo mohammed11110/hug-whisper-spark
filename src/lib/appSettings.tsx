@@ -63,7 +63,9 @@ const DEFAULTS: AppSettings = {
   brand: { name: "أملاكي · Amlaki", logo: null, phone: "", address: "", landlordName: "", landlordNameEn: "" },
   showAiFab: false,
   receipt: { prefix: "R-", startNumber: 1, padding: 0, nextNumber: 1 },
+  autoSendReceiptWhatsApp: true,
 };
+
 
 const KEY = "amlaki.appSettings.v1";
 
