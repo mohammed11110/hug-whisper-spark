@@ -1,6 +1,9 @@
 {
   "name": "Amlaki – Property Management",
   "short_name": "Amlaki",
+  "id": "/",
+  "lang": "ar",
+  "dir": "rtl",
   "description": "Manage your buildings, units, tenants and payments with ease.",
   "start_url": "/",
   "scope": "/",

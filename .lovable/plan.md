@@ -1,57 +1,54 @@
-## التشخيص
+# تفعيل PWA لتطبيق أملاكي
 
-الويب يعمل تمامًا (تحققتُ من `/welcome` و `/` — يُحمَّلان دون أخطاء runtime). إذن المشكلة **في بنية Capacitor فقط**، لا في React/Router/Suspense/ErrorBoundary.
+## الهدف
+تفعيل Progressive Web App ليدعم:
+- التثبيت على الشاشة الرئيسية (Install prompt يعمل فعلياً)
+- العمل دون اتصال (offline) مع cache ذكي
+- تحديث تلقائي عند نشر إصدار جديد
 
-السبب الجذري الأرجح (واحد أو أكثر مما يلي):
+## الخطوات
 
-1. **النسخة المثبّتة على الجهاز قديمة** — مبنيّة قبل تعديل `capacitor.config.ts` عندما كان `server.url` يشير دائمًا إلى `https://c6fcf97d-...lovableproject.com`. هذا الرابط الآن محميّ ويرجع **401** (مؤكَّد من logs المعاينة)، فيظهر WebView أبيض.
-2. **مجلد `dist/` فارغ أو قديم** — لم يتم تشغيل `npm run build` قبل `npx cap sync`.
-3. **مسار الأصول المطلقة (`/assets/...`)** قد يفشل أحيانًا في WebView على iOS إذا لم يكن `base` معرَّفًا بشكل آمن.
+### 1. تثبيت الحزمة
+- إضافة `vite-plugin-pwa` كـ devDependency
 
-لا تغييرات في الواجهة. إصلاح startup فقط.
+### 2. تحديث `vite.config.ts`
+إضافة `VitePWA` plugin بإعدادات آمنة:
+- `registerType: "autoUpdate"` — تحديث تلقائي
+- `devOptions.enabled: false` — لا يعمل في dev (يمنع تعطيل preview)
+- `navigateFallbackDenylist: [/^\/~oauth/, /^\/auth/]` — لا يتدخل في OAuth وSupabase auth
+- `runtimeCaching`:
+  - HTML navigations → `NetworkFirst` (3s timeout)
+  - الصور والخطوط → `CacheFirst` مع expiration
+  - Supabase API → `NetworkOnly` (لا cache للبيانات الحساسة)
+- استخدام `manifest: false` للإبقاء على `public/manifest.webmanifest` الحالي
 
-## الخطة
+### 3. حماية معاينة Lovable
+في `src/main.tsx` قبل أي registration:
+- كشف iframe أو hostname يحتوي `lovableproject.com` / `id-preview--`
+- إذا كان preview → unregister أي service worker موجود
+- بقية الحالات → السماح للـ SW بالعمل
 
-### 1. `vite.config.ts` — تعيين base آمن لـ Capacitor
-إضافة `base: "./"` ليُولِّد Vite مسارات أصول نسبيّة تعمل تحت `capacitor://localhost` و `file://` و الويب معًا.
+### 4. منع التعارض مع Capacitor
+- داخل Capacitor (native app)، تعطيل تسجيل SW (نتحقق من `window.Capacitor`)
+- التطبيق الأصلي يفتح من `dist` محلياً، لا يحتاج SW
 
-```ts
-export default defineConfig(({ mode }) => ({
-  base: "./",
-  // ...بقية الإعدادات كما هي
-}));
-```
+### 5. تحديث `manifest.webmanifest`
+- التأكد من اكتمال الحقول (موجودة بالفعل) — لا تغييرات كبيرة
+- إضافة `id: "/"` لاستقرار الهوية
 
-### 2. `capacitor.config.ts` — تأكيد أنّ `server.url` لن يُسرَّب في بناء الإنتاج
-الملف صحيح حاليًا (يُفعَّل `server.url` فقط حين `CAP_ENV=dev`). نُضيف تعليقًا توضيحيًا بسيطًا فقط — لا تغيير سلوكي.
+### 6. مؤشر تحديث متاح
+- استخدام `useRegisterSW` hook لإظهار toast صغير "تحديث جديد متاح" مع زر إعادة تحميل
+- بأسلوب أملاكي (sage palette، بالعربية)
 
-### 3. حذف `server.url` المُخبَّأ في native (إن وجد)
-إذا كان لدى المستخدم مجلد `ios/` أو `android/` من بناء سابق، فقد يحتوي `ios/App/App/capacitor.config.json` على `server.url` قديم تم تجميده وقت `npx cap add`. سنُذكِّر المستخدم بإعادة التوليد عبر:
-```
-rm -rf ios android
-npm run build
-npx cap add ios
-npx cap add android
-npx cap sync
-```
-أو حذف حقل `server` يدويًا من `ios/App/App/capacitor.config.json` و `android/app/src/main/assets/capacitor.config.json` ثم `npx cap sync`.
+## ملاحظات مهمة
+- **PWA لن يعمل في معاينة Lovable** (مقصود) — يعمل فقط على النطاق المنشور `amlaki1.app`
+- **لن يتعارض مع تطبيق iOS/Android** — Capacitor يستخدم WebView محلي بدون SW
+- `InstallPrompt` و `OfflineBanner` الموجودان مسبقاً سيعملان بشكل أفضل بعد التفعيل
 
-### 4. تعليمات الإعادة (نطلبها من المستخدم بعد دمج التغييرات)
-```
-git pull
-npm install
-npm run build
-npx cap sync
-npx cap run ios      # أو: npx cap open ios ثم Build في Xcode
-```
-
-## ملاحظات تقنية
-
-- لا حاجة لتعديل `App.tsx` أو `RequireAuth` أو `OnboardingTour` أو `Suspense` — كلها تعمل بشكل صحيح على الويب.
-- `ErrorBoundary` و Sentry init سليمان؛ لا يلتقطان أي خطأ لأن الفشل يحدث على مستوى تحميل WebView نفسه (قبل React).
-- بعد `base: "./"` ستظل المعاينة في Lovable تعمل تمامًا كما هي.
-
-## الملفات المعدَّلة
-
-- `vite.config.ts` — إضافة `base: "./"`
-- `capacitor.config.ts` — تعليق توضيحي فقط (اختياري)
+## الملفات المتأثرة
+- `package.json` (إضافة dependency)
+- `vite.config.ts` (إضافة plugin)
+- `src/main.tsx` (guard + register)
+- `public/manifest.webmanifest` (تعديل بسيط)
+- `src/components/PWAUpdatePrompt.tsx` (ملف جديد)
+- `src/components/AppShell.tsx` (إدراج المكون الجديد)
