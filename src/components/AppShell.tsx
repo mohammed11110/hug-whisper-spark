@@ -8,6 +8,7 @@ import { QuickAddPaymentFab } from "@/components/QuickAddPaymentFab";
 import { LifecycleBanner } from "@/components/GraceBanner";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { OfflineBanner } from "@/components/OfflineBanner";
+import { PWAUpdatePrompt } from "@/components/PWAUpdatePrompt";
 import { useAuth } from "@/lib/auth";
 import { enablePushIfNative } from "@/lib/push";
 
@@ -41,6 +42,7 @@ export function AppShell() {
       </div>
       <QuickAddPaymentFab />
       <InstallPrompt />
+      <PWAUpdatePrompt />
     </SidebarProvider>
   );
 }
