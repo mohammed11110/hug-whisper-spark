@@ -17,6 +17,68 @@
 
 ---
 
+## 🚨 حل أخطاء "Unable to Add for Review" (7 متطلبات)
+
+هذه الأخطاء تظهر في App Store Connect قبل الإرسال للمراجعة. لكل خطأ الحل الجاهز:
+
+### 1) Privacy Policy URL
+**المكان:** App Privacy → Privacy Policy → Edit
+**الصق:**
+```
+https://amlaki1.app/privacy
+```
+
+### 2) App Privacy Practices (Data Collection)
+**المكان:** App Privacy → Get Started
+- **Do you collect data from this app?** → **Yes**
+- اختر هذه الفئات فقط:
+  - **Contact Info:** Email Address, Name, Phone Number
+  - **User Content:** Other User Content (بيانات المباني والمستأجرين)
+  - **Identifiers:** User ID
+  - **Usage Data:** Product Interaction (اختياري)
+- لكل فئة:
+  - Used for: **App Functionality**
+  - Linked to user: **Yes**
+  - Used for tracking: **No**
+- **Do you or your third-party partners use data for tracking?** → **No**
+
+### 3) Content Rights Information
+**المكان:** App Information → Content Rights
+- **Does your app contain, show, or access third-party content?** → **No**
+
+### 4) Primary Category
+**المكان:** App Information → Category
+- Primary: **Business**
+- Secondary: **Finance**
+
+### 5) Pricing
+**المكان:** Pricing and Availability → Price Schedule
+- اختر: **Free (Tier 0)**
+- (لاحقاً يمكن إضافة اشتراك Pro عبر In-App Purchases)
+- Availability: **All Countries and Regions**
+
+### 6) iPhone 6.5" Screenshots
+**المكان:** App Store → iOS App → 1.0 Prepare for Submission → iPhone 6.5" Display
+- المقاس المطلوب: **1242 × 2688 px**
+- العدد: **3 صور على الأقل** (10 كحد أقصى)
+- **كيفية التقاطها:**
+  1. في Xcode افتح Simulator → Hardware → Device → iPhone 11 Pro Max
+  2. شغّل التطبيق ثم Cmd+S لحفظ كل لقطة (تُحفظ على سطح المكتب)
+  3. ارفعها في App Store Connect
+
+### 7) iPad 13" Screenshots
+**المكان:** App Store → iOS App → 1.0 → iPad Pro (6th Gen) 12.9" Display
+- المقاس المطلوب: **2048 × 2732 px**
+- العدد: **3 صور على الأقل**
+- في Simulator اختر: iPad Pro (12.9-inch) (6th generation)
+
+> 💡 الشاشات الموصى بها للتصوير: لوحة التحكم · قائمة المباني · تفاصيل وحدة · شاشة المدفوعات · التقرير المالي.
+
+> ⚠️ إن كنت لا تدعم iPad أصلاً: في Xcode → General → Deployment Info → Devices → اختر **iPhone فقط**، وستختفي متطلبات لقطات iPad تماماً.
+
+---
+
+
 ## 🛠️ خطوات التحضير على جهاز Mac
 
 > **متطلبات:** جهاز Mac + Xcode (مجاناً من Mac App Store) + حساب Apple Developer (99 USD/سنة).
