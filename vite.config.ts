@@ -5,6 +5,9 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  // Relative base so built assets resolve under capacitor://localhost,
+  // file://, and the web preview alike.
+  base: "./",
   server: {
     host: "::",
     port: 8080,
