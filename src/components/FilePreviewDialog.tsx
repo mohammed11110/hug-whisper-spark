@@ -123,7 +123,11 @@ export function FilePreviewDialog({ open, onOpenChange, payload }: Props) {
             onClick={() => payload.onSave()}
             className="rounded-xl bg-gradient-sage text-primary-foreground font-semibold h-11 px-5"
           >
-            <Download className="h-4 w-4 me-1.5" />
+            {payload.type === "pdf" && IS_IOS ? (
+              <Share2 className="h-4 w-4 me-1.5" />
+            ) : (
+              <Download className="h-4 w-4 me-1.5" />
+            )}
             {labelSave}
           </Button>
           {payload.type === "pdf" && payload.onPrint && (
