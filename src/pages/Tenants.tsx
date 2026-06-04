@@ -82,24 +82,45 @@ export default function Tenants() {
     const start = `${y}-${String(m + 1).padStart(2, "0")}-01`;
     const end = `${y}-${String(m + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
     const today_iso = today.toISOString().slice(0, 10);
-    const receiptNo = `R-${Date.now()}`;
+
+    // Reserve receipt number(s) atomically on the server — same source of
+    // truth used by AddPaymentDialog. Never generate numbers locally.
+    const willCollectArrears = collectArrears && priorArrears > 0.009;
+    const alloc = await allocateReceiptNumbers(1);
+    if (!alloc) {
+      setCollecting(null);
+      toast.error(lang === "ar" ? "تعذّر حجز رقم الإيصال — حاول مرة أخرى" : "Failed to reserve receipt number — try again");
+      return;
+    }
+    const baseReceipt = formatReceipt({
+      prefix: alloc.prefix,
+      padding: alloc.padding,
+      startNumber: alloc.startNumber,
+      nextNumber: alloc.startNumber,
+    });
+    // When we record two rows in one shot (rent + prior arrears) we keep the
+    // same base and suffix them /1 and /D — consistent with the partial-
+    // payment scheme used everywhere else.
+    const rentReceiptNo = willCollectArrears ? `${baseReceipt}/1` : baseReceipt;
+    const arrearsReceiptNo = `${baseReceipt}/D`;
+
     const rows: any[] = [{
       unit_id: r.unit_id,
       amount: r.rent_amount,
       expected_amount: r.rent_amount,
       payment_date: today_iso,
-      receipt_number: receiptNo,
+      receipt_number: rentReceiptNo,
       payment_method: "cash",
       period_start: start,
       period_end: end,
     }];
-    if (collectArrears && priorArrears > 0.009) {
+    if (willCollectArrears) {
       rows.push({
         unit_id: r.unit_id,
         amount: priorArrears,
         expected_amount: null,
         payment_date: today_iso,
-        receipt_number: receiptNo,
+        receipt_number: arrearsReceiptNo,
         payment_method: "cash",
         notes: lang === "ar" ? "تحصيل متأخرات سابقة" : "Prior arrears collection",
         period_start: null,
