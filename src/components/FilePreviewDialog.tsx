@@ -6,6 +6,8 @@ import { useI18n } from "@/lib/i18n";
 import { inlinePdfFonts } from "@/lib/pdfDocs";
 import { isIOS } from "@/lib/platform";
 
+const IS_IOS = typeof window !== "undefined" && isIOS();
+
 export type FilePreviewPayload =
   | {
       type: "pdf";
