@@ -791,6 +791,7 @@ export type Database = {
           receipt_number: string | null
           tenancy_id: string | null
           unit_id: string
+          user_id: string | null
         }
         Insert: {
           amount: number
@@ -807,6 +808,7 @@ export type Database = {
           receipt_number?: string | null
           tenancy_id?: string | null
           unit_id: string
+          user_id?: string | null
         }
         Update: {
           amount?: number
@@ -823,6 +825,7 @@ export type Database = {
           receipt_number?: string | null
           tenancy_id?: string | null
           unit_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
