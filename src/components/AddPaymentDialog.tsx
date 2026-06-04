@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
@@ -1328,7 +1328,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         </AlertDialogContent>
       </AlertDialog>
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="rounded-2xl max-w-3xl w-[95vw] max-h-[92vh] overflow-hidden flex flex-col p-4 sm:p-6">
+        <DialogContent className="rounded-2xl max-w-3xl w-[95vw] max-h-[92vh] overflow-hidden flex flex-col p-3 sm:p-6">
           <DialogHeader>
             <DialogTitle className="text-sage-700 flex items-center justify-between gap-2">
               <span>{lang === "ar" ? "معاينة الإيصال" : "Receipt preview"}</span>
@@ -1348,13 +1348,8 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
               )}
             </DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-hidden rounded-xl border border-sage-200 bg-sage-100/30">
-            <iframe
-              title="receipt-preview"
-              srcDoc={previewHtml}
-              className="w-full h-[70vh] bg-white"
-            />
-          </div>
+          <ScaledReceiptPreview html={previewHtml} rtl={lang === "ar"} />
+
           <DialogFooter className="gap-2 sm:gap-2 flex-wrap">
             {unpaidMonths.length > 0 && (
               <Button
@@ -1397,6 +1392,50 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         </DialogContent>
       </Dialog>
     </Dialog>
+  );
+}
+
+function ScaledReceiptPreview({ html, rtl }: { html: string; rtl: boolean }) {
+  // Source page is rendered at 794px (A4 @96dpi). We scale it down to fit
+  // the available container width on mobile/tablet while keeping desktop 1:1.
+  const PAGE_W = 794;
+  const PAGE_H = 1123; // A4 height @96dpi
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [scale, setScale] = useState(1);
+
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const update = () => {
+      const w = el.clientWidth;
+      if (w > 0) setScale(Math.min(1, w / PAGE_W));
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const scaledH = PAGE_H * scale;
+
+  return (
+    <div
+      ref={containerRef}
+      className="flex-1 overflow-hidden rounded-xl border border-sage-200 bg-sage-100/30 relative"
+      style={{ height: `min(${scaledH}px, 70svh)` }}
+    >
+      <iframe
+        title="receipt-preview"
+        srcDoc={html}
+        className="bg-white border-0"
+        style={{
+          width: `${PAGE_W}px`,
+          height: `${PAGE_H}px`,
+          transform: `scale(${scale})`,
+          transformOrigin: rtl ? "top right" : "top left",
+        }}
+      />
+    </div>
   );
 }
 
