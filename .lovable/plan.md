@@ -1,54 +1,49 @@
-# تفعيل PWA لتطبيق أملاكي
+## المشكلة
 
-## الهدف
-تفعيل Progressive Web App ليدعم:
-- التثبيت على الشاشة الرئيسية (Install prompt يعمل فعلياً)
-- العمل دون اتصال (offline) مع cache ذكي
-- تحديث تلقائي عند نشر إصدار جديد
+### 1) الرقم التسلسلي للإيصال يختلف بين المتصفح والآيفون
 
-## الخطوات
+العدّاد الحقيقي محفوظ على الخادم في جدول `receipt_counters.next_number`، والتخصيص الفعلي عند الحفظ يتم بشكل ذرّي عبر `allocate_receipt_numbers` RPC (هذا الجزء سليم — الأرقام المحفوظة في قاعدة البيانات لا تتعارض أبداً).
 
-### 1. تثبيت الحزمة
-- إضافة `vite-plugin-pwa` كـ devDependency
+لكن **الرقم المعروض في نموذج "إضافة دفعة جديدة"** يأتي من `settings.receipt.nextNumber` المخزّن محلياً (`localStorage`) في كل جهاز:
 
-### 2. تحديث `vite.config.ts`
-إضافة `VitePWA` plugin بإعدادات آمنة:
-- `registerType: "autoUpdate"` — تحديث تلقائي
-- `devOptions.enabled: false` — لا يعمل في dev (يمنع تعطيل preview)
-- `navigateFallbackDenylist: [/^\/~oauth/, /^\/auth/]` — لا يتدخل في OAuth وSupabase auth
-- `runtimeCaching`:
-  - HTML navigations → `NetworkFirst` (3s timeout)
-  - الصور والخطوط → `CacheFirst` مع expiration
-  - Supabase API → `NetworkOnly` (لا cache للبيانات الحساسة)
-- استخدام `manifest: false` للإبقاء على `public/manifest.webmanifest` الحالي
+- `src/lib/appSettings.tsx` يجلب العدّاد من الخادم **مرة واحدة فقط** عند تحميل التطبيق أو عند تغيّر الجلسة.
+- بعد حفظ دفعة، الدالة `bumpReceiptNumber` فارغة (`no-op`)، أي العدّاد المحلي لا يُحدَّث.
+- النتيجة: المتصفح والآيفون كل واحد يعرض قيمة قديمة من الكاش، فيظهران رقمَين مختلفَين كاقتراح — رغم أن الرقم النهائي المحفوظ صحيح.
 
-### 3. حماية معاينة Lovable
-في `src/main.tsx` قبل أي registration:
-- كشف iframe أو hostname يحتوي `lovableproject.com` / `id-preview--`
-- إذا كان preview → unregister أي service worker موجود
-- بقية الحالات → السماح للـ SW بالعمل
+### 2) علامات الاستفهام (i) لا تظهر على الآيفون
 
-### 4. منع التعارض مع Capacitor
-- داخل Capacitor (native app)، تعطيل تسجيل SW (نتحقق من `window.Capacitor`)
-- التطبيق الأصلي يفتح من `dist` محلياً، لا يحتاج SW
+`FieldHelp` (الأيقونة الدائرية بجانب كل حقل) مُضافة في الكود بدون أي شرط `hidden`/`md:` — تظهر على كل المقاسات في المتصفح.
 
-### 5. تحديث `manifest.webmanifest`
-- التأكد من اكتمال الحقول (موجودة بالفعل) — لا تغييرات كبيرة
-- إضافة `id: "/"` لاستقرار الهوية
+السبب الأرجح: تطبيق الآيفون هو **نسخة Capacitor الأصلية** المُثبّتة من ملفات `dist/` محلياً. الـ`FieldHelp` أُضيفت في تحديث لاحق، ونسخة الآيفون لم يُعَد بناؤها (`npm run build && npx cap sync`) ولا رفعها مجدداً، فلا تزال تعرض الإصدار القديم بدون الأيقونات. هذا يفسّر أيضاً اختلاف الرقم التسلسلي حتى لو كان متطابقاً في المتصفحَين.
 
-### 6. مؤشر تحديث متاح
-- استخدام `useRegisterSW` hook لإظهار toast صغير "تحديث جديد متاح" مع زر إعادة تحميل
-- بأسلوب أملاكي (sage palette، بالعربية)
+## الحل
 
-## ملاحظات مهمة
-- **PWA لن يعمل في معاينة Lovable** (مقصود) — يعمل فقط على النطاق المنشور `amlaki1.app`
-- **لن يتعارض مع تطبيق iOS/Android** — Capacitor يستخدم WebView محلي بدون SW
-- `InstallPrompt` و `OfflineBanner` الموجودان مسبقاً سيعملان بشكل أفضل بعد التفعيل
+### إصلاح كود (يخص المشكلة 1)
 
-## الملفات المتأثرة
-- `package.json` (إضافة dependency)
-- `vite.config.ts` (إضافة plugin)
-- `src/main.tsx` (guard + register)
-- `public/manifest.webmanifest` (تعديل بسيط)
-- `src/components/PWAUpdatePrompt.tsx` (ملف جديد)
-- `src/components/AppShell.tsx` (إدراج المكون الجديد)
+**`src/components/AddPaymentDialog.tsx`**
+- استيراد `refreshReceiptCounter` من `useAppSettings()`.
+- استدعاؤها داخل `useEffect` عند فتح الحوار (`if (open)`) — قبل عرض الرقم المقترح — بحيث يأتي `settings.receipt.nextNumber` من الخادم مباشرة.
+- استدعاؤها أيضاً بعد نجاح الحفظ، حتى يعكس النموذج التالي القيمة الجديدة فوراً.
+
+**`src/components/EditPaymentDialog.tsx`** (إن كان يعرض رقم إيصال جديد) — نفس المعاملة احتياطاً.
+
+نتيجة هذا التغيير: أي جهاز يفتح حوار "إضافة دفعة" يقرأ العدّاد الحقيقي من السيرفر في تلك اللحظة، فيظهر نفس الرقم على كل الأجهزة.
+
+### إصلاح المشكلة 2 (تعليمات للمستخدم — لا تعديل كود)
+
+تطبيق الآيفون (والآيباد والأندرويد) المثبّت من المتجر/Xcode/Android Studio يستخدم نسخة الـ`dist/` المُجمَّعة وقت البناء. أي تحديث في الواجهة (مثل أيقونات `FieldHelp`) يحتاج:
+
+1. `git pull`
+2. `npm install`
+3. `npm run build`
+4. `npx cap sync`
+5. إعادة التشغيل/الرفع للمتجر
+
+بعدها ستظهر علامات الاستفهام على الآيفون مطابقة للمتصفح.
+
+## الملفات المتأثّرة
+
+- `src/components/AddPaymentDialog.tsx` — استدعاء `refreshReceiptCounter` عند فتح الحوار وبعد الحفظ.
+- `src/components/EditPaymentDialog.tsx` — نفس الإضافة عند الحاجة.
+
+(لا تغييرات على قاعدة البيانات أو منطق التخصيص الذرّي — هما سليمان أصلاً.)
