@@ -1551,6 +1551,19 @@ export type Database = {
         Args: { _building_id: string; _user_id: string }
         Returns: boolean
       }
+      log_activity: {
+        Args: {
+          _action: string
+          _building_id?: string
+          _changes?: Json
+          _description_ar?: string
+          _description_en?: string
+          _entity_id?: string
+          _entity_label?: string
+          _entity_type: string
+        }
+        Returns: string
+      }
       move_to_dlq: {
         Args: {
           dlq_name: string
