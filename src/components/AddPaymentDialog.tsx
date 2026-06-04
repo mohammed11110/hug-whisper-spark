@@ -235,7 +235,9 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         setBuildingId("");
         setUnitId("");
       }
-      if (!receipt) setReceipt(formatReceipt(settings.receipt));
+      // Receipt suggestion is filled by a separate effect that reacts to the
+      // refreshed server counter — avoids using a stale snapshot here.
+      setReceipt("");
       const today = new Date();
       setPeriodYear(today.getFullYear());
       setPeriodMonthNum(today.getMonth() + 1);
