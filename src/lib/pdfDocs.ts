@@ -1973,6 +1973,15 @@ async function renderInIframe(html: string): Promise<HTMLCanvasElement> {
 }
 
 export async function downloadHTMLAsPDF(html: string, filename: string, settings?: PdfSettings) {
+  // iOS root-cause fix: skip html2canvas/jsPDF (which can't save files on
+  // iPhone/iPad because <a download> is ignored and navigator.share is
+  // unreliable in WKWebView). Open the dedicated print view instead — Safari
+  // gives the user Save to Files (PDF), AirPrint, AirDrop, Mail, WhatsApp.
+  // Must execute before any await to preserve the user-gesture for popups.
+  if (isIOS()) {
+    if (openPrintView(html, filename)) return;
+  }
+
   const pageSize = settings?.pageSize || DEFAULT_PAGE_SIZE;
   const margins = settings?.margins || DEFAULT_MARGINS;
 
