@@ -544,7 +544,7 @@ export default function Settings() {
                     </div>
                     <div className="text-end">
                       <p className="text-[9px] text-sage-400 uppercase">{tr(lang, "إيصال رقم", "Receipt #")}</p>
-                      <p className="font-mono font-bold text-sage-700">{receiptPreview}</p>
+                      <p className="font-mono font-bold text-sage-700">{receiptCounterReady ? receiptPreview : "…"}</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2 mt-3 text-[11px] text-sage-600">
