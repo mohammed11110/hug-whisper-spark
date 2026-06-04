@@ -44,6 +44,7 @@ const Admin = lazy(() => import("./pages/Admin"));
 const Maintenance = lazy(() => import("./pages/Maintenance"));
 const Activity = lazy(() => import("./pages/Activity"));
 const Unsubscribe = lazy(() => import("./pages/Unsubscribe"));
+const PrintView = lazy(() => import("./pages/PrintView"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 const DailyLayout = lazy(() => import("./pages/daily/DailyLayout"));
 const DailyDashboard = lazy(() => import("./pages/daily/DailyDashboard"));
@@ -112,6 +113,7 @@ const App = () => (
                       <Route path="/privacy" element={<Privacy />} />
                       <Route path="/refund" element={<Refund />} />
                       <Route path="/unsubscribe" element={<Unsubscribe />} />
+                      <Route path="/p/:token" element={<PrintView />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </Suspense>

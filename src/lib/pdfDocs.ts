@@ -1557,7 +1557,49 @@ export async function inlinePdfFonts(html: string): Promise<string> {
   return `<!doctype html><html dir="rtl" lang="ar"><head>${styleTag}</head><body>${html}</body></html>`;
 }
 
+const PRINT_VIEW_STORAGE_PREFIX = "amlaki:print:";
+
+/**
+ * Root-cause iOS fix: open the document in a dedicated full-page route
+ * (`/p/:token`) inside a new tab. Safari/WKWebView then offers the native
+ * Share sheet (Save to Files as PDF, AirPrint, AirDrop, Mail, WhatsApp).
+ * MUST be called synchronously from a user gesture (click/tap handler) so
+ * window.open is not popup-blocked on iOS.
+ *
+ * Returns true if the print tab was opened.
+ */
+export function openPrintView(html: string, filename: string, opts?: { lang?: "ar" | "en"; title?: string }): boolean {
+  try {
+    const token = (typeof crypto !== "undefined" && "randomUUID" in crypto)
+      ? (crypto as any).randomUUID().replace(/-/g, "").slice(0, 20)
+      : Math.random().toString(36).slice(2) + Date.now().toString(36);
+    const payload = JSON.stringify({
+      html,
+      filename,
+      title: opts?.title || filename,
+      lang: opts?.lang || "ar",
+    });
+    sessionStorage.setItem(PRINT_VIEW_STORAGE_PREFIX + token, payload);
+    const win = window.open(`/p/${token}`, "_blank");
+    if (!win) {
+      // Popup blocked — fall back to same-tab navigation so the user still
+      // reaches the document (better than silent failure).
+      window.location.href = `/p/${token}`;
+    }
+    return true;
+  } catch (e) {
+    console.warn("[pdf] openPrintView failed", e);
+    return false;
+  }
+}
+
 export async function printHTML(html: string) {
+  // iOS: open the dedicated print view in a new tab. Safari handles the
+  // print sheet natively (AirPrint + Save as PDF). Must run before any await
+  // to preserve the user-gesture so window.open is not blocked.
+  if (isIOS()) {
+    if (openPrintView(html, "document.pdf")) return;
+  }
   const finalHtml = await inlinePdfFonts(html);
   // Use a hidden in-document iframe instead of window.open — popups are
   // blocked on iOS Safari and inside Capacitor WKWebView, and document.write
@@ -1931,6 +1973,15 @@ async function renderInIframe(html: string): Promise<HTMLCanvasElement> {
 }
 
 export async function downloadHTMLAsPDF(html: string, filename: string, settings?: PdfSettings) {
+  // iOS root-cause fix: skip html2canvas/jsPDF (which can't save files on
+  // iPhone/iPad because <a download> is ignored and navigator.share is
+  // unreliable in WKWebView). Open the dedicated print view instead — Safari
+  // gives the user Save to Files (PDF), AirPrint, AirDrop, Mail, WhatsApp.
+  // Must execute before any await to preserve the user-gesture for popups.
+  if (isIOS()) {
+    if (openPrintView(html, filename)) return;
+  }
+
   const pageSize = settings?.pageSize || DEFAULT_PAGE_SIZE;
   const margins = settings?.margins || DEFAULT_MARGINS;
 
