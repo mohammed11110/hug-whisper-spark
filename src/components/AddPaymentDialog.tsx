@@ -761,9 +761,13 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
             .map((c) => ({ label: c.label, remaining: c.shortfall }))
         : [];
       const grandTotal = primaryAmount + collectedArrearsList.reduce((s, a) => s + a.amount, 0);
+      // Use the ACTUAL receipt number assigned to the first inserted row —
+      // this is the number the server reserved atomically, so PDF + WhatsApp
+      // + DB record always match across all devices.
+      const actualReceiptNumber = rows[0]?.receipt_number || receipt.trim() || formatReceipt(settings.receipt);
       const baseArgs = {
         brand: settings.brand,
-        receiptNumber: receipt.trim() || formatReceipt(settings.receipt),
+        receiptNumber: actualReceiptNumber,
         paymentDate: date,
         amount: collectedArrearsList.length ? grandTotal : primaryAmount,
         expectedAmount: Number(expected) || null,
@@ -779,8 +783,9 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         collectedArrears: collectedArrearsList,
         grandTotal: collectedArrearsList.length ? grandTotal : null,
       };
-      const filename = `receipt-${(receipt.trim() || formatReceipt(settings.receipt))}.pdf`;
+      const filename = `receipt-${actualReceiptNumber}.pdf`;
       const payload = { baseArgs, upTo, unpaidTotal, monthLabel: primaryPeriodLabel, filename };
+
 
       if (upTo.length > 0) {
         await emitReceipt(payload, includeArrearsInReceipt);
