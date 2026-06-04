@@ -1516,6 +1516,15 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      ensure_receipt_counter_seeded: {
+        Args: never
+        Returns: {
+          next_number: number
+          padding: number
+          prefix: string
+          start_number: number
+        }[]
+      }
       get_plan_member_limit: { Args: { _plan: string }; Returns: number }
       get_plan_unit_limit: { Args: { _plan: string }; Returns: number }
       has_active_subscription: {
