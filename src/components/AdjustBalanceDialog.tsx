@@ -142,7 +142,7 @@ export function AdjustBalanceDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) reset(); onOpenChange(o); }}>
-      <DialogContent className="max-w-md rounded-3xl">
+      <DialogContent className="max-w-md md:max-w-xl lg:max-w-2xl rounded-3xl">
         <DialogHeader>
           <DialogTitle className="text-base font-black text-sage-700">{title}</DialogTitle>
         </DialogHeader>
