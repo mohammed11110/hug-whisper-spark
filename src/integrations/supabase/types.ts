@@ -1559,6 +1559,7 @@ export type Database = {
           _description_ar?: string
           _description_en?: string
           _entity_id?: string
+          _entity_label?: string
           _entity_type: string
         }
         Returns: string
