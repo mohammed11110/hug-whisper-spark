@@ -1,6 +1,7 @@
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import type { AppSettings, BusinessBrand, Margins, PageSize } from "@/lib/appSettings";
+import { isIOS, canShareFiles } from "@/lib/platform";
 
 // ---- Embedded fonts (loaded once, cached as data URLs) ----
 // Loading fonts as data URLs guarantees they are available the instant
