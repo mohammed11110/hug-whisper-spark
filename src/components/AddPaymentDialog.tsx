@@ -1421,12 +1421,16 @@ function ScaledReceiptPreview({ html, rtl }: { html: string; rtl: boolean }) {
   return (
     <div
       ref={containerRef}
-      className="flex-1 overflow-hidden rounded-xl border border-sage-200 bg-sage-100/30 relative"
-      style={{ height: `min(${scaledH}px, 70svh)` }}
+      className="flex-1 overflow-auto rounded-xl border border-sage-200 bg-sage-100/30 relative"
+      style={{
+        height: `min(${scaledH}px, 70svh)`,
+        WebkitOverflowScrolling: "touch",
+      }}
     >
       <iframe
         title="receipt-preview"
         srcDoc={html}
+        scrolling="no"
         className="bg-white border-0"
         style={{
           width: `${PAGE_W}px`,
