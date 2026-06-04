@@ -296,11 +296,12 @@ html[lang="ar"] body {
   @media (min-width: 1280px) {
     .mobile-shell { max-width: 1280px; }
   }
-  }
 
   .safe-bottom {
     padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
   }
+}
+
 
 @layer utilities {
   .text-balance { text-wrap: balance; }
