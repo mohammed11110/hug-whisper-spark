@@ -281,19 +281,26 @@ html[lang="ar"] body {
     max-width: 430px;
     box-shadow: 0 0 40px hsl(130 16% 35% / 0.08);
   }
+  /* iPad mini / iPad / iPad Air / iPad Pro 11 portrait — fill the area next to the (collapsed) sidebar */
   @media (min-width: 768px) {
     .mobile-shell {
-      max-width: 720px;
+      max-width: 100%;
       box-shadow: none;
     }
   }
+  /* iPad Pro 12.9 portrait + small desktops — give breathing room without overflow */
   @media (min-width: 1024px) {
-    .mobile-shell { max-width: 960px; }
+    .mobile-shell { max-width: min(100%, 1100px); }
   }
+  /* Real desktops — open sidebar territory */
   @media (min-width: 1280px) {
-    .mobile-shell { max-width: 1200px; }
+    .mobile-shell { max-width: 1280px; }
   }
-}
+  }
+
+  .safe-bottom {
+    padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
+  }
 
 @layer utilities {
   .text-balance { text-wrap: balance; }
