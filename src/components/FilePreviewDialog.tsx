@@ -86,9 +86,15 @@ export function FilePreviewDialog({ open, onOpenChange, payload }: Props) {
           </div>
         </DialogHeader>
 
-        <div className="px-4 pt-3 pb-4 bg-cream/20">
+        <div className="px-3 sm:px-4 pt-3 pb-4 bg-cream/20">
           {payload.type === "pdf" ? (
-            <div className="rounded-2xl overflow-hidden border border-sage-200 bg-white" style={{ height: "65vh" }}>
+            <div
+              className="rounded-2xl overflow-auto border border-sage-200 bg-white"
+              style={{
+                height: "min(65svh, calc(100svh - 220px))",
+                WebkitOverflowScrolling: "touch",
+              }}
+            >
               {renderedHtml ? (
                 <iframe
                   title={labelPreview}
