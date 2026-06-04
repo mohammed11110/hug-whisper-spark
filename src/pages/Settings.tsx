@@ -673,12 +673,12 @@ export default function Settings() {
                 <div className="flex items-center justify-between gap-2 bg-sage-100/70 rounded-xl px-4 py-3">
                   <div className="text-[11px] text-sage-600">
                     <p className="opacity-70">{tr(lang, "هكذا سيظهر", "It will look like")}</p>
-                    <p className="font-mono font-black text-lg text-sage-700">{parsedDraft ? draftPreview : "—"}</p>
+                    <p className="font-mono font-black text-lg text-sage-700">{receiptCounterReady && parsedDraft ? draftPreview : "…"}</p>
                   </div>
                   <Button
                     size="sm"
                     onClick={saveReceiptDraft}
-                    disabled={!parsedDraft || !draftDirty || savingReceipt}
+                    disabled={!receiptCounterReady || !parsedDraft || !draftDirty || savingReceipt}
                     className="rounded-lg h-9 text-xs bg-sage-500 hover:bg-sage-600 text-white disabled:opacity-50"
                   >
                     {savingReceipt
