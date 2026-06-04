@@ -196,7 +196,7 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
     applyReceiptFromServer(Array.isArray(data) ? data[0] : data);
   };
 
-  return <C.Provider value={{ settings, update, setStatusColor, reset, bumpReceiptNumber, resetReceiptNumber, saveReceiptSettings, refreshReceiptCounter }}>{children}</C.Provider>;
+  return <C.Provider value={{ settings, update, setStatusColor, reset, bumpReceiptNumber, resetReceiptNumber, saveReceiptSettings, refreshReceiptCounter, receiptCounterReady }}>{children}</C.Provider>;
 }
 
 export const useAppSettings = () => {
