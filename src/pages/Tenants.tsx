@@ -235,7 +235,7 @@ export default function Tenants() {
   }, [rows, search, sortBy, filter]);
 
   return (
-    <div className="mobile-shell pb-24">
+    <div className="mobile-shell pb-24 md:pb-8">
       <TopBar />
       <div className="px-5 md:px-8 lg:px-12 pt-4">
         <h1 className="text-2xl font-black text-sage-600 tracking-tight">{t("tenants")}</h1>
