@@ -253,8 +253,11 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   // has typed a custom value.
   useEffect(() => {
     if (!open) return;
+    // Only fill once the real counter has loaded from the server.
+    // Prevents stale "R-01" appearing on a new device for an old account.
+    if (!receiptCounterReady) return;
     setReceipt((cur) => (cur && cur.trim().length > 0 ? cur : formatReceipt(settings.receipt)));
-  }, [open, settings.receipt.prefix, settings.receipt.padding, settings.receipt.nextNumber]);
+  }, [open, receiptCounterReady, settings.receipt.prefix, settings.receipt.padding, settings.receipt.nextNumber]);
 
   // Unified arrears for the selected unit — single source of truth via getUnitArrears.
   useEffect(() => {
