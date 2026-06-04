@@ -15,13 +15,6 @@ export type FilePreviewPayload =
       onSave: () => void | Promise<void>;
       onPrint?: () => void;
     }
-      type: "pdf";
-      title: string;
-      filename: string;
-      html: string;
-      onSave: () => void | Promise<void>;
-      onPrint?: () => void;
-    }
   | {
       type: "csv";
       title: string;
