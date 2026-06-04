@@ -1950,5 +1950,5 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
     canvas = await renderInIframe(finalHtml);
   }
 
-  buildPdfFromCanvas(canvas, filename, pageSize, margins);
+  await buildPdfFromCanvas(canvas, filename, pageSize, margins);
 }
