@@ -1395,6 +1395,50 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   );
 }
 
+function ScaledReceiptPreview({ html, rtl }: { html: string; rtl: boolean }) {
+  // Source page is rendered at 794px (A4 @96dpi). We scale it down to fit
+  // the available container width on mobile/tablet while keeping desktop 1:1.
+  const PAGE_W = 794;
+  const PAGE_H = 1123; // A4 height @96dpi
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [scale, setScale] = useState(1);
+
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const update = () => {
+      const w = el.clientWidth;
+      if (w > 0) setScale(Math.min(1, w / PAGE_W));
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const scaledH = PAGE_H * scale;
+
+  return (
+    <div
+      ref={containerRef}
+      className="flex-1 overflow-hidden rounded-xl border border-sage-200 bg-sage-100/30 relative"
+      style={{ height: `min(${scaledH}px, 70svh)` }}
+    >
+      <iframe
+        title="receipt-preview"
+        srcDoc={html}
+        className="bg-white border-0"
+        style={{
+          width: `${PAGE_W}px`,
+          height: `${PAGE_H}px`,
+          transform: `scale(${scale})`,
+          transformOrigin: rtl ? "top right" : "top left",
+        }}
+      />
+    </div>
+  );
+}
+
 function methodLabel(m: string, lang: string) {
   const ar: Record<string, string> = { cash: "نقدي", transfer: "تحويل", cheque: "شيك", card: "بطاقة" };
   const en: Record<string, string> = { cash: "Cash", transfer: "Transfer", cheque: "Cheque", card: "Card" };
