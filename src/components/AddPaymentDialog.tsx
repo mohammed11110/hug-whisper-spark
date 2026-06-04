@@ -856,7 +856,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
 
   return (
     <Dialog open={open} onOpenChange={guard.handleOpenChange}>
-      <DialogContent className="rounded-2xl max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="rounded-2xl max-w-md md:max-w-2xl lg:max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-sage-600">{t2("register_payment")}</DialogTitle>
         </DialogHeader>
