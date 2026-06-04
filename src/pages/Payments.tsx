@@ -400,7 +400,7 @@ export default function Payments() {
 
 
   return (
-    <div className="mobile-shell min-h-screen pb-24 bg-background">
+    <div className="mobile-shell min-h-screen pb-24 md:pb-8 bg-background">
       <TopBar />
 
       <div className="px-5 md:px-8 lg:px-12 pt-2 flex items-start justify-between gap-2">
