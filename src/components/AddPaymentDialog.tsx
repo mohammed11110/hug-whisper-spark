@@ -89,7 +89,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const t2 = useT2();
   const { lang } = useI18n();
   const { format } = useCurrency();
-  const { settings, update, refreshReceiptCounter } = useAppSettings();
+  const { settings, update, refreshReceiptCounter, receiptCounterReady } = useAppSettings();
   const [units, setUnits] = useState<UnitOpt[]>([]);
   const [buildings, setBuildings] = useState<BuildingOpt[]>([]);
   const [buildingId, setBuildingId] = useState<string>("");
@@ -253,8 +253,11 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   // has typed a custom value.
   useEffect(() => {
     if (!open) return;
+    // Only fill once the real counter has loaded from the server.
+    // Prevents stale "R-01" appearing on a new device for an old account.
+    if (!receiptCounterReady) return;
     setReceipt((cur) => (cur && cur.trim().length > 0 ? cur : formatReceipt(settings.receipt)));
-  }, [open, settings.receipt.prefix, settings.receipt.padding, settings.receipt.nextNumber]);
+  }, [open, receiptCounterReady, settings.receipt.prefix, settings.receipt.padding, settings.receipt.nextNumber]);
 
   // Unified arrears for the selected unit — single source of truth via getUnitArrears.
   useEffect(() => {
@@ -1178,7 +1181,14 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
               {t2("receipt_number")}
               <FieldHelp content={lang === "ar" ? "رقم الإيصال أو المرجع البنكي. اختياري — يُستخدم للبحث والمطابقة." : "Receipt or bank reference number. Optional — used for search and reconciliation."} />
             </Label>
-            <Input value={receipt} onChange={(e) => setReceipt(e.target.value)} maxLength={50} className="rounded-xl border-sage-200 bg-card h-11" />
+            <Input
+              value={receiptCounterReady ? receipt : ""}
+              onChange={(e) => setReceipt(e.target.value)}
+              maxLength={50}
+              disabled={!receiptCounterReady}
+              placeholder={!receiptCounterReady ? (lang === "ar" ? "جارٍ تجهيز الرقم…" : "Preparing number…") : undefined}
+              className="rounded-xl border-sage-200 bg-card h-11"
+            />
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs text-sage-500">{t2("notes")}</Label>

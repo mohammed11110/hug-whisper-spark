@@ -52,7 +52,7 @@ export default function Settings() {
   const { isAdmin } = useAdmin();
   const navigate = useNavigate();
   const { currency, setCurrency } = useCurrency();
-  const { settings, update, reset, resetReceiptNumber, saveReceiptSettings } = useAppSettings();
+  const { settings, update, reset, resetReceiptNumber, saveReceiptSettings, receiptCounterReady } = useAppSettings();
   const { theme, setTheme } = useTheme();
   const sub = useSubscription();
 
@@ -544,7 +544,7 @@ export default function Settings() {
                     </div>
                     <div className="text-end">
                       <p className="text-[9px] text-sage-400 uppercase">{tr(lang, "إيصال رقم", "Receipt #")}</p>
-                      <p className="font-mono font-bold text-sage-700">{receiptPreview}</p>
+                      <p className="font-mono font-bold text-sage-700">{receiptCounterReady ? receiptPreview : "…"}</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2 mt-3 text-[11px] text-sage-600">
@@ -673,12 +673,12 @@ export default function Settings() {
                 <div className="flex items-center justify-between gap-2 bg-sage-100/70 rounded-xl px-4 py-3">
                   <div className="text-[11px] text-sage-600">
                     <p className="opacity-70">{tr(lang, "هكذا سيظهر", "It will look like")}</p>
-                    <p className="font-mono font-black text-lg text-sage-700">{parsedDraft ? draftPreview : "—"}</p>
+                    <p className="font-mono font-black text-lg text-sage-700">{receiptCounterReady && parsedDraft ? draftPreview : "…"}</p>
                   </div>
                   <Button
                     size="sm"
                     onClick={saveReceiptDraft}
-                    disabled={!parsedDraft || !draftDirty || savingReceipt}
+                    disabled={!receiptCounterReady || !parsedDraft || !draftDirty || savingReceipt}
                     className="rounded-lg h-9 text-xs bg-sage-500 hover:bg-sage-600 text-white disabled:opacity-50"
                   >
                     {savingReceipt
