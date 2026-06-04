@@ -235,7 +235,7 @@ export default function Tenants() {
   }, [rows, search, sortBy, filter]);
 
   return (
-    <div className="mobile-shell pb-24">
+    <div className="mobile-shell pb-24 md:pb-8">
       <TopBar />
       <div className="px-5 md:px-8 lg:px-12 pt-4">
         <h1 className="text-2xl font-black text-sage-600 tracking-tight">{t("tenants")}</h1>
@@ -331,7 +331,7 @@ export default function Tenants() {
       </div>
 
 
-      <div className="px-5 md:px-8 lg:px-12 mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 md:gap-4">
+      <div className="px-5 md:px-8 lg:px-12 mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 md:gap-4">
         {loading ? (
           <p className="text-center text-sage-500 py-12 text-sm">{t("loading")}</p>
         ) : filtered.length === 0 ? (

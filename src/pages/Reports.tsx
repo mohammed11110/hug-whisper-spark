@@ -255,7 +255,7 @@ export default function Reports() {
   };
 
   return (
-    <div className="mobile-shell pb-24">
+    <div className="mobile-shell pb-24 md:pb-8">
       <TopBar />
       <div className="px-5 md:px-8 lg:px-12 pt-5 space-y-5">
         <div className="animate-float-up flex items-start justify-between gap-3">

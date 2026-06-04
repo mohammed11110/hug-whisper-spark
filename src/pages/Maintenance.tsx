@@ -130,7 +130,7 @@ export default function Maintenance() {
   const filtered = filter === "all" ? rows : rows.filter((r) => r.status === filter);
 
   return (
-    <div className="mobile-shell min-h-screen pb-24 bg-background">
+    <div className="mobile-shell min-h-screen pb-24 md:pb-8 bg-background">
       <TopBar />
       <div className="px-5 md:px-8 lg:px-12 pt-2 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
@@ -153,9 +153,9 @@ export default function Maintenance() {
         ))}
       </div>
 
-      <div className="px-5 md:px-8 lg:px-12 mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 items-start">
+      <div className="px-5 md:px-8 lg:px-12 mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4 items-start">
         {filtered.length === 0 ? (
-          <div className="md:col-span-2 lg:col-span-3 rounded-2xl border-2 border-dashed border-sage-300/60 bg-card px-6 py-12 text-center space-y-2">
+          <div className="md:col-span-2 lg:col-span-3 xl:col-span-4 rounded-2xl border-2 border-dashed border-sage-300/60 bg-card px-6 py-12 text-center space-y-2">
             <div className="text-4xl">🛠️</div>
             <h3 className="text-base font-black text-sage-600">{t2("no_maintenance")}</h3>
             <p className="text-xs text-muted-foreground">{t2("no_maintenance_msg")}</p>

@@ -32,10 +32,11 @@ export function TopBar({ hasAlerts = false }: { hasAlerts?: boolean }) {
       <header className="sticky top-0 z-30 glass border-b border-sage-200/40">
         <div className="flex items-center justify-between px-4 h-14">
           <span className="text-xs font-mono text-muted-foreground w-12">{time}</span>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 md:hidden">
             <Logo size={28} />
             <span className="font-black text-sage-600 text-lg tracking-tight">{t("app_name")}</span>
           </div>
+          <div className="hidden md:block flex-1" />
           <div className="flex items-center gap-1 justify-end">
             <Button variant="ghost" size="icon" className="rounded-full h-9 w-9" onClick={() => setSearchOpen(true)} aria-label="بحث">
               <Search className="h-4 w-4 text-sage-500" />

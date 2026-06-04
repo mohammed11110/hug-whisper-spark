@@ -17,7 +17,8 @@ export function AppShell() {
   const [defaultOpen, setDefaultOpen] = useState(false);
   useEffect(() => {
     if (typeof window !== "undefined") {
-      setDefaultOpen(window.matchMedia("(min-width: 1024px)").matches);
+      // Open the sidebar by default only on true desktop widths so iPad Pro 12.9" portrait (1024) does not overflow.
+      setDefaultOpen(window.matchMedia("(min-width: 1280px)").matches);
     }
   }, []);
   // Ask for push permission ~6s after login, not on first launch.

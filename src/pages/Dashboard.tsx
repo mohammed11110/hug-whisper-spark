@@ -99,7 +99,7 @@ export default function Dashboard() {
   const collectionPct = stats.expected > 0 ? Math.min(100, Math.round((stats.collected / stats.expected) * 100)) : 0;
 
   return (
-    <div className="mobile-shell pb-24">
+    <div className="mobile-shell pb-24 md:pb-8">
       <TopBar />
 
       <div className="px-5 md:px-8 lg:px-12 pt-5 space-y-5 md:space-y-6">

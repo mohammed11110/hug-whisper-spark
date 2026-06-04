@@ -400,7 +400,7 @@ export default function Payments() {
 
 
   return (
-    <div className="mobile-shell min-h-screen pb-24 bg-background">
+    <div className="mobile-shell min-h-screen pb-24 md:pb-8 bg-background">
       <TopBar />
 
       <div className="px-5 md:px-8 lg:px-12 pt-2 flex items-start justify-between gap-2">
@@ -479,7 +479,7 @@ export default function Payments() {
       </div>
 
       {/* List */}
-      <div className="px-5 md:px-8 lg:px-12 mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 md:gap-4 items-start">
+      <div className="px-5 md:px-8 lg:px-12 mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 md:gap-4 items-start">
         {loading ? (
           <p className="md:col-span-2 lg:col-span-3 text-center text-sage-500 py-12 text-sm">{t("loading")}</p>
         ) : filtered.length === 0 ? (

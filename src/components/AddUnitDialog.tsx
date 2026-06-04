@@ -188,7 +188,7 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
   return (
     <>
     <Dialog open={open} onOpenChange={guard.handleOpenChange}>
-      <DialogContent className="max-w-[400px] rounded-3xl border-sage-200 bg-background max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[400px] md:max-w-2xl lg:max-w-3xl rounded-3xl border-sage-200 bg-background max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-sage-600 text-xl font-black">{t2("add_unit")}</DialogTitle>
         </DialogHeader>

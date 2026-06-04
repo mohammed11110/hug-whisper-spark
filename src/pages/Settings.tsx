@@ -272,7 +272,7 @@ export default function Settings() {
   };
 
   return (
-    <div className="mobile-shell min-h-screen pb-24 bg-background">
+    <div className="mobile-shell min-h-screen pb-24 md:pb-8 bg-background">
       <TopBar />
 
       {/* Header */}

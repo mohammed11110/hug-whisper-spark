@@ -146,7 +146,7 @@ export default function Buildings() {
   const fmt = (n: number) => new Intl.NumberFormat(lang === "ar" ? "ar" : "en").format(n);
 
   return (
-    <div className="mobile-shell pb-24 min-h-screen">
+    <div className="mobile-shell pb-24 md:pb-8 min-h-screen">
       <TopBar />
       <div className="px-5 md:px-8 lg:px-12 pt-5">
         <div className="flex items-center justify-between mb-4">
@@ -220,7 +220,7 @@ export default function Buildings() {
           ))}
         </div>
 
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
           {loading ? (
             <p className="text-center text-muted-foreground py-10">{t("loading")}</p>
           ) : visible.length === 0 ? (
