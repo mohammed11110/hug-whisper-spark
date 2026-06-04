@@ -82,6 +82,8 @@ interface Ctx {
   saveReceiptSettings: (patch: Partial<Pick<ReceiptNumbering, "prefix" | "padding" | "startNumber">>) => Promise<void>;
   /** Re-read counter from server (call after any external change). */
   refreshReceiptCounter: () => Promise<void>;
+  /** True only after the server-side receipt counter has been loaded for the current user. */
+  receiptCounterReady: boolean;
 }
 
 const C = createContext<Ctx | null>(null);
