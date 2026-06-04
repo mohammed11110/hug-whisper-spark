@@ -1,12 +1,20 @@
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, Printer, X, FileText, Table as TableIcon, Loader2 } from "lucide-react";
+import { Download, Printer, X, FileText, Table as TableIcon, Loader2, Share2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { inlinePdfFonts } from "@/lib/pdfDocs";
+import { isIOS } from "@/lib/platform";
 
 export type FilePreviewPayload =
   | {
+      type: "pdf";
+      title: string;
+      filename: string;
+      html: string;
+      onSave: () => void | Promise<void>;
+      onPrint?: () => void;
+    }
       type: "pdf";
       title: string;
       filename: string;
