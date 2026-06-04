@@ -112,6 +112,8 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
   useEffect(() => { localStorage.setItem(KEY, JSON.stringify(settings)); }, [settings]);
 
   // ---- Server-synced receipt counter ----
+  const [receiptCounterReady, setReceiptCounterReady] = useState(false);
+
   const applyReceiptFromServer = useCallback((row: any) => {
     if (!row) return;
     setSettings((s) => ({
@@ -128,46 +130,44 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
   const refreshReceiptCounter = useCallback(async () => {
     const { data: auth } = await supabase.auth.getUser();
     const uid = auth?.user?.id;
-    if (!uid) return;
-    const { data, error } = await supabase
+    if (!uid) { setReceiptCounterReady(false); return; }
+
+    // Single authoritative call: backend ensures counter exists AND is seeded
+    // from this user's existing receipts (works on any new device).
+    const { data, error } = await supabase.rpc("ensure_receipt_counter_seeded");
+    if (!error && data) {
+      const row = Array.isArray(data) ? data[0] : data;
+      if (row) {
+        applyReceiptFromServer(row);
+        setReceiptCounterReady(true);
+        return;
+      }
+    }
+    // Fallback: try plain read (does NOT mark ready if we can't get a row)
+    const { data: row2 } = await supabase
       .from("receipt_counters")
       .select("prefix, padding, start_number, next_number")
       .eq("user_id", uid)
       .maybeSingle();
-    if (error) return;
-    if (data) { applyReceiptFromServer(data); return; }
-
-    // First time ever for this user → seed from any pre-existing receipts.
-    try {
-      const { data: pays } = await supabase
-        .from("payments")
-        .select("receipt_number")
-        .not("receipt_number", "is", null)
-        .limit(2000);
-      let maxNum = 0;
-      (pays || []).forEach((p: any) => {
-        const base = String(p.receipt_number || "").split("/")[0];
-        const m = base.match(/(\d+)$/);
-        if (m) { const n = parseInt(m[1], 10); if (n > maxNum) maxNum = n; }
-      });
-      const seed = maxNum + 1;
-      await supabase.rpc("seed_receipt_counter", { _seed: seed });
-      const { data: data2 } = await supabase
-        .from("receipt_counters")
-        .select("prefix, padding, start_number, next_number")
-        .eq("user_id", uid)
-        .maybeSingle();
-      if (data2) applyReceiptFromServer(data2);
-    } catch { /* swallow — non-fatal */ }
+    if (row2) {
+      applyReceiptFromServer(row2);
+      setReceiptCounterReady(true);
+    }
   }, [applyReceiptFromServer]);
 
   useEffect(() => {
     refreshReceiptCounter();
     const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
-      if (session?.user) refreshReceiptCounter();
+      if (session?.user) {
+        setReceiptCounterReady(false);
+        refreshReceiptCounter();
+      } else {
+        setReceiptCounterReady(false);
+      }
     });
     return () => { sub.subscription.unsubscribe(); };
   }, [refreshReceiptCounter]);
+
 
   const update = (patch: Partial<AppSettings>) => setSettings((s) => ({ ...s, ...patch }));
   const setStatusColor: Ctx["setStatusColor"] = (k, c) =>
