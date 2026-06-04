@@ -130,7 +130,7 @@ export default function Maintenance() {
   const filtered = filter === "all" ? rows : rows.filter((r) => r.status === filter);
 
   return (
-    <div className="mobile-shell min-h-screen pb-24 bg-background">
+    <div className="mobile-shell min-h-screen pb-24 md:pb-8 bg-background">
       <TopBar />
       <div className="px-5 md:px-8 lg:px-12 pt-2 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
