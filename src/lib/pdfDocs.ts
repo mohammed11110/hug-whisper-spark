@@ -1558,20 +1558,38 @@ export async function inlinePdfFonts(html: string): Promise<string> {
 
 export async function printHTML(html: string) {
   const finalHtml = await inlinePdfFonts(html);
-  const win = window.open("", "_blank", "noopener,noreferrer,width=1024,height=768");
-  if (!win) throw new Error("Could not open print window");
-  win.document.open();
-  win.document.write(finalHtml);
-  win.document.close();
-  win.focus();
-  const runPrint = async () => {
-    try { await (win.document as any).fonts?.ready; } catch { /* noop */ }
-    setTimeout(() => win.print(), 250);
+  // Use a hidden in-document iframe instead of window.open — popups are
+  // blocked on iOS Safari and inside Capacitor WKWebView, and document.write
+  // into a new window is unreliable. An iframe + contentWindow.print() works
+  // on every platform including iPhone/iPad (triggers AirPrint).
+  const iframe = document.createElement("iframe");
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.style.cssText =
+    "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;";
+  iframe.srcdoc = finalHtml;
+  document.body.appendChild(iframe);
+
+  const cleanup = () => {
+    setTimeout(() => {
+      try { iframe.remove(); } catch { /* noop */ }
+    }, 1000);
   };
-  if (win.document.readyState === "complete") {
-    runPrint();
-  } else {
-    win.onload = () => runPrint();
+
+  await new Promise<void>((resolve) => {
+    iframe.onload = () => resolve();
+    // Safety timeout in case onload never fires.
+    setTimeout(() => resolve(), 4000);
+  });
+
+  try {
+    const win = iframe.contentWindow;
+    if (!win) throw new Error("Could not access print frame");
+    try { await (win.document as any).fonts?.ready; } catch { /* noop */ }
+    await new Promise((r) => setTimeout(r, 200));
+    win.focus();
+    win.print();
+  } finally {
+    cleanup();
   }
 }
 
