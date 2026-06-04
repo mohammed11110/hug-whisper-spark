@@ -180,7 +180,7 @@ export function EndTenancyDialog({ open, onOpenChange, unit, tenancyId, onDone }
 
   return (
     <Dialog open={open} onOpenChange={guard.handleOpenChange}>
-      <DialogContent className="rounded-2xl max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="rounded-2xl max-w-md md:max-w-xl lg:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-burgundy">
             {t2("end_tenancy")} — {unit.tenant_name}
