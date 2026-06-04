@@ -1,49 +1,29 @@
-## المشكلة
+# Plan
 
-### 1) الرقم التسلسلي للإيصال يختلف بين المتصفح والآيفون
+## What I’ll change
+1. **Make the suggested receipt number update from the latest backend value**
+   - Adjust the add-payment dialog so it does not fill the receipt field from an old local snapshot taken before the counter refresh finishes.
+   - The displayed suggestion will update only after the fresh counter arrives from the backend.
 
-العدّاد الحقيقي محفوظ على الخادم في جدول `receipt_counters.next_number`، والتخصيص الفعلي عند الحفظ يتم بشكل ذرّي عبر `allocate_receipt_numbers` RPC (هذا الجزء سليم — الأرقام المحفوظة في قاعدة البيانات لا تتعارض أبداً).
+2. **Protect manual edits**
+   - Keep auto-suggestion behavior only while the receipt field is still untouched/default.
+   - If you manually type a custom receipt number, the app will not overwrite it during refresh.
 
-لكن **الرقم المعروض في نموذج "إضافة دفعة جديدة"** يأتي من `settings.receipt.nextNumber` المخزّن محلياً (`localStorage`) في كل جهاز:
+3. **Unify the source used in the dialog**
+   - Ensure preview/save logic in the add-payment flow uses the same resolved suggestion logic, so what the user sees matches what the dialog intends to use.
 
-- `src/lib/appSettings.tsx` يجلب العدّاد من الخادم **مرة واحدة فقط** عند تحميل التطبيق أو عند تغيّر الجلسة.
-- بعد حفظ دفعة، الدالة `bumpReceiptNumber` فارغة (`no-op`)، أي العدّاد المحلي لا يُحدَّث.
-- النتيجة: المتصفح والآيفون كل واحد يعرض قيمة قديمة من الكاش، فيظهران رقمَين مختلفَين كاقتراح — رغم أن الرقم النهائي المحفوظ صحيح.
+## Expected result
+- Opening **إضافة دفعة جديدة** on browser, iPhone, iPad, and other devices will show the same next suggested receipt number.
+- The actual saved receipt numbering remains backend-controlled and conflict-free.
+- No database schema changes are needed.
 
-### 2) علامات الاستفهام (i) لا تظهر على الآيفون
+## Technical details
+- Root cause is in `src/components/AddPaymentDialog.tsx`:
+  - `refreshReceiptCounter()` is called on open,
+  - but `setReceipt(formatReceipt(settings.receipt))` still runs from the older render snapshot,
+  - so the input can keep a stale number even after the counter refresh completes.
+- I’ll move this to a reactive flow tied to the refreshed receipt settings, with a guard so custom user input is not replaced.
 
-`FieldHelp` (الأيقونة الدائرية بجانب كل حقل) مُضافة في الكود بدون أي شرط `hidden`/`md:` — تظهر على كل المقاسات في المتصفح.
-
-السبب الأرجح: تطبيق الآيفون هو **نسخة Capacitor الأصلية** المُثبّتة من ملفات `dist/` محلياً. الـ`FieldHelp` أُضيفت في تحديث لاحق، ونسخة الآيفون لم يُعَد بناؤها (`npm run build && npx cap sync`) ولا رفعها مجدداً، فلا تزال تعرض الإصدار القديم بدون الأيقونات. هذا يفسّر أيضاً اختلاف الرقم التسلسلي حتى لو كان متطابقاً في المتصفحَين.
-
-## الحل
-
-### إصلاح كود (يخص المشكلة 1)
-
-**`src/components/AddPaymentDialog.tsx`**
-- استيراد `refreshReceiptCounter` من `useAppSettings()`.
-- استدعاؤها داخل `useEffect` عند فتح الحوار (`if (open)`) — قبل عرض الرقم المقترح — بحيث يأتي `settings.receipt.nextNumber` من الخادم مباشرة.
-- استدعاؤها أيضاً بعد نجاح الحفظ، حتى يعكس النموذج التالي القيمة الجديدة فوراً.
-
-**`src/components/EditPaymentDialog.tsx`** (إن كان يعرض رقم إيصال جديد) — نفس المعاملة احتياطاً.
-
-نتيجة هذا التغيير: أي جهاز يفتح حوار "إضافة دفعة" يقرأ العدّاد الحقيقي من السيرفر في تلك اللحظة، فيظهر نفس الرقم على كل الأجهزة.
-
-### إصلاح المشكلة 2 (تعليمات للمستخدم — لا تعديل كود)
-
-تطبيق الآيفون (والآيباد والأندرويد) المثبّت من المتجر/Xcode/Android Studio يستخدم نسخة الـ`dist/` المُجمَّعة وقت البناء. أي تحديث في الواجهة (مثل أيقونات `FieldHelp`) يحتاج:
-
-1. `git pull`
-2. `npm install`
-3. `npm run build`
-4. `npx cap sync`
-5. إعادة التشغيل/الرفع للمتجر
-
-بعدها ستظهر علامات الاستفهام على الآيفون مطابقة للمتصفح.
-
-## الملفات المتأثّرة
-
-- `src/components/AddPaymentDialog.tsx` — استدعاء `refreshReceiptCounter` عند فتح الحوار وبعد الحفظ.
-- `src/components/EditPaymentDialog.tsx` — نفس الإضافة عند الحاجة.
-
-(لا تغييرات على قاعدة البيانات أو منطق التخصيص الذرّي — هما سليمان أصلاً.)
+## Files likely involved
+- `src/components/AddPaymentDialog.tsx`
+- possibly a very small supporting tweak in `src/lib/appSettings.tsx` only if needed, but I’ll avoid widening scope unless necessary.
