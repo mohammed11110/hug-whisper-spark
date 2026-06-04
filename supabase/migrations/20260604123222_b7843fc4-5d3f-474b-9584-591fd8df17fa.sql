@@ -1,0 +1,2 @@
+CREATE POLICY "Managers delete daily_bookings" ON public.daily_bookings FOR DELETE USING (has_building_access(building_id, auth.uid(), 'manager'::member_role));
+CREATE POLICY "Managers delete daily_units" ON public.daily_units FOR DELETE USING (has_building_access(building_id, auth.uid(), 'manager'::member_role));
