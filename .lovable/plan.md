@@ -1,48 +1,26 @@
-# خطة: إصلاح ظهور R-01 على الأجهزة الجديدة
+## معاينة الإيصال المتجاوبة مع حجم الجهاز
 
-## الهدف
-جعل عداد الإيصالات مرتبطاً بآخر إيصال فعلي صادر عن الحساب (من أي جهاز)، وإلغاء أي اعتماد على قيم محلية افتراضية تُظهر `R-01` للحسابات القديمة.
+### الهدف
+جعل نافذة "المعاينة قبل الطباعة" داخل `AddPaymentDialog` تتكيّف مع عرض الشاشة (موبايل/تابلت/ديسكتوب) بدل عرض صفحة A4/A5/Letter بحجمها الثابت الذي يسبب القص والتمرير الأفقي على الموبايل.
 
-## التغييرات
+### التغييرات
 
-### 1) Backend — دالة تهيئة موثوقة
-Migration جديدة تضيف:
-- `public.ensure_receipt_counter_seeded()` — SECURITY DEFINER، تُستدعى من العميل بعد تسجيل الدخول.
-  - تحسب `max(actual_receipt_int)` من `payments` للحساب (`user_id = auth.uid()`، `deleted_at IS NULL`).
-  - تستخرج الجزء الرقمي من `receipt_number` بغض النظر عن البادئة.
-  - تُنشئ صف `receipt_counters` إذا لم يوجد، وتضبط `next_number = GREATEST(next_number, max_existing + 1)`.
-  - ترجع الصف النهائي (`prefix`, `padding`, `next_number`).
-- تُستدعى مرة واحدة عند بدء الجلسة وتعمل بشكل idempotent.
+**1. `src/components/AddPaymentDialog.tsx` — حاوية المعاينة فقط**
+- تغليف `<iframe>` بحاوية `relative` مع `ResizeObserver` يقيس عرضها الفعلي.
+- حساب `scale = min(1, containerWidth / pageWidthPx)` حيث `pageWidthPx` يأتي من حجم الصفحة المختار (A4/A5/Letter).
+- تطبيق `transform: scale(scale)` و `transformOrigin: 'top right'` (RTL) على الـiframe، مع تثبيت عرضه الأصلي بالـpx.
+- ضبط ارتفاع الحاوية = `pageHeightPx * scale` مع سقف `min(70svh, calc(100vh - 220px))` وتمرير عمودي عند الحاجة.
+- إضافة `overflow-hidden` للحاوية لمنع أي تمرير أفقي.
 
-### 2) `src/lib/appSettings.tsx`
-- إضافة حالة `receiptCounterReady: boolean` (افتراضياً `false`).
-- عند توفر `session.user`:
-  1. استدعاء `ensure_receipt_counter_seeded` ثم قراءة `receipt_counters`.
-  2. عند النجاح فقط → `receiptCounterReady = true` وتحديث `settings.receipt`.
-- إزالة أي fallback يضع `next_number = 1` محلياً قبل اكتمال الجلب.
-- تصدير `receiptCounterReady` عبر الـ context.
+**2. تحسينات صغيرة للموبايل**
+- تقليل الحشوة حول المعاينة: `p-3 sm:p-6`.
+- التأكد من أن أزرار التحكم (طباعة/تنزيل/إغلاق) تبقى ظاهرة فوق المعاينة في الشاشات الصغيرة.
 
-### 3) `src/components/AddPaymentDialog.tsx`
-- عدم ملء حقل رقم الإيصال أو حساب المعاينة قبل `receiptCounterReady === true`.
-- أثناء التحميل: عرض skeleton/نص "جارٍ تجهيز الرقم…" بدل `R-01`.
-- زر الحفظ معطّل حتى يجهز العداد.
-- منطق "override يدوي": يُعتبر فقط إذا غيّر المستخدم القيمة بعد الجاهزية (مقارنة بـ snapshot للقيمة الأولية بعد التهيئة).
+### ما لن يتغير
+- `buildReceiptHTML` و `pdfDocs.ts` ومحتوى الإيصال نفسه — جودة الطباعة وملف PDF تبقى كما هي.
+- منطق العملة/الأرقام/الحقول.
 
-### 4) `src/pages/Settings.tsx`
-- معاينة رقم الإيصال تستخدم `next_number` من الخادم فقط؛ قبل الجاهزية تعرض "…".
-- نموذج تعديل البادئة/الحشو يبقى معطّلاً حتى الجاهزية.
-
-### 5) أي نقاط عرض أخرى
-مراجعة استخدامات `formatReceipt(settings.receipt…)` وربطها بـ `receiptCounterReady` لإخفاء أي رقم مؤقت.
-
-## التحقق
-- حساب قديم على جهاز/متصفح جديد → فتح حوار الدفع يُظهر الرقم التالي الحقيقي.
-- فتح الحوار فوراً بعد تسجيل الدخول → لا يظهر `R-01` أبداً، بل مؤشر تحميل ثم الرقم الصحيح.
-- التطابق بين: الحقل، المعاينة، الحفظ، PDF، واتساب.
-- حساب جديد بلا إيصالات → يبدأ من `R-01` بشكل طبيعي.
-
-## الملفات
-- migration جديدة: `ensure_receipt_counter_seeded`
-- `src/lib/appSettings.tsx`
-- `src/components/AddPaymentDialog.tsx`
-- `src/pages/Settings.tsx`
+### النتيجة
+- على الموبايل (360–430px): الإيصال يظهر كاملاً متناسباً مع العرض، بدون قص أو تمرير أفقي.
+- على التابلت: حجم أكبر متناسب.
+- على الديسكتوب: الحجم الطبيعي 100%.
