@@ -1328,7 +1328,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         </AlertDialogContent>
       </AlertDialog>
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="rounded-2xl max-w-3xl w-[95vw] max-h-[92vh] overflow-hidden flex flex-col p-4 sm:p-6">
+        <DialogContent className="rounded-2xl max-w-3xl w-[95vw] max-h-[92vh] overflow-hidden flex flex-col p-3 sm:p-6">
           <DialogHeader>
             <DialogTitle className="text-sage-700 flex items-center justify-between gap-2">
               <span>{lang === "ar" ? "معاينة الإيصال" : "Receipt preview"}</span>
@@ -1348,13 +1348,8 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
               )}
             </DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-hidden rounded-xl border border-sage-200 bg-sage-100/30">
-            <iframe
-              title="receipt-preview"
-              srcDoc={previewHtml}
-              className="w-full h-[70vh] bg-white"
-            />
-          </div>
+          <ScaledReceiptPreview html={previewHtml} rtl={lang === "ar"} />
+
           <DialogFooter className="gap-2 sm:gap-2 flex-wrap">
             {unpaidMonths.length > 0 && (
               <Button
