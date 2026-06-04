@@ -146,7 +146,7 @@ export default function Buildings() {
   const fmt = (n: number) => new Intl.NumberFormat(lang === "ar" ? "ar" : "en").format(n);
 
   return (
-    <div className="mobile-shell pb-24 min-h-screen">
+    <div className="mobile-shell pb-24 md:pb-8 min-h-screen">
       <TopBar />
       <div className="px-5 md:px-8 lg:px-12 pt-5">
         <div className="flex items-center justify-between mb-4">
