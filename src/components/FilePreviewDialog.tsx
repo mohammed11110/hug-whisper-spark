@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, Printer, X, FileText, Table as TableIcon, Loader2 } from "lucide-react";
+import { Download, Printer, X, FileText, Table as TableIcon, Loader2, Share2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { inlinePdfFonts } from "@/lib/pdfDocs";
+import { isIOS } from "@/lib/platform";
+
+const IS_IOS = typeof window !== "undefined" && isIOS();
 
 export type FilePreviewPayload =
   | {
@@ -58,7 +61,9 @@ export function FilePreviewDialog({ open, onOpenChange, payload }: Props) {
   if (!payload) return null;
 
   const labelPreview = ar ? "معاينة الملف" : "File preview";
-  const labelSave = ar ? "حفظ الملف" : "Save file";
+  const labelSave = payload.type === "pdf" && IS_IOS
+    ? (ar ? "حفظ أو مشاركة" : "Save or share")
+    : (ar ? "حفظ الملف" : "Save file");
   const labelPrint = ar ? "طباعة" : "Print";
   const labelCancel = ar ? "إلغاء" : "Cancel";
   const labelLoading = ar ? "جاري تحضير المعاينة…" : "Preparing preview…";
@@ -85,9 +90,15 @@ export function FilePreviewDialog({ open, onOpenChange, payload }: Props) {
           </div>
         </DialogHeader>
 
-        <div className="px-4 pt-3 pb-4 bg-cream/20">
+        <div className="px-3 sm:px-4 pt-3 pb-4 bg-cream/20">
           {payload.type === "pdf" ? (
-            <div className="rounded-2xl overflow-hidden border border-sage-200 bg-white" style={{ height: "65vh" }}>
+            <div
+              className="rounded-2xl overflow-auto border border-sage-200 bg-white"
+              style={{
+                height: "min(65svh, calc(100svh - 220px))",
+                WebkitOverflowScrolling: "touch",
+              }}
+            >
               {renderedHtml ? (
                 <iframe
                   title={labelPreview}
@@ -112,7 +123,11 @@ export function FilePreviewDialog({ open, onOpenChange, payload }: Props) {
             onClick={() => payload.onSave()}
             className="rounded-xl bg-gradient-sage text-primary-foreground font-semibold h-11 px-5"
           >
-            <Download className="h-4 w-4 me-1.5" />
+            {payload.type === "pdf" && IS_IOS ? (
+              <Share2 className="h-4 w-4 me-1.5" />
+            ) : (
+              <Download className="h-4 w-4 me-1.5" />
+            )}
             {labelSave}
           </Button>
           {payload.type === "pdf" && payload.onPrint && (

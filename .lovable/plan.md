@@ -1,26 +1,83 @@
-## معاينة الإيصال المتجاوبة مع حجم الجهاز
+# إصلاح المعاينة والتنزيل والطباعة على iPhone و iPad
 
-### الهدف
-جعل نافذة "المعاينة قبل الطباعة" داخل `AddPaymentDialog` تتكيّف مع عرض الشاشة (موبايل/تابلت/ديسكتوب) بدل عرض صفحة A4/A5/Letter بحجمها الثابت الذي يسبب القص والتمرير الأفقي على الموبايل.
+## المشكلة
 
-### التغييرات
+على أجهزة iOS (Safari و WKWebView داخل تطبيق Capacitor) تحدث ثلاث مشكلات في إيصالات الـ PDF:
 
-**1. `src/components/AddPaymentDialog.tsx` — حاوية المعاينة فقط**
-- تغليف `<iframe>` بحاوية `relative` مع `ResizeObserver` يقيس عرضها الفعلي.
-- حساب `scale = min(1, containerWidth / pageWidthPx)` حيث `pageWidthPx` يأتي من حجم الصفحة المختار (A4/A5/Letter).
-- تطبيق `transform: scale(scale)` و `transformOrigin: 'top right'` (RTL) على الـiframe، مع تثبيت عرضه الأصلي بالـpx.
-- ضبط ارتفاع الحاوية = `pageHeightPx * scale` مع سقف `min(70svh, calc(100vh - 220px))` وتمرير عمودي عند الحاجة.
-- إضافة `overflow-hidden` للحاوية لمنع أي تمرير أفقي.
+1. **التنزيل لا يعمل**: `jsPDF.save(filename)` يستخدم رابط `blob:` + `<a download>`. iOS Safari يتجاهل الخاصية `download` ويفتح الـ blob في نفس التبويب فيضيع التطبيق، وفي WebView لا يحدث شيء إطلاقاً.
+2. **الطباعة تفشل**: `window.open("", "_blank", ...)` ثم `document.write` يُحجب على iOS أو يفتح نافذة فارغة. حتى لو فُتحت، استدعاء `win.print()` غير مدعوم في Safari iOS الحديث.
+3. **المعاينة تُقص أو لا تمرّر**: `<iframe srcDoc>` داخل الحوار على iOS لا يمرّر بالأصابع بسلاسة، وأحياناً يظهر الإيصال بحجم خاطئ أو مقصوص في iPhone الضيق و iPad في الوضع العمودي.
 
-**2. تحسينات صغيرة للموبايل**
-- تقليل الحشوة حول المعاينة: `p-3 sm:p-6`.
-- التأكد من أن أزرار التحكم (طباعة/تنزيل/إغلاق) تبقى ظاهرة فوق المعاينة في الشاشات الصغيرة.
+## ما سأبنيه
 
-### ما لن يتغير
-- `buildReceiptHTML` و `pdfDocs.ts` ومحتوى الإيصال نفسه — جودة الطباعة وملف PDF تبقى كما هي.
-- منطق العملة/الأرقام/الحقول.
+### 1. كشف iOS مركزي
+- إضافة `src/lib/platform.ts` بدالة `isIOS()` (تكشف iPhone/iPad/iPod + iPadOS الحديث الذي يُبلّغ نفسه كـ Mac مع `maxTouchPoints > 1`) ودالة `isIOSWebView()` للتمييز عن Capacitor.
 
-### النتيجة
-- على الموبايل (360–430px): الإيصال يظهر كاملاً متناسباً مع العرض، بدون قص أو تمرير أفقي.
-- على التابلت: حجم أكبر متناسب.
-- على الديسكتوب: الحجم الطبيعي 100%.
+### 2. مسار تنزيل/مشاركة بديل على iOS (`src/lib/pdfDocs.ts`)
+- في `buildPdfFromCanvas` بدل `pdf.save(filename)`:
+  - على iOS: استخدام `pdf.output("blob")` + إنشاء `File` ومحاولة `navigator.share({ files: [file] })` أولاً (يفتح ورقة المشاركة الأصلية: حفظ في الملفات/واتساب/طباعة). إذا فشل أو غير مدعوم، نفتح `pdf.output("bloburl")` في تبويب جديد عبر `window.open(url, "_blank")` المُحرَّك بنقرة المستخدم — Safari iOS يعرض حينها PDF بمعاينة أصلية مع زر مشاركة/حفظ.
+  - على باقي المنصات: الإبقاء على `pdf.save(filename)` كما هو.
+- إضافة fallback نهائي: إذا فشل الكل، إنشاء `<a href={dataUrl}>` ونقره برمجياً.
+
+### 3. مسار طباعة موثوق على iOS (`printHTML`)
+- بدل `window.open` ثم `document.write`، إنشاء `<iframe>` مخفي داخل الصفحة الحالية مع `srcdoc=finalHtml`، انتظار `load` + `fonts.ready`، ثم استدعاء `iframe.contentWindow.print()` (مدعوم في iOS Safari). تنظيف الـ iframe بعد الانتهاء.
+- هذا يعمل على جميع المنصات ويستبدل المسار الحالي بالكامل، فيحلّ مشكلة حجب النوافذ المنبثقة على iOS.
+
+### 4. تحسين معاينة الإيصال داخل الحوارات
+- في `FilePreviewDialog.tsx` و `AddPaymentDialog.tsx` (مكوّن `ScaledReceiptPreview` المضاف سابقاً):
+  - إضافة `style={{ WebkitOverflowScrolling: "touch" }}` على حاوية التمرير لتفعيل التمرير الطبيعي على iOS.
+  - استخدام `100svh` بدل `100vh` في الارتفاع لتجنب الشريط السفلي لـ Safari الذي يقصّ المحتوى.
+  - تقليل الـ padding على شاشات iPhone الضيقة: `p-2 sm:p-4` بدل `p-4 sm:p-6` في `FilePreviewDialog`.
+  - إضافة `playsinline`-equivalent للـ iframe: `scrolling="auto"` + `allow="fullscreen"` لمنع iOS من تحويل الإيصال لصفحة منفصلة.
+  - ضبط ارتفاع iframe المعاينة في `FilePreviewDialog` من `65vh` ثابت إلى `min(65svh, calc(100svh - 200px))`.
+
+### 5. زر المشاركة على iOS داخل `FilePreviewDialog`
+- على iOS فقط، إضافة زر «مشاركة» بجانب «حفظ» يستدعي `navigator.share` بمَلَف الـ PDF — يفتح ورقة iOS الأصلية (حفظ في الملفات، إرسال، طباعة AirPrint). على غير iOS لا يظهر الزر.
+
+## التفاصيل التقنية
+
+```text
+isIOS():
+  /iP(hone|od|ad)/.test(ua)
+  || (platform === "MacIntel" && navigator.maxTouchPoints > 1)
+
+buildPdfFromCanvas (نهاية الدالة):
+  if (isIOS()) {
+    const blob = pdf.output("blob");
+    const file = new File([blob], filename, { type: "application/pdf" });
+    if (navigator.canShare?.({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: filename }); return; }
+      catch (e) { /* المستخدم ألغى → جرب فتح في تبويب */ }
+    }
+    const url = URL.createObjectURL(blob);
+    const w = window.open(url, "_blank");
+    if (!w) location.href = url;
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    return;
+  }
+  pdf.save(filename);
+
+printHTML (إعادة كتابة):
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
+  iframe.srcdoc = finalHtml;
+  document.body.appendChild(iframe);
+  await load + fonts.ready;
+  iframe.contentWindow!.focus();
+  iframe.contentWindow!.print();
+  setTimeout(() => iframe.remove(), 1000);
+```
+
+## ملفات ستتغير
+
+- جديد: `src/lib/platform.ts`
+- تعديل: `src/lib/pdfDocs.ts` (`buildPdfFromCanvas` + `printHTML`)
+- تعديل: `src/components/FilePreviewDialog.tsx` (تمرير iOS، زر مشاركة، ارتفاع svh)
+- تعديل: `src/components/AddPaymentDialog.tsx` (ScaledReceiptPreview: svh + WebkitOverflowScrolling)
+
+## النتيجة المتوقعة
+
+- على iPhone/iPad: زر «حفظ الملف» يفتح ورقة المشاركة الأصلية → حفظ في «الملفات» أو إرسال مباشر.
+- زر «طباعة» يفتح حوار AirPrint الأصلي.
+- معاينة الإيصال تتمرّر بسلاسة ولا تُقص بأي حجم شاشة.
+- سلوك سطح المكتب والأندرويد يبقى كما هو دون تغيير.

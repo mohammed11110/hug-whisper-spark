@@ -1,6 +1,7 @@
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import type { AppSettings, BusinessBrand, Margins, PageSize } from "@/lib/appSettings";
+import { isIOS, canShareFiles } from "@/lib/platform";
 
 // ---- Embedded fonts (loaded once, cached as data URLs) ----
 // Loading fonts as data URLs guarantees they are available the instant
@@ -1322,7 +1323,7 @@ export async function downloadLeasePDF(data: Lease, filename: string) {
   cursorY += 6;
   drawTextBlock({ text: footerText, x: marginX, y: cursorY, width: contentW, fontSize: smallFontSize, color: PDF_COLORS.muted, align: "center" });
 
-  pdf.save(filename);
+  await savePdfBlob(pdf, filename);
 }
 
 export function buildTenantStatementHTML(data: TenantStatementData): string {
@@ -1558,20 +1559,38 @@ export async function inlinePdfFonts(html: string): Promise<string> {
 
 export async function printHTML(html: string) {
   const finalHtml = await inlinePdfFonts(html);
-  const win = window.open("", "_blank", "noopener,noreferrer,width=1024,height=768");
-  if (!win) throw new Error("Could not open print window");
-  win.document.open();
-  win.document.write(finalHtml);
-  win.document.close();
-  win.focus();
-  const runPrint = async () => {
-    try { await (win.document as any).fonts?.ready; } catch { /* noop */ }
-    setTimeout(() => win.print(), 250);
+  // Use a hidden in-document iframe instead of window.open — popups are
+  // blocked on iOS Safari and inside Capacitor WKWebView, and document.write
+  // into a new window is unreliable. An iframe + contentWindow.print() works
+  // on every platform including iPhone/iPad (triggers AirPrint).
+  const iframe = document.createElement("iframe");
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.style.cssText =
+    "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;";
+  iframe.srcdoc = finalHtml;
+  document.body.appendChild(iframe);
+
+  const cleanup = () => {
+    setTimeout(() => {
+      try { iframe.remove(); } catch { /* noop */ }
+    }, 1000);
   };
-  if (win.document.readyState === "complete") {
-    runPrint();
-  } else {
-    win.onload = () => runPrint();
+
+  await new Promise<void>((resolve) => {
+    iframe.onload = () => resolve();
+    // Safety timeout in case onload never fires.
+    setTimeout(() => resolve(), 4000);
+  });
+
+  try {
+    const win = iframe.contentWindow;
+    if (!win) throw new Error("Could not access print frame");
+    try { await (win.document as any).fonts?.ready; } catch { /* noop */ }
+    await new Promise((r) => setTimeout(r, 200));
+    win.focus();
+    win.print();
+  } finally {
+    cleanup();
   }
 }
 
@@ -1682,6 +1701,35 @@ function stripExternalRenderResources(doc: Document) {
   });
 }
 
+async function savePdfBlob(pdf: jsPDF, filename: string) {
+  // On iOS (Safari + Capacitor WKWebView) the `<a download>` trick used by
+  // jsPDF.save() is ignored — the file just opens in the same tab or silently
+  // does nothing. Use the native share sheet or open the blob in a new tab so
+  // the user can save it via the OS-level PDF viewer / AirDrop / Files.
+  if (isIOS()) {
+    const blob = pdf.output("blob");
+    try {
+      const file = new File([blob], filename, { type: "application/pdf" });
+      if (canShareFiles([file])) {
+        await (navigator as any).share({ files: [file], title: filename });
+        return;
+      }
+    } catch (e) {
+      // User cancelled or share failed — fall through to open-in-tab.
+      console.warn("[pdf] iOS share failed, opening in tab", e);
+    }
+    const url = URL.createObjectURL(blob);
+    const opened = window.open(url, "_blank");
+    if (!opened) {
+      // Last resort: navigate current tab to the blob so the OS PDF viewer takes over.
+      window.location.href = url;
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    return;
+  }
+  pdf.save(filename);
+}
+
 function buildPdfFromCanvas(canvas: HTMLCanvasElement, filename: string, pageSize: PageSize, margins: Margins) {
   const pdf = new jsPDF({ unit: "mm", format: pageSize.toLowerCase() as "a4" | "a5" | "letter" });
   const pageW = pdf.internal.pageSize.getWidth();
@@ -1722,7 +1770,7 @@ function buildPdfFromCanvas(canvas: HTMLCanvasElement, filename: string, pageSiz
       pageIndex += 1;
     }
   }
-  pdf.save(filename);
+  return savePdfBlob(pdf, filename);
 }
 
 /**
@@ -1902,5 +1950,5 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
     canvas = await renderInIframe(finalHtml);
   }
 
-  buildPdfFromCanvas(canvas, filename, pageSize, margins);
+  await buildPdfFromCanvas(canvas, filename, pageSize, margins);
 }
