@@ -153,10 +153,11 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
 
   useEffect(() => {
     if (!open) return;
-    // Refresh receipt counter from server so the suggested receipt number
-    // matches across devices (browser, iPhone, iPad...).
-    void refreshReceiptCounter();
     (async () => {
+      // Wait for the server counter before doing anything — guarantees the
+      // suggested receipt number is identical on every device.
+      await refreshReceiptCounter();
+
       const { data: us } = await supabase.from("units").select("id, unit_number, tenant_name, tenant_phone, rent_amount, rent_type, rent_timing, building_id, contract_start_date, opening_balance, opening_balance_date").order("unit_number");
       const ids = Array.from(new Set((us || []).map((u: any) => u.building_id)));
       const { data: bs } = ids.length
