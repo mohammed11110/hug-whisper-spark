@@ -61,7 +61,9 @@ export function FilePreviewDialog({ open, onOpenChange, payload }: Props) {
   if (!payload) return null;
 
   const labelPreview = ar ? "معاينة الملف" : "File preview";
-  const labelSave = ar ? "حفظ الملف" : "Save file";
+  const labelSave = payload.type === "pdf" && IS_IOS
+    ? (ar ? "حفظ أو مشاركة" : "Save or share")
+    : (ar ? "حفظ الملف" : "Save file");
   const labelPrint = ar ? "طباعة" : "Print";
   const labelCancel = ar ? "إلغاء" : "Cancel";
   const labelLoading = ar ? "جاري تحضير المعاينة…" : "Preparing preview…";
