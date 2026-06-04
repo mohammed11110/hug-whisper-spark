@@ -1701,6 +1701,35 @@ function stripExternalRenderResources(doc: Document) {
   });
 }
 
+async function savePdfBlob(pdf: jsPDF, filename: string) {
+  // On iOS (Safari + Capacitor WKWebView) the `<a download>` trick used by
+  // jsPDF.save() is ignored — the file just opens in the same tab or silently
+  // does nothing. Use the native share sheet or open the blob in a new tab so
+  // the user can save it via the OS-level PDF viewer / AirDrop / Files.
+  if (isIOS()) {
+    const blob = pdf.output("blob");
+    try {
+      const file = new File([blob], filename, { type: "application/pdf" });
+      if (canShareFiles([file])) {
+        await (navigator as any).share({ files: [file], title: filename });
+        return;
+      }
+    } catch (e) {
+      // User cancelled or share failed — fall through to open-in-tab.
+      console.warn("[pdf] iOS share failed, opening in tab", e);
+    }
+    const url = URL.createObjectURL(blob);
+    const opened = window.open(url, "_blank");
+    if (!opened) {
+      // Last resort: navigate current tab to the blob so the OS PDF viewer takes over.
+      window.location.href = url;
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    return;
+  }
+  pdf.save(filename);
+}
+
 function buildPdfFromCanvas(canvas: HTMLCanvasElement, filename: string, pageSize: PageSize, margins: Margins) {
   const pdf = new jsPDF({ unit: "mm", format: pageSize.toLowerCase() as "a4" | "a5" | "letter" });
   const pageW = pdf.internal.pageSize.getWidth();
@@ -1741,7 +1770,7 @@ function buildPdfFromCanvas(canvas: HTMLCanvasElement, filename: string, pageSiz
       pageIndex += 1;
     }
   }
-  pdf.save(filename);
+  return savePdfBlob(pdf, filename);
 }
 
 /**
