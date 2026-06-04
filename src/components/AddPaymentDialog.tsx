@@ -246,6 +246,15 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, presetUnitId]);
 
+  // Fill the suggested receipt number from the latest server counter.
+  // Runs whenever the refreshed counter arrives, so the suggestion is the
+  // same on every device (browser / iPhone / iPad). Skips when the user
+  // has typed a custom value.
+  useEffect(() => {
+    if (!open) return;
+    setReceipt((cur) => (cur && cur.trim().length > 0 ? cur : formatReceipt(settings.receipt)));
+  }, [open, settings.receipt.prefix, settings.receipt.padding, settings.receipt.nextNumber]);
+
   // Unified arrears for the selected unit — single source of truth via getUnitArrears.
   useEffect(() => {
     if (!open || !unitId) {
