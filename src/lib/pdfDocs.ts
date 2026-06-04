@@ -1594,6 +1594,12 @@ export function openPrintView(html: string, filename: string, opts?: { lang?: "a
 }
 
 export async function printHTML(html: string) {
+  // iOS: open the dedicated print view in a new tab. Safari handles the
+  // print sheet natively (AirPrint + Save as PDF). Must run before any await
+  // to preserve the user-gesture so window.open is not blocked.
+  if (isIOS()) {
+    if (openPrintView(html, "document.pdf")) return;
+  }
   const finalHtml = await inlinePdfFonts(html);
   // Use a hidden in-document iframe instead of window.open — popups are
   // blocked on iOS Safari and inside Capacitor WKWebView, and document.write
