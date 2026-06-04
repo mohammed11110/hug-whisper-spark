@@ -1323,7 +1323,7 @@ export async function downloadLeasePDF(data: Lease, filename: string) {
   cursorY += 6;
   drawTextBlock({ text: footerText, x: marginX, y: cursorY, width: contentW, fontSize: smallFontSize, color: PDF_COLORS.muted, align: "center" });
 
-  pdf.save(filename);
+  await savePdfBlob(pdf, filename);
 }
 
 export function buildTenantStatementHTML(data: TenantStatementData): string {
