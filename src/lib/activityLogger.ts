@@ -27,24 +27,24 @@ export interface LogActivityInput {
  */
 export async function logActivity(input: LogActivityInput): Promise<void> {
   try {
-    const { data: auth } = await supabase.auth.getUser();
-    const uid = auth?.user?.id;
-    if (!uid) return;
-    await supabase.from("activity_log").insert({
-      user_id: uid,
-      building_id: input.buildingId ?? null,
-      entity_type: input.entityType,
-      entity_id: input.entityId ?? null,
-      entity_label: input.entityLabel ?? null,
-      action: input.action,
-      description_ar: input.descriptionAr ?? null,
-      description_en: input.descriptionEn ?? null,
-      changes: input.changes ?? {},
+    // Route through a SECURITY DEFINER RPC so users can't forge audit-log
+    // entries (e.g. fake actions or arbitrary descriptions for buildings
+    // they don't own). The function validates building access server-side.
+    await supabase.rpc("log_activity", {
+      _action: input.action,
+      _entity_type: input.entityType,
+      _entity_id: input.entityId ?? null,
+      _building_id: input.buildingId ?? null,
+      _description_ar: input.descriptionAr ?? null,
+      _description_en: input.descriptionEn ?? null,
+      _changes: (input.changes ?? {}) as any,
+      _entity_label: input.entityLabel ?? null,
     });
   } catch {
     /* ignore */
   }
 }
+
 
 /** Format ISO timestamp into `DD MMM YYYY - HH:MM:SS` localized. */
 export function formatActivityTime(iso: string, lang: "ar" | "en" | string = "ar"): string {
