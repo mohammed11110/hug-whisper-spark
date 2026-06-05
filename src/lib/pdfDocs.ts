@@ -2018,12 +2018,13 @@ async function renderInIframe(html: string): Promise<HTMLCanvasElement> {
 }
 
 export async function downloadHTMLAsPDF(html: string, filename: string, settings?: PdfSettings) {
-  // iOS root-cause fix: skip html2canvas/jsPDF (which can't save files on
-  // iPhone/iPad because <a download> is ignored and navigator.share is
-  // unreliable in WKWebView). Open the dedicated print view instead — Safari
-  // gives the user Save to Files (PDF), AirPrint, AirDrop, Mail, WhatsApp.
-  // Must execute before any await to preserve the user-gesture for popups.
-  if (isIOS()) {
+  // Capacitor native handled inside savePdfBlob — falls through to render
+  // path here so we generate a real PDF blob, then native Share sheet
+  // saves it to Files / AirPrint / etc.
+  //
+  // Mobile Safari (web, not Capacitor): keep the dedicated print-view
+  // fallback because popups stay open from the user gesture.
+  if (!isNative() && isIOS()) {
     if (openPrintView(html, filename)) return;
   }
 
