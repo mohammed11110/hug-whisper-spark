@@ -9,6 +9,7 @@ import {
 import { useSubscription } from "@/hooks/useSubscription";
 import { getPaddleEnvironment } from "@/lib/paddle";
 import { supabase } from "@/integrations/supabase/client";
+import { openExternal, saveJsonUniversal } from "@/lib/nativeFiles";
 import { useTheme } from "@/lib/theme";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Textarea } from "@/components/ui/textarea";
