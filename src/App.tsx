@@ -15,6 +15,7 @@ import { OnboardingTour } from "@/components/OnboardingTour";
 import { AppShell } from "./components/AppShell";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { AnimatedSplash } from "@/components/AnimatedSplash";
 
 const Welcome = lazy(() => import("./pages/Welcome"));
 const Auth = lazy(() => import("./pages/Auth"));
@@ -68,6 +69,7 @@ const App = () => (
               <TooltipProvider>
                 <Toaster />
                 <Sonner />
+                <AnimatedSplash />
                 <BrowserRouter>
                   <OnboardingTour />
                   <ErrorBoundary>

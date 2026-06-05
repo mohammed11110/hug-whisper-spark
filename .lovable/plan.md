@@ -1,72 +1,63 @@
-## الحالة الحالية
-لا، **هذه الخطة لم تُنفَّذ بالكامل**.
+## شاشة بدء متحركة (Animated Splash)
 
-الموجود الآن في المشروع:
-- ما زال هناك اعتماد على **`window.open()`** و **`window.print()`** لمسار الطباعة/المعاينة.
-- ما زال تنزيل PDF يتم عبر **`pdf.save(...)`** / سلوك متصفح عادي.
-- يوجد workaround باسم **`PrintView`** و **`openPrintView()`** لفتح صفحة طباعة داخلية، وليس تدفق Capacitor native الذي طلبته.
-- لا توجد حالياً حزم مستخدمة أو استيرادات فعالة لـ:
-  - `@capacitor/filesystem`
-  - `@capacitor/share`
-  - `@capacitor/browser`
-- لا يوجد تفريع واضح يعتمد على **`Capacitor.getPlatform()`** لتبديل السلوك بين web و iOS/Android.
+### التسلسل النهائي عند فتح التطبيق
+```text
+Native iOS/Android Splash (ثابتة ~0.5s)
+        ↓ SplashScreen.hide()
+Animated React Splash (~1.8s) ← الحركة الجديدة
+        ↓ fade-out 300ms
+التطبيق (Dashboard / Auth)
+```
 
-## ما سأبنيه
-1. **إضافة التدفق Native للموبايل**
-   - استخدام `Capacitor.getPlatform()` لتحديد المنصة.
-   - على `web`: الإبقاء على السلوك الحالي للمتصفح.
-   - على `ios` / `android`: التحويل إلى مسار Native بالكامل.
+### المكوّن الجديد
+- ملف: `src/components/AnimatedSplash.tsx`
+- Overlay بكامل الشاشة فوق كل شيء (`fixed inset-0 z-[100]`).
+- خلفية: تدرج sage `#5f7e65 → #2c3a2e` + تطبيق نفس النقش الخفيف من launch screen (نسخة SVG خفيفة من الموجود في `BotanicalDecor`).
+- المحتوى الموسّط:
+  1. شعار المفتاح (نفس `Logo` الحالي بحجم 96px داخل بطاقة sage شفافة بزوايا 22px).
+  2. اسم العلامة: "Amlaki" + سطر "أملاكي".
+  3. التاجلاين: "PROPERTY MANAGEMENT".
 
-2. **إنشاء طبقة موحّدة للتعامل مع ملفات PDF**
-   - دوال مشتركة مثل:
-     - `savePdfNative(...)`
-     - `sharePdfNative(...)`
-     - `previewPdfNative(...)`
-   - توليد PDF كـ base64 / arraybuffer ثم كتابته في `Directory.Cache`.
-   - الحصول على `fileUri` ثم:
-     - `Share.share(...)` للحفظ/المشاركة/الطباعة عبر AirPrint
-     - `Browser.open(...)` للمعاينة داخل العارض الأصلي
+### الحركة (Emil Kowalski style)
+كلها CSS keyframes — transform + opacity فقط، easing `cubic-bezier(0.32, 0.72, 0, 1)`.
 
-3. **استبدال handlers الحالية للأزرار**
-   - زر **التحميل**: على native يفتح share sheet بدلاً من download المتصفحي.
-   - زر **المعاينة**: على native يفتح العارض الأصلي عبر `Browser.open({ url: fileUri })`.
-   - زر **الطباعة**: على native يوجّه إلى share/native viewer بدل `window.print()`.
+| العنصر | المدة | التأخير | الحركة |
+|---|---|---|---|
+| الخلفية | 200ms | 0 | opacity 0→1 |
+| الشعار | 400ms | 100ms | scale 0.7→1 + opacity 0→1 |
+| نبض الشعار | 3.2s loop | يبدأ بعد دخول الشعار | scale 1→1.05→1 |
+| الاسم | 300ms | 550ms | translateY 12px→0 + opacity 0→1 |
+| التاجلاين | 300ms | 750ms | opacity 0→1 |
+| خروج كامل | 300ms | بعد ≥1.8s | opacity 1→0 + scale خفيف |
 
-4. **ربط ذلك بواجهات المعاينة الحالية**
-   - `FilePreviewDialog` سيبقى كواجهة التطبيق، لكن أزراره ستستدعي المسار المناسب حسب المنصة.
-   - أي مسارات PDF أخرى خارج هذا الحوار سيتم توحيدها على نفس الخدمة حتى لا يبقى سلوك مكسور في صفحة أخرى.
+دعم `prefers-reduced-motion`:
+- تخطّي حركات الدخول وعرض الحالة النهائية فوراً.
+- تقليل وقت العرض الكلي إلى ~600ms قبل الخروج.
 
-5. **إظهار أخطاء مفهومة للمستخدم**
-   - عند فشل إنشاء الملف أو الكتابة أو فتح المعاينة سيتم إظهار toast واضح بدل الصمت الحالي.
+### منطق العرض والإخفاء
+- يُركَّب على مستوى الجذر داخل `src/main.tsx` أو `src/App.tsx` (سأختار `App.tsx` ليأتي بعد الـ providers مباشرة).
+- يدير حالته بنفسه عبر `useState` + `useEffect`:
+  - عند `mount`: استدعاء `SplashScreen.hide()` من `@capacitor/splash-screen` (موجودة فعلاً في المشروع) — حتى تنتقل الـ native splash بسلاسة إلى المتحركة.
+  - `setTimeout` لمدة 1800ms (أو 600ms عند reduced-motion) ثم تشغيل خروج 300ms ثم unmount.
+- لا يحجب الكليكات بعد بدء الـ fade-out (`pointer-events: none`).
+- لا يُعرض على web preview داخل Lovable iframe (لتفادي وميض غير مرغوب أثناء التطوير) — يظهر فقط:
+  - في native Capacitor (`isNative()`).
+  - أو في PWA المنشور (standalone display-mode).
+- خيار: متغيّر `sessionStorage` لتجنّب إعادة الظهور عند التنقّل الداخلي — يظهر مرة واحدة لكل جلسة.
 
-6. **مراجعة إعدادات Capacitor الخاصة بـ iOS**
-   - التأكد من أن التدفق لا يحتاج تعديلات إضافية غير موجودة.
-   - إن احتاجت ملاحظات تخص Xcode/Info.plist سأذكرها بوضوح بعد التنفيذ.
+### تفاصيل تقنية
+- Keyframes جديدة في `src/index.css`: `splash-bg-in`, `splash-logo-in`, `splash-pulse`, `splash-name-in`, `splash-fade-out`.
+- استخدام التوكنات الحالية (sage/cream) لا hex مباشر داخل JSX — التدرج فقط في الـ keyframes/utility class.
+- استخدام `Logo` المتوفر في `src/components/Logo.tsx` للحفاظ على تطابق العلامة.
+- بدون مكتبات جديدة — `framer-motion` غير مطلوبة لهذه الحركة.
 
-## الملفات المتوقعة للتعديل
-- `package.json`
-- `src/lib/pdfDocs.ts`
-- `src/components/FilePreviewDialog.tsx`
-- `src/pages/UnitDetail.tsx`
-- `src/pages/Payments.tsx`
-- وقد أضيف ملف خدمة صغير مثل `src/lib/nativeFiles.ts` لتجميع منطق Capacitor
+### الملفات المتأثرة
+- جديد: `src/components/AnimatedSplash.tsx`
+- تعديل: `src/App.tsx` (أو `main.tsx`) — تركيب الـ overlay.
+- تعديل: `src/index.css` — keyframes فقط، بدون لمس التصميم القائم.
 
-## تفاصيل تقنية
-- **Web**
-  - الاحتفاظ بـ `window.print()` / download / preview browser كما هو أو مع أقل تعديل لازم.
-- **Native**
-  - `Filesystem.writeFile({ path, data, directory: Directory.Cache })`
-  - `Filesystem.getUri(...)`
-  - `Share.share({ title, url: fileUri })`
-  - `Browser.open({ url: fileUri })`
-- لن أعتمد على `window.print()` داخل Capacitor native.
-- سأُبقي Sonner/toast الحالي لرسائل الفشل والنجاح الخفيفة.
+### التحقق بعد التنفيذ
+- مراجعة المعاينة في الـ sandbox للتأكد من الحركة (مع ملاحظة أنها تظهر فقط في native/standalone وفق ما سبق — يمكن تفعيل وضع "اختبار" مؤقت إن أردت رؤيتها داخل المعاينة).
+- خطوات سريعة للتجربة على iPhone/iPad بعد `npx cap sync`.
 
-## التحقق بعد التنفيذ
-- التحقق برمجياً من أن كل زر يستدعي handler صحيح حسب المنصة.
-- اختبار preview داخل بيئة المشروع بقدر الممكن.
-- ثم أعطيك خطوات اختبار سريعة على **iPhone/iPad حقيقيين** لأن AirPrint/share sheet لا يمكن تأكيدهما بالكامل من داخل الـ sandbox.
-
-## ملاحظتان مهمتان
-- سأركز فقط على **إصلاح download / preview / print على iPhone & iPad داخل Capacitor**.
-- إذا وافقت، أنفّذ الخطة مباشرة وأستبدل الـ workaround الحالي بالمسار Native المطلوب حيث يلزم.
+هل توافق على عرضها داخل المعاينة (web) أيضاً، أم تكفي native + PWA standalone فقط كما هو مقترح؟

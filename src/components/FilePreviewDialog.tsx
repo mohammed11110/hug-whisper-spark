@@ -62,7 +62,7 @@ export function FilePreviewDialog({ open, onOpenChange, payload }: Props) {
   if (!payload) return null;
 
   const labelPreview = ar ? "معاينة الملف" : "File preview";
-  const labelSave = payload.type === "pdf" && IS_IOS
+  const labelSave = payload.type === "pdf" && IS_IOS_LIKE
     ? (ar ? "حفظ أو مشاركة" : "Save or share")
     : (ar ? "حفظ الملف" : "Save file");
   const labelPrint = ar ? "طباعة" : "Print";
@@ -124,7 +124,7 @@ export function FilePreviewDialog({ open, onOpenChange, payload }: Props) {
             onClick={() => payload.onSave()}
             className="rounded-xl bg-gradient-sage text-primary-foreground font-semibold h-11 px-5"
           >
-            {payload.type === "pdf" && IS_IOS ? (
+            {payload.type === "pdf" && IS_IOS_LIKE ? (
               <Share2 className="h-4 w-4 me-1.5" />
             ) : (
               <Download className="h-4 w-4 me-1.5" />

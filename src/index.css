@@ -536,3 +536,118 @@ html[lang="ar"] body {
 [dir="rtl"] .driver-popover-next-btn {
   /* keep RTL natural — text already mirrored via labels */
 }
+
+/* ============================================================
+   Animated Splash (Capacitor native + PWA standalone hand-off)
+   Emil Kowalski-style: transform + opacity only, cubic curve.
+   ============================================================ */
+.amlaki-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  background: linear-gradient(160deg, #5f7e65 0%, #3d5443 55%, #2c3a2e 100%);
+  color: #faf6ee;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  opacity: 0;
+  animation: amlaki-splash-bg-in 200ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
+  will-change: opacity;
+  pointer-events: auto;
+}
+.amlaki-splash[data-leaving="true"] {
+  animation: amlaki-splash-out 300ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
+  pointer-events: none;
+}
+.amlaki-splash__logo {
+  opacity: 0;
+  transform: scale(0.7);
+  animation:
+    amlaki-splash-logo-in 400ms cubic-bezier(0.32, 0.72, 0, 1) 100ms forwards,
+    amlaki-splash-pulse 3.2s ease-in-out 600ms infinite;
+  will-change: transform, opacity;
+}
+.amlaki-splash__logo-tile {
+  width: 108px;
+  height: 108px;
+  border-radius: 26px;
+  background: rgba(250, 246, 238, 0.10);
+  border: 1px solid rgba(250, 246, 238, 0.18);
+  display: grid;
+  place-items: center;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 12px 40px -10px rgba(20, 30, 24, 0.45);
+}
+.amlaki-splash__name {
+  text-align: center;
+  opacity: 0;
+  transform: translateY(12px);
+  animation: amlaki-splash-name-in 300ms cubic-bezier(0.32, 0.72, 0, 1) 550ms forwards;
+  will-change: transform, opacity;
+}
+.amlaki-splash__name h1 {
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 32px;
+  letter-spacing: -0.03em;
+  margin: 0;
+  color: #faf6ee;
+}
+.amlaki-splash__name p {
+  font-family: 'Noto Kufi Arabic', Tahoma, sans-serif;
+  font-weight: 700;
+  font-size: 22px;
+  margin: 6px 0 0;
+  color: #faf6ee;
+}
+.amlaki-splash__tag {
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: rgba(250, 246, 238, 0.55);
+  opacity: 0;
+  animation: amlaki-splash-tag-in 300ms cubic-bezier(0.32, 0.72, 0, 1) 750ms forwards;
+}
+
+@keyframes amlaki-splash-bg-in {
+  to { opacity: 1; }
+}
+@keyframes amlaki-splash-logo-in {
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes amlaki-splash-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+@keyframes amlaki-splash-name-in {
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes amlaki-splash-tag-in {
+  to { opacity: 1; }
+}
+@keyframes amlaki-splash-out {
+  from { opacity: 1; }
+  to { opacity: 0; transform: scale(1.02); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .amlaki-splash,
+  .amlaki-splash__logo,
+  .amlaki-splash__name,
+  .amlaki-splash__tag {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .amlaki-splash[data-leaving="true"] {
+    animation: amlaki-splash-out 150ms linear forwards;
+  }
+}
