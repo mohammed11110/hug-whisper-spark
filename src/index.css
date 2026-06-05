@@ -314,22 +314,87 @@ html[lang="ar"] body {
 @layer utilities {
   .text-balance { text-wrap: balance; }
 
-  .animate-float-up {
-    animation: float-up 0.5s var(--ease-soft) both;
+  .animate-float-up,
+  .anim-fade-up {
+    animation: fade-up var(--dur-base) var(--ease-out) both;
   }
   .animate-slide-up {
-    animation: slide-up 0.35s var(--ease-soft) both;
+    animation: slide-up 0.35s var(--ease-smooth) both;
   }
-  .animate-scale-in {
-    animation: scale-in 0.25s var(--ease-soft) both;
+  .animate-scale-in,
+  .anim-scale-in {
+    animation: scale-in var(--dur-base) var(--ease-out) both;
   }
   .animate-pulse-soft {
     animation: pulse-soft 2s ease-in-out infinite;
   }
+  /* Staggered children — set --i on child (capped at 8) */
+  .anim-stagger > * {
+    animation: fade-up var(--dur-base) var(--ease-out) both;
+    animation-delay: calc(min(var(--i, 0), 8) * 40ms);
+  }
+  /* Tactile press */
+  .press-scale {
+    transition: transform var(--dur-fast) var(--ease-out);
+  }
+  .press-scale:active {
+    transform: scale(0.97);
+  }
+  /* Card hover lift (desktop) + active press (mobile) */
+  .card-lift {
+    transition: transform var(--dur-fast) var(--ease-out),
+                box-shadow var(--dur-fast) var(--ease-out);
+    will-change: transform;
+  }
+  @media (hover: hover) {
+    .card-lift:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-elev);
+    }
+  }
+  .card-lift:active {
+    transform: scale(0.98);
+  }
+  /* Page enter — route-level fade-up */
+  .page-enter {
+    animation: fade-up var(--dur-base) var(--ease-out) both;
+  }
+  /* Tab content cross-fade */
+  .tab-fade {
+    animation: tab-fade var(--dur-fast) var(--ease-out) both;
+  }
+  /* Badge pop on status change */
+  .badge-pop {
+    animation: badge-pop 400ms var(--ease-spring) both;
+  }
+  /* Skeleton shimmer — sage-tinted */
+  .skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+    background: hsl(var(--sage-100));
+  }
+  .skeleton-shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background-image: linear-gradient(
+      90deg,
+      transparent 0,
+      rgba(95, 126, 101, 0.08) 40%,
+      rgba(95, 126, 101, 0.14) 50%,
+      rgba(95, 126, 101, 0.08) 60%,
+      transparent 100%
+    );
+    animation: shimmer 1.6s var(--ease-smooth) infinite;
+  }
+  [dir="rtl"] .skeleton-shimmer::after {
+    animation-direction: reverse;
+  }
 }
 
-@keyframes float-up {
-  from { opacity: 0; transform: translateY(12px); }
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 @keyframes slide-up {
@@ -337,13 +402,36 @@ html[lang="ar"] body {
   to { transform: translateY(0); }
 }
 @keyframes scale-in {
-  from { opacity: 0; transform: scale(0.9); }
+  from { opacity: 0; transform: scale(0.96); }
   to { opacity: 1; transform: scale(1); }
 }
 @keyframes pulse-soft {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.6; transform: scale(1.15); }
 }
+@keyframes shimmer {
+  to { transform: translateX(100%); }
+}
+@keyframes badge-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+@keyframes tab-fade {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Respect user preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 
 /* === Safe-area + RTL polish === */
 @layer base {
