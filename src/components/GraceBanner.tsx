@@ -5,6 +5,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { openExternal } from "@/lib/nativeFiles";
 
 /**
  * Unified banner for trial countdown + read-only grace.
