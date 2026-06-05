@@ -14,6 +14,8 @@ import { enablePushIfNative } from "@/lib/push";
 
 export function AppShell() {
   const { user } = useAuth();
+  const location = useLocation();
+
   const [defaultOpen, setDefaultOpen] = useState(false);
   useEffect(() => {
     if (typeof window !== "undefined") {
