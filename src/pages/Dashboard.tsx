@@ -99,6 +99,8 @@ export default function Dashboard() {
 
   const isEmpty = stats.buildings === 0;
   const collectionPct = stats.expected > 0 ? Math.min(100, Math.round((stats.collected / stats.expected) * 100)) : 0;
+  const animatedCollected = useCountUp(stats.collected, 600);
+
 
   return (
     <div className="mobile-shell pb-24 md:pb-8">
