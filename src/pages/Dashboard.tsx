@@ -12,6 +12,8 @@ import { useAppSettings } from "@/lib/appSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { RecentActivityCard } from "@/components/dashboard/RecentActivityCard";
+import { useCountUp } from "@/hooks/useCountUp";
+
 
 interface Stats {
   buildings: number;
@@ -97,6 +99,8 @@ export default function Dashboard() {
 
   const isEmpty = stats.buildings === 0;
   const collectionPct = stats.expected > 0 ? Math.min(100, Math.round((stats.collected / stats.expected) * 100)) : 0;
+  const animatedCollected = useCountUp(stats.collected, 600);
+
 
   return (
     <div className="mobile-shell pb-24 md:pb-8">
@@ -142,7 +146,7 @@ export default function Dashboard() {
                 </button>
               </div>
             </div>
-            <p className="text-4xl font-black mt-2">{format(stats.collected)}</p>
+            <p className="text-4xl font-black mt-2 tabular-nums">{format(animatedCollected)}</p>
             <div className="mt-3 inline-flex items-center gap-1 bg-card/15 backdrop-blur rounded-full px-2.5 py-1 text-xs">
               <TrendingUp className="h-3 w-3" /> +0%
             </div>
@@ -161,9 +165,10 @@ export default function Dashboard() {
         </button>
 
         {/* Mini stats */}
-        <div data-tour="dashboard-stats" className="grid grid-cols-2 gap-3 md:gap-4 animate-float-up" style={{ animationDelay: "0.15s" }}>
-          <StatCard icon={<Building2 className="h-4 w-4" />} label={t("buildings")} value={stats.buildings} color="sage-400" />
-          <StatCard icon={<Users className="h-4 w-4" />} label={t("units")} value={stats.units} color="sage-500" />
+        <div data-tour="dashboard-stats" className="grid grid-cols-2 gap-3 md:gap-4 anim-stagger" style={{ animationDelay: "0.15s" } as React.CSSProperties}>
+          <div style={{ ['--i' as any]: 0 }}><StatCard icon={<Building2 className="h-4 w-4" />} label={t("buildings")} value={stats.buildings} color="sage-400" /></div>
+          <div style={{ ['--i' as any]: 1 }}><StatCard icon={<Users className="h-4 w-4" />} label={t("units")} value={stats.units} color="sage-500" /></div>
+
         </div>
 
         {/* Monthly Collection Snapshot */}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ActivityNotifier } from "@/components/ActivityNotifier";
@@ -14,6 +14,8 @@ import { enablePushIfNative } from "@/lib/push";
 
 export function AppShell() {
   const { user } = useAuth();
+  const location = useLocation();
+
   const [defaultOpen, setDefaultOpen] = useState(false);
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -37,9 +39,10 @@ export function AppShell() {
         <div className="hidden md:block">
           <AppSidebar />
         </div>
-        <main className="flex-1 min-w-0">
+        <main key={location.pathname} className="flex-1 min-w-0 page-enter">
           <Outlet />
         </main>
+
       </div>
       <QuickAddPaymentFab />
       <InstallPrompt />
