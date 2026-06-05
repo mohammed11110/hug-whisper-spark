@@ -17,7 +17,6 @@ const phoneSchema = z
 type Profile = {
   business_whatsapp: string | null;
   whatsapp_verified_at: string | null;
-  whatsapp_code_expires_at: string | null;
 };
 
 export function BusinessWhatsAppSection() {
@@ -35,14 +34,15 @@ export function BusinessWhatsAppSection() {
     if (!u?.user) return setLoading(false);
     const { data } = await supabase
       .from("profiles")
-      .select("business_whatsapp, whatsapp_verified_at, whatsapp_code_expires_at")
+      .select("business_whatsapp, whatsapp_verified_at")
       .eq("id", u.user.id)
       .maybeSingle();
     setProfile(data as Profile | null);
     if (data?.business_whatsapp) setPhone(data.business_whatsapp);
-    if (data?.business_whatsapp && !data.whatsapp_verified_at && data.whatsapp_code_expires_at) {
-      const expired = new Date(data.whatsapp_code_expires_at).getTime() < Date.now();
-      if (!expired) setStep("awaiting_code");
+    // If a number is set but not yet verified, assume a code request may be in flight.
+    // The server enforces the actual code expiry/attempts; the client just shows the input.
+    if (data?.business_whatsapp && !data.whatsapp_verified_at) {
+      setStep("awaiting_code");
     }
     setLoading(false);
   };
