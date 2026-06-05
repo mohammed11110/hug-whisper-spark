@@ -9,6 +9,7 @@ import {
 import { useSubscription } from "@/hooks/useSubscription";
 import { getPaddleEnvironment } from "@/lib/paddle";
 import { supabase } from "@/integrations/supabase/client";
+import { openExternal, saveJsonUniversal } from "@/lib/nativeFiles";
 import { useTheme } from "@/lib/theme";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Textarea } from "@/components/ui/textarea";
@@ -91,7 +92,7 @@ export default function Settings() {
       });
       if (error) throw error;
       if (!data?.url) throw new Error("no_url");
-      window.open(data.url, "_blank", "noopener,noreferrer");
+      await openExternal(data.url);
     } catch {
       toast.error(tr(lang, "تعذّر فتح بوابة الإدارة", "Couldn't open the portal"));
     } finally {
@@ -239,12 +240,8 @@ export default function Settings() {
 
 
   // ---- Import / Export settings ----
-  const exportSettings = () => {
-    const blob = new Blob([JSON.stringify(settings, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = `amlaki-settings-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click(); URL.revokeObjectURL(url);
+  const exportSettings = async () => {
+    await saveJsonUniversal(settings, `amlaki-settings-${new Date().toISOString().slice(0, 10)}.json`);
     toast.success(tr(lang, "تم تصدير الإعدادات", "Settings exported"));
   };
   const importSettings = async (f: File | undefined) => {

@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { compressImage } from "@/lib/imageCompression";
 import { Button } from "@/components/ui/button";
+import { openExternal } from "@/lib/nativeFiles";
 
 type Bucket = "contracts" | "tenant-ids" | "unit-photos" | "branding";
 
@@ -183,7 +184,7 @@ export function FileUpload({
           {value && isImage(value) ? <ImageIcon className="h-4 w-4 text-sage-500" /> : <FileText className="h-4 w-4 text-sage-500" />}
           <button
             type="button"
-            onClick={async () => { await ensurePreview(); if (previewUrl) window.open(previewUrl, "_blank"); }}
+            onClick={async () => { await ensurePreview(); if (previewUrl) await openExternal(previewUrl); }}
             className="flex-1 text-start text-xs text-sage-600 truncate hover:underline"
           >
             عرض الملف

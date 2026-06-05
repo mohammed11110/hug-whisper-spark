@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { useI18n } from "@/lib/i18n";
 import { useState } from "react";
 import { toast } from "sonner";
+import { openExternal } from "@/lib/nativeFiles";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { usePaddleCheckout } from "@/hooks/usePaddleCheckout";
@@ -139,7 +140,7 @@ export default function Pricing() {
         body: { environment: sub.isActive ? undefined : "sandbox" },
       });
       if (error) throw error;
-      if (data?.url) window.open(data.url, "_blank");
+      if (data?.url) await openExternal(data.url);
       else toast.error(ar ? "لا يوجد اشتراك نشط" : "No active subscription");
     } catch (e: any) {
       toast.error(e.message);

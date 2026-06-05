@@ -6,6 +6,7 @@ import { MessageCircle, CheckCircle2, Clock, AlertCircle, Loader2, RotateCcw } f
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
 import { z } from "zod";
+import { openExternal } from "@/lib/nativeFiles";
 
 const tr = (lang: string, ar: string, en: string) => (lang === "ar" ? ar : en);
 
@@ -66,7 +67,7 @@ export function BusinessWhatsAppSection() {
       // The verification code is sent to the target WhatsApp number server-side.
       // We open wa.me as a convenience so the user can quickly switch to WhatsApp.
       const cleaned = target.replace(/[^\d]/g, "");
-      window.open(`https://wa.me/${cleaned}`, "_blank", "noopener,noreferrer");
+      await openExternal(`https://wa.me/${cleaned}`);
       setStep("awaiting_code");
       toast.success(tr(lang, "أُرسل الكود إلى واتساب الرقم. تحقّق من الرسائل وأدخل الكود.", "Code sent to that WhatsApp number. Check messages and enter the code."));
       await load();

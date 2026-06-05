@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAdmin } from "@/lib/useAdmin";
 import { supabase } from "@/integrations/supabase/client";
+import { saveBlobUniversal } from "@/lib/nativeFiles";
 
 interface UserRow {
   id: string;
@@ -86,7 +87,7 @@ export default function Admin() {
     });
   }, [users, search, filter]);
 
-  const exportCSV = () => {
+  const exportCSV = async () => {
     const headers = ["الاسم", "الإيميل", "الجوال", "تاريخ التسجيل", "الخطة", "الحالة", "ينتهي في", "المباني", "الوحدات", "المستأجرون"];
     const rows = filteredUsers.map(u => [
       u.name || "", u.email || "", u.phone || "",
@@ -97,10 +98,8 @@ export default function Admin() {
     ]);
     const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = `users-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click(); URL.revokeObjectURL(url);
+    const name = `users-${new Date().toISOString().slice(0, 10)}.csv`;
+    await saveBlobUniversal(blob, name, { title: name });
   };
 
   if (adminLoading) return <div className="p-8 text-center text-sage-500">جارٍ التحميل…</div>;
