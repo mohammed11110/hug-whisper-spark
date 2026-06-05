@@ -121,10 +121,11 @@ export function ArrearsBadge({ unit, payments, className, block, activeTenancyId
     : "text-[10px] px-2 py-0.5 mt-1";
 
   return (
-    <span className={`${base} ${size} ${className || ""}`.trim()} title={text}>
+    <span key={text} className={`${base} ${size} badge-pop ${className || ""}`.trim()} title={text}>
       <span aria-hidden className="text-[9px] leading-none">⚠</span>
       <span className="truncate">{text}</span>
     </span>
   );
+
 }
 
