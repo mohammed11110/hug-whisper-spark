@@ -1791,7 +1791,7 @@ export async function previewHTMLAsPDFNative(html: string, filename: string, set
   try { canvas = await renderInMainDocument(finalHtml); }
   catch { /* fallback below */ }
   if (!canvas) canvas = await renderInIframe(finalHtml);
-  const pdf = await renderCanvasToPdf(canvas, pageSize, margins);
+  const pdf = renderCanvasToPdf(canvas, pageSize, margins);
   await previewBlobNative(pdf.output("blob"), filename);
   return true;
 }
