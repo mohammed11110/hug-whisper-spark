@@ -140,7 +140,7 @@ export default function Pricing() {
         body: { environment: sub.isActive ? undefined : "sandbox" },
       });
       if (error) throw error;
-      if (data?.url) window.open(data.url, "_blank");
+      if (data?.url) await openExternal(data.url);
       else toast.error(ar ? "لا يوجد اشتراك نشط" : "No active subscription");
     } catch (e: any) {
       toast.error(e.message);
