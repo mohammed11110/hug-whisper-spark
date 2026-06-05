@@ -6,6 +6,7 @@ import { MessageCircle, CheckCircle2, Clock, AlertCircle, Loader2, RotateCcw } f
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
 import { z } from "zod";
+import { openExternal } from "@/lib/nativeFiles";
 
 const tr = (lang: string, ar: string, en: string) => (lang === "ar" ? ar : en);
 
