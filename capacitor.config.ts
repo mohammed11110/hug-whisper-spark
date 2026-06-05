@@ -18,15 +18,15 @@ const config: CapacitorConfig = {
     : {}),
   ios: {
     contentInset: "always",
-    backgroundColor: "#faf6ee",
+    backgroundColor: "#5f7e65",
   },
   android: {
-    backgroundColor: "#faf6ee",
+    backgroundColor: "#5f7e65",
   },
   plugins: {
     SplashScreen: {
-      launchShowDuration: 1500,
-      backgroundColor: "#faf6ee",
+      launchShowDuration: 500,
+      backgroundColor: "#5f7e65",
       androidSplashResourceName: "splash",
       iosSplashResourceName: "Splash",
       showSpinner: false,
