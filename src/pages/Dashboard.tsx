@@ -12,6 +12,8 @@ import { useAppSettings } from "@/lib/appSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { RecentActivityCard } from "@/components/dashboard/RecentActivityCard";
+import { useCountUp } from "@/hooks/useCountUp";
+
 
 interface Stats {
   buildings: number;
