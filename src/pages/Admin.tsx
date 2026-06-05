@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAdmin } from "@/lib/useAdmin";
 import { supabase } from "@/integrations/supabase/client";
+import { saveBlobUniversal } from "@/lib/nativeFiles";
 
 interface UserRow {
   id: string;
