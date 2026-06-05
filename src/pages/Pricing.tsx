@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { useI18n } from "@/lib/i18n";
 import { useState } from "react";
 import { toast } from "sonner";
+import { openExternal } from "@/lib/nativeFiles";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { usePaddleCheckout } from "@/hooks/usePaddleCheckout";
