@@ -165,9 +165,10 @@ export default function Dashboard() {
         </button>
 
         {/* Mini stats */}
-        <div data-tour="dashboard-stats" className="grid grid-cols-2 gap-3 md:gap-4 animate-float-up" style={{ animationDelay: "0.15s" }}>
-          <StatCard icon={<Building2 className="h-4 w-4" />} label={t("buildings")} value={stats.buildings} color="sage-400" />
-          <StatCard icon={<Users className="h-4 w-4" />} label={t("units")} value={stats.units} color="sage-500" />
+        <div data-tour="dashboard-stats" className="grid grid-cols-2 gap-3 md:gap-4 anim-stagger" style={{ animationDelay: "0.15s" } as React.CSSProperties}>
+          <div style={{ ['--i' as any]: 0 }}><StatCard icon={<Building2 className="h-4 w-4" />} label={t("buildings")} value={stats.buildings} color="sage-400" /></div>
+          <div style={{ ['--i' as any]: 1 }}><StatCard icon={<Users className="h-4 w-4" />} label={t("units")} value={stats.units} color="sage-500" /></div>
+
         </div>
 
         {/* Monthly Collection Snapshot */}
