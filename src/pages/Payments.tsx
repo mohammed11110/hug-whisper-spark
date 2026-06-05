@@ -21,6 +21,8 @@ import { suffixOf, isPartialSuffix, isFinalSuffix, derivePartialMetaForDisplay, 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
+import { isNative, handlePdfBlobNative } from "@/lib/nativeFiles";
+import { printHTML } from "@/lib/pdfDocs";
 
 interface Row {
   id: string;
@@ -363,9 +365,15 @@ export default function Payments() {
   };
 
   const printReceipt = (r: Row, lng: RLang = receiptLang) => {
+    const { html } = buildReceiptHTML(r, lng);
+    // Capacitor / iOS: route through native flow (AirPrint via Share sheet).
+    // Web: open a new window and trigger window.print().
+    if (isNative()) {
+      printHTML(html).catch((e: any) => toast.error(e?.message || "Print error"));
+      return;
+    }
     const w = window.open("", "_blank", "width=600,height=800");
     if (!w) return;
-    const { html } = buildReceiptHTML(r, lng);
     w.document.write(html);
     w.document.close();
     setTimeout(() => w.print(), 300);
@@ -390,7 +398,14 @@ export default function Payments() {
       const w = pageW - m.left - m.right;
       const h = (canvas.height * w) / canvas.width;
       pdf.addImage(img, "PNG", m.left, m.top, w, h);
-      pdf.save(`${r.receipt_number || r.id}.pdf`);
+      const filename = `${r.receipt_number || r.id}.pdf`;
+      // Capacitor / iOS: hand the Blob to the OS share sheet (Save to Files,
+      // AirPrint, AirDrop, WhatsApp, Mail). On web, keep jsPDF.save().
+      if (isNative()) {
+        await handlePdfBlobNative(pdf.output("blob"), filename, "save", { title: filename });
+      } else {
+        pdf.save(filename);
+      }
     } catch (e: any) {
       toast.error(e.message || "PDF error");
     } finally {

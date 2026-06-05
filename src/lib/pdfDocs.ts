@@ -2,6 +2,7 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import type { AppSettings, BusinessBrand, Margins, PageSize } from "@/lib/appSettings";
 import { isIOS, canShareFiles } from "@/lib/platform";
+import { isNative, handlePdfBlobNative, previewBlobNative } from "@/lib/nativeFiles";
 
 // ---- Embedded fonts (loaded once, cached as data URLs) ----
 // Loading fonts as data URLs guarantees they are available the instant
@@ -1594,9 +1595,25 @@ export function openPrintView(html: string, filename: string, opts?: { lang?: "a
 }
 
 export async function printHTML(html: string) {
-  // iOS: open the dedicated print view in a new tab. Safari handles the
-  // print sheet natively (AirPrint + Save as PDF). Must run before any await
-  // to preserve the user-gesture so window.open is not blocked.
+  // Capacitor (iOS/Android): generate the PDF and route to the native
+  // Share sheet — AirPrint lives there. window.print() does not work in
+  // WKWebView and there is no Android equivalent in a webview.
+  if (isNative()) {
+    try {
+      const finalHtml = await inlinePdfFonts(html);
+      let canvas: HTMLCanvasElement | null = null;
+      try { canvas = await renderInMainDocument(finalHtml); }
+      catch { /* fallback below */ }
+      if (!canvas) canvas = await renderInIframe(finalHtml);
+      const pdf = renderCanvasToPdf(canvas, DEFAULT_PAGE_SIZE, DEFAULT_MARGINS);
+      await handlePdfBlobNative(pdf.output("blob"), "document.pdf", "print", { title: "Print" });
+      return;
+    } catch (e) {
+      console.warn("[pdf] native print failed", e);
+    }
+  }
+
+  // Mobile Safari (non-Capacitor): use the dedicated print view.
   if (isIOS()) {
     if (openPrintView(html, "document.pdf")) return;
   }
@@ -1744,12 +1761,20 @@ function stripExternalRenderResources(doc: Document) {
 }
 
 async function savePdfBlob(pdf: jsPDF, filename: string) {
-  // On iOS (Safari + Capacitor WKWebView) the `<a download>` trick used by
-  // jsPDF.save() is ignored — the file just opens in the same tab or silently
-  // does nothing. Use the native share sheet or open the blob in a new tab so
-  // the user can save it via the OS-level PDF viewer / AirDrop / Files.
+  const blob = pdf.output("blob");
+
+  // Capacitor (iOS/Android): write to cache and open the native Share sheet
+  // (Save to Files, AirPrint, AirDrop, Mail, WhatsApp...). This is the only
+  // reliable way — <a download> and navigator.share(files) don't work in
+  // WKWebView.
+  if (isNative()) {
+    await handlePdfBlobNative(blob, filename, "save", { title: filename });
+    return;
+  }
+
+  // Mobile Safari (web, not Capacitor): try Web Share API with file, else
+  // open the blob in a new tab so the OS PDF viewer takes over.
   if (isIOS()) {
-    const blob = pdf.output("blob");
     try {
       const file = new File([blob], filename, { type: "application/pdf" });
       if (canShareFiles([file])) {
@@ -1757,22 +1782,37 @@ async function savePdfBlob(pdf: jsPDF, filename: string) {
         return;
       }
     } catch (e) {
-      // User cancelled or share failed — fall through to open-in-tab.
       console.warn("[pdf] iOS share failed, opening in tab", e);
     }
     const url = URL.createObjectURL(blob);
     const opened = window.open(url, "_blank");
-    if (!opened) {
-      // Last resort: navigate current tab to the blob so the OS PDF viewer takes over.
-      window.location.href = url;
-    }
+    if (!opened) window.location.href = url;
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
     return;
   }
+
   pdf.save(filename);
 }
 
-function buildPdfFromCanvas(canvas: HTMLCanvasElement, filename: string, pageSize: PageSize, margins: Margins) {
+/**
+ * Preview an HTML document as a native PDF — generates the PDF then opens
+ * it in the device's PDF viewer (Browser.open). Capacitor only.
+ */
+export async function previewHTMLAsPDFNative(html: string, filename: string, settings?: PdfSettings): Promise<boolean> {
+  if (!isNative()) return false;
+  const pageSize = settings?.pageSize || DEFAULT_PAGE_SIZE;
+  const margins = settings?.margins || DEFAULT_MARGINS;
+  const finalHtml = await inlinePdfFonts(html);
+  let canvas: HTMLCanvasElement | null = null;
+  try { canvas = await renderInMainDocument(finalHtml); }
+  catch { /* fallback below */ }
+  if (!canvas) canvas = await renderInIframe(finalHtml);
+  const pdf = renderCanvasToPdf(canvas, pageSize, margins);
+  await previewBlobNative(pdf.output("blob"), filename);
+  return true;
+}
+
+function renderCanvasToPdf(canvas: HTMLCanvasElement, pageSize: PageSize, margins: Margins): jsPDF {
   const pdf = new jsPDF({ unit: "mm", format: pageSize.toLowerCase() as "a4" | "a5" | "letter" });
   const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();
@@ -1812,6 +1852,11 @@ function buildPdfFromCanvas(canvas: HTMLCanvasElement, filename: string, pageSiz
       pageIndex += 1;
     }
   }
+  return pdf;
+}
+
+function buildPdfFromCanvas(canvas: HTMLCanvasElement, filename: string, pageSize: PageSize, margins: Margins) {
+  const pdf = renderCanvasToPdf(canvas, pageSize, margins);
   return savePdfBlob(pdf, filename);
 }
 
@@ -1973,12 +2018,13 @@ async function renderInIframe(html: string): Promise<HTMLCanvasElement> {
 }
 
 export async function downloadHTMLAsPDF(html: string, filename: string, settings?: PdfSettings) {
-  // iOS root-cause fix: skip html2canvas/jsPDF (which can't save files on
-  // iPhone/iPad because <a download> is ignored and navigator.share is
-  // unreliable in WKWebView). Open the dedicated print view instead — Safari
-  // gives the user Save to Files (PDF), AirPrint, AirDrop, Mail, WhatsApp.
-  // Must execute before any await to preserve the user-gesture for popups.
-  if (isIOS()) {
+  // Capacitor native handled inside savePdfBlob — falls through to render
+  // path here so we generate a real PDF blob, then native Share sheet
+  // saves it to Files / AirPrint / etc.
+  //
+  // Mobile Safari (web, not Capacitor): keep the dedicated print-view
+  // fallback because popups stay open from the user gesture.
+  if (!isNative() && isIOS()) {
     if (openPrintView(html, filename)) return;
   }
 
