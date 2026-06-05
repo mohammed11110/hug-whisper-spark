@@ -1796,7 +1796,7 @@ export async function previewHTMLAsPDFNative(html: string, filename: string, set
   return true;
 }
 
-function buildPdfFromCanvas(canvas: HTMLCanvasElement, filename: string, pageSize: PageSize, margins: Margins) {
+function renderCanvasToPdf(canvas: HTMLCanvasElement, pageSize: PageSize, margins: Margins): jsPDF {
   const pdf = new jsPDF({ unit: "mm", format: pageSize.toLowerCase() as "a4" | "a5" | "letter" });
   const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();
@@ -1836,6 +1836,11 @@ function buildPdfFromCanvas(canvas: HTMLCanvasElement, filename: string, pageSiz
       pageIndex += 1;
     }
   }
+  return pdf;
+}
+
+function buildPdfFromCanvas(canvas: HTMLCanvasElement, filename: string, pageSize: PageSize, margins: Margins) {
+  const pdf = renderCanvasToPdf(canvas, pageSize, margins);
   return savePdfBlob(pdf, filename);
 }
 
