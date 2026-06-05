@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { compressImage } from "@/lib/imageCompression";
 import { Button } from "@/components/ui/button";
+import { openExternal } from "@/lib/nativeFiles";
 
 type Bucket = "contracts" | "tenant-ids" | "unit-photos" | "branding";
 
