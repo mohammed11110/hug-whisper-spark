@@ -39,9 +39,10 @@ export function AppShell() {
         <div className="hidden md:block">
           <AppSidebar />
         </div>
-        <main className="flex-1 min-w-0">
+        <main key={location.pathname} className="flex-1 min-w-0 page-enter">
           <Outlet />
         </main>
+
       </div>
       <QuickAddPaymentFab />
       <InstallPrompt />
