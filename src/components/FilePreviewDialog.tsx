@@ -5,8 +5,9 @@ import { Download, Printer, X, FileText, Table as TableIcon, Loader2, Share2 } f
 import { useI18n } from "@/lib/i18n";
 import { inlinePdfFonts } from "@/lib/pdfDocs";
 import { isIOS } from "@/lib/platform";
+import { isNative } from "@/lib/nativeFiles";
 
-const IS_IOS = typeof window !== "undefined" && isIOS();
+const IS_IOS_LIKE = (typeof window !== "undefined" && isIOS()) || isNative();
 
 export type FilePreviewPayload =
   | {
