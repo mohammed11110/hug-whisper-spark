@@ -41,14 +41,7 @@ export default function Backup() {
         user_id: user.id,
         data: { buildings: bs || [], units: us || [], payments: ps || [], expenses: ex || [] },
       };
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `amlaki-backup-${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(a.href);
+      await saveJsonUniversal(payload, `amlaki-backup-${new Date().toISOString().slice(0, 10)}.json`);
       toast.success(ar ? "تم تصدير النسخة الاحتياطية" : "Backup exported");
     } catch (e: any) {
       toast.error(e.message);
