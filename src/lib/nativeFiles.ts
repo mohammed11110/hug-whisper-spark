@@ -114,3 +114,49 @@ export async function handlePdfBlobNative(
   }
   return await shareBlobNative(blob, filename, { title: opts?.title, mimeType: "application/pdf" });
 }
+
+/**
+ * Open an external URL. On native (iOS/Android Capacitor WebView) uses the
+ * in-app system browser (which can return to the app). On web falls back to
+ * `window.open` in a new tab.
+ */
+export async function openExternal(url: string): Promise<void> {
+  if (!url) return;
+  if (isNative()) {
+    try { await Browser.open({ url }); return; } catch { /* fall through */ }
+  }
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
+/**
+ * Save an arbitrary Blob. On native opens the Share sheet (Save to Files /
+ * AirDrop / Mail / WhatsApp). On web triggers a standard `<a download>`.
+ */
+export async function saveBlobUniversal(
+  blob: Blob,
+  filename: string,
+  opts?: { title?: string }
+): Promise<void> {
+  if (isNative()) {
+    await shareBlobNative(blob, filename, { title: opts?.title || filename });
+    return;
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/** Save a JSON-serializable object as a downloaded/shared file. */
+export async function saveJsonUniversal(
+  obj: unknown,
+  filename: string
+): Promise<void> {
+  const name = filename.endsWith(".json") ? filename : `${filename}.json`;
+  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" });
+  await saveBlobUniversal(blob, name, { title: name });
+}
