@@ -240,12 +240,8 @@ export default function Settings() {
 
 
   // ---- Import / Export settings ----
-  const exportSettings = () => {
-    const blob = new Blob([JSON.stringify(settings, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = `amlaki-settings-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click(); URL.revokeObjectURL(url);
+  const exportSettings = async () => {
+    await saveJsonUniversal(settings, `amlaki-settings-${new Date().toISOString().slice(0, 10)}.json`);
     toast.success(tr(lang, "تم تصدير الإعدادات", "Settings exported"));
   };
   const importSettings = async (f: File | undefined) => {
