@@ -1595,9 +1595,25 @@ export function openPrintView(html: string, filename: string, opts?: { lang?: "a
 }
 
 export async function printHTML(html: string) {
-  // iOS: open the dedicated print view in a new tab. Safari handles the
-  // print sheet natively (AirPrint + Save as PDF). Must run before any await
-  // to preserve the user-gesture so window.open is not blocked.
+  // Capacitor (iOS/Android): generate the PDF and route to the native
+  // Share sheet — AirPrint lives there. window.print() does not work in
+  // WKWebView and there is no Android equivalent in a webview.
+  if (isNative()) {
+    try {
+      const finalHtml = await inlinePdfFonts(html);
+      let canvas: HTMLCanvasElement | null = null;
+      try { canvas = await renderInMainDocument(finalHtml); }
+      catch { /* fallback below */ }
+      if (!canvas) canvas = await renderInIframe(finalHtml);
+      const pdf = renderCanvasToPdf(canvas, DEFAULT_PAGE_SIZE, DEFAULT_MARGINS);
+      await handlePdfBlobNative(pdf.output("blob"), "document.pdf", "print", { title: "Print" });
+      return;
+    } catch (e) {
+      console.warn("[pdf] native print failed", e);
+    }
+  }
+
+  // Mobile Safari (non-Capacitor): use the dedicated print view.
   if (isIOS()) {
     if (openPrintView(html, "document.pdf")) return;
   }
