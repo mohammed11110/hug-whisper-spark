@@ -2,6 +2,7 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import type { AppSettings, BusinessBrand, Margins, PageSize } from "@/lib/appSettings";
 import { isIOS, canShareFiles } from "@/lib/platform";
+import { isNative, handlePdfBlobNative, previewBlobNative } from "@/lib/nativeFiles";
 
 // ---- Embedded fonts (loaded once, cached as data URLs) ----
 // Loading fonts as data URLs guarantees they are available the instant
@@ -1744,12 +1745,20 @@ function stripExternalRenderResources(doc: Document) {
 }
 
 async function savePdfBlob(pdf: jsPDF, filename: string) {
-  // On iOS (Safari + Capacitor WKWebView) the `<a download>` trick used by
-  // jsPDF.save() is ignored — the file just opens in the same tab or silently
-  // does nothing. Use the native share sheet or open the blob in a new tab so
-  // the user can save it via the OS-level PDF viewer / AirDrop / Files.
+  const blob = pdf.output("blob");
+
+  // Capacitor (iOS/Android): write to cache and open the native Share sheet
+  // (Save to Files, AirPrint, AirDrop, Mail, WhatsApp...). This is the only
+  // reliable way — <a download> and navigator.share(files) don't work in
+  // WKWebView.
+  if (isNative()) {
+    await handlePdfBlobNative(blob, filename, "save", { title: filename });
+    return;
+  }
+
+  // Mobile Safari (web, not Capacitor): try Web Share API with file, else
+  // open the blob in a new tab so the OS PDF viewer takes over.
   if (isIOS()) {
-    const blob = pdf.output("blob");
     try {
       const file = new File([blob], filename, { type: "application/pdf" });
       if (canShareFiles([file])) {
@@ -1757,19 +1766,34 @@ async function savePdfBlob(pdf: jsPDF, filename: string) {
         return;
       }
     } catch (e) {
-      // User cancelled or share failed — fall through to open-in-tab.
       console.warn("[pdf] iOS share failed, opening in tab", e);
     }
     const url = URL.createObjectURL(blob);
     const opened = window.open(url, "_blank");
-    if (!opened) {
-      // Last resort: navigate current tab to the blob so the OS PDF viewer takes over.
-      window.location.href = url;
-    }
+    if (!opened) window.location.href = url;
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
     return;
   }
+
   pdf.save(filename);
+}
+
+/**
+ * Preview an HTML document as a native PDF — generates the PDF then opens
+ * it in the device's PDF viewer (Browser.open). Capacitor only.
+ */
+export async function previewHTMLAsPDFNative(html: string, filename: string, settings?: PdfSettings): Promise<boolean> {
+  if (!isNative()) return false;
+  const pageSize = settings?.pageSize || DEFAULT_PAGE_SIZE;
+  const margins = settings?.margins || DEFAULT_MARGINS;
+  const finalHtml = await inlinePdfFonts(html);
+  let canvas: HTMLCanvasElement | null = null;
+  try { canvas = await renderInMainDocument(finalHtml); }
+  catch { /* fallback below */ }
+  if (!canvas) canvas = await renderInIframe(finalHtml);
+  const pdf = await renderCanvasToPdf(canvas, pageSize, margins);
+  await previewBlobNative(pdf.output("blob"), filename);
+  return true;
 }
 
 function buildPdfFromCanvas(canvas: HTMLCanvasElement, filename: string, pageSize: PageSize, margins: Margins) {
