@@ -92,7 +92,7 @@ export default function Settings() {
       });
       if (error) throw error;
       if (!data?.url) throw new Error("no_url");
-      window.open(data.url, "_blank", "noopener,noreferrer");
+      await openExternal(data.url);
     } catch {
       toast.error(tr(lang, "تعذّر فتح بوابة الإدارة", "Couldn't open the portal"));
     } finally {
