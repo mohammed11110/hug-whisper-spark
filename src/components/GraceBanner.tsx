@@ -44,7 +44,7 @@ export function LifecycleBanner() {
         body: { environment: "live" },
       });
       if (error || !data?.url) throw new Error(error?.message || "no_url");
-      window.open(data.url, "_blank", "noopener,noreferrer");
+      await openExternal(data.url);
       setTimeout(refresh, 3000);
     } catch {
       // Fall back to pricing page if no existing portal session
