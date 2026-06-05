@@ -146,7 +146,7 @@ export default function Dashboard() {
                 </button>
               </div>
             </div>
-            <p className="text-4xl font-black mt-2">{format(stats.collected)}</p>
+            <p className="text-4xl font-black mt-2 tabular-nums">{format(animatedCollected)}</p>
             <div className="mt-3 inline-flex items-center gap-1 bg-card/15 backdrop-blur rounded-full px-2.5 py-1 text-xs">
               <TrendingUp className="h-3 w-3" /> +0%
             </div>
