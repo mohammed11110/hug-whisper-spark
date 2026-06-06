@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { Loader2, Printer, Share2, X } from "lucide-react";
+import { useNavigate, useParams } from "react-router-dom";
+import { Loader2, Printer, Share2, ArrowRight, ArrowLeft } from "lucide-react";
 import { inlinePdfFonts } from "@/lib/pdfDocs";
 
 interface StoredPrintPayload {
@@ -18,12 +18,20 @@ const STORAGE_PREFIX = "amlaki:print:";
  * and hidden-iframe print all fail. The receipt/contract/statement HTML is
  * stored in sessionStorage by openPrintView() and rendered here. The user
  * then uses Safari's native Share / Print to save as PDF (Files), AirPrint,
- * AirDrop, WhatsApp, Mail — exactly the behavior banks and Stripe use on iOS.
+ * AirDrop, WhatsApp, Mail.
+ *
+ * Implementation notes for iPad/WKWebView:
+ *  - Uses a Blob URL (not srcDoc) for the iframe — srcDoc renders blank on
+ *    WKWebView frequently.
+ *  - Always shows a working "back" button — window.close() does not work
+ *    inside Capacitor, and there is no native chrome.
+ *  - 3s fallback timeout on font inlining so the spinner never sticks.
  */
 export default function PrintView() {
   const { token } = useParams<{ token: string }>();
+  const navigate = useNavigate();
   const [payload, setPayload] = useState<StoredPrintPayload | null>(null);
-  const [html, setHtml] = useState<string | null>(null);
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -36,38 +44,61 @@ export default function PrintView() {
       setError("expired");
       return;
     }
+    let cancelled = false;
+    let createdUrl: string | null = null;
     try {
       const parsed = JSON.parse(raw) as StoredPrintPayload;
       setPayload(parsed);
       if (parsed.title) document.title = parsed.title;
       else if (parsed.filename) document.title = parsed.filename;
-      // Inline fonts as data URLs so Safari renders Arabic/Latin correctly
-      // even when the new tab loses access to the SPA's loaded font faces.
-      inlinePdfFonts(parsed.html)
-        .then(setHtml)
-        .catch(() => setHtml(parsed.html));
+      const timeout = new Promise<string>((resolve) =>
+        setTimeout(() => resolve(parsed.html), 3000)
+      );
+      Promise.race([inlinePdfFonts(parsed.html), timeout])
+        .catch(() => parsed.html)
+        .then((finalHtml) => {
+          if (cancelled) return;
+          const blob = new Blob([finalHtml || parsed.html], {
+            type: "text/html;charset=utf-8",
+          });
+          createdUrl = URL.createObjectURL(blob);
+          setBlobUrl(createdUrl);
+        });
     } catch {
       setError("invalid");
     }
+    return () => {
+      cancelled = true;
+      if (createdUrl) {
+        try { URL.revokeObjectURL(createdUrl); } catch { /* noop */ }
+      }
+    };
   }, [token]);
 
   const ar = (payload?.lang ?? "ar") === "ar";
   const labelShare = ar ? "حفظ أو مشاركة" : "Save or share";
   const labelPrint = ar ? "طباعة" : "Print";
-  const labelClose = ar ? "إغلاق" : "Close";
+  const labelBack = ar ? "رجوع" : "Back";
   const labelLoading = ar ? "جاري تحضير الملف…" : "Preparing document…";
   const labelExpired = ar
     ? "انتهت صلاحية المعاينة. أعد فتح الملف من التطبيق."
     : "This preview expired. Reopen the document from the app.";
 
   const doPrint = () => {
-    // Safari iOS treats window.print() as the Share/Print entry — it opens
-    // the system print sheet with Save to Files (PDF) and AirPrint options.
     try { window.print(); } catch { /* noop */ }
   };
 
-  const doClose = () => {
-    try { window.close(); } catch { /* noop */ }
+  const doBack = () => {
+    // Inside Capacitor/WKWebView there is no native back chrome and
+    // window.close() does not work. Use history.back() if there is a
+    // previous entry, otherwise route to a safe in-app destination.
+    try {
+      if (window.history.length > 1) {
+        navigate(-1);
+        return;
+      }
+    } catch { /* noop */ }
+    navigate("/", { replace: true });
   };
 
   if (error) {
@@ -84,9 +115,30 @@ export default function PrintView() {
             : '"Outfit", system-ui, sans-serif',
           color: "#223127",
           background: "#faf6ee",
+          gap: 16,
         }}
       >
         <p style={{ maxWidth: 420, textAlign: "center" }}>{labelExpired}</p>
+        <button
+          onClick={doBack}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "10px 18px",
+            borderRadius: 12,
+            border: 0,
+            background: "#5f7e65",
+            color: "white",
+            fontWeight: 700,
+            fontSize: 14,
+            cursor: "pointer",
+            minHeight: 44,
+          }}
+        >
+          {ar ? <ArrowRight size={16} /> : <ArrowLeft size={16} />}
+          <span>{labelBack}</span>
+        </button>
       </div>
     );
   }
@@ -141,8 +193,21 @@ export default function PrintView() {
       >
         <button
           className="print-toolbar-btn"
+          onClick={doBack}
+          style={{
+            background: "white",
+            color: "#3d5443",
+            border: "1px solid rgba(95,126,101,.25)",
+          }}
+          aria-label={labelBack}
+        >
+          {ar ? <ArrowRight size={16} /> : <ArrowLeft size={16} />}
+          <span>{labelBack}</span>
+        </button>
+        <button
+          className="print-toolbar-btn"
           onClick={doPrint}
-          style={{ background: "#5f7e65", color: "white" }}
+          style={{ background: "#5f7e65", color: "white", marginInlineStart: "auto" }}
           aria-label={labelShare}
         >
           <Share2 size={16} />
@@ -161,25 +226,12 @@ export default function PrintView() {
           <Printer size={16} />
           <span>{labelPrint}</span>
         </button>
-        <button
-          className="print-toolbar-btn"
-          onClick={doClose}
-          style={{
-            background: "transparent",
-            color: "#6a786b",
-            marginInlineStart: "auto",
-          }}
-          aria-label={labelClose}
-        >
-          <X size={16} />
-          <span>{labelClose}</span>
-        </button>
       </div>
 
-      {html ? (
+      {blobUrl ? (
         <iframe
           title={payload?.title || payload?.filename || "document"}
-          srcDoc={html}
+          src={blobUrl}
           style={{
             display: "block",
             width: "100%",

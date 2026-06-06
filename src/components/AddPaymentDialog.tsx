@@ -1402,6 +1402,7 @@ function ScaledReceiptPreview({ html, rtl }: { html: string; rtl: boolean }) {
   const PAGE_H = 1123; // A4 height @96dpi
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [scale, setScale] = useState(1);
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
 
   useLayoutEffect(() => {
     const el = containerRef.current;
@@ -1416,6 +1417,16 @@ function ScaledReceiptPreview({ html, rtl }: { html: string; rtl: boolean }) {
     return () => ro.disconnect();
   }, []);
 
+  // Use a Blob URL instead of srcDoc — srcDoc renders blank inside
+  // WKWebView (iPad/Capacitor) when nested in Radix Dialog.
+  useEffect(() => {
+    if (!html) { setBlobUrl(null); return; }
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    setBlobUrl(url);
+    return () => { try { URL.revokeObjectURL(url); } catch { /* noop */ } };
+  }, [html]);
+
   const scaledH = PAGE_H * scale;
 
   return (
@@ -1427,21 +1438,24 @@ function ScaledReceiptPreview({ html, rtl }: { html: string; rtl: boolean }) {
         WebkitOverflowScrolling: "touch",
       }}
     >
-      <iframe
-        title="receipt-preview"
-        srcDoc={html}
-        scrolling="no"
-        className="bg-white border-0"
-        style={{
-          width: `${PAGE_W}px`,
-          height: `${PAGE_H}px`,
-          transform: `scale(${scale})`,
-          transformOrigin: rtl ? "top right" : "top left",
-        }}
-      />
+      {blobUrl && (
+        <iframe
+          title="receipt-preview"
+          src={blobUrl}
+          scrolling="no"
+          className="bg-white border-0"
+          style={{
+            width: `${PAGE_W}px`,
+            height: `${PAGE_H}px`,
+            transform: `scale(${scale})`,
+            transformOrigin: rtl ? "top right" : "top left",
+          }}
+        />
+      )}
     </div>
   );
 }
+
 
 function methodLabel(m: string, lang: string) {
   const ar: Record<string, string> = { cash: "نقدي", transfer: "تحويل", cheque: "شيك", card: "بطاقة" };
