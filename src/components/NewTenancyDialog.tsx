@@ -137,6 +137,11 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
   const submit = async () => {
     if (!unit) return;
     if (!name.trim()) return toast.error(lang === "ar" ? "اسم المستأجر مطلوب" : "Tenant name required");
+    if (isBackdated && !backdated) {
+      return toast.error(lang === "ar"
+        ? "العقد بتاريخ سابق — يجب اختيار أحد خيارات المتأخرات أولاً"
+        : "Backdated contract — pick one of the prior-arrears options first");
+    }
     setSaving(true);
 
     // GUARD: refuse to start a new lease while one is still active on this
