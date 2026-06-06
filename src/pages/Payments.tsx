@@ -365,80 +365,31 @@ export default function Payments() {
     return { us, html };
   };
 
-  const buildReceiptDocData = (r: Row, lng: RLang): ReceiptData => {
-    const L = RECEIPT_TXT[lng];
-    const meta = r.derivedMeta;
-    const cycleDue = meta?.cycleDue && meta.cycleDue > 0
-      ? meta.cycleDue
-      : (r.expected_amount && r.expected_amount > 0 ? r.expected_amount : r.amount);
-    const cumulativePaid = meta?.cumulativePaid ?? r.amount;
-    const receiptRemaining = Math.max(0, cycleDue - cumulativePaid);
-    const otherOutstanding = Math.max(0, r.remaining - receiptRemaining);
-    const sfx = meta?.derivedSuffix ?? suffixOf(r.receipt_number);
-    const isPartialInstallment = isPartialSuffix(sfx);
-    const isFinalInstallment = isFinalSuffix(sfx) || (meta?.cycleClosed && (meta?.cycleSize ?? 1) > 1 && !isPartialInstallment);
-    const partialIndex = isPartialInstallment ? parseInt(sfx as string, 10) : 0;
-    const installmentNote = isPartialInstallment
-      ? L.partial_note(partialIndex)
-      : (isFinalInstallment ? L.final_note : "");
-    const cycleClosed = receiptRemaining <= 0.009 || !!meta?.cycleClosed;
-    const statusKey: ReceiptData["statusKey"] = isPartialInstallment
-      ? "partial"
-      : (cycleClosed ? "paid" : "late");
-    const statusLabel = {
-      paid: L.paid,
-      late: L.late,
-      soon: L.soon,
-      partial: L.partial,
-    }[statusKey || "paid"];
-
-    return {
-      brand: settings.brand,
-      receiptNumber: r.receipt_number || r.id,
-      paymentDate: r.payment_date,
-      amount: r.amount,
-      expectedAmount: cycleDue,
-      periodLabel: r.period_start ? cycleLabel(r, lng) : "—",
-      building: r.building_name,
-      unitNumber: r.unit_number,
-      tenantName: r.tenant_name || "—",
-      currency: currency.symbol,
-      lang: lng,
-      cycleTotalDue: cycleDue,
-      cyclePaidToDate: cumulativePaid,
-      cycleRemaining: receiptRemaining,
-      otherOutstanding,
-      statusKey,
-      statusLabel,
-      installmentNote,
-    };
-  };
-
   const printReceipt = (r: Row, lng: RLang = receiptLang) => {
     try {
-      const filename = `${r.receipt_number || r.id}.pdf`;
-      const receiptData = buildReceiptDocData(r, lng);
-      console.info("[receipt:print:start]", { receiptNumber: receiptData.receiptNumber, native: isNative(), ios: isIOS() });
-      // Native iOS/Android: generate a real PDF and hand it to the OS print
-      // flow. This avoids window.open/sessionStorage/window.print issues.
+      const filename = `${r.receipt_number || r.id}-${lng}.pdf`;
+      const { html } = buildReceiptHTML(r, lng);
+      console.info("[receipt:print:start]", { receiptNumber: r.receipt_number || r.id, lng, native: isNative(), ios: isIOS() });
+      // Native iOS/Android: build a real PDF then hand it to the share/print sheet.
       if (isNative()) {
-        void printReceiptPDFDirect(receiptData, filename).catch((e: any) => {
+        void printHTMLAsPDFNative(html, filename, settings).catch((e: any) => {
           console.error("[receipt:print:native]", e);
           toast.error(String(e?.message || e) || "Print error");
         });
         return;
       }
-      // Mobile Safari: generate the PDF and hand it to the platform viewer /
-      // share flow so the user can print from there.
+      // Mobile Safari: dedicated print/share view (sessionStorage + share sheet).
       if (isIOS()) {
-        void printReceiptPDFDirect(receiptData, filename).catch((e: any) => {
-          console.error("[receipt:print:ios]", e);
-          toast.error(String(e?.message || e) || "Print error");
-        });
+        const ok = openPrintView(html, filename, { lang: lng });
+        if (!ok) {
+          void downloadHTMLAsPDF(html, filename, settings).catch((e: any) => {
+            console.error("[receipt:print:ios-fallback]", e);
+            toast.error(String(e?.message || e) || "Print error");
+          });
+        }
         return;
       }
-      const { html } = buildReceiptHTML(r, lng);
-      // Web fallback: open a new window and trigger window.print().
+      // Desktop web: open a new window and trigger window.print().
       const w = window.open("", "_blank", "width=600,height=800");
       if (!w) {
         void downloadHTMLAsPDF(html, filename, settings).catch((e: any) => {
@@ -458,45 +409,18 @@ export default function Payments() {
 
   const downloadReceiptPDF = async (r: Row, lng: RLang = receiptLang) => {
     try {
-      const filename = `${r.receipt_number || r.id}.pdf`;
-      const receiptData = buildReceiptDocData(r, lng);
-      console.info("[receipt:download:start]", { receiptNumber: receiptData.receiptNumber, native: isNative(), ios: isIOS() });
-      if (isNative()) {
-        await downloadReceiptPDFDirect(receiptData, filename);
-        return;
-      }
-      if (isIOS()) {
-        await downloadReceiptPDFDirect(receiptData, filename);
-        return;
-      }
+      const filename = `${r.receipt_number || r.id}-${lng}.pdf`;
       const { html } = buildReceiptHTML(r, lng);
-      // Web: render via html2canvas + jsPDF and trigger pdf.save().
-      const container = document.createElement("div");
-      container.style.position = "fixed";
-      container.style.left = "-10000px";
-      container.style.top = "0";
-      container.style.width = "640px";
-      container.innerHTML = html;
-      document.body.appendChild(container);
-      try {
-        const card = container.querySelector("#receipt-card") as HTMLElement;
-        const canvas = await html2canvas(card, { scale: 2, backgroundColor: "#ffffff" });
-        const img = canvas.toDataURL("image/png");
-        const pdf = new jsPDF({ unit: "mm", format: settings.pageSize.toLowerCase() as any });
-        const pageW = pdf.internal.pageSize.getWidth();
-        const m = settings.margins;
-        const w = pageW - m.left - m.right;
-        const h = (canvas.height * w) / canvas.width;
-        pdf.addImage(img, "PNG", m.left, m.top, w, h);
-        pdf.save(filename);
-      } finally {
-        document.body.removeChild(container);
-      }
+      console.info("[receipt:download:start]", { receiptNumber: r.receipt_number || r.id, lng, native: isNative(), ios: isIOS() });
+      // Unified path on all platforms: render the full HTML receipt to PDF.
+      // downloadHTMLAsPDF handles native share sheet on iOS Capacitor.
+      await downloadHTMLAsPDF(html, filename, settings);
     } catch (e: any) {
       console.error("[receipt:download]", e);
       toast.error(String(e?.message || e) || "PDF error");
     }
   };
+
 
 
 
