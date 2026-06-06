@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Receipt, Printer, Trash2, Search, Calendar, Plus, Download, Pencil, Archive } from "lucide-react";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
 import { AddPaymentDialog } from "@/components/AddPaymentDialog";
 import { EditPaymentDialog } from "@/components/EditPaymentDialog";
 import { PinDialog } from "@/components/PinDialog";
