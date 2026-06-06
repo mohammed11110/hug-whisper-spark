@@ -1334,8 +1334,7 @@ export async function downloadLeasePDF(data: Lease, filename: string) {
   await savePdfBlob(pdf, filename);
 }
 
-export async function downloadReceiptPDFDirect(data: ReceiptData, filename: string): Promise<void> {
-  const startedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
+async function createReceiptPDFDirect(data: ReceiptData): Promise<{ pdf: jsPDF; statusKey: "paid" | "late" | "partial" | "soon" }> {
   const rtl = data.lang !== "en";
   const L = (ar: string, en: string) => (rtl ? ar : en);
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
@@ -1365,12 +1364,6 @@ export async function downloadReceiptPDFDirect(data: ReceiptData, filename: stri
   const grandTotal = Number(data.grandTotal ?? amountPaid) || amountPaid;
   const partial = !!(data.expectedAmount && amountPaid + 0.009 < data.expectedAmount);
   const statusKey = data.statusKey || (partial ? "partial" : cycleRemaining <= 0.009 ? "paid" : "late");
-  const statusLabel = data.statusLabel || {
-    paid: L("مدفوع", "Paid"),
-    late: L("متأخر", "Late"),
-    partial: L("جزئي", "Partial"),
-    soon: L("قريباً", "Upcoming"),
-  }[statusKey];
   const installmentNote = data.installmentNote || "";
   const amountLabel = formatMoney(amountPaid, data.currency);
   const cycleDueLabel = formatMoney(cycleDue, data.currency);
@@ -1414,37 +1407,32 @@ export async function downloadReceiptPDFDirect(data: ReceiptData, filename: stri
     cursorY += 6;
   };
 
-  const drawDetailCard = (x: number, y: number, label: string, value: unknown, opts?: { positive?: boolean; negative?: boolean }) => {
+  const measureDetailCard = (value: unknown) => {
     const innerPadding = 4;
     const labelH = getPdfLineHeight(labelFontSize, 1.2);
     const valuePrepared = splitPdfText(pdf, value, cardW - innerPadding * 2, valueFontSize, true);
     const valueH = Math.max(valuePrepared.lines.length * getPdfLineHeight(valueFontSize, 1.3), 8);
-    const cardH = Math.max(18, innerPadding * 2 + labelH + valueH + 2);
+    return Math.max(18, innerPadding * 2 + labelH + valueH + 2);
+  };
+
+  const drawDetailCard = (x: number, y: number, label: string, value: unknown) => {
+    const innerPadding = 4;
+    const labelH = getPdfLineHeight(labelFontSize, 1.2);
+    const valuePrepared = splitPdfText(pdf, value, cardW - innerPadding * 2, valueFontSize, true);
+    const cardH = measureDetailCard(value);
 
     setFillColor(PDF_COLORS.soft);
     setDrawColor(PDF_COLORS.line);
     pdf.roundedRect(x, y, cardW, cardH, 4, 4, "FD");
-
     drawTextBlock({ text: label, x: x + innerPadding, y: y + 5, width: cardW - innerPadding * 2, fontSize: labelFontSize, color: PDF_COLORS.muted });
-    drawTextBlock({
-      text: value,
-      x: x + innerPadding,
-      y: y + 5 + labelH + 1,
-      width: cardW - innerPadding * 2,
-      fontSize: valueFontSize,
-      bold: true,
-      color: opts?.negative ? PDF_COLORS.muted : opts?.positive ? PDF_COLORS.sage : PDF_COLORS.ink,
-      align: valuePrepared.arabic ? "right" : "left",
-    });
-
+    drawTextBlock({ text: value, x: x + innerPadding, y: y + 5 + labelH + 1, width: cardW - innerPadding * 2, fontSize: valueFontSize, bold: true, color: PDF_COLORS.ink, align: valuePrepared.arabic ? "right" : "left" });
     return cardH;
   };
 
   const drawKeyValueRow = (label: string, value: unknown, opts?: { positive?: boolean; negative?: boolean; background?: readonly number[]; border?: readonly number[] }) => {
-    const fontSize = bodyFontSize;
-    const labelPrepared = splitPdfText(pdf, label, contentW * 0.45, fontSize, false);
-    const valuePrepared = splitPdfText(pdf, value, contentW * 0.45, fontSize, true);
-    const height = Math.max(labelPrepared.lines.length, valuePrepared.lines.length) * getPdfLineHeight(fontSize, 1.35) + 6;
+    const labelPrepared = splitPdfText(pdf, label, contentW * 0.45, bodyFontSize, false);
+    const valuePrepared = splitPdfText(pdf, value, contentW * 0.45, bodyFontSize, true);
+    const height = Math.max(labelPrepared.lines.length, valuePrepared.lines.length) * getPdfLineHeight(bodyFontSize, 1.35) + 6;
     ensureSpace(height + 2);
 
     if (opts?.background) {
@@ -1456,17 +1444,8 @@ export async function downloadReceiptPDFDirect(data: ReceiptData, filename: stri
       pdf.line(marginX, cursorY + height, pageW - marginX, cursorY + height);
     }
 
-    drawTextBlock({ text: label, x: marginX + 4, y: cursorY + 4, width: contentW * 0.48, fontSize, color: PDF_COLORS.muted });
-    drawTextBlock({
-      text: value,
-      x: marginX + contentW * 0.52,
-      y: cursorY + 4,
-      width: contentW * 0.44,
-      fontSize,
-      bold: true,
-      color: opts?.negative ? PDF_COLORS.gold : opts?.positive ? PDF_COLORS.sage : PDF_COLORS.ink,
-      align: rtl ? "left" : "right",
-    });
+    drawTextBlock({ text: label, x: marginX + 4, y: cursorY + 4, width: contentW * 0.48, fontSize: bodyFontSize, color: PDF_COLORS.muted });
+    drawTextBlock({ text: value, x: marginX + contentW * 0.52, y: cursorY + 4, width: contentW * 0.44, fontSize: bodyFontSize, bold: true, color: opts?.negative ? PDF_COLORS.gold : opts?.positive ? PDF_COLORS.sage : PDF_COLORS.ink, align: rtl ? "left" : "right" });
     cursorY += height + (opts?.background ? 6 : 2);
   };
 
@@ -1474,7 +1453,6 @@ export async function downloadReceiptPDFDirect(data: ReceiptData, filename: stri
   setFillColor(PDF_COLORS.soft);
   setDrawColor(PDF_COLORS.line);
   pdf.roundedRect(marginX, cursorY, contentW, 30, 6, 6, "FD");
-
   if (data.brand.logo) {
     try {
       const logoData = await urlToDataUrl(data.brand.logo);
@@ -1522,9 +1500,7 @@ export async function downloadReceiptPDFDirect(data: ReceiptData, filename: stri
   for (let i = 0; i < detailCards.length; i += 2) {
     const left = detailCards[i];
     const right = detailCards[i + 1];
-    const sampleLeftH = drawDetailCard(marginX, -1000, left.label, left.value);
-    const sampleRightH = right ? drawDetailCard(marginX + cardW + cardGap, -1000, right.label, right.value) : sampleLeftH;
-    const cardH = Math.max(sampleLeftH, sampleRightH);
+    const cardH = Math.max(measureDetailCard(left.value), right ? measureDetailCard(right.value) : 0);
     ensureSpace(cardH + 4);
     drawDetailCard(marginX, cursorY, left.label, left.value);
     if (right) drawDetailCard(marginX + cardW + cardGap, cursorY, right.label, right.value);
@@ -1544,20 +1520,8 @@ export async function downloadReceiptPDFDirect(data: ReceiptData, filename: stri
   drawTextBlock({ text: grandTotalLabel, x: marginX + contentW * 0.5, y: cursorY + 8, width: contentW * 0.42, fontSize: totalFontSize, bold: true, color: PDF_COLORS.sage, align: rtl ? "left" : "right" });
   cursorY += 24;
 
-  drawKeyValueRow(L("المتبقي على الدورة", "Cycle remaining"), cycleRemainingLabel, {
-    positive: cycleRemaining <= 0.009,
-    negative: cycleRemaining > 0.009,
-    background: cycleRemaining > 0.009 ? PDF_COLORS.soft : PDF_COLORS.soft,
-    border: PDF_COLORS.line,
-  });
-
-  if (otherOutstanding > 0.009) {
-    drawKeyValueRow(L("متأخرات أخرى على الوحدة", "Other outstanding on unit"), otherOutstandingLabel, {
-      negative: true,
-      background: PDF_COLORS.soft,
-      border: PDF_COLORS.line,
-    });
-  }
+  drawKeyValueRow(L("المتبقي على الدورة", "Cycle remaining"), cycleRemainingLabel, { positive: cycleRemaining <= 0.009, negative: cycleRemaining > 0.009, background: PDF_COLORS.soft, border: PDF_COLORS.line });
+  if (otherOutstanding > 0.009) drawKeyValueRow(L("متأخرات أخرى على الوحدة", "Other outstanding on unit"), otherOutstandingLabel, { negative: true, background: PDF_COLORS.soft, border: PDF_COLORS.line });
 
   if (data.settlementNote) {
     drawSectionTitle(L("إشعار سداد", "Settlement notice"));
@@ -1574,25 +1538,17 @@ export async function downloadReceiptPDFDirect(data: ReceiptData, filename: stri
   if (data.collectedArrears?.length) {
     drawSectionTitle(L("تفاصيل التحصيل", "Collection breakdown"));
     drawKeyValueRow(`${L("إيجار", "Rent")} — ${data.periodLabel || "—"}`, formatMoney(amountPaid - data.collectedArrears.reduce((s, a) => s + a.amount, 0), data.currency));
-    data.collectedArrears.forEach((row) => {
-      drawKeyValueRow(`${L("متأخرات", "Arrears")} — ${row.label}`, formatMoney(row.amount, data.currency));
-    });
+    data.collectedArrears.forEach((row) => drawKeyValueRow(`${L("متأخرات", "Arrears")} — ${row.label}`, formatMoney(row.amount, data.currency)));
     drawKeyValueRow(L("الإجمالي المحصَّل", "Total collected"), grandTotalLabel, { positive: true, background: PDF_COLORS.soft, border: PDF_COLORS.line });
   }
 
   if (data.unpaidMonths?.length) {
     drawSectionTitle(L("الأشهر غير المسدّدة", "Remaining unpaid months"));
-    data.unpaidMonths.forEach((row) => {
-      drawKeyValueRow(row.label, formatMoney(row.remaining, data.currency));
-    });
+    data.unpaidMonths.forEach((row) => drawKeyValueRow(row.label, formatMoney(row.remaining, data.currency)));
   }
 
   if ((data.unpaidTotal || 0) > 0.009) {
-    drawKeyValueRow(
-      `${L("إجمالي المتأخرات", "Total outstanding")}${data.unpaidUpToLabel ? ` ${L("حتى نهاية", "through")} ${data.unpaidUpToLabel}` : ""}`,
-      unpaidTotalLabel,
-      { negative: true, background: PDF_COLORS.soft, border: PDF_COLORS.line }
-    );
+    drawKeyValueRow(`${L("إجمالي المتأخرات", "Total outstanding")}${data.unpaidUpToLabel ? ` ${L("حتى نهاية", "through")} ${data.unpaidUpToLabel}` : ""}`, unpaidTotalLabel, { negative: true, background: PDF_COLORS.soft, border: PDF_COLORS.line });
   }
 
   if (data.notes) {
@@ -1612,31 +1568,28 @@ export async function downloadReceiptPDFDirect(data: ReceiptData, filename: stri
   pdf.line(pageW - marginX - contentW * 0.42, cursorY + 10, pageW - marginX, cursorY + 10);
   drawTextBlock({ text: L("توقيع المستلم", "Recipient signature"), x: marginX, y: cursorY + 15, width: contentW * 0.42, fontSize: smallFontSize, color: PDF_COLORS.muted, align: "center" });
   drawTextBlock({ text: L("ختم المؤسسة", "Company stamp"), x: pageW - marginX - contentW * 0.42, y: cursorY + 15, width: contentW * 0.42, fontSize: smallFontSize, color: PDF_COLORS.muted, align: "center" });
-  cursorY += 24;
 
+  return { pdf, statusKey };
+}
+
+export async function downloadReceiptPDFDirect(data: ReceiptData, filename: string): Promise<void> {
+  const startedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
+  const { pdf, statusKey } = await createReceiptPDFDirect(data);
   const endedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
-  console.info("[receipt-pdf:direct] done", {
-    ms: Math.round(endedAt - startedAt),
-    receiptNumber: data.receiptNumber,
-    native: isNative(),
-    statusKey,
-  });
-
+  console.info("[receipt-pdf:direct] done", { ms: Math.round(endedAt - startedAt), receiptNumber: data.receiptNumber, native: isNative(), statusKey });
   await savePdfBlob(pdf, filename);
 }
 
 export async function printReceiptPDFDirect(data: ReceiptData, filename: string): Promise<void> {
   const startedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
-  const pdf = new jsPDF({ unit: "mm", format: "a4" });
-  await registerLeasePdfFonts(pdf);
-  const temp = `${filename || data.receiptNumber || "receipt"}`;
-  await downloadReceiptPDFDirect(data, temp);
+  const { pdf, statusKey } = await createReceiptPDFDirect(data);
   const endedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
-  console.info("[receipt-pdf:direct-print] dispatched", {
-    ms: Math.round(endedAt - startedAt),
-    receiptNumber: data.receiptNumber,
-    native: isNative(),
-  });
+  console.info("[receipt-pdf:direct-print] done", { ms: Math.round(endedAt - startedAt), receiptNumber: data.receiptNumber, native: isNative(), statusKey });
+  if (isNative()) {
+    await handlePdfBlobNative(pdf.output("blob"), filename, "print", { title: filename });
+    return;
+  }
+  await savePdfBlob(pdf, filename);
 }
 
 export function buildTenantStatementHTML(data: TenantStatementData): string {
