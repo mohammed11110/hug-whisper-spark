@@ -252,153 +252,62 @@ export default function Payments() {
     else setDelId(id);
   };
 
-  const buildReceiptHTML = (r: Row, lng: RLang) => {
-    const L = RECEIPT_TXT[lng];
-    const dir = lng === "ar" ? "rtl" : "ltr";
-    const esc = (v: unknown) =>
-      String(v ?? "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;");
-    // Cycle-only totals — use cumulative cycle data so receipts reflect ALL
-    // installments of the same (unit + period), not just this single row.
+  /** Build the typed ReceiptData consumed by the direct (vector) PDF engine.
+   *  Replaces the old HTML-string + html2canvas pipeline so that switching
+   *  between AR/EN no longer pays the cost of re-snapshotting a full DOM. */
+  const buildReceiptData = (r: Row, lng: RLang): ReceiptData => {
     const meta = r.derivedMeta;
     const cycleDue = meta?.cycleDue && meta.cycleDue > 0
       ? meta.cycleDue
       : (r.expected_amount && r.expected_amount > 0 ? r.expected_amount : r.amount);
     const cumulativePaid = meta?.cumulativePaid ?? r.amount;
-    const receiptTotalDue = cycleDue;
-    const receiptRemaining = Math.max(0, cycleDue - cumulativePaid);
-    // Outstanding on the unit that belongs to OTHER cycles (informative only).
-    const otherOutstanding = Math.max(0, r.remaining - receiptRemaining);
-    const sc = settings.statusColors;
-    const statusColors: Record<string, { bg: string; fg: string; label: string }> = {
-      paid: { bg: sc.paid.bg, fg: sc.paid.fg, label: L.paid },
-      late: { bg: sc.late.bg, fg: sc.late.fg, label: L.late },
-      soon: { bg: sc.soon.bg, fg: sc.soon.fg, label: L.soon },
-      partial: { bg: "#f5e3cf", fg: "#8a5a2a", label: L.partial },
-    };
-    // Cycle-level installment context (suffix can come from stored or derived).
+    const cycleRemaining = Math.max(0, cycleDue - cumulativePaid);
+    const otherOutstanding = Math.max(0, r.remaining - cycleRemaining);
     const sfx = meta?.derivedSuffix ?? suffixOf(r.receipt_number);
     const isPartialInstallment = isPartialSuffix(sfx);
     const isFinalInstallment = isFinalSuffix(sfx) || (meta?.cycleClosed && (meta?.cycleSize ?? 1) > 1 && !isPartialInstallment);
     const partialIndex = isPartialInstallment ? parseInt(sfx as string, 10) : 0;
+    const L = RECEIPT_TXT[lng];
     const installmentNote = isPartialInstallment
       ? L.partial_note(partialIndex)
       : (isFinalInstallment ? L.final_note : "");
-    // Status describes THIS receipt's cycle, not the whole unit.
-    const cycleClosed = receiptRemaining <= 0.009 || !!meta?.cycleClosed;
-    const cycleStatusKey = isPartialInstallment
+    const cycleClosed = cycleRemaining <= 0.009 || !!meta?.cycleClosed;
+    const statusKey: ReceiptData["statusKey"] = isPartialInstallment
       ? "partial"
       : (cycleClosed ? "paid" : "late");
-    const us = statusColors[cycleStatusKey];
-    const showStatus = true;
-    const brand = settings.brand;
-    const brandHeader = brand.logo
-      ? `<img src="${esc(brand.logo)}" style="height:46px;object-fit:contain"/>`
-      : `<h1>${esc(brand.name)}</h1>`;
-    const html = `
-      <html dir="${dir}"><head><meta charset="utf-8"/><title>${esc(r.receipt_number || r.id)}</title>
-      <style>
-        @page{size:${settings.pageSize};margin:${settings.margins.top}mm ${settings.margins.right}mm ${settings.margins.bottom}mm ${settings.margins.left}mm}
-        *{box-sizing:border-box}
-        body{font-family:system-ui,-apple-system,sans-serif;color:#3a4f3a;background:#faf6ee;margin:0;padding:0}
-        .card{border:2px solid #a3b89c;border-radius:24px;padding:28px;background:#fff;max-width:560px;margin:auto;position:relative;overflow:hidden}
-        .watermark{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:90px;font-weight:900;color:#a3b89c;opacity:.08;pointer-events:none;letter-spacing:8px}
-        .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #eef3ea;padding-bottom:14px;margin-bottom:14px}
-        h1{margin:0 0 2px;font-size:22px;color:#5a7359}
-        .sub{color:#7a8a78;font-size:11px;letter-spacing:2px;text-transform:uppercase}
-        .brand-meta{font-size:10px;color:#9aa898;margin-top:4px}
-        .badge{display:inline-block;padding:6px 14px;border-radius:999px;font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:1px;background:${us.bg};color:${us.fg}}
-        .meta{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin-bottom:14px;font-size:12px}
-        .meta div{padding:8px 12px;background:#f6faf3;border-radius:10px}
-        .meta b{display:block;color:#5a7359;font-size:13px;margin-top:2px}
-        .meta span{color:#7a8a78;font-size:10px;text-transform:uppercase;letter-spacing:1px}
-        .row{display:flex;justify-content:space-between;padding:11px 4px;border-bottom:1px dashed #cdd9c8;font-size:13px}
-        .row span{color:#7a8a78}
-        .row b{color:#3a4f3a}
-        .total{margin-top:18px;padding:18px 22px;background:linear-gradient(135deg,#eef3ea,#dcebd2);border-radius:18px;display:flex;justify-content:space-between;align-items:center;font-weight:900;font-size:22px;color:#3a6b3a}
-        .footer{margin-top:18px;text-align:center;color:#9aa898;font-size:10px;letter-spacing:1px}
-        
-      </style></head><body>
-        <div class="card" id="receipt-card">
-          ${showStatus ? `<div class="watermark">${us.label}</div>` : ""}
-          <div class="header">
-            <div>
-              ${brandHeader}
-              <p class="sub">${esc(L.receipt_number)} · ${esc(r.receipt_number || "—")}</p>
-              ${installmentNote ? `<p style="margin:4px 0 0;font-size:11px;font-weight:700;color:${isFinalInstallment ? "#3a6b3a" : "#8a5a2a"}">${esc(installmentNote)}</p>` : ""}
-              ${brand.address || brand.phone ? `<p class="brand-meta">${esc(brand.address || "")} ${brand.phone ? "· " + esc(brand.phone) : ""}</p>` : ""}
-            </div>
-            ${showStatus ? `<span class="badge">${esc(us.label)}</span>` : ""}
-          </div>
-          <div class="meta">
-            <div><span>${esc(L.payment_date)}</span><b>${esc(r.payment_date)}</b></div>
-            <div><span>${esc(L.building_name)}</span><b>${esc(r.building_name)}</b></div>
-          </div>
-          <div class="row"><span>${esc(L.unit_number)}</span><b>#${esc(r.unit_number)}</b></div>
-          
-          <div class="row"><span>${esc(L.tenant_name)}</span><b>${esc(r.tenant_name || "—")}</b></div>
-          ${r.period_start ? `<div class="row"><span>${esc(L.rent_month)}</span><b>${esc(cycleLabel(r, lng))}</b></div>` : ""}
-          
-          <div style="margin-top:18px;padding:16px 18px;background:#f6faf3;border:1px solid #cdd9c8;border-radius:14px">
-            <div style="font-size:11px;color:#7a8a78;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;font-weight:700">${L.summary}</div>
-            <div class="row"><span>${L.total_due}</span><b>${format(receiptTotalDue)}</b></div>
-            <div class="row" style="border-bottom:none"><span>${L.amount_paid}</span><b style="color:#3a6b3a;font-size:15px">− ${format(cumulativePaid)}${cumulativePaid !== r.amount ? ` <span style="font-weight:600;font-size:11px;color:#7a8a78">(${lng === "ar" ? "هذه الدفعة" : "this payment"}: ${format(r.amount)})</span>` : ''}</b></div>
-          </div>
-
-          <div class="total"><span>${L.amount_paid}</span><span>${format(r.amount)}</span></div>
-          <div class="remaining" style="margin-top:10px;padding:14px 18px;border-radius:14px;display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:14px;${receiptRemaining > 0 ? 'background:#f8e6e6;color:#8a2a2a;border:1px solid #e8c2c2' : 'background:#e7f1de;color:#3a6b3a;border:1px solid #bcd4ad'}">
-            <span>${L.remaining_after}</span><span>${format(receiptRemaining)}${receiptRemaining === 0 ? ` · ${L.settled}` : ''}</span>
-          </div>
-          ${otherOutstanding > 0.009 ? `
-          <div style="margin-top:8px;padding:10px 16px;border-radius:12px;display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:12px;background:#f7ede4;color:#8a5a2a;border:1px dashed #d9b893">
-            <span>${L.other_outstanding}</span><span>${format(otherOutstanding)}</span>
-          </div>` : ""}
-          <div class="footer">— ${L.receipt} —</div>
-        </div>
-      </body></html>`;
-    return { us, html };
+    const statusLabel = statusKey === "partial" ? L.partial
+      : statusKey === "paid" ? L.paid
+      : statusKey === "late" ? L.late
+      : L.soon;
+    return {
+      brand: settings.brand,
+      receiptNumber: r.receipt_number || r.id,
+      paymentDate: r.payment_date,
+      amount: r.amount,
+      expectedAmount: r.expected_amount,
+      periodLabel: r.period_start ? cycleLabel(r, lng) : null,
+      building: r.building_name,
+      unitNumber: r.unit_number,
+      tenantName: r.tenant_name,
+      currency,
+      lang: lng,
+      cycleTotalDue: cycleDue,
+      cyclePaidToDate: cumulativePaid,
+      cycleRemaining,
+      otherOutstanding,
+      grandTotal: r.amount,
+      statusKey,
+      statusLabel,
+      installmentNote: installmentNote || null,
+    };
   };
 
-  const printReceipt = (r: Row, lng: RLang = receiptLang) => {
+  const printReceipt = async (r: Row, lng: RLang = receiptLang) => {
     try {
       const filename = `${r.receipt_number || r.id}-${lng}.pdf`;
-      const { html } = buildReceiptHTML(r, lng);
+      const data = buildReceiptData(r, lng);
       console.info("[receipt:print:start]", { receiptNumber: r.receipt_number || r.id, lng, native: isNative(), ios: isIOS() });
-      // Native iOS/Android: build a real PDF then hand it to the share/print sheet.
-      if (isNative()) {
-        void printHTMLAsPDFNative(html, filename, settings).catch((e: any) => {
-          console.error("[receipt:print:native]", e);
-          toast.error(String(e?.message || e) || "Print error");
-        });
-        return;
-      }
-      // Mobile Safari: dedicated print/share view (sessionStorage + share sheet).
-      if (isIOS()) {
-        const ok = openPrintView(html, filename, { lang: lng });
-        if (!ok) {
-          void downloadHTMLAsPDF(html, filename, settings).catch((e: any) => {
-            console.error("[receipt:print:ios-fallback]", e);
-            toast.error(String(e?.message || e) || "Print error");
-          });
-        }
-        return;
-      }
-      // Desktop web: open a new window and trigger window.print().
-      const w = window.open("", "_blank", "width=600,height=800");
-      if (!w) {
-        void downloadHTMLAsPDF(html, filename, settings).catch((e: any) => {
-          console.error("[receipt:print:web-fallback]", e);
-          toast.error(String(e?.message || e) || "Print error");
-        });
-        return;
-      }
-      w.document.write(html);
-      w.document.close();
-      setTimeout(() => w.print(), 300);
+      await printReceiptPDFDirect(data, filename);
     } catch (e: any) {
       console.error("[receipt:print]", e);
       toast.error(String(e?.message || e) || "Print error");
@@ -408,16 +317,15 @@ export default function Payments() {
   const downloadReceiptPDF = async (r: Row, lng: RLang = receiptLang) => {
     try {
       const filename = `${r.receipt_number || r.id}-${lng}.pdf`;
-      const { html } = buildReceiptHTML(r, lng);
+      const data = buildReceiptData(r, lng);
       console.info("[receipt:download:start]", { receiptNumber: r.receipt_number || r.id, lng, native: isNative(), ios: isIOS() });
-      // Unified path on all platforms: render the full HTML receipt to PDF.
-      // downloadHTMLAsPDF handles native share sheet on iOS Capacitor.
-      await downloadHTMLAsPDF(html, filename, settings);
+      await downloadReceiptPDFDirect(data, filename);
     } catch (e: any) {
       console.error("[receipt:download]", e);
       toast.error(String(e?.message || e) || "PDF error");
     }
   };
+
 
 
 
