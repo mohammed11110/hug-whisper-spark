@@ -1662,12 +1662,32 @@ async function urlToDataUrl(url: string): Promise<string> {
     const res = await fetch(url, { mode: "cors", credentials: "omit", cache: "force-cache" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const blob = await res.blob();
-    return await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(String(reader.result || TRANSPARENT_PX));
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(blob);
-    });
+    const mime = blob.type || "image/png";
+    // Prefer Blob.arrayBuffer() + btoa — FileReader is missing in some
+    // WKWebView / sandboxed iframe contexts and throws
+    // "Can't find variable: FileReader".
+    if (typeof (blob as any).arrayBuffer === "function") {
+      const buf = await blob.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      let binary = "";
+      const chunk = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunk) {
+        binary += String.fromCharCode.apply(
+          null,
+          Array.from(bytes.subarray(i, i + chunk)) as any
+        );
+      }
+      return `data:${mime};base64,${btoa(binary)}`;
+    }
+    if (typeof FileReader !== "undefined") {
+      return await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(String(reader.result || TRANSPARENT_PX));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
+      });
+    }
+    return TRANSPARENT_PX;
   } catch (e) {
     console.warn("[pdf] image inline failed:", url, e);
     return TRANSPARENT_PX;
