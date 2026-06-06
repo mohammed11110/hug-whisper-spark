@@ -55,8 +55,12 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
   const [graceDays, setGraceDays] = useState<string>("0");
   // الرقم الرسمي للعقد من الجهة الحكومية (بلدية / سند) — اختياري.
   const [officialNumber, setOfficialNumber] = useState<string>("");
+  const [backdated, setBackdated] = useState<BackdatedResolution | null>(null);
   const guard = useUnsavedGuard({ open, onOpenChange });
   const lastExtractedRef = useRef<string | null>(null);
+
+  const todayIso = today;
+  const isBackdated = !!startDate && startDate < todayIso;
 
 
   const extractFromId = async () => {
