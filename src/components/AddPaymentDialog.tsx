@@ -1443,7 +1443,7 @@ function ScaledReceiptPreview({ html, rtl }: { html: string; rtl: boolean }) {
           title="receipt-preview"
           src={blobUrl}
           scrolling="no"
-          className="bg-white border-0"
+          className="bg-card border-0"
           style={{
             width: `${PAGE_W}px`,
             height: `${PAGE_H}px`,

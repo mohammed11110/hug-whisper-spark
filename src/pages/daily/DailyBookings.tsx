@@ -48,7 +48,7 @@ interface DailyUnit {
 const STATUS_TONE: Record<string, string> = {
   confirmed: "bg-sage-200/60 text-sage-700",
   checked_in: "bg-sage-400 text-white",
-  checked_out: "bg-slate-200/50 text-slate-700",
+  checked_out: "bg-muted/50 text-foreground",
   cancelled: "bg-burgundy/10 text-burgundy",
   pending: "bg-gold/15 text-gold",
 };
@@ -222,7 +222,7 @@ export default function DailyBookings() {
         </Dialog>
       </div>
 
-      <div className="bg-white rounded-2xl border border-sage-200/40 overflow-hidden">
+      <div className="bg-card rounded-2xl border border-sage-200/40 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-sage-100/60 text-sage-700">

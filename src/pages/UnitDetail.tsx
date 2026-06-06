@@ -864,13 +864,13 @@ function MaintenanceTab({ unit, lang, t2, format }: any) {
 
   const STATUS_CLR: Record<string, string> = {
     open: "bg-terracotta/15 text-terracotta",
-    in_progress: "bg-slate-200/50 text-slate-700",
+    in_progress: "bg-muted/50 text-foreground",
     done: "bg-sage-300/30 text-sage-600",
     cancelled: "bg-muted text-muted-foreground",
   };
   const PRIO_CLR: Record<string, string> = {
     low: "bg-sage-200/40 text-sage-600",
-    normal: "bg-slate-200/40 text-slate-600",
+    normal: "bg-muted/40 text-foreground",
     high: "bg-terracotta/15 text-terracotta",
     urgent: "bg-burgundy/15 text-burgundy",
   };

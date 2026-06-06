@@ -55,7 +55,7 @@ export default function DailyCleaning() {
       {tasks.map((t) => {
         const done = t.checklist.filter((c) => c.done).length;
         return (
-          <div key={t.id} className={`bg-white rounded-2xl border p-5 ${t.status === "completed" ? "border-sage-300 bg-sage-50/60" : "border-sage-200/40"}`}>
+          <div key={t.id} className={`bg-card rounded-2xl border p-5 ${t.status === "completed" ? "border-sage-300 bg-sage-50/60" : "border-sage-200/40"}`}>
             <div className="flex justify-between items-start mb-3">
               <div>
                 <h3 className="font-black text-sage-700">{unitName(t.unit_id)}</h3>

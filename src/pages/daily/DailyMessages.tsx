@@ -42,7 +42,7 @@ export default function DailyMessages() {
   return (
     <div className="grid md:grid-cols-2 gap-4">
       {items.map((t) => (
-        <div key={t.key} className="bg-white rounded-2xl border border-sage-200/40 p-5">
+        <div key={t.key} className="bg-card rounded-2xl border border-sage-200/40 p-5">
           <div className="mb-3">
             <Label>العنوان</Label>
             <Input value={t.title_ar} onChange={(e) => update(t.key, { title_ar: e.target.value })} />

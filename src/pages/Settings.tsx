@@ -489,7 +489,7 @@ export default function Settings() {
                     logoDrag ? "border-sage-500 bg-sage-100/60" : "border-sage-200 bg-sage-50/40"
                   }`}
                 >
-                  <div className="h-16 w-16 rounded-full bg-white border border-sage-200 grid place-items-center overflow-hidden shadow-soft">
+                  <div className="h-16 w-16 rounded-full bg-card border border-sage-200 grid place-items-center overflow-hidden shadow-soft">
                     {settings.brand.logo
                       ? <img src={settings.brand.logo} alt="logo" className="h-full w-full object-contain p-1.5" />
                       : <ImageIcon className="h-6 w-6 text-sage-400" />}
@@ -553,9 +553,9 @@ export default function Settings() {
                   <Eye className="h-4 w-4 text-sage-600" />
                   <p className="font-bold text-sm text-sage-600">{tr(lang, "معاينة الإيصال الحية", "Live receipt preview")}</p>
                 </div>
-                <div className="rounded-2xl bg-white border border-sage-200/70 p-5 shadow-inner">
+                <div className="rounded-2xl bg-card border border-sage-200/70 p-5 shadow-inner">
                   <div className="flex items-center gap-3 pb-3 border-b border-sage-100">
-                    {settings.brand.logo && <img src={settings.brand.logo} alt="" className="h-12 w-12 object-contain rounded-lg bg-white" />}
+                    {settings.brand.logo && <img src={settings.brand.logo} alt="" className="h-12 w-12 object-contain rounded-lg bg-card" />}
                     <div className="flex-1">
                       <p className="font-black text-sage-700">{settings.brand.name || "—"}</p>
                       {settings.brand.phone && <p className="text-[10px] text-sage-500">{settings.brand.phone}</p>}

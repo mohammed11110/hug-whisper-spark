@@ -116,7 +116,7 @@ export function FilePreviewDialog({ open, onOpenChange, payload }: Props) {
         <div className="px-3 sm:px-4 pt-3 pb-4 bg-cream/20">
           {payload.type === "pdf" ? (
             <div
-              className="rounded-2xl overflow-auto border border-sage-200 bg-white"
+              className="rounded-2xl overflow-auto border border-sage-200 bg-card"
               style={{
                 height: "max(360px, min(70svh, calc(100svh - 200px)))",
                 minHeight: 360,
@@ -211,7 +211,7 @@ function CsvPreview({
         </span>
       </div>
       <div
-        className="rounded-2xl border border-sage-200 bg-white overflow-auto"
+        className="rounded-2xl border border-sage-200 bg-card overflow-auto"
         style={{ maxHeight: "60vh" }}
       >
         <table className="w-full text-xs">
