@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Loader2, Printer, Share2, ArrowRight, ArrowLeft } from "lucide-react";
 import { downloadHTMLAsPDF, inlinePdfFonts } from "@/lib/pdfDocs";
+import { toast } from "sonner";
 
 interface StoredPrintPayload {
   html: string;
@@ -90,11 +91,15 @@ export default function PrintView() {
       await downloadHTMLAsPDF(payload.html, payload.filename || "document.pdf");
     } catch (e) {
       console.error("[print-view:share]", e);
+      toast.error(ar ? "تعذر حفظ الملف" : "Couldn't save the file");
     }
   };
 
   const doPrint = () => {
-    try { window.print(); } catch (e) { console.error("[print-view:print]", e); }
+    try { window.print(); } catch (e) {
+      console.error("[print-view:print]", e);
+      toast.error(ar ? "تعذرت الطباعة" : "Couldn't print");
+    }
   };
 
   const doBack = () => {
