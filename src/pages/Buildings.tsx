@@ -5,7 +5,7 @@ import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { BotanicalDecor } from "@/components/BotanicalDecor";
+
 import { AddBuildingDialog } from "@/components/AddBuildingDialog";
 import { useI18n } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
@@ -256,7 +256,7 @@ export default function Buildings() {
               return (
                 <Link key={b.id} to={`/buildings/${b.id}`} className="block animate-float-up" style={{ animationDelay: `${i * 0.04}s` }}>
                   <div className="relative overflow-hidden rounded-3xl bg-gradient-sage p-5 text-primary-foreground shadow-elev hover:shadow-glow transition-all">
-                    <BotanicalDecor className="absolute -end-4 -top-4 w-32 h-32 text-primary-foreground" />
+                    
                     {/* status dot */}
                     <div className="absolute top-3 start-3 z-10 flex items-center gap-1.5 bg-card/15 backdrop-blur rounded-full px-2 py-0.5">
                       <span className={`h-1.5 w-1.5 rounded-full ${statusDotClass}`} />

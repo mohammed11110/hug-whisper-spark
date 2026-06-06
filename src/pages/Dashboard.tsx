@@ -3,7 +3,7 @@ import { Plus, Building2, Users, TrendingUp, Sparkles, ChevronLeft, ChevronRight
 
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
-import { BotanicalDecor } from "@/components/BotanicalDecor";
+
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
@@ -114,7 +114,7 @@ export default function Dashboard() {
 
         {/* Hero card */}
         <div className="relative overflow-hidden rounded-3xl bg-gradient-sage p-5 text-primary-foreground shadow-glow animate-float-up" style={{ animationDelay: "0.05s" }}>
-          <BotanicalDecor className="absolute -end-6 -top-6 w-44 h-44 text-primary-foreground" />
+          
           <div className="relative z-10">
             <div className="flex items-center justify-between gap-2">
               <p className="text-xs uppercase tracking-wider opacity-80">
@@ -177,7 +177,7 @@ export default function Dashboard() {
             className="relative block overflow-hidden bg-card border border-sage-200/60 rounded-2xl p-5 shadow-soft animate-float-up"
             style={{ animationDelay: "0.2s" }}
           >
-            <BotanicalDecor className="absolute -end-8 -bottom-8 w-32 h-32 text-sage-400 opacity-10" />
+            
             <div className="relative z-10">
               <div className="flex items-baseline justify-between mb-1">
                 <p className="text-xs uppercase tracking-wider text-sage-600 font-bold">
