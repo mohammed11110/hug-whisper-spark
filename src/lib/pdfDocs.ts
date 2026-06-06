@@ -1906,7 +1906,7 @@ export function buildCollectionHTML(data: CollectionPdfData): string {
   const deltaHtml = (delta: number) => {
     if (!delta || !isFinite(delta)) return "";
     const up = delta > 0;
-    return `<span class="pill" style="background:${up ? "rgba(95,126,101,.14)" : "rgba(168,93,93,.12)"};color:${up ? "#3d5942" : "#8a3f3f"}">${up ? "▲" : "▼"} ${Math.abs(delta).toFixed(0)}% ${T.vs}</span>`;
+    return `<span class="pill" style="background:${up ? "rgba(155,126,58,.14)" : "rgba(168,93,93,.12)"};color:${up ? "#7b5e22" : "#8a3f3f"}">${up ? "▲" : "▼"} ${Math.abs(delta).toFixed(0)}% ${T.vs}</span>`;
   };
 
   const body = `
