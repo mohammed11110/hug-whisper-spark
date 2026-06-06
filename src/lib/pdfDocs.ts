@@ -186,6 +186,13 @@ export interface ReceiptData {
   settlementNote?: string | null;
   collectedArrears?: Array<{ label: string; amount: number }>;
   grandTotal?: number | null;
+  cycleTotalDue?: number | null;
+  cyclePaidToDate?: number | null;
+  cycleRemaining?: number | null;
+  otherOutstanding?: number | null;
+  statusKey?: "paid" | "late" | "partial" | "soon";
+  statusLabel?: string | null;
+  installmentNote?: string | null;
 }
 
 export interface Lease {
