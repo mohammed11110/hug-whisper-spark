@@ -87,7 +87,7 @@ export default function DailyLayout() {
                     `flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
                       on
                         ? "bg-sage-400 text-white shadow-[0_6px_20px_-8px_rgba(95,126,101,0.5)]"
-                        : "bg-white/60 text-sage-600 hover:bg-card border border-sage-200/40"
+                        : "bg-card/60 text-sage-600 hover:bg-card border border-sage-200/40"
                     }`
                   }
                 >

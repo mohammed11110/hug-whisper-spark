@@ -145,13 +145,13 @@ export function BusinessWhatsAppSection() {
         {!loading && (
           <div className="flex items-center gap-2">
             {verified && (
-              <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full bg-success-bg text-success border border-success/30">
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 {tr(lang, "موثّق", "Verified")}
               </span>
             )}
             {pending && (
-              <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full bg-[hsl(var(--warning-fg)/0.15)] text-warning border border-warning/30">
                 <Clock className="h-3.5 w-3.5" />
                 {tr(lang, "بانتظار التحقق", "Pending verification")}
               </span>
