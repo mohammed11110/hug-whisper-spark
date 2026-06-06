@@ -2318,3 +2318,368 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
   const pdf = await renderHTMLToPdf(html, settings);
   await savePdfBlob(pdf, filename);
 }
+
+// ---------------------------------------------------------------------------
+// Direct (vector) PDF generators — root-cause fix for iPad lag.
+// These use jsPDF text/shape drawing instead of html2canvas snapshots, so
+// they run an order of magnitude faster on WKWebView and never need an
+// off-screen iframe / blob preview.
+// ---------------------------------------------------------------------------
+
+interface DirectPdfDrawCtx {
+  pdf: jsPDF;
+  pageW: number;
+  pageH: number;
+  marginX: number;
+  marginTop: number;
+  marginBottom: number;
+  contentW: number;
+  cursor: { y: number };
+  rtl: boolean;
+}
+
+function createDirectPdfCtx(rtl: boolean): DirectPdfDrawCtx {
+  const pdf = new jsPDF({ unit: "mm", format: "a4" });
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const marginX = 14;
+  const marginTop = 16;
+  const marginBottom = 14;
+  return {
+    pdf, pageW, pageH, marginX, marginTop, marginBottom,
+    contentW: pageW - marginX * 2,
+    cursor: { y: marginTop },
+    rtl,
+  };
+}
+
+function ddText(
+  ctx: DirectPdfDrawCtx,
+  opts: { text: unknown; x: number; y: number; width: number; fontSize: number; bold?: boolean; color?: readonly number[]; align?: "left" | "right" | "center" }
+) {
+  const { pdf } = ctx;
+  pdf.setFontSize(opts.fontSize);
+  const prepared = splitPdfText(pdf, opts.text, opts.width, opts.fontSize, !!opts.bold);
+  const color = opts.color || PDF_COLORS.ink;
+  pdf.setTextColor(color[0], color[1], color[2]);
+  const align = opts.align || (prepared.arabic ? "right" : "left");
+  const tx = align === "right" ? opts.x + opts.width : align === "center" ? opts.x + opts.width / 2 : opts.x;
+  pdf.text(prepared.lines, tx, opts.y, { align });
+  return prepared.lines.length * getPdfLineHeight(opts.fontSize);
+}
+
+function ddEnsureSpace(ctx: DirectPdfDrawCtx, needed: number) {
+  if (ctx.cursor.y + needed <= ctx.pageH - ctx.marginBottom) return;
+  ctx.pdf.addPage();
+  ctx.cursor.y = ctx.marginTop;
+}
+
+async function ddHeader(ctx: DirectPdfDrawCtx, brand: BrandInfo, title: string, subtitle?: string, meta?: string) {
+  const { pdf, marginX, contentW, cursor } = ctx;
+  ddEnsureSpace(ctx, 34);
+  pdf.setFillColor(247, 243, 234);
+  pdf.setDrawColor(PDF_COLORS.line[0], PDF_COLORS.line[1], PDF_COLORS.line[2]);
+  pdf.roundedRect(marginX, cursor.y, contentW, 28, 5, 5, "FD");
+
+  let logoOffset = 0;
+  if (brand.logo) {
+    try {
+      const dataUrl = await urlToDataUrl(brand.logo);
+      const lx = ctx.rtl ? ctx.pageW - marginX - 22 : marginX + 4;
+      pdf.addImage(dataUrl, "PNG", lx, cursor.y + 5, 18, 18, undefined, "FAST");
+      logoOffset = 22;
+    } catch { /* noop */ }
+  }
+  const textX = ctx.rtl ? marginX + 4 : marginX + 4 + logoOffset;
+  const textW = contentW - logoOffset - (meta ? 60 : 8);
+  ddText(ctx, { text: title, x: textX, y: cursor.y + 10, width: textW, fontSize: 17, bold: true, color: PDF_COLORS.ink });
+  if (subtitle) ddText(ctx, { text: subtitle, x: textX, y: cursor.y + 18, width: textW, fontSize: 10, color: PDF_COLORS.muted });
+  if (meta) {
+    ddText(ctx, {
+      text: meta,
+      x: ctx.rtl ? marginX + 4 : ctx.pageW - marginX - 62,
+      y: cursor.y + 10,
+      width: 58,
+      fontSize: 9,
+      color: PDF_COLORS.muted,
+      align: ctx.rtl ? "left" : "right",
+    });
+  }
+  cursor.y += 34;
+}
+
+function ddSection(ctx: DirectPdfDrawCtx, title: string) {
+  ddEnsureSpace(ctx, 10);
+  ddText(ctx, { text: title, x: ctx.marginX, y: ctx.cursor.y, width: ctx.contentW, fontSize: 12, bold: true, color: PDF_COLORS.sage });
+  ctx.cursor.y += 4;
+  ctx.pdf.setDrawColor(PDF_COLORS.line[0], PDF_COLORS.line[1], PDF_COLORS.line[2]);
+  ctx.pdf.line(ctx.marginX, ctx.cursor.y, ctx.pageW - ctx.marginX, ctx.cursor.y);
+  ctx.cursor.y += 5;
+}
+
+function ddInfoGrid(ctx: DirectPdfDrawCtx, items: Array<{ label: string; value: unknown }>) {
+  const { pdf, marginX, contentW } = ctx;
+  const gap = 4;
+  const cardW = (contentW - gap) / 2;
+  for (let i = 0; i < items.length; i += 2) {
+    const pair = items.slice(i, i + 2);
+    const heights = pair.map((it) => {
+      const v = splitPdfText(pdf, it.value, cardW - 8, 11, true);
+      return Math.max(16, 6 + getPdfLineHeight(9, 1.2) + v.lines.length * getPdfLineHeight(11, 1.25) + 2);
+    });
+    const rowH = Math.max(...heights);
+    ddEnsureSpace(ctx, rowH + 3);
+    pair.forEach((it, idx) => {
+      const x = marginX + idx * (cardW + gap);
+      pdf.setFillColor(PDF_COLORS.soft[0], PDF_COLORS.soft[1], PDF_COLORS.soft[2]);
+      pdf.setDrawColor(PDF_COLORS.line[0], PDF_COLORS.line[1], PDF_COLORS.line[2]);
+      pdf.roundedRect(x, ctx.cursor.y, cardW, rowH, 3, 3, "FD");
+      ddText(ctx, { text: it.label, x: x + 4, y: ctx.cursor.y + 5, width: cardW - 8, fontSize: 9, color: PDF_COLORS.muted });
+      ddText(ctx, { text: it.value, x: x + 4, y: ctx.cursor.y + 5 + getPdfLineHeight(9, 1.2) + 1, width: cardW - 8, fontSize: 11, bold: true });
+    });
+    ctx.cursor.y += rowH + 3;
+  }
+}
+
+function ddTable(
+  ctx: DirectPdfDrawCtx,
+  cols: Array<{ key: string; label: string; width: number; align?: "left" | "right" | "center"; color?: (row: any) => readonly number[] | undefined }>,
+  rows: Array<Record<string, any>>
+) {
+  const { pdf, marginX } = ctx;
+  const headerH = 9;
+  ddEnsureSpace(ctx, headerH + 8);
+  pdf.setFillColor(244, 247, 242);
+  pdf.setDrawColor(PDF_COLORS.line[0], PDF_COLORS.line[1], PDF_COLORS.line[2]);
+  pdf.rect(marginX, ctx.cursor.y, ctx.contentW, headerH, "FD");
+  let x = marginX;
+  cols.forEach((c) => {
+    ddText(ctx, { text: c.label, x: x + 2, y: ctx.cursor.y + 6, width: c.width - 4, fontSize: 9, bold: true, color: PDF_COLORS.muted, align: c.align });
+    x += c.width;
+  });
+  ctx.cursor.y += headerH;
+
+  rows.forEach((row, idx) => {
+    const cellHeights = cols.map((c) => {
+      const v = splitPdfText(pdf, row[c.key], c.width - 4, 10, false);
+      return Math.max(7, v.lines.length * getPdfLineHeight(10, 1.25) + 3);
+    });
+    const rowH = Math.max(...cellHeights, 8);
+    ddEnsureSpace(ctx, rowH);
+    if (idx % 2 === 1) {
+      pdf.setFillColor(250, 248, 240);
+      pdf.rect(marginX, ctx.cursor.y, ctx.contentW, rowH, "F");
+    }
+    let cx = marginX;
+    cols.forEach((c) => {
+      const color = c.color ? c.color(row) : undefined;
+      ddText(ctx, { text: row[c.key] ?? "—", x: cx + 2, y: ctx.cursor.y + 5, width: c.width - 4, fontSize: 10, color, align: c.align });
+      cx += c.width;
+    });
+    pdf.setDrawColor(PDF_COLORS.line[0], PDF_COLORS.line[1], PDF_COLORS.line[2]);
+    pdf.line(marginX, ctx.cursor.y + rowH, marginX + ctx.contentW, ctx.cursor.y + rowH);
+    ctx.cursor.y += rowH;
+  });
+  ctx.cursor.y += 4;
+}
+
+function ddSummary(ctx: DirectPdfDrawCtx, items: Array<{ label: string; value: unknown; tone?: "positive" | "negative" | "neutral" }>) {
+  const { pdf, marginX, contentW } = ctx;
+  const gap = 4;
+  const colsN = Math.min(items.length, 3);
+  const cardW = (contentW - gap * (colsN - 1)) / colsN;
+  for (let i = 0; i < items.length; i += colsN) {
+    const slice = items.slice(i, i + colsN);
+    const cardH = 18;
+    ddEnsureSpace(ctx, cardH + 3);
+    slice.forEach((it, idx) => {
+      const x = marginX + idx * (cardW + gap);
+      pdf.setFillColor(PDF_COLORS.soft[0], PDF_COLORS.soft[1], PDF_COLORS.soft[2]);
+      pdf.setDrawColor(PDF_COLORS.line[0], PDF_COLORS.line[1], PDF_COLORS.line[2]);
+      pdf.roundedRect(x, ctx.cursor.y, cardW, cardH, 3, 3, "FD");
+      ddText(ctx, { text: it.label, x: x + 4, y: ctx.cursor.y + 5, width: cardW - 8, fontSize: 9, color: PDF_COLORS.muted });
+      const color = it.tone === "positive" ? PDF_COLORS.sage : it.tone === "negative" ? PDF_COLORS.gold : PDF_COLORS.ink;
+      ddText(ctx, { text: it.value, x: x + 4, y: ctx.cursor.y + 13, width: cardW - 8, fontSize: 13, bold: true, color });
+    });
+    ctx.cursor.y += cardH + 3;
+  }
+}
+
+function ddFooter(ctx: DirectPdfDrawCtx, brand: BrandInfo) {
+  const txt = [brand.address, brand.phone].filter(Boolean).join(" — ") || brand.name || "";
+  if (!txt) return;
+  const total = (ctx.pdf as any).getNumberOfPages ? (ctx.pdf as any).getNumberOfPages() : 1;
+  for (let p = 1; p <= total; p++) {
+    ctx.pdf.setPage(p);
+    ctx.pdf.setDrawColor(PDF_COLORS.line[0], PDF_COLORS.line[1], PDF_COLORS.line[2]);
+    ctx.pdf.line(ctx.marginX, ctx.pageH - 9, ctx.pageW - ctx.marginX, ctx.pageH - 9);
+    ddText(ctx, { text: txt, x: ctx.marginX, y: ctx.pageH - 5, width: ctx.contentW, fontSize: 8, color: PDF_COLORS.muted, align: "center" });
+  }
+}
+
+async function createTenantStatementPDFDirect(data: TenantStatementData): Promise<jsPDF> {
+  const rtl = true; // bilingual layout; default to RTL flow
+  const ctx = createDirectPdfCtx(rtl);
+  await registerLeasePdfFonts(ctx.pdf);
+
+  await ddHeader(
+    ctx,
+    data.brand,
+    "كشف حساب المستأجر / Tenant Statement",
+    `${data.tenantName}${data.unitNumber ? ` — ${data.unitNumber}` : ""}`,
+    `${data.generatedAt || ""}\n${data.building || ""}`
+  );
+
+  ddInfoGrid(ctx, [
+    { label: "المستأجر / Tenant", value: [data.tenantName, data.tenantNameEn].filter(Boolean).join(" / ") || data.tenantName || "—" },
+    { label: "الهاتف / Phone", value: data.tenantPhone || "—" },
+    { label: "بداية العقد / Start", value: formatDate(data.contractStart) },
+    { label: "نهاية العقد / End", value: formatDate(data.contractEnd) },
+    { label: "الإيجار / Rent", value: formatMoney(data.rentAmount || 0, data.currency) },
+    { label: "النوع / Type", value: data.rentType || "—" },
+  ]);
+
+  ctx.cursor.y += 2;
+  ddSection(ctx, "الحركات / Transactions");
+  const contentW = ctx.contentW;
+  const cols = [
+    { key: "date", label: "التاريخ / Date", width: contentW * 0.14 },
+    { key: "month", label: "الشهر / Month", width: contentW * 0.12 },
+    { key: "description", label: "البيان / Description", width: contentW * 0.34 },
+    { key: "charge", label: "مدين / Charge", width: contentW * 0.13, align: "right" as const },
+    { key: "payment", label: "دائن / Payment", width: contentW * 0.13, align: "right" as const },
+    {
+      key: "balance",
+      label: "الرصيد / Balance",
+      width: contentW * 0.14,
+      align: "right" as const,
+      color: (row: any) => (Number(row._balRaw) > 0 ? PDF_COLORS.gold : PDF_COLORS.sage),
+    },
+  ];
+  const tableRows = (data.rows || []).map((r) => ({
+    date: formatDate(r.date),
+    month: r.month || "—",
+    description: r.description || "—",
+    charge: r.charge ? formatMoney(r.charge, data.currency) : "—",
+    payment: r.payment ? formatMoney(r.payment, data.currency) : "—",
+    balance: formatMoney(r.balance, data.currency),
+    _balRaw: r.balance,
+  }));
+  if (tableRows.length === 0) {
+    ddText(ctx, { text: "لا توجد حركات / No records", x: ctx.marginX, y: ctx.cursor.y + 4, width: ctx.contentW, fontSize: 10, color: PDF_COLORS.muted, align: "center" });
+    ctx.cursor.y += 12;
+  } else {
+    ddTable(ctx, cols, tableRows);
+  }
+
+  ddSection(ctx, "الملخص / Summary");
+  ddSummary(ctx, [
+    { label: "إجمالي المستحق / Total charges", value: formatMoney(data.totals.totalCharges, data.currency) },
+    { label: "إجمالي المدفوع / Total paid", value: formatMoney(data.totals.totalPaid, data.currency), tone: "positive" },
+    {
+      label: "المتبقي / Outstanding",
+      value: formatMoney(data.totals.outstanding, data.currency),
+      tone: data.totals.outstanding > 0 ? "negative" : "positive",
+    },
+  ]);
+  if (data.totals.openingBalance || data.totals.securityDeposit) {
+    ddSummary(ctx, [
+      { label: "رصيد افتتاحي / Opening", value: formatMoney(data.totals.openingBalance || 0, data.currency) },
+      { label: "وديعة التأمين / Deposit", value: formatMoney(data.totals.securityDeposit || 0, data.currency) },
+    ]);
+  }
+
+  ddFooter(ctx, data.brand);
+  return ctx.pdf;
+}
+
+export async function downloadTenantStatementPDFDirect(data: TenantStatementData, filename: string): Promise<void> {
+  const t0 = performance.now?.() ?? Date.now();
+  const pdf = await createTenantStatementPDFDirect(data);
+  console.info("[statement-pdf:direct] generated in", Math.round((performance.now?.() ?? Date.now()) - t0), "ms");
+  await savePdfBlob(pdf, filename);
+}
+
+export async function printTenantStatementPDFDirect(data: TenantStatementData, filename: string): Promise<void> {
+  const pdf = await createTenantStatementPDFDirect(data);
+  if (isNative()) {
+    await handlePdfBlobNative(pdf.output("blob"), filename, "print", { title: filename });
+    return;
+  }
+  await savePdfBlob(pdf, filename);
+}
+
+async function createReportPDFDirect(data: ReportData): Promise<jsPDF> {
+  const ctx = createDirectPdfCtx(true);
+  await registerLeasePdfFonts(ctx.pdf);
+  await ddHeader(ctx, data.brand, "التقرير الشامل / Portfolio Report", `${data.rangeMonths} أشهر / months`, data.generatedAt || "");
+
+  ddSummary(ctx, [
+    { label: "الدخل / Income", value: formatMoney(data.totals.income, data.currency), tone: "positive" },
+    { label: "المصروفات / Expenses", value: formatMoney(data.totals.expenses, data.currency), tone: "negative" },
+    { label: "الصافي / Net", value: formatMoney(data.totals.net, data.currency), tone: data.totals.net >= 0 ? "positive" : "negative" },
+  ]);
+  ddSummary(ctx, [
+    { label: "المباني / Buildings", value: String(data.totals.buildings) },
+    { label: "الوحدات / Units", value: String(data.totals.units) },
+    { label: "الإشغال / Occupancy", value: `${data.totals.occupancy}%` },
+  ]);
+  ddSummary(ctx, [
+    { label: "المؤجَّر / Rented", value: String(data.totals.rented) },
+    { label: "الشاغر / Vacant", value: String(data.totals.vacant) },
+    { label: "نسبة التحصيل / Collection", value: `${data.totals.collectionRate}%`, tone: "positive" },
+  ]);
+
+  ddSection(ctx, "الأداء الشهري / Monthly performance");
+  const w = ctx.contentW;
+  ddTable(
+    ctx,
+    [
+      { key: "label", label: "الشهر / Month", width: w * 0.28 },
+      { key: "income", label: "الدخل / Income", width: w * 0.24, align: "right" },
+      { key: "expenses", label: "المصروفات / Expenses", width: w * 0.24, align: "right" },
+      { key: "net", label: "الصافي / Net", width: w * 0.24, align: "right", color: (row: any) => (Number(row._netRaw) >= 0 ? PDF_COLORS.sage : PDF_COLORS.gold) },
+    ],
+    (data.monthly || []).map((r) => ({
+      label: r.label,
+      income: formatMoney(r.income, data.currency),
+      expenses: formatMoney(r.expenses, data.currency),
+      net: formatMoney(r.net, data.currency),
+      _netRaw: r.net,
+    }))
+  );
+
+  ddSection(ctx, "تفاصيل المباني / Buildings");
+  ddTable(
+    ctx,
+    [
+      { key: "name", label: "المبنى / Building", width: w * 0.24 },
+      { key: "units", label: "الوحدات", width: w * 0.10, align: "right" },
+      { key: "rented", label: "مؤجَّر", width: w * 0.10, align: "right" },
+      { key: "vacant", label: "شاغر", width: w * 0.10, align: "right" },
+      { key: "expectedMonthly", label: "المتوقع", width: w * 0.16, align: "right" },
+      { key: "income", label: "الدخل", width: w * 0.15, align: "right" },
+      { key: "expenses", label: "المصروفات", width: w * 0.15, align: "right" },
+    ],
+    (data.buildings || []).map((r) => ({
+      name: r.name,
+      units: String(r.units),
+      rented: String(r.rented),
+      vacant: String(r.vacant),
+      expectedMonthly: formatMoney(r.expectedMonthly, data.currency),
+      income: formatMoney(r.income, data.currency),
+      expenses: formatMoney(r.expenses, data.currency),
+    }))
+  );
+
+  ddFooter(ctx, data.brand);
+  return ctx.pdf;
+}
+
+export async function downloadReportPDFDirect(data: ReportData, filename: string): Promise<void> {
+  const t0 = performance.now?.() ?? Date.now();
+  const pdf = await createReportPDFDirect(data);
+  console.info("[report-pdf:direct] generated in", Math.round((performance.now?.() ?? Date.now()) - t0), "ms");
+  await savePdfBlob(pdf, filename);
+}
+
