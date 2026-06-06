@@ -390,17 +390,17 @@ const pageShell = (title: string, body: string, options?: { rtl?: boolean }) => 
     <style>
       :root {
         color-scheme: light;
-        --ink: #223127;
-        --muted: #6a786b;
-        --line: #d9e2d5;
-        --soft: #f6f3ec;
+        --ink: #0f1a2e;
+        --muted: #787464;
+        --line: #ded0aa;
+        --soft: #fbf8f0;
         --card: #ffffff;
-        --primary: #5f7e65;
-        --accent: #a89456;
+        --primary: #9b7e3a;
+        --accent: #b8954a;
         --danger: #a85d5d;
       }
       * { box-sizing: border-box; }
-      html, body { margin: 0; padding: 0; background: #eef2eb; }
+      html, body { margin: 0; padding: 0; background: #f2ece0; }
       body {
         font-family: ${options?.rtl ? `"Noto Kufi Arabic", "Noto Naskh Arabic", "Segoe UI", Tahoma, Arial, sans-serif` : `"Outfit", "Inter", "Segoe UI", Tahoma, Arial, sans-serif`};
         color: var(--ink);
