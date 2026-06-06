@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Download, Printer, X, FileText, Table as TableIcon, Loader2, Share2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { inlinePdfFonts } from "@/lib/pdfDocs";
+import { inlinePdfFonts } from "@/lib/pdfDocsLazy";
 import { isIOS } from "@/lib/platform";
 import { isNative } from "@/lib/nativeFiles";
 

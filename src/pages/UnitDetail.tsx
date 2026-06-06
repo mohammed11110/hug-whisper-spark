@@ -8,7 +8,7 @@ import { useI18n } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
 import { useAppSettings } from "@/lib/appSettings";
-import { buildLeaseHTML, buildOmaniLeaseHTML, downloadHTMLAsPDF, downloadLeasePDF, printHTML, buildTenantStatementHTML, downloadTenantStatementPDFDirect, printTenantStatementPDFDirect, type StatementRow } from "@/lib/pdfDocs";
+import { buildLeaseHTML, buildOmaniLeaseHTML, downloadHTMLAsPDF, downloadLeasePDF, printHTML, buildTenantStatementHTML, downloadTenantStatementPDFDirect, printTenantStatementPDFDirect, type StatementRow } from "@/lib/pdfDocsLazy";
 import { isIOS } from "@/lib/platform";
 import { isNative } from "@/lib/nativeFiles";
 import { supabase } from "@/integrations/supabase/client";
