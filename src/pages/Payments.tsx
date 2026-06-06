@@ -21,7 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
 import { isNative } from "@/lib/nativeFiles";
-import { downloadHTMLAsPDF, printHTMLAsPDFNative, previewHTMLAsPDFNative } from "@/lib/pdfDocs";
+import { downloadHTMLAsPDF, printHTMLAsPDFNative } from "@/lib/pdfDocs";
 import { isIOS } from "@/lib/platform";
 
 interface Row {
@@ -377,9 +377,10 @@ export default function Payments() {
         });
         return;
       }
-      // Mobile Safari: open the generated PDF in the platform viewer.
+      // Mobile Safari: generate the PDF and hand it to the platform viewer /
+      // share flow so the user can print from there.
       if (isIOS()) {
-        void previewHTMLAsPDFNative(html, filename, settings).catch((e: any) => {
+        void downloadHTMLAsPDF(html, filename, settings).catch((e: any) => {
           console.error("[receipt:print:ios]", e);
           toast.error(String(e?.message || e) || "Print error");
         });

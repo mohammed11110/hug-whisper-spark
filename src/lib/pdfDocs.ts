@@ -2050,16 +2050,6 @@ async function renderInIframe(html: string): Promise<HTMLCanvasElement> {
 }
 
 export async function downloadHTMLAsPDF(html: string, filename: string, settings?: PdfSettings) {
-  // Capacitor native handled inside savePdfBlob — falls through to render
-  // path here so we generate a real PDF blob, then native Share sheet
-  // saves it to Files / AirPrint / etc.
-  //
-  // Mobile Safari (web, not Capacitor): keep the dedicated print-view
-  // fallback because popups stay open from the user gesture.
-  if (!isNative() && isIOS()) {
-    if (openPrintView(html, filename)) return;
-  }
-
   const pdf = await renderHTMLToPdf(html, settings);
   await savePdfBlob(pdf, filename);
 }
