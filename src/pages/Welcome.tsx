@@ -1,7 +1,7 @@
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { BotanicalDecor } from "@/components/BotanicalDecor";
+
 import { SEO } from "@/components/SEO";
 import { useI18n } from "@/lib/i18n";
 import { Link } from "react-router-dom";
@@ -24,7 +24,7 @@ export default function Welcome() {
       </header>
 
       <main className="flex-1 flex flex-col items-center justify-center px-8 pb-12 relative">
-        <BotanicalDecor className="absolute inset-0 w-full h-full text-sage-400 pointer-events-none" />
+        
 
         <div className="relative z-10 flex flex-col items-center text-center animate-float-up">
           <div className="mb-6 p-5 rounded-3xl bg-card shadow-elev">

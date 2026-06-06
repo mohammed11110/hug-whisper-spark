@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Trash2, Plus, Home, Pencil, Wallet, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { BotanicalDecor } from "@/components/BotanicalDecor";
+
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { AddUnitDialog } from "@/components/AddUnitDialog";
 import { EditUnitDialog } from "@/components/EditUnitDialog";
@@ -164,7 +164,7 @@ export default function BuildingDetail() {
     <div className="mobile-shell min-h-screen pb-10">
       {/* Hero header */}
       <div className="relative overflow-hidden bg-gradient-deep text-primary-foreground pt-4 pb-6 px-5 rounded-b-[2rem]">
-        <BotanicalDecor className="absolute -end-8 -top-4 w-52 h-52 text-primary-foreground" />
+        
         <div className="relative z-10 flex items-center justify-between mb-4">
           <Link to="/buildings">
             <Button variant="ghost" size="icon" className="rounded-full text-primary-foreground hover:bg-card/15">
