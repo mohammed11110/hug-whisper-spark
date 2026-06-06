@@ -101,13 +101,29 @@ export default function Settings() {
   };
 
   // ---- Logo handling (drag & drop + file) — auto-resize to 1024x1024 PNG ----
-  const handleLogoFile = (f: File | undefined) => {
+  const handleLogoFile = async (f: File | undefined) => {
     if (!f) return;
     if (!f.type.startsWith("image/")) { toast.error(tr(lang, "صيغة غير مدعومة", "Unsupported format")); return; }
     if (f.size > 5_000_000) { toast.error(tr(lang, "الحد 5 ميجابايت", "Max 5MB")); return; }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const src = String(reader.result);
+    try {
+      // Build a data URL without FileReader — it's missing in some
+      // WKWebView/sandboxed iframe contexts.
+      let src: string;
+      if (typeof (f as any).arrayBuffer === "function") {
+        const buf = await f.arrayBuffer();
+        const bytes = new Uint8Array(buf);
+        let binary = "";
+        const chunk = 0x8000;
+        for (let i = 0; i < bytes.length; i += chunk) {
+          binary += String.fromCharCode.apply(
+            null,
+            Array.from(bytes.subarray(i, i + chunk)) as any
+          );
+        }
+        src = `data:${f.type || "image/png"};base64,${btoa(binary)}`;
+      } else {
+        src = URL.createObjectURL(f);
+      }
       const img = new Image();
       img.onload = () => {
         try {
@@ -130,12 +146,18 @@ export default function Settings() {
           toast.success(tr(lang, "تم ضبط الشعار على 1024×1024", "Logo resized to 1024×1024"));
         } catch {
           toast.error(tr(lang, "تعذّر معالجة الصورة", "Couldn't process image"));
+        } finally {
+          if (src.startsWith("blob:")) URL.revokeObjectURL(src);
         }
       };
-      img.onerror = () => toast.error(tr(lang, "صورة غير صالحة", "Invalid image"));
+      img.onerror = () => {
+        toast.error(tr(lang, "صورة غير صالحة", "Invalid image"));
+        if (src.startsWith("blob:")) URL.revokeObjectURL(src);
+      };
       img.src = src;
-    };
-    reader.readAsDataURL(f);
+    } catch {
+      toast.error(tr(lang, "تعذّر قراءة الملف", "Couldn't read file"));
+    }
   };
 
 
