@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { RecentActivityCard } from "@/components/dashboard/RecentActivityCard";
 import { useCountUp } from "@/hooks/useCountUp";
+import { useSubscription } from "@/hooks/useSubscription";
 
 
 interface Stats {
@@ -155,14 +156,8 @@ export default function Dashboard() {
 
 
         {/* Subscription */}
-        <button className="w-full bg-gradient-gold rounded-2xl p-3.5 flex items-center gap-3 shadow-soft animate-float-up" style={{ animationDelay: "0.1s" }}>
-          <span className="text-xl">⚜️</span>
-          <div className="text-start flex-1">
-            <p className="text-xs text-primary-foreground/80">{t("current_plan")}</p>
-            <p className="font-bold text-primary-foreground uppercase text-sm">{t("free")}</p>
-          </div>
-          <span className="text-primary-foreground rtl:rotate-180">›</span>
-        </button>
+        <SubscriptionCard />
+
 
         {/* Mini stats */}
         <div data-tour="dashboard-stats" className="grid grid-cols-2 gap-3 md:gap-4 anim-stagger" style={{ animationDelay: "0.15s" } as React.CSSProperties}>
@@ -257,5 +252,72 @@ function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label:
       <p className="text-xs text-muted-foreground font-medium">{label}</p>
       <p className="text-2xl font-black text-sage-600 mt-0.5">{value}</p>
     </div>
+  );
+}
+
+const PLAN_LABEL: Record<string, { ar: string; en: string }> = {
+  free: { ar: "مجانية", en: "Free" },
+  personal: { ar: "شخصية", en: "Personal" },
+  pro: { ar: "احترافية", en: "Pro" },
+  business: { ar: "أعمال", en: "Business" },
+  enterprise: { ar: "مؤسسات", en: "Enterprise" },
+};
+
+function SubscriptionCard() {
+  const { t, lang } = useI18n();
+  const sub = useSubscription();
+  const isAr = lang === "ar";
+
+  const planLabel = (PLAN_LABEL[sub.plan] ?? PLAN_LABEL.free)[isAr ? "ar" : "en"];
+  const isPromo = !!sub.paddleSubscriptionId?.startsWith("promo_");
+
+  const fmtDate = (d: Date | null) =>
+    d ? d.toLocaleDateString(isAr ? "ar" : "en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }) : "";
+
+  let sub_label = "";
+  if (sub.loading) {
+    sub_label = "";
+  } else if (sub.phase === "trial" && sub.trialDaysLeft != null) {
+    sub_label = isAr ? `تجربة — ${sub.trialDaysLeft} يوم متبقي` : `Trial — ${sub.trialDaysLeft} days left`;
+  } else if (sub.phase === "active" && isPromo && sub.currentPeriodEnd) {
+    sub_label = isAr ? `كود ترويجي — حتى ${fmtDate(sub.currentPeriodEnd)}` : `Promo — until ${fmtDate(sub.currentPeriodEnd)}`;
+  } else if (sub.phase === "active" && sub.cancelAtPeriodEnd && sub.currentPeriodEnd) {
+    sub_label = isAr ? `ملغى — يستمر حتى ${fmtDate(sub.currentPeriodEnd)}` : `Canceled — active until ${fmtDate(sub.currentPeriodEnd)}`;
+  } else if (sub.phase === "active" && sub.currentPeriodEnd) {
+    sub_label = isAr ? `نشط حتى ${fmtDate(sub.currentPeriodEnd)}` : `Active until ${fmtDate(sub.currentPeriodEnd)}`;
+  } else if (sub.phase === "active") {
+    sub_label = isAr ? "نشط" : "Active";
+  } else if (sub.phase === "subscription_grace" && sub.graceDaysLeft != null) {
+    sub_label = isAr ? `فترة سماح — ${sub.graceDaysLeft} يوم` : `Grace period — ${sub.graceDaysLeft} days`;
+  } else if (sub.phase === "readonly_grace") {
+    sub_label = isAr ? "للقراءة فقط" : "Read-only";
+  } else if (sub.phase === "deleted") {
+    sub_label = isAr ? "منتهي" : "Expired";
+  }
+
+  return (
+    <Link
+      to="/pricing"
+      className="w-full bg-gradient-gold rounded-2xl p-3.5 flex items-center gap-3 shadow-soft animate-float-up"
+      style={{ animationDelay: "0.1s" }}
+    >
+      <span className="text-xl">⚜️</span>
+      <div className="text-start flex-1 min-w-0">
+        <p className="text-xs text-primary-foreground/80">{t("current_plan")}</p>
+        {sub.loading ? (
+          <div className="h-4 w-20 mt-0.5 rounded bg-primary-foreground/20 animate-pulse" />
+        ) : (
+          <p className="font-bold text-primary-foreground text-sm leading-tight">
+            {planLabel}
+            {sub_label && (
+              <span className="font-normal text-primary-foreground/80 text-[11px] block mt-0.5 truncate">
+                {sub_label}
+              </span>
+            )}
+          </p>
+        )}
+      </div>
+      <span className="text-primary-foreground rtl:rotate-180">›</span>
+    </Link>
   );
 }
