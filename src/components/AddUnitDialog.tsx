@@ -13,6 +13,7 @@ import { logActivity } from "@/lib/activityLogger";
 import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
 import { BuyAddonUnitsDialog } from "@/components/BuyAddonUnitsDialog";
 import { useSubscription, useUnitUsage } from "@/hooks/useSubscription";
+import { BackdatedContractCard, type BackdatedResolution } from "@/components/BackdatedContractCard";
 
 const UNIT_TYPES = ["apartment", "shop", "room", "villa"] as const;
 const RENT_TYPES = ["monthly", "daily", "yearly"] as const;
