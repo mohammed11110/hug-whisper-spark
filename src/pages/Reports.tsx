@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Building2, Users, AlertCircle, TrendingUp, CheckCircle2, Home, Download, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { exportToCSV } from "@/lib/exportCSV";
-import { buildReportHTML, downloadHTMLAsPDF, type ReportData } from "@/lib/pdfDocs";
+import { buildReportHTML, downloadHTMLAsPDF, downloadReportPDFDirect, type ReportData } from "@/lib/pdfDocs";
 import { useAppSettings } from "@/lib/appSettings";
 import { getUnitArrears } from "@/lib/balance";
 import {
