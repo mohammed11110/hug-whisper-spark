@@ -72,7 +72,11 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
   const [payAmount, setPayAmount] = useState<string>("0");
   const [payMethod, setPayMethod] = useState<typeof PAYMENT_METHODS[number]>("cash");
   const [busy, setBusy] = useState(false);
+  const [backdated, setBackdated] = useState<BackdatedResolution | null>(null);
   const guard = useUnsavedGuard({ open, onOpenChange });
+
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const isBackdated = occupied && !!contractStart && contractStart < todayIso;
   const { unitLimit, phase, plan } = useSubscription();
   const { unitCount } = useUnitUsage();
   const showQuota = phase !== "trial" && Number.isFinite(unitLimit);
