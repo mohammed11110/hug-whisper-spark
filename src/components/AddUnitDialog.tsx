@@ -368,7 +368,20 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
                 </div>
               </Field>
 
-              {/* Arrears */}
+              {/* MANDATORY backdated-contract handler */}
+              {isBackdated && (
+                <BackdatedContractCard
+                  contractStartDate={contractStart}
+                  rentAmount={rentN}
+                  rentType={rentType}
+                  rentTiming={rentTiming}
+                  dueDay={Math.min(28, Math.max(1, parseInt(dueDay) || 1))}
+                  onResolved={setBackdated}
+                />
+              )}
+
+              {/* Arrears — hidden when backdated card is governing */}
+              {!isBackdated && (
               <div className="pt-2 border-t border-sage-100">
                 <Field label={t2("arrears_amount")}>
                   <Input type="number" inputMode="decimal" min={0} step="0.001" value={arrears}
@@ -405,6 +418,7 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
                   })()}
                 </Field>
               </div>
+              )}
 
 
               {/* Initial payment */}
