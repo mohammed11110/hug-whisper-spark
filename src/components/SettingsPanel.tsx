@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { LANGUAGES, useI18n, type Lang } from "@/lib/i18n";
 import { CURRENCIES, useCurrency } from "@/lib/currency";
 import { useAuth } from "@/lib/auth";
-import { LogOut, User as UserIcon, Crown } from "lucide-react";
+import { useTheme, type Theme } from "@/lib/theme";
+import { LogOut, User as UserIcon, Crown, Sun, Moon, Monitor } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export function SettingsPanel({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
