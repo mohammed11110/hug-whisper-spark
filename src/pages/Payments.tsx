@@ -567,36 +567,25 @@ export default function Payments() {
                 <div className="text-end">
                   <p className="font-black text-sage-600 text-lg whitespace-nowrap">{format(r.amount)}</p>
                   <div className="flex gap-1 mt-1 justify-end flex-wrap">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-sage-500" title={lang === "ar" ? "طباعة" : "Print"}>
-                          <Printer className="h-3.5 w-3.5" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => printReceipt(r, "ar")}>
-                          {lang === "ar" ? "طباعة بالعربية" : "Print in Arabic"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => printReceipt(r, "en")}>
-                          {lang === "ar" ? "طباعة بالإنجليزية" : "Print in English"}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-sage-600" title={lang === "ar" ? "تحميل PDF" : "Download PDF"}>
-                          <Download className="h-3.5 w-3.5" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => downloadReceiptPDF(r, "ar")}>
-                          {lang === "ar" ? "تحميل PDF بالعربية" : "Download PDF in Arabic"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => downloadReceiptPDF(r, "en")}>
-                          {lang === "ar" ? "تحميل PDF بالإنجليزية" : "Download PDF in English"}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 rounded-lg text-sage-500"
+                      title={lang === "ar" ? "طباعة" : "Print"}
+                      onClick={() => printReceipt(r, receiptLang)}
+                    >
+                      <Printer className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 rounded-lg text-sage-600"
+                      title={lang === "ar" ? "تحميل PDF" : "Download PDF"}
+                      onClick={() => downloadReceiptPDF(r, receiptLang)}
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                    </Button>
+
                     <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-sage-600" onClick={() => setEditId(r.id)}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
