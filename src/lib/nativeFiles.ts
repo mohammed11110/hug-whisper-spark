@@ -25,18 +25,37 @@ export function isNative(): boolean {
   return p === "ios" || p === "android";
 }
 
-/** Convert a Blob to a base64 string (no data: prefix). */
+/** Convert a Blob to a base64 string (no data: prefix).
+ *  Uses Blob.arrayBuffer() + btoa to avoid relying on FileReader, which is
+ *  missing in some WKWebView/sandboxed iframe contexts. Falls back to
+ *  FileReader where available for very old browsers. */
 async function blobToBase64(blob: Blob): Promise<string> {
-  return await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const result = String(reader.result || "");
-      const comma = result.indexOf(",");
-      resolve(comma >= 0 ? result.slice(comma + 1) : result);
-    };
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(blob);
-  });
+  if (typeof (blob as any).arrayBuffer === "function") {
+    const buf = await blob.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let binary = "";
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode.apply(
+        null,
+        Array.from(bytes.subarray(i, i + chunk)) as any
+      );
+    }
+    return btoa(binary);
+  }
+  if (typeof FileReader !== "undefined") {
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = String(reader.result || "");
+        const comma = result.indexOf(",");
+        resolve(comma >= 0 ? result.slice(comma + 1) : result);
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(blob);
+    });
+  }
+  throw new Error("Cannot encode blob: no arrayBuffer or FileReader available");
 }
 
 /** Sanitize filename — strip path separators / control chars. */
