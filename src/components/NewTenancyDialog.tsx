@@ -106,6 +106,7 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
     setPaidUpTo("");
     setGraceDays(String(unit.grace_days ?? "0"));
     setOfficialNumber("");
+    setBackdated(null);
     lastExtractedRef.current = null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, unit?.id]);
