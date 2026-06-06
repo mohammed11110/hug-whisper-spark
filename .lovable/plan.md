@@ -1,128 +1,133 @@
-## التشخيص — لماذا التنقل بطيء
+# إصلاح "المتابعة بحساب Google" داخل تطبيق iOS (App Store / TestFlight)
 
-بعد فحص `vite.config.ts` و `App.tsx` و `queryClient.ts` والصفحات، الأسباب الجذرية للبطء عند التنقل بين الأقسام:
+## المشكلة بإيجاز
+- في المتصفح: زر Google يعمل لأن `window.location.origin` = `https://amlaki1.app`، ومسار OAuth المُدار من Lovable Cloud (`/~oauth/initiate` و`/~oauth/callback`) يقدر يرجّع المستخدم للموقع.
+- داخل تطبيق iOS الأصلي (Capacitor): `window.location.origin` = `capacitor://localhost`، وهذا الـ origin **غير مسموح به** عند Google، فلا يوجد مكان شرعي يرجع إليه التوكن → شاشة بيضاء أو فشل صامت.
 
-### 1) `pdfDocs.ts` ضخم ومستورد بشكل ثابت (الأثقل)
-الملف ~2700 سطر + ملفات خطوط Base64 مدمجة (Noto Kufi + Outfit ≈ مئات الكيلوبايتات)، ومستورد statically من:
-- `src/pages/Payments.tsx`
-- `src/pages/UnitDetail.tsx`
-- `src/pages/Reports.tsx`
-- `src/pages/PrintView.tsx`
-- `src/components/AddPaymentDialog.tsx`
-- `src/components/FilePreviewDialog.tsx`
-
-نتيجة: كل صفحة من هذه يتم تحميل وتفسير `pdfDocs` + `jspdf` + `html2canvas` قبل ظهور الواجهة → تأخير ملموس على iPad/الجوال عند فتح أي قسم منها.
-
-### 2) لا يوجد React Query في الصفحات
-`useQuery` غير مستخدم في الصفحات — كل صفحة تستدعي Supabase داخل `useEffect` يدوياً. عند الرجوع لنفس القسم يُعاد جلب كل البيانات من الصفر بدل استخدام cache → شاشة تحميل في كل مرة.
-
-### 3) لا يوجد تقسيم vendor (manual chunks)
-كل المكتبات الكبيرة (`recharts`, `jspdf`, `html2canvas`, `embla-carousel`, `cmdk`, جميع `@radix-ui/*`, `react-day-picker`, `react-markdown`, `driver.js`, `@sentry/react`) تذهب لـ chunk واحد ضخم يُحمَّل على أول navigation ثم يُحلَّل (parse) من جديد.
-
-### 4) عدم prefetch للقسم التالي المتوقع
-عند لمس عنصر في القائمة، يبدأ تنزيل الـ chunk من الصفر. على شبكات بطيئة هذا يضيف 200–800ms ظاهرة كـ "تجمّد".
-
-### 5) Splash/Loading يظهر بشكل متكرر
-`<Suspense fallback={<LoadingScreen />}>` على مستوى التطبيق → كل قسم lazy يُظهر شاشة تحميل كاملة بدل انتقال سلس.
-
-### 6) Providers تعيد التصيير أكثر من اللازم
-`I18nProvider` و `CurrencyProvider` و `AppSettingsProvider` و `ThemeProvider` بدون `useMemo` للقيمة → أي تغيير حالة (مثل عدّاد الإيصالات) يُعيد تصيير كامل شجرة الصفحات.
+الحل الصحيح والمعتمد لتطبيقات iOS الأصلية هو استخدام **تسجيل دخول Google الأصلي عبر إضافة Capacitor** بدل تدفق OAuth الويب، ثم تسليم `idToken` لـ Supabase عبر `signInWithIdToken`.
 
 ---
 
-## الاقتراحات المرتّبة بالأولوية
+## الحل (نظرة عامة)
 
-### A. مكاسب فورية وضخمة (تنفيذ سريع)
+1. **اكتشاف المنصة**: لو التطبيق يعمل داخل Capacitor (iOS/Android) نستعمل المسار الأصلي. أما المتصفح فيبقى كما هو على Lovable OAuth (لا تغيير على تجربة الويب).
+2. **إضافة مكتبة Native Google Sign-In**: `@capacitor-community/social-login` (تستخدم `ASWebAuthenticationSession` + Google SDK على iOS، و`CredentialManager` على Android).
+3. **في `src/pages/Auth.tsx`**: زر "المتابعة بحساب Google" يتفرع:
+   - ويب → `lovable.auth.signInWithOAuth("google", ...)` (كما هو).
+   - Native → `SocialLogin.login({ provider: "google", ... })` ثم `supabase.auth.signInWithIdToken({ provider: "google", token: idToken, nonce })`.
+4. **`capacitor.config.ts`**: إضافة بلوك إعدادات الإضافة (iOS clientId, Web serverClientId, scopes).
+5. **بيانات OAuth في Google Cloud Console** (المستخدم ينشئها): 
+   - **iOS Client ID** للـ Bundle `app.lovable.c6fcf97d71d44c46b75687a26fc2bf21`.
+   - **Web Client ID** (مطلوب كـ serverClientId حتى يقبل Supabase الـ idToken).
+6. **في Xcode**: إضافة `GIDClientID` و `CFBundleURLSchemes` (Reversed Client ID) إلى `Info.plist` ثم إعادة البناء ورفع نسخة جديدة لـ TestFlight.
 
-**A1. تحويل `pdfDocs` إلى استيراد ديناميكي عند الحاجة فقط**
-بدل `import { ... } from "@/lib/pdfDocs"` على رأس الملف:
-```ts
-const handlePrint = async () => {
-  const { downloadReceiptPDFDirect } = await import("@/lib/pdfDocs");
-  await downloadReceiptPDFDirect(data, filename);
-};
+> الكود الحالي للويب (`lovable.auth.signInWithOAuth`) لا يُلمس، فلا تتأثر تجربة المتصفح أبداً.
+
+---
+
+## الملفات التي ستتغير
+
+- `package.json` — إضافة `@capacitor-community/social-login`.
+- `capacitor.config.ts` — بلوك إعدادات الإضافة.
+- `src/pages/Auth.tsx` — تفريع زر Google حسب المنصة، إضافة nonce.
+- (اختياري) ملف صغير `src/lib/nativeAuth.ts` لتغليف منطق Native Google.
+
+لا تغيير على:
+- `src/integrations/lovable/index.ts` (مولّد آلياً).
+- `src/integrations/supabase/client.ts`.
+- مسار البريد/كلمة المرور أو باقي الصفحات.
+
+---
+
+## الخطوات التي يقوم بها المستخدم (مرّة واحدة)
+
+### أ) إنشاء بيانات OAuth في Google Cloud Console
+1. ادخل https://console.cloud.google.com → "APIs & Services" → "Credentials".
+2. أنشئ **Web OAuth Client ID** (يلزم لـ Supabase / serverClientId) — احفظ `Web Client ID`.
+3. أنشئ **iOS OAuth Client ID** ووضع **Bundle ID** = `app.lovable.c6fcf97d71d44c46b75687a26fc2bf21` — احفظ `iOS Client ID` و `Reversed Client ID`.
+4. في إعدادات Supabase Auth (داخل Lovable Cloud → Authentication → Providers → Google): أضف `Web Client ID` ضمن "Authorized Client IDs".
+
+### ب) تحديث المشروع محلياً وإعادة البناء لـ iOS
+بعد ما أكتب التعديلات في الكود:
+```bash
+git pull
+npm install
+npx cap sync ios
+npx cap open ios
 ```
-يطبَّق على Payments، UnitDetail، Reports، AddPaymentDialog، FilePreviewDialog، PrintView.
-**أثر متوقع: −300KB إلى −800KB من الـ chunks الأولية لكل قسم → ظهور الواجهة فوراً.**
+ثم في Xcode:
+- افتح `App/Info.plist` وأضف:
+  - `GIDClientID` = `<iOS Client ID>`.
+  - تحت `CFBundleURLTypes` أضف Scheme جديد قيمته = `<Reversed Client ID>` (مثال: `com.googleusercontent.apps.123456-abcdef`).
+- اختر جهازاً/سيميوليتر وابني (`Cmd+R`) للاختبار، ثم Archive → رفع نسخة جديدة لـ TestFlight.
 
-**A2. تقسيم خطوط الـ PDF كملف منفصل lazy**
-ملفات الخطوط (`getFontBase64Map`) في chunk خاص يُحمَّل فقط عند توليد PDF فعلي. هذا وحده قد يوفّر >400KB من أوّل تحميل.
+---
 
-**A3. Manual chunks في `vite.config.ts`**
-إضافة `build.rollupOptions.output.manualChunks`:
-- `react-vendor` → react, react-dom, react-router-dom
-- `ui-vendor` → جميع `@radix-ui/*`, `lucide-react`, `cmdk`
-- `pdf-vendor` → jspdf, html2canvas (مع A1 لن تُحمَّل أصلاً حتى الحاجة)
-- `charts` → recharts
-- `query` → @tanstack/react-query, @supabase/supabase-js
-يقلّل حجم الـ entry ويُمكّن المتصفح من cache الـ vendor عبر النشرات.
+## تفاصيل تقنية
 
-**A4. تمكين compression و target حديث**
-- `build.target: "es2020"` (أصغر وأسرع parsing).
-- `build.cssCodeSplit: true` (افتراضي لكن نتأكد).
-- `esbuild.legalComments: "none"`.
-
-### B. مكاسب كبيرة على إعادة الزيارة (تنفيذ متوسط)
-
-**B1. تفعيل React Query في الصفحات الثقيلة**
-تحويل جلب البيانات في Dashboard، Buildings، Payments، Reports، Tenants، UnitDetail إلى `useQuery` مع:
+### كيف يصبح الزر في `Auth.tsx`
 ```ts
-defaultOptions: {
-  queries: {
-    staleTime: 60_000,
-    gcTime: 5 * 60_000,
-    refetchOnWindowFocus: false,
+import { Capacitor } from "@capacitor/core";
+
+async function handleGoogle() {
+  if (Capacitor.isNativePlatform()) {
+    const { SocialLogin } = await import("@capacitor-community/social-login");
+    await SocialLogin.initialize({
+      google: {
+        iOSClientId: "<iOS Client ID>",
+        webClientId: "<Web Client ID>", // serverClientId
+      },
+    });
+    const nonce = crypto.randomUUID();
+    const res = await SocialLogin.login({
+      provider: "google",
+      options: { scopes: ["email", "profile"], nonce },
+    });
+    const idToken = (res as any).result?.idToken;
+    const { error } = await supabase.auth.signInWithIdToken({
+      provider: "google",
+      token: idToken,
+      nonce,
+    });
+    if (error) throw error;
+    navigate("/");
+  } else {
+    // كما هو حالياً — Lovable OAuth
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.origin,
+    });
+    if (result.error) throw result.error;
+    if (result.redirected) return;
+    navigate("/");
   }
 }
 ```
-**أثر: الرجوع لصفحة سبق فتحها يصبح فورياً (بيانات من cache + تحديث في الخلفية).**
 
-**B2. Suspense fallback أخف داخل AppShell**
-نقل الـ Suspense إلى داخل الـ `<Outlet/>` فقط (لا حول التطبيق كله)، مع fallback صغير (شريط تقدّم رفيع علوي بدل LoadingScreen كاملة) → انتقال يبدو سلساً.
+### تعديل `capacitor.config.ts`
+يُضاف داخل `plugins`:
+```ts
+SocialLogin: {
+  google: {
+    iOSClientId: "<iOS Client ID>",
+    webClientId: "<Web Client ID>",
+  },
+},
+```
 
-**B3. Prefetch ذكي عند hover/touchstart على روابط القائمة**
-في `AppSidebar`/`BottomNav`، عند `onMouseEnter`/`onTouchStart` لرابط، استدعاء `import("./pages/X")` لتحميل الـ chunk مسبقاً.
-
-### C. تحسينات بنيوية إضافية
-
-**C1. تذكير `useMemo` لقيم الـ context**
-في `AppSettingsProvider` و `I18nProvider` و `CurrencyProvider` و `AuthProvider`: لفّ `value={...}` بـ `useMemo` حتى لا يعيد كل المشتركين التصيير عند أي تحديث غير ذي صلة.
-
-**C2. تقسيم `UnitDetail.tsx` (1484 سطر) و `Settings.tsx` (922 سطر)**
-استخراج الأقسام الفرعية (تبويبات/ديالوقات) إلى ملفات منفصلة `lazy()` لتقليل الـ chunk الأولي للقسم.
-
-**C3. إزالة `html2canvas` من الـ bundle نهائياً إن أمكن**
-بعد الانتقال للمسار المباشر للإيصال + الكشف، تحقَّق هل ما زال `html2canvas` لازماً لأي مسار. إن لا، احذف الاستيراد والـ dependency.
-
-**C4. Sentry lazy**
-`@sentry/react` يضيف ~50KB. تحميله ديناميكياً بعد `requestIdleCallback`.
-
-**C5. تأجيل `OnboardingTour` و `AnimatedSplash`**
-كلاهما يحمّل `driver.js` و framer-motion. اجعلهم `lazy()` خلف Suspense منفصل.
-
-### D. قياس فعلي (قبل/بعد)
-بعد A1 + A3:
-- شغّل `npm run build` ولاحظ حجم `dist/assets/*.js`.
-- استخدم Chrome DevTools → Performance لتسجيل navigation من Dashboard → Payments → Reports وقارن.
-- الهدف: chunk أوّلي للقسم < 80KB gzipped، و TTI عند التنقل < 200ms.
+### لماذا هذا الحل وليس غيره
+- `lovable.auth.signInWithOAuth` و`/~oauth/*` مصممان لمتصفح ويب على `https://...`. داخل WebView ينطلق على `capacitor://localhost` ولا يُسمح به في Google.
+- استخدام Universal Links وفتح Safari من التطبيق ممكن لكنه تجربة سيئة (يخرج المستخدم من التطبيق ثم يعود)، ولا يحل قبول Google.
+- `signInWithIdToken` هو الطريق الرسمي لتسليم هوية Google من تطبيق أصلي إلى Supabase.
 
 ---
 
-## ملخّص الخطوات الفعلية المقترَحة (يمكن تنفيذها بترتيب)
+## ما الذي سيحدث للويب؟
+لا شيء. مسار المتصفح يبقى يستعمل Lovable OAuth بدون أي تغيير.
 
-1. **A1** — جعل كل استدعاءات `pdfDocs` ديناميكية (6 ملفات).
-2. **A3** — `manualChunks` في `vite.config.ts`.
-3. **B2** — Suspense داخلي خفيف.
-4. **B3** — Prefetch on hover للقوائم.
-5. **B1** — React Query تدريجياً (Dashboard أولاً ثم Payments).
-6. **C1** — `useMemo` للـ contexts.
-7. **C2** — تقسيم UnitDetail / Settings.
-8. **C4–C5** — تأجيل Sentry و OnboardingTour.
+## بعد التنفيذ
+- اختبر على جهاز iPhone/iPad فعلي (السيميوليتر قد لا يدعم Google SDK جيداً).
+- لو ظهرت رسالة "Unsupported provider" من Supabase: تأكد أن مزوّد Google مُفعّل في Lovable Cloud وأنك أضفت `Web Client ID` في "Authorized Client IDs".
 
----
-
-## أي مجموعة تريد تطبيقها الآن؟
-
-- **حزمة سريعة (1–3)**: أكبر تحسين بأقل تغيير — يستهدف زمن ظهور الواجهة عند التنقل.
-- **الحزمة الكاملة (1–8)**: حل جذري شامل، أطول لكن النتيجة احترافية.
-- **مخصص**: اذكر أرقام النقاط التي تريدها.
+## ما أحتاجه منك للبدء
+- تأكيد أنك ستنشئ Client IDs في Google Cloud Console (لازم — لا يمكن إنشاؤها من Lovable).
+- بمجرد موافقتك على هذه الخطة، أبدأ التعديل وأعطيك القيم/الأماكن الدقيقة التي تلصقها.
