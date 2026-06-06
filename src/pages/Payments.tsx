@@ -19,7 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
 import { isNative } from "@/lib/nativeFiles";
-import { downloadHTMLAsPDF, printHTMLAsPDFNative, openPrintView } from "@/lib/pdfDocs";
+import { downloadReceiptPDFDirect, printReceiptPDFDirect, type ReceiptData } from "@/lib/pdfDocs";
 import { isIOS } from "@/lib/platform";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
