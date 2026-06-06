@@ -82,6 +82,7 @@ export default {
         "gradient-deep": "var(--gradient-deep)",
         "gradient-cream": "var(--gradient-cream)",
         "gradient-gold": "var(--gradient-gold)",
+        "gradient-midnight": "var(--gradient-midnight)",
       },
       boxShadow: {
         soft: "var(--shadow-soft)",
