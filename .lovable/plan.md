@@ -1,36 +1,38 @@
 ## المشكلة
 
-عند توليد الإيصال يظهر `Can't find variable: FileReader`. السبب أن الكود يعتمد على `new FileReader()` في موضعين يُستدعَيان أثناء توليد الإيصال:
+داخل تطبيق iOS الأصلي على iPad، نافذة معاينة الملفات (إيصال/عقد/كشف) تظهر بشاشة بيضاء لكل أنواع الملفات.
 
-1. **`src/lib/nativeFiles.ts`** — `blobToBase64()` يحوّل ملف الـ PDF إلى base64 لكتابته في كاش الجهاز عبر Capacitor Filesystem. يُستدعى عند الحفظ/المشاركة على iOS/Android.
-2. **`src/lib/pdfDocs.ts`** — `urlToDataUrl()` يحوّل الصور إلى data URLs قبل html2canvas. يعمل داخل سياق iframe في بعض الحالات حيث قد لا يكون `FileReader` متاحاً (WKWebView مع srcdoc، أو سياقات مقيّدة).
+السبب الجذري في `src/components/FilePreviewDialog.tsx`:
 
-`FileReader` قد لا يكون مضموناً في بعض سياقات WKWebView/سياقات iframe المسروقة (sandboxed/srcdoc) — بينما `Blob.prototype.arrayBuffer()` و `btoa` متاحان دائماً.
+1. **`<iframe srcDoc={...}>` لا يعمل بثبات داخل WKWebView على iPad** — يحصل على origin `about:srcdoc` الذي يتعارض مع focus trap الخاص بـ Radix Dialog ومع تحميل الخطوط/الصور بمسارات نسبية، فيبقى فارغاً.
+2. **`inlinePdfFonts` قد يتعلّق** عند جلب ملفات الخطوط من سياق WKWebView (لا timeout)، فتظل المعاينة على "جاري التحضير…" أو تعرض iframe فارغاً.
+3. **ارتفاع iframe ينهار على iPad** بسبب `min(65svh, calc(100svh - 220px))` داخل DialogContent ذي max-height محدّد — في الوضع الأفقي على iPad mini يصبح الناتج صغيراً جداً أو صفراً.
 
 ## الحل
 
-استبدال كل استخدام لـ `FileReader` بمسار يعتمد على `Blob.arrayBuffer()` + ترميز base64 يدوي (نفس النمط المُستخدم بالفعل في `fetchFontAsDataUrl` في `pdfDocs.ts`). مع الحفاظ على fallback إلى FileReader للمتصفحات القديمة جداً.
+تغييرات محصورة في ملف واحد: **`src/components/FilePreviewDialog.tsx`**.
 
-### تغييرات الملفات
+1. **استبدال `srcDoc` بـ Blob URL** للـ iframe:
+   - بناء `new Blob([renderedHtml], { type: "text/html;charset=utf-8" })` ثم `URL.createObjectURL`، وتمريره عبر `src` بدلاً من `srcDoc`.
+   - تنظيف الـ URL القديم عبر `URL.revokeObjectURL` عند تغيير المحتوى أو إغلاق الحوار.
+   - blob URLs تعمل بثبات في WKWebView على iPad وتحلّ مشكلة الـ origin الفارغ.
 
-**`src/lib/nativeFiles.ts`** — تعديل `blobToBase64`:
-- استخدام `await blob.arrayBuffer()` ثم تحويل البايتات إلى base64 عبر `btoa` بتقطيع 0x8000.
-- في حال عدم توفّر `arrayBuffer` (نادر جداً)، fallback إلى `FileReader` داخل `if (typeof FileReader !== "undefined")`، وإلا رمي خطأ واضح.
+2. **إضافة timeout لـ `inlinePdfFonts`** (3 ثوانٍ):
+   - `Promise.race` بين `inlinePdfFonts(html)` و timeout يرجّع الـ html الأصلي.
+   - يضمن عدم بقاء spinner التحميل معلّقاً إن فشل جلب الخطوط داخل WKWebView.
 
-**`src/lib/pdfDocs.ts`** — تعديل `urlToDataUrl` (السطر ~1659):
-- نفس النمط: `blob.arrayBuffer()` → base64 → `data:${blob.type};base64,...`.
-- نفس الحارس `typeof FileReader !== "undefined"` كـ fallback.
+3. **ضبط ارتفاع iframe بحدّ أدنى آمن على iPad**:
+   - تغيير الارتفاع إلى `max(360px, min(70svh, calc(100svh - 200px)))` مع `minHeight: 360`.
+   - يمنع الانهيار في الوضع الأفقي على iPad.
 
-**`src/pages/Settings.tsx` (السطر 108)** — مراجعة الاستخدام:
-- إن كان قراءة ملف نصياً، استخدام `await file.text()` بدلاً من `FileReader.readAsText`.
-- إن كان قراءة كـ DataURL، استخدام نفس مساعد `arrayBuffer→base64`.
+4. **زر احتياطي للمنصة الأصلية**: عند `isNative()`، إذا لم يحمّل المستخدم خلال ~4 ثوانٍ يظهر زر صغير "فتح في عارض النظام" يستدعي `payload.onSave()` (الذي يفتح Share sheet الأصلي على iOS). هذا fallback غير اعتراضي وليس بديلاً عن الإصلاح الأساسي.
 
 ### اختبار التحقق
 
-- توليد إيصال على preview الويب (يجب أن يحفظ PDF كما كان).
-- إعادة إصدار build مع `npx cap sync ios`، ثم تجربة "تحميل الإيصال" داخل تطبيق iOS — يجب أن تفتح ورقة المشاركة بدون رمي الخطأ.
-- التحقق من سجل console بعدم وجود `FileReader is not defined`.
+- على الويب: المعاينة تظهر كما كانت (blob URL متوافق مع كل المتصفحات).
+- على iPad (Capacitor): فتح إيصال/عقد/كشف من القوائم — يجب أن يظهر محتوى الملف داخل النافذة خلال ثوانٍ.
+- لا تغيير في منطق الحفظ/المشاركة أو ملفات PDF — الإصلاح في طبقة العرض فقط.
 
 ## ملاحظة
 
-التغييرات محصورة في طبقة المساعدات (helpers) ولا تمسّ منطق العقود أو الإيصالات أو الـ UI. التوافق مع الويب والمنصّات الأصلية محفوظ.
+لا حاجة لإعادة build كاملة لـ Xcode لاختبار الإصلاح لأن hot-reload مفعّل في `capacitor.config.ts` (يشير إلى preview URL). بعد التأكد، شغّل `npx cap sync ios` لإصدار جديد.

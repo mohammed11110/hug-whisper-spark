@@ -45,6 +45,7 @@ export function FilePreviewDialog({ open, onOpenChange, payload }: Props) {
   const { lang } = useI18n();
   const ar = lang === "ar";
   const [renderedHtml, setRenderedHtml] = useState<string | null>(null);
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!payload || payload.type !== "pdf") {
@@ -53,11 +54,32 @@ export function FilePreviewDialog({ open, onOpenChange, payload }: Props) {
     }
     let cancelled = false;
     setRenderedHtml(null);
-    inlinePdfFonts(payload.html)
-      .then((h) => { if (!cancelled) setRenderedHtml(h); })
+    // Timeout fallback: if font inlining hangs in WKWebView, fall back to
+    // raw html after 3s so the preview never sticks on the spinner.
+    const timeoutPromise = new Promise<string>((resolve) =>
+      setTimeout(() => resolve(payload.html), 3000)
+    );
+    Promise.race([inlinePdfFonts(payload.html), timeoutPromise])
+      .then((h) => { if (!cancelled) setRenderedHtml(h || payload.html); })
       .catch(() => { if (!cancelled) setRenderedHtml(payload.html); });
     return () => { cancelled = true; };
   }, [payload]);
+
+  // Build a blob: URL for the iframe — WKWebView on iPad renders blob URLs
+  // reliably, unlike srcDoc which gets the about:srcdoc origin and often
+  // shows blank inside Radix Dialog's focus trap.
+  useEffect(() => {
+    if (!renderedHtml) {
+      setBlobUrl(null);
+      return;
+    }
+    const blob = new Blob([renderedHtml], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    setBlobUrl(url);
+    return () => {
+      try { URL.revokeObjectURL(url); } catch { /* noop */ }
+    };
+  }, [renderedHtml]);
 
   if (!payload) return null;
 
@@ -96,19 +118,20 @@ export function FilePreviewDialog({ open, onOpenChange, payload }: Props) {
             <div
               className="rounded-2xl overflow-auto border border-sage-200 bg-white"
               style={{
-                height: "min(65svh, calc(100svh - 220px))",
+                height: "max(360px, min(70svh, calc(100svh - 200px)))",
+                minHeight: 360,
                 WebkitOverflowScrolling: "touch",
               }}
             >
-              {renderedHtml ? (
+              {blobUrl ? (
                 <iframe
                   title={labelPreview}
-                  srcDoc={renderedHtml}
+                  src={blobUrl}
                   className="w-full h-full"
-                  style={{ border: 0 }}
+                  style={{ border: 0, minHeight: 360 }}
                 />
               ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-sage-500 text-sm">
+                <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-sage-500 text-sm" style={{ minHeight: 360 }}>
                   <Loader2 className="h-5 w-5 animate-spin text-sage-400" />
                   <span>{labelLoading}</span>
                 </div>
