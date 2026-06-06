@@ -3,6 +3,10 @@ interface Props {
   className?: string;
 }
 
+/**
+ * Amlaki — Midnight Gold key logo.
+ * Renders inline SVG so it inherits drop-shadow filters and animates cleanly.
+ */
 export function Logo({ size = 40, className = "" }: Props) {
   return (
     <svg
@@ -15,8 +19,9 @@ export function Logo({ size = 40, className = "" }: Props) {
     >
       <defs>
         <linearGradient id="amlakiKey" x1="0" y1="0" x2="64" y2="64">
-          <stop offset="0%" stopColor="hsl(var(--sage-400))" />
-          <stop offset="100%" stopColor="hsl(var(--sage-600))" />
+          <stop offset="0%" stopColor="#e5c98a" />
+          <stop offset="55%" stopColor="#caa869" />
+          <stop offset="100%" stopColor="#a8893f" />
         </linearGradient>
       </defs>
       <circle cx="22" cy="22" r="13" stroke="url(#amlakiKey)" strokeWidth="4" fill="none" />

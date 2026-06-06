@@ -90,20 +90,25 @@ async function registerFontsInDocument(doc: Document, urls: Record<FontKey, stri
   try { await anyDoc.fonts.ready; } catch { /* noop */ }
 }
 
+// Midnight Gold PDF palette — cream page, printable deep gold, midnight ink.
+// Page bg stays light for print legibility; brand color is the deep gold,
+// "sage" key is kept as the alias for primary brand accent (now gold) so all
+// existing call sites map cleanly without rewriting every section.
 const PDF_COLORS = {
-  ink: [34, 49, 39] as const,
-  muted: [106, 120, 107] as const,
-  line: [217, 226, 213] as const,
-  soft: [246, 243, 236] as const,
-  sage: [95, 126, 101] as const,
-  gold: [168, 148, 86] as const,
-  settlementBg: [238, 245, 236] as const,
-  settlementInk: [44, 90, 54] as const,
-  partialBg: [250, 242, 221] as const,
+  ink: [15, 26, 46] as const,             // #0f1a2e midnight ink (was sage-ink)
+  muted: [120, 116, 100] as const,        // warm dusty
+  line: [222, 208, 170] as const,         // soft gold hairline
+  soft: [251, 248, 240] as const,         // cream page surface
+  sage: [155, 126, 58] as const,          // #9b7e3a deep printable gold (brand accent on paper)
+  gold: [155, 126, 58] as const,          // same deep gold
+  settlementBg: [240, 232, 208] as const, // soft cream-gold for paid badge
+  settlementInk: [80, 60, 20] as const,   // deep gold ink for paid label
+  partialBg: [250, 240, 215] as const,
   lateBg: [246, 225, 225] as const,
   lateInk: [138, 42, 42] as const,
-  goldSoft: [245, 240, 224] as const,
+  goldSoft: [246, 238, 215] as const,
 };
+
 
 const MM_PER_POINT = 0.352778;
 const ARABIC_TEXT_RE = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/;
@@ -385,17 +390,17 @@ const pageShell = (title: string, body: string, options?: { rtl?: boolean }) => 
     <style>
       :root {
         color-scheme: light;
-        --ink: #223127;
-        --muted: #6a786b;
-        --line: #d9e2d5;
-        --soft: #f6f3ec;
+        --ink: #0f1a2e;
+        --muted: #787464;
+        --line: #ded0aa;
+        --soft: #fbf8f0;
         --card: #ffffff;
-        --primary: #5f7e65;
-        --accent: #a89456;
+        --primary: #9b7e3a;
+        --accent: #b8954a;
         --danger: #a85d5d;
       }
       * { box-sizing: border-box; }
-      html, body { margin: 0; padding: 0; background: #eef2eb; }
+      html, body { margin: 0; padding: 0; background: #f2ece0; }
       body {
         font-family: ${options?.rtl ? `"Noto Kufi Arabic", "Noto Naskh Arabic", "Segoe UI", Tahoma, Arial, sans-serif` : `"Outfit", "Inter", "Segoe UI", Tahoma, Arial, sans-serif`};
         color: var(--ink);
@@ -1901,7 +1906,7 @@ export function buildCollectionHTML(data: CollectionPdfData): string {
   const deltaHtml = (delta: number) => {
     if (!delta || !isFinite(delta)) return "";
     const up = delta > 0;
-    return `<span class="pill" style="background:${up ? "rgba(95,126,101,.14)" : "rgba(168,93,93,.12)"};color:${up ? "#3d5942" : "#8a3f3f"}">${up ? "▲" : "▼"} ${Math.abs(delta).toFixed(0)}% ${T.vs}</span>`;
+    return `<span class="pill" style="background:${up ? "rgba(155,126,58,.14)" : "rgba(168,93,93,.12)"};color:${up ? "#7b5e22" : "#8a3f3f"}">${up ? "▲" : "▼"} ${Math.abs(delta).toFixed(0)}% ${T.vs}</span>`;
   };
 
   const body = `

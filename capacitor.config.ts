@@ -18,20 +18,20 @@ const config: CapacitorConfig = {
     : {}),
   ios: {
     contentInset: "always",
-    backgroundColor: "#5f7e65",
+    backgroundColor: "#0d1426",
   },
   android: {
-    backgroundColor: "#5f7e65",
+    backgroundColor: "#0d1426",
   },
   plugins: {
     SplashScreen: {
       launchShowDuration: 500,
-      backgroundColor: "#5f7e65",
+      backgroundColor: "#0d1426",
       androidSplashResourceName: "splash",
       iosSplashResourceName: "Splash",
       showSpinner: false,
       splashFullScreen: true,
-      splashImmersive: false,
+      splashImmersive: true,
     },
     // Native Google Sign-In (iOS/Android only).
     // Uses @codetrix-studio/capacitor-google-auth (Google only, no Facebook SDK).

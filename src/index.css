@@ -52,65 +52,65 @@
 
 @layer base {
   :root {
-    /* Amlaki - Sage Green Elegant */
-    --background: 42 50% 95%;        /* #faf6ee cream */
-    --foreground: 122 11% 27%;       /* deep sage text */
+    /* Amlaki — Midnight Gold (primary identity) */
+    --background: 222 50% 10%;          /* #0d1426 midnight navy */
+    --foreground: 44 60% 89%;           /* #f3ead2 warm cream */
 
-    --card: 0 0% 100%;
-    --card-foreground: 122 11% 27%;
+    --card: 220 44% 14%;                /* #142036 surface */
+    --card-foreground: 44 60% 89%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 122 11% 27%;
+    --popover: 220 44% 16%;
+    --popover-foreground: 44 60% 89%;
 
-    /* Sage scale */
-    --sage-100: 42 30% 85%;          /* #e3ddcf */
-    --sage-200: 95 14% 74%;          /* #bcc7b1 */
-    --sage-300: 115 11% 59%;         /* #8ea38a */
-    --sage-400: 130 14% 44%;         /* #5f7e65 PRIMARY */
-    --sage-500: 130 16% 35%;         /* #4a6650 */
-    --sage-600: 125 12% 27%;         /* #3d4d3f text */
-    --sage-700: 130 13% 18%;         /* #2c3a2e darkest forest */
+    /* Midnight scale (was sage) — light → deep */
+    --sage-100: 220 35% 22%;            /* lightest surface variant on dark */
+    --sage-200: 220 30% 28%;
+    --sage-300: 42 14% 66%;             /* dusty cream — muted text */
+    --sage-400: 40 50% 60%;             /* #caa869 PRIMARY gold */
+    --sage-500: 40 43% 51%;             /* #b8954a deeper gold */
+    --sage-600: 44 60% 89%;             /* cream headings */
+    --sage-700: 222 50% 6%;             /* darkest midnight */
 
-    --primary: 130 14% 44%;
-    --primary-foreground: 42 50% 97%;
+    --primary: 40 50% 60%;              /* gold */
+    --primary-foreground: 222 60% 8%;
 
-    --secondary: 42 30% 88%;
-    --secondary-foreground: 122 11% 27%;
+    --secondary: 220 35% 20%;
+    --secondary-foreground: 44 60% 89%;
 
-    --muted: 42 30% 92%;
-    --muted-foreground: 122 8% 42%;
+    --muted: 220 30% 18%;
+    --muted-foreground: 42 14% 66%;
 
-    --accent: 42 39% 50%;            /* gold #a89456 */
-    --accent-foreground: 42 50% 97%;
+    --accent: 40 43% 51%;               /* deeper gold */
+    --accent-foreground: 222 60% 8%;
 
-    --gold: 42 39% 50%;
-    --terracotta: 22 38% 54%;        /* #b8895a warning */
-    --burgundy: 0 30% 51%;           /* #a85d5d danger */
-    --slate-info: 207 13% 54%;       /* #7a8e9a info */
+    --gold: 40 50% 60%;
+    --terracotta: 25 55% 63%;
+    --burgundy: 0 55% 65%;
+    --slate-info: 207 30% 70%;
 
-    --destructive: 0 30% 51%;
-    --destructive-foreground: 42 50% 97%;
+    --destructive: 0 55% 60%;
+    --destructive-foreground: 44 60% 95%;
 
-    --border: 42 25% 85%;
-    --input: 42 25% 88%;
-    --ring: 130 14% 44%;
+    --border: 40 50% 60%;               /* gold — used with alpha via rgba helper or opacity classes */
+    --input: 220 28% 22%;
+    --ring: 40 50% 60%;
 
     --radius: 1rem;
 
-    /* Gradients */
-    --gradient-sage: linear-gradient(135deg, hsl(130 14% 44%), hsl(130 16% 35%));
-    --gradient-deep: linear-gradient(135deg, hsl(130 16% 35%), hsl(125 12% 27%));
-    --gradient-cream: linear-gradient(135deg, hsl(42 50% 96%), hsl(42 30% 90%));
-    --gradient-gold: linear-gradient(135deg, hsl(42 45% 58%), hsl(42 39% 45%));
+    /* Gradients (Midnight Gold) */
+    --gradient-sage: linear-gradient(135deg, hsl(40 55% 64%), hsl(40 43% 48%));   /* gold — primary CTA */
+    --gradient-deep: linear-gradient(160deg, hsl(222 50% 12%), hsl(222 55% 6%));  /* midnight depth */
+    --gradient-cream: linear-gradient(135deg, hsl(220 44% 16%), hsl(220 40% 12%));/* dark surface */
+    --gradient-gold: linear-gradient(135deg, hsl(40 60% 68%), hsl(40 45% 48%));   /* premium gold */
+    --gradient-midnight: linear-gradient(160deg, #0f1a2e 0%, #0a1220 55%, #060b16 100%);
 
-    /* Shadows — sage-tinted (NEVER gray) */
-    --shadow-soft: 0 1px 2px rgba(95, 126, 101, 0.04), 0 4px 12px rgba(95, 126, 101, 0.06);
-    --shadow-elev: 0 4px 8px rgba(95, 126, 101, 0.06), 0 12px 32px rgba(95, 126, 101, 0.1);
-    --shadow-glow: 0 12px 30px -8px rgba(95, 126, 101, 0.4);
-    --shadow-gold: 0 12px 30px -8px rgba(168, 148, 86, 0.4);
+    /* Shadows — gold-tinted */
+    --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(202, 168, 105, 0.08);
+    --shadow-elev: 0 4px 10px rgba(0, 0, 0, 0.35), 0 14px 32px rgba(202, 168, 105, 0.14);
+    --shadow-glow: 0 14px 36px -10px rgba(202, 168, 105, 0.45);
+    --shadow-gold: 0 14px 36px -10px rgba(202, 168, 105, 0.55);
 
     --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
-    /* Motion tokens — Linear/Vercel quality */
     --ease-out: cubic-bezier(0, 0, 0.2, 1);
     --ease-smooth: cubic-bezier(0.32, 0.72, 0, 1);
     --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -118,77 +118,78 @@
     --dur-base: 200ms;
     --dur-slow: 300ms;
 
-
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 222 50% 8%;
+    --sidebar-foreground: 44 60% 89%;
+    --sidebar-primary: 40 50% 60%;
+    --sidebar-primary-foreground: 222 60% 8%;
+    --sidebar-accent: 220 35% 16%;
+    --sidebar-accent-foreground: 44 60% 89%;
+    --sidebar-border: 40 50% 60%;
+    --sidebar-ring: 40 50% 60%;
   }
 
   .dark {
-    /* Amlaki Dark - Deep Sage Night (refined) */
-    --background: 135 12% 7%;          /* near-black sage */
-    --foreground: 42 35% 94%;          /* warm cream text */
+    /* Dark mode is essentially the same identity, slightly deeper */
+    --background: 222 55% 7%;
+    --foreground: 44 60% 92%;
 
-    --card: 135 11% 11%;
-    --card-foreground: 42 35% 94%;
+    --card: 220 48% 11%;
+    --card-foreground: 44 60% 92%;
 
-    --popover: 135 11% 13%;
-    --popover-foreground: 42 35% 94%;
+    --popover: 220 48% 13%;
+    --popover-foreground: 44 60% 92%;
 
-    /* Sage scale - lighter as number grows for visibility on dark */
-    --sage-100: 135 10% 17%;
-    --sage-200: 130 12% 26%;
-    --sage-300: 125 15% 50%;
-    --sage-400: 128 28% 65%;           /* PRIMARY - bright sage */
-    --sage-500: 128 32% 76%;
-    --sage-600: 130 35% 88%;           /* headings */
+    --sage-100: 220 35% 18%;
+    --sage-200: 220 30% 24%;
+    --sage-300: 42 14% 68%;
+    --sage-400: 40 55% 64%;
+    --sage-500: 40 48% 55%;
+    --sage-600: 44 60% 92%;
+    --sage-700: 222 55% 5%;
 
-    --primary: 128 28% 65%;
-    --primary-foreground: 135 14% 9%;
+    --primary: 40 55% 64%;
+    --primary-foreground: 222 60% 6%;
 
-    --secondary: 135 10% 18%;
-    --secondary-foreground: 42 35% 94%;
+    --secondary: 220 35% 16%;
+    --secondary-foreground: 44 60% 92%;
 
-    --muted: 135 10% 15%;
-    --muted-foreground: 122 12% 70%;
+    --muted: 220 30% 14%;
+    --muted-foreground: 42 14% 70%;
 
-    --accent: 42 60% 68%;              /* warm gold */
-    --accent-foreground: 135 14% 9%;
+    --accent: 40 48% 55%;
+    --accent-foreground: 222 60% 6%;
 
-    --gold: 42 60% 68%;
-    --terracotta: 22 60% 70%;
-    --burgundy: 4 65% 72%;
-    --slate-info: 207 30% 72%;
+    --gold: 40 55% 64%;
+    --terracotta: 25 60% 68%;
+    --burgundy: 0 60% 70%;
+    --slate-info: 207 35% 75%;
 
-    --destructive: 4 60% 58%;
-    --destructive-foreground: 42 35% 96%;
+    --destructive: 0 58% 62%;
+    --destructive-foreground: 44 60% 95%;
 
-    --border: 135 10% 22%;
-    --input: 135 10% 20%;
-    --ring: 128 28% 65%;
+    --border: 40 55% 64%;
+    --input: 220 28% 18%;
+    --ring: 40 55% 64%;
 
-    --gradient-sage: linear-gradient(135deg, hsl(128 28% 42%), hsl(130 30% 28%));
-    --gradient-deep: linear-gradient(135deg, hsl(135 14% 18%), hsl(135 14% 10%));
-    --gradient-cream: linear-gradient(135deg, hsl(135 12% 14%), hsl(135 12% 9%));
-    --gradient-gold: linear-gradient(135deg, hsl(42 55% 55%), hsl(38 50% 42%));
+    --gradient-sage: linear-gradient(135deg, hsl(40 58% 66%), hsl(40 46% 50%));
+    --gradient-deep: linear-gradient(160deg, hsl(222 55% 10%), hsl(222 60% 4%));
+    --gradient-cream: linear-gradient(135deg, hsl(220 48% 13%), hsl(220 44% 9%));
+    --gradient-gold: linear-gradient(135deg, hsl(40 62% 70%), hsl(40 48% 50%));
+    --gradient-midnight: linear-gradient(160deg, #0b1426 0%, #060c18 55%, #03060e 100%);
 
-    --shadow-soft: 0 4px 14px hsl(0 0% 0% / 0.45);
-    --shadow-elev: 0 10px 30px hsl(0 0% 0% / 0.55);
-    --shadow-glow: 0 14px 44px hsl(128 35% 25% / 0.6);
+    --shadow-soft: 0 4px 14px rgba(0, 0, 0, 0.55);
+    --shadow-elev: 0 10px 30px rgba(0, 0, 0, 0.65);
+    --shadow-glow: 0 14px 44px rgba(202, 168, 105, 0.30);
+    --shadow-gold: 0 14px 36px -10px rgba(202, 168, 105, 0.65);
 
-    --sidebar-background: 135 12% 9%;
-    --sidebar-foreground: 42 30% 90%;
-    --sidebar-primary: 128 28% 65%;
-    --sidebar-primary-foreground: 135 14% 9%;
-    --sidebar-accent: 135 10% 16%;
-    --sidebar-accent-foreground: 42 30% 90%;
-    --sidebar-border: 135 10% 22%;
-    --sidebar-ring: 128 28% 65%;
+    --sidebar-background: 222 55% 6%;
+    --sidebar-foreground: 44 60% 92%;
+    --sidebar-primary: 40 55% 64%;
+    --sidebar-primary-foreground: 222 60% 6%;
+    --sidebar-accent: 220 35% 14%;
+    --sidebar-accent-foreground: 44 60% 92%;
+    --sidebar-border: 40 55% 64%;
+    --sidebar-ring: 40 55% 64%;
   }
 
   .dark .glass {
@@ -279,9 +280,10 @@ html[lang="ar"] body {
 
 @layer components {
   .glass {
-    background: hsl(42 50% 97% / 0.75);
+    background: hsl(220 44% 14% / 0.72);
     backdrop-filter: blur(20px) saturate(1.4);
     -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    border-color: rgba(202, 168, 105, 0.14);
   }
 
   .mobile-shell {
@@ -367,7 +369,7 @@ html[lang="ar"] body {
   .badge-pop {
     animation: badge-pop 400ms var(--ease-spring) both;
   }
-  /* Skeleton shimmer — sage-tinted */
+  /* Skeleton shimmer — gold-tinted */
   .skeleton-shimmer {
     position: relative;
     overflow: hidden;
@@ -381,15 +383,76 @@ html[lang="ar"] body {
     background-image: linear-gradient(
       90deg,
       transparent 0,
-      rgba(95, 126, 101, 0.08) 40%,
-      rgba(95, 126, 101, 0.14) 50%,
-      rgba(95, 126, 101, 0.08) 60%,
+      rgba(202, 168, 105, 0.08) 40%,
+      rgba(202, 168, 105, 0.16) 50%,
+      rgba(202, 168, 105, 0.08) 60%,
       transparent 100%
     );
     animation: shimmer 1.6s var(--ease-smooth) infinite;
   }
   [dir="rtl"] .skeleton-shimmer::after {
     animation-direction: reverse;
+  }
+
+  /* === Midnight Gold — luxury motion utilities === */
+
+  /* Subtle gold shimmer sweep on primary CTAs (every ~6s) */
+  .gold-shimmer {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  .gold-shimmer::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      105deg,
+      transparent 30%,
+      rgba(255, 240, 200, 0.32) 50%,
+      transparent 70%
+    );
+    transform: translateX(-120%);
+    animation: gold-sweep 6s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .gold-shimmer > * { position: relative; z-index: 1; }
+
+  /* Soft gold glow pulse — for active/featured elements */
+  .gold-glow {
+    animation: gold-glow 3.6s ease-in-out infinite;
+  }
+
+  /* SVG stroke-draw success check */
+  .stroke-draw {
+    stroke-dasharray: 64;
+    stroke-dashoffset: 64;
+    animation: stroke-draw 360ms cubic-bezier(0.32, 0.72, 0, 1) forwards;
+  }
+
+  /* Key rotate (pull-to-refresh, loaders themed to brand) */
+  .key-spin {
+    animation: key-spin 1.6s linear infinite;
+    transform-origin: center;
+  }
+
+  /* Bottom-nav active indicator (gold underline rises) */
+  .nav-active-indicator {
+    position: absolute;
+    bottom: -2px;
+    left: 50%;
+    transform: translateX(-50%) scaleX(0);
+    width: 22px;
+    height: 2px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, transparent, hsl(var(--gold)), transparent);
+    transition: transform var(--dur-base) var(--ease-out), opacity var(--dur-base) var(--ease-out);
+    opacity: 0;
+  }
+  .nav-active-indicator[data-active="true"] {
+    transform: translateX(-50%) scaleX(1);
+    opacity: 1;
   }
 }
 
@@ -420,6 +483,21 @@ html[lang="ar"] body {
 @keyframes tab-fade {
   from { opacity: 0; transform: translateY(2px); }
   to { opacity: 1; transform: translateY(0); }
+}
+@keyframes gold-sweep {
+  0%   { transform: translateX(-120%); }
+  60%  { transform: translateX(120%); }
+  100% { transform: translateX(120%); }
+}
+@keyframes gold-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(202, 168, 105, 0.0); }
+  50%      { box-shadow: 0 0 0 6px rgba(202, 168, 105, 0.18); }
+}
+@keyframes stroke-draw {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes key-spin {
+  to { transform: rotate(360deg); }
 }
 
 /* Respect user preference */
@@ -462,9 +540,9 @@ html[lang="ar"] body {
 .driver-popover {
   background: hsl(var(--card));
   color: hsl(var(--foreground));
-  border: 1px solid rgba(95,126,101,0.18);
+  border: 1px solid rgba(202,168,105,0.20);
   border-radius: 20px;
-  box-shadow: 0 24px 60px -20px rgba(95,126,101,0.45);
+  box-shadow: 0 24px 60px -20px rgba(202,168,105,0.35), 0 8px 24px rgba(0,0,0,0.45);
   font-family: inherit;
   padding: 18px 20px 14px;
   max-width: 320px;
@@ -509,7 +587,7 @@ html[lang="ar"] body {
 .driver-popover-prev-btn {
   background: transparent !important;
   color: hsl(var(--muted-foreground)) !important;
-  border: 1px solid rgba(95,126,101,0.25) !important;
+  border: 1px solid rgba(202,168,105,0.28) !important;
 }
 .driver-popover-close-btn {
   position: absolute;
@@ -524,7 +602,7 @@ html[lang="ar"] body {
   font-size: 16px !important;
 }
 .driver-popover-close-btn:hover {
-  background: rgba(95,126,101,0.08) !important;
+  background: rgba(202,168,105,0.10) !important;
 }
 .driver-popover-arrow {
   border-color: hsl(var(--card)) transparent transparent transparent;
@@ -550,8 +628,8 @@ html[lang="ar"] body {
   align-items: center;
   justify-content: center;
   gap: 18px;
-  background: linear-gradient(160deg, #5f7e65 0%, #3d5443 55%, #2c3a2e 100%);
-  color: #faf6ee;
+  background: radial-gradient(ellipse at 50% 60%, #14223b 0%, #0a1322 55%, #050912 100%);
+  color: #f3ead2;
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
   opacity: 0;
@@ -570,18 +648,21 @@ html[lang="ar"] body {
     amlaki-splash-logo-in 400ms cubic-bezier(0.32, 0.72, 0, 1) 100ms forwards,
     amlaki-splash-pulse 3.2s ease-in-out 600ms infinite;
   will-change: transform, opacity;
+  filter: drop-shadow(0 0 24px rgba(202, 168, 105, 0.35));
 }
 .amlaki-splash__logo-tile {
   width: 108px;
   height: 108px;
   border-radius: 26px;
-  background: rgba(250, 246, 238, 0.10);
-  border: 1px solid rgba(250, 246, 238, 0.18);
+  background: rgba(202, 168, 105, 0.06);
+  border: 1px solid rgba(202, 168, 105, 0.22);
   display: grid;
   place-items: center;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  box-shadow: 0 12px 40px -10px rgba(20, 30, 24, 0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 240, 200, 0.10),
+    0 18px 50px -12px rgba(202, 168, 105, 0.35);
 }
 .amlaki-splash__name {
   text-align: center;
@@ -596,14 +677,17 @@ html[lang="ar"] body {
   font-size: 32px;
   letter-spacing: -0.03em;
   margin: 0;
-  color: #faf6ee;
+  background: linear-gradient(135deg, #e5c98a 0%, #caa869 50%, #b8954a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 .amlaki-splash__name p {
   font-family: 'Noto Kufi Arabic', Tahoma, sans-serif;
   font-weight: 700;
   font-size: 22px;
   margin: 6px 0 0;
-  color: #faf6ee;
+  color: #caa869;
 }
 .amlaki-splash__tag {
   font-family: 'Outfit', system-ui, sans-serif;
@@ -611,7 +695,7 @@ html[lang="ar"] body {
   font-weight: 600;
   letter-spacing: 0.32em;
   text-transform: uppercase;
-  color: rgba(250, 246, 238, 0.55);
+  color: rgba(202, 168, 105, 0.55);
   opacity: 0;
   animation: amlaki-splash-tag-in 300ms cubic-bezier(0.32, 0.72, 0, 1) 750ms forwards;
 }
