@@ -33,13 +33,13 @@ const config: CapacitorConfig = {
       splashFullScreen: true,
       splashImmersive: false,
     },
-    // Native Google Sign-In (used only inside the iOS/Android app).
-    // Fill in the same values as src/lib/nativeGoogleAuth.ts.
-    SocialLogin: {
-      google: {
-        iOSClientId: "REPLACE_WITH_IOS_CLIENT_ID.apps.googleusercontent.com",
-        webClientId: "REPLACE_WITH_WEB_CLIENT_ID.apps.googleusercontent.com",
-      },
+    // Native Google Sign-In (iOS/Android only).
+    // Uses @codetrix-studio/capacitor-google-auth (Google only, no Facebook SDK).
+    // Fill in the same values as src/lib/nativeGoogleAuth.ts before shipping.
+    GoogleAuth: {
+      scopes: ["email", "profile"],
+      serverClientId: "REPLACE_WITH_WEB_CLIENT_ID.apps.googleusercontent.com",
+      forceCodeForRefreshToken: false,
     },
   },
 };
