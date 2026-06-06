@@ -247,10 +247,9 @@ export default function Reports() {
       monthly: months.map((m) => ({ label: m.label, income: m.income, expenses: m.expenses, net: m.net })),
       buildings: buildingBreakdown,
     };
-    await downloadHTMLAsPDF(
-      buildReportHTML(data),
-      `amlaki-report-${new Date().toISOString().slice(0, 10)}.pdf`,
-      { pageSize: settings.pageSize, margins: settings.margins }
+    await downloadReportPDFDirect(
+      data,
+      `amlaki-report-${new Date().toISOString().slice(0, 10)}.pdf`
     );
   };
 
