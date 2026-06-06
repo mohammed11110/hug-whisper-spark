@@ -1,6 +1,7 @@
 import { NavLink } from "react-router-dom";
 import { useI18n } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
+import { navPrefetchHandlers } from "@/lib/routePrefetch";
 
 const tabs = [
   { to: "/", label: "dashboard", icon: "◐", t2: false },
@@ -22,6 +23,7 @@ export function BottomNav() {
               <NavLink
                 to={tab.to}
                 end={tab.to === "/"}
+                {...navPrefetchHandlers(tab.to)}
                 className={({ isActive }) =>
                   `flex flex-col items-center gap-0.5 py-2 rounded-xl transition-all ${
                     isActive ? "text-sage-600" : "text-muted-foreground"

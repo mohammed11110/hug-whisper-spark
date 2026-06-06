@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -40,7 +40,9 @@ export function AppShell() {
           <AppSidebar />
         </div>
         <main key={location.pathname} className="flex-1 min-w-0 page-enter">
-          <Outlet />
+          <Suspense fallback={<RouteFallback />}>
+            <Outlet />
+          </Suspense>
         </main>
 
       </div>
@@ -48,5 +50,20 @@ export function AppShell() {
       <InstallPrompt />
       <PWAUpdatePrompt />
     </SidebarProvider>
+  );
+}
+
+/**
+ * Lightweight fallback shown for the brief moment a lazy route chunk
+ * is still being fetched. A thin sage progress bar at the top keeps the
+ * shell (sidebar, banners, FAB) visible so navigation feels instant
+ * instead of blanking to a full LoadingScreen.
+ */
+function RouteFallback() {
+  return (
+    <div className="relative w-full h-1 overflow-hidden bg-sage-50/40">
+      <div className="absolute inset-y-0 w-1/3 bg-sage-400/70 animate-[routeBar_1.1s_ease-in-out_infinite]" />
+      <style>{`@keyframes routeBar{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}`}</style>
+    </div>
   );
 }

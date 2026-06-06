@@ -31,6 +31,7 @@ import {
 import { Logo } from "@/components/Logo";
 import { useI18n } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
+import { navPrefetchHandlers } from "@/lib/routePrefetch";
 
 export function AppSidebar() {
   const { t, rtl } = useI18n();
@@ -92,7 +93,7 @@ export function AppSidebar() {
                 {group.items.map((item) => (
                   <SidebarMenuItem key={item.to}>
                     <SidebarMenuButton asChild isActive={isActive(item.to)} tooltip={item.label}>
-                      <NavLink to={item.to} end={(item as any).end}>
+                      <NavLink to={item.to} end={(item as any).end} {...navPrefetchHandlers(item.to)}>
                         <item.icon className="h-4 w-4" />
                         <span>{item.label}</span>
                       </NavLink>

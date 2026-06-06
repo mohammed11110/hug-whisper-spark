@@ -18,7 +18,7 @@ import { computeReceiptNumber, allocateReceiptNumbers, type CyclePaymentRef } fr
 import type { ReceiptNumbering } from "@/lib/appSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { buildReceiptHTML, downloadHTMLAsPDF } from "@/lib/pdfDocs";
+import { buildReceiptHTML, downloadHTMLAsPDF } from "@/lib/pdfDocsLazy";
 import { openWhatsApp, fillTemplate } from "@/lib/whatsapp";
 import { logActivity } from "@/lib/activityLogger";
 import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
@@ -488,13 +488,13 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
       return { baseArgs, upTo, unpaidTotal, monthLabel: primaryPeriodLabel };
   };
 
-  const openPreview = () => {
+  const openPreview = async () => {
     const args = buildReceiptArgs();
     if (!args) {
       toast.error(lang === "ar" ? "أدخل المبلغ واختر الوحدة أولاً" : "Enter amount and select a unit first");
       return;
     }
-    const html = buildReceiptHTML({
+    const html = await buildReceiptHTML({
       ...args.baseArgs,
       unpaidMonths: includeArrearsInReceipt ? args.upTo : [],
       unpaidTotal: includeArrearsInReceipt ? args.unpaidTotal : 0,
@@ -806,7 +806,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
 
   const emitReceipt = async (payload: any, includeArrears: boolean) => {
     try {
-      const html = buildReceiptHTML({
+      const html = await buildReceiptHTML({
         ...payload.baseArgs,
         unpaidMonths: includeArrears ? payload.upTo : [],
         unpaidTotal: includeArrears ? payload.unpaidTotal : 0,
@@ -1359,10 +1359,10 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                   setIncludeArrearsInReceipt((v) => {
                     const next = !v;
                     // re-render preview with the new flag
-                    setTimeout(() => {
+                    setTimeout(async () => {
                       const args = buildReceiptArgs();
                       if (!args) return;
-                      const html = buildReceiptHTML({
+                      const html = await buildReceiptHTML({
                         ...args.baseArgs,
                         unpaidMonths: next ? args.upTo : [],
                         unpaidTotal: next ? args.unpaidTotal : 0,
