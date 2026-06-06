@@ -304,7 +304,7 @@ export default function UnitDetail() {
     const totalCharges = entries.reduce((s, e) => s + e.charge, 0);
     const totalPaid = entries.reduce((s, e) => s + e.payment, 0);
 
-    const html = buildTenantStatementHTML({
+    const statementData = {
       brand: settings.brand,
       currency: currency.symbol,
       generatedAt: new Date().toISOString().slice(0, 10),
@@ -324,8 +324,25 @@ export default function UnitDetail() {
         openingBalance: opening,
         securityDeposit: Number((unit as any).security_deposit || 0),
       },
-    });
+    };
     const filename = `statement-${unit.unit_number}-${(unit.tenant_name || "tenant").replace(/\s+/g, "_")}.pdf`;
+
+    // On iPad/iPhone/native: skip the preview iframe entirely and route the
+    // freshly-generated PDF straight to the native share sheet. Eliminates
+    // the html2canvas double-render that caused the lag/glitch.
+    if (isNative() || isIOS()) {
+      try {
+        await downloadTenantStatementPDFDirect(statementData, filename);
+        toast.success(lang === "ar" ? "تم تجهيز كشف الحساب ✓" : "Statement ready ✓");
+      } catch (e: any) {
+        toast.error(e.message || "PDF error");
+      }
+      return;
+    }
+
+    // Desktop: show the existing preview for review, but save/print using
+    // the direct (vector) generator — no more html2canvas pass.
+    const html = buildTenantStatementHTML(statementData);
     openPreview({
       type: "pdf",
       title: lang === "ar" ? "كشف حساب المستأجر" : "Tenant statement",
@@ -333,12 +350,16 @@ export default function UnitDetail() {
       html,
       onSave: async () => {
         try {
-          await downloadHTMLAsPDF(html, filename, settings);
+          await downloadTenantStatementPDFDirect(statementData, filename);
           toast.success(lang === "ar" ? "تم حفظ الملف ✓" : "Saved ✓");
           closePreview();
         } catch (e: any) { toast.error(e.message || "PDF error"); }
       },
-      onPrint: () => { printHTML(html); },
+      onPrint: async () => {
+        try {
+          await printTenantStatementPDFDirect(statementData, filename);
+        } catch (e: any) { toast.error(e.message || "PDF error"); }
+      },
     });
   };
 
