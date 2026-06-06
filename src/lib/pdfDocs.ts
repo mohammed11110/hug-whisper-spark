@@ -2534,14 +2534,25 @@ async function createTenantStatementPDFDirect(data: TenantStatementData): Promis
     `${data.generatedAt || ""}\n${data.building || ""}`
   );
 
-  ddInfoGrid(ctx, [
+  const currentStatusValue = data.successorTenantName
+    ? data.successorTenantName
+    : data.unitCurrentlyVacant
+      ? "شاغر / Vacant"
+      : "—";
+
+  const infoItems: Array<{ label: string; value: string }> = [
     { label: "المستأجر / Tenant", value: [data.tenantName, data.tenantNameEn].filter(Boolean).join(" / ") || data.tenantName || "—" },
     { label: "الهاتف / Phone", value: data.tenantPhone || "—" },
     { label: "بداية العقد / Start", value: formatDate(data.contractStart) },
     { label: "نهاية العقد / End", value: formatDate(data.contractEnd) },
     { label: "الإيجار / Rent", value: formatMoney(data.rentAmount || 0, data.currency) },
     { label: "النوع / Type", value: data.rentType || "—" },
-  ]);
+    { label: "حالة الوحدة الآن / Current status", value: currentStatusValue },
+  ];
+  if (data.evictionDate) {
+    infoItems.push({ label: "تاريخ الإخلاء / Move-out", value: formatDate(data.evictionDate) });
+  }
+  ddInfoGrid(ctx, infoItems);
 
   ctx.cursor.y += 2;
   ddSection(ctx, "الحركات / Transactions");
@@ -2568,6 +2579,7 @@ async function createTenantStatementPDFDirect(data: TenantStatementData): Promis
     payment: r.payment ? formatMoney(r.payment, data.currency) : "—",
     balance: formatMoney(r.balance, data.currency),
     _balRaw: r.balance,
+    _kind: r.kind || "normal",
   }));
   if (tableRows.length === 0) {
     ddText(ctx, { text: "لا توجد حركات / No records", x: ctx.marginX, y: ctx.cursor.y + 4, width: ctx.contentW, fontSize: 10, color: PDF_COLORS.muted, align: "center" });
