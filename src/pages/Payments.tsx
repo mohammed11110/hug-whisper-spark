@@ -22,7 +22,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
 import { isNative, handlePdfBlobNative } from "@/lib/nativeFiles";
-import { printHTML } from "@/lib/pdfDocs";
+import { printHTML, openPrintView } from "@/lib/pdfDocs";
+import { isIOS } from "@/lib/platform";
 
 interface Row {
   id: string;
