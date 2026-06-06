@@ -88,6 +88,7 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
     setTenantName(""); setTenantNameEn(""); setTenantPhone(""); setTenantEmail(""); setRentAmount("0"); setRentType("monthly");
     setContractType("yearly"); setContractStart(""); setDueDay("1"); setRentTiming("advance");
     setArrears("0"); setRecordPay(false); setPayAmount("0"); setPayMethod("cash");
+    setBackdated(null);
   };
 
   const arrN = parseFloat(arrears) || 0;
