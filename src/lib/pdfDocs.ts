@@ -186,6 +186,13 @@ export interface ReceiptData {
   settlementNote?: string | null;
   collectedArrears?: Array<{ label: string; amount: number }>;
   grandTotal?: number | null;
+  cycleTotalDue?: number | null;
+  cyclePaidToDate?: number | null;
+  cycleRemaining?: number | null;
+  otherOutstanding?: number | null;
+  statusKey?: "paid" | "late" | "partial" | "soon";
+  statusLabel?: string | null;
+  installmentNote?: string | null;
 }
 
 export interface Lease {
@@ -1324,6 +1331,264 @@ export async function downloadLeasePDF(data: Lease, filename: string) {
   cursorY += 6;
   drawTextBlock({ text: footerText, x: marginX, y: cursorY, width: contentW, fontSize: smallFontSize, color: PDF_COLORS.muted, align: "center" });
 
+  await savePdfBlob(pdf, filename);
+}
+
+async function createReceiptPDFDirect(data: ReceiptData): Promise<{ pdf: jsPDF; statusKey: "paid" | "late" | "partial" | "soon" }> {
+  const rtl = data.lang !== "en";
+  const L = (ar: string, en: string) => (rtl ? ar : en);
+  const pdf = new jsPDF({ unit: "mm", format: "a4" });
+  await registerLeasePdfFonts(pdf);
+
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const marginX = 16;
+  const marginTop = 18;
+  const marginBottom = 16;
+  const contentW = pageW - marginX * 2;
+  const cardGap = 6;
+  const cardW = (contentW - cardGap) / 2;
+  const labelFontSize = 9;
+  const valueFontSize = 12;
+  const bodyFontSize = 11;
+  const sectionFontSize = 13;
+  const titleFontSize = 18;
+  const smallFontSize = 9;
+  const totalFontSize = 16;
+
+  const amountPaid = Number(data.amount || 0);
+  const cycleDue = Number(data.cycleTotalDue ?? data.expectedAmount ?? amountPaid) || amountPaid;
+  const cyclePaid = Number(data.cyclePaidToDate ?? amountPaid) || amountPaid;
+  const cycleRemaining = Math.max(0, Number(data.cycleRemaining ?? Math.max(0, cycleDue - cyclePaid)) || 0);
+  const otherOutstanding = Math.max(0, Number(data.otherOutstanding || 0) || 0);
+  const grandTotal = Number(data.grandTotal ?? amountPaid) || amountPaid;
+  const partial = !!(data.expectedAmount && amountPaid + 0.009 < data.expectedAmount);
+  const statusKey = data.statusKey || (partial ? "partial" : cycleRemaining <= 0.009 ? "paid" : "late");
+  const installmentNote = data.installmentNote || "";
+  const amountLabel = formatMoney(amountPaid, data.currency);
+  const cycleDueLabel = formatMoney(cycleDue, data.currency);
+  const cyclePaidLabel = formatMoney(cyclePaid, data.currency);
+  const cycleRemainingLabel = formatMoney(cycleRemaining, data.currency);
+  const grandTotalLabel = formatMoney(grandTotal, data.currency);
+  const unpaidTotalLabel = formatMoney(data.unpaidTotal || 0, data.currency);
+  const otherOutstandingLabel = formatMoney(otherOutstanding, data.currency);
+  const paymentDateLabel = formatDate(data.paymentDate, rtl);
+
+  let cursorY = marginTop;
+
+  const ensureSpace = (heightNeeded: number) => {
+    if (cursorY + heightNeeded <= pageH - marginBottom) return;
+    pdf.addPage();
+    cursorY = marginTop;
+  };
+
+  const setTextColor = (rgb: readonly number[]) => pdf.setTextColor(rgb[0], rgb[1], rgb[2]);
+  const setDrawColor = (rgb: readonly number[]) => pdf.setDrawColor(rgb[0], rgb[1], rgb[2]);
+  const setFillColor = (rgb: readonly number[]) => pdf.setFillColor(rgb[0], rgb[1], rgb[2]);
+
+  const drawTextBlock = ({ text, x, y, width, fontSize, bold = false, color = PDF_COLORS.ink, align }: {
+    text: unknown; x: number; y: number; width: number; fontSize: number; bold?: boolean; color?: readonly number[]; align?: "left" | "right" | "center";
+  }) => {
+    pdf.setFontSize(fontSize);
+    const prepared = splitPdfText(pdf, text, width, fontSize, bold);
+    setTextColor(color);
+    const resolvedAlign = align || (prepared.arabic ? "right" : "left");
+    const textX = resolvedAlign === "right" ? x + width : resolvedAlign === "center" ? x + width / 2 : x;
+    pdf.text(prepared.lines, textX, y, { align: resolvedAlign });
+    return prepared.lines.length * getPdfLineHeight(fontSize);
+  };
+
+  const drawSectionTitle = (title: string) => {
+    ensureSpace(12);
+    const height = drawTextBlock({ text: title, x: marginX, y: cursorY, width: contentW, fontSize: sectionFontSize, bold: true, color: PDF_COLORS.sage });
+    cursorY += height + 2;
+    setDrawColor(PDF_COLORS.line);
+    pdf.line(marginX, cursorY, pageW - marginX, cursorY);
+    cursorY += 6;
+  };
+
+  const measureDetailCard = (value: unknown) => {
+    const innerPadding = 4;
+    const labelH = getPdfLineHeight(labelFontSize, 1.2);
+    const valuePrepared = splitPdfText(pdf, value, cardW - innerPadding * 2, valueFontSize, true);
+    const valueH = Math.max(valuePrepared.lines.length * getPdfLineHeight(valueFontSize, 1.3), 8);
+    return Math.max(18, innerPadding * 2 + labelH + valueH + 2);
+  };
+
+  const drawDetailCard = (x: number, y: number, label: string, value: unknown) => {
+    const innerPadding = 4;
+    const labelH = getPdfLineHeight(labelFontSize, 1.2);
+    const valuePrepared = splitPdfText(pdf, value, cardW - innerPadding * 2, valueFontSize, true);
+    const cardH = measureDetailCard(value);
+
+    setFillColor(PDF_COLORS.soft);
+    setDrawColor(PDF_COLORS.line);
+    pdf.roundedRect(x, y, cardW, cardH, 4, 4, "FD");
+    drawTextBlock({ text: label, x: x + innerPadding, y: y + 5, width: cardW - innerPadding * 2, fontSize: labelFontSize, color: PDF_COLORS.muted });
+    drawTextBlock({ text: value, x: x + innerPadding, y: y + 5 + labelH + 1, width: cardW - innerPadding * 2, fontSize: valueFontSize, bold: true, color: PDF_COLORS.ink, align: valuePrepared.arabic ? "right" : "left" });
+    return cardH;
+  };
+
+  const drawKeyValueRow = (label: string, value: unknown, opts?: { positive?: boolean; negative?: boolean; background?: readonly number[]; border?: readonly number[] }) => {
+    const labelPrepared = splitPdfText(pdf, label, contentW * 0.45, bodyFontSize, false);
+    const valuePrepared = splitPdfText(pdf, value, contentW * 0.45, bodyFontSize, true);
+    const height = Math.max(labelPrepared.lines.length, valuePrepared.lines.length) * getPdfLineHeight(bodyFontSize, 1.35) + 6;
+    ensureSpace(height + 2);
+
+    if (opts?.background) {
+      setFillColor(opts.background);
+      setDrawColor(opts.border || PDF_COLORS.line);
+      pdf.roundedRect(marginX, cursorY - 4, contentW, height + 2, 4, 4, "FD");
+    } else {
+      setDrawColor(PDF_COLORS.line);
+      pdf.line(marginX, cursorY + height, pageW - marginX, cursorY + height);
+    }
+
+    drawTextBlock({ text: label, x: marginX + 4, y: cursorY + 4, width: contentW * 0.48, fontSize: bodyFontSize, color: PDF_COLORS.muted });
+    drawTextBlock({ text: value, x: marginX + contentW * 0.52, y: cursorY + 4, width: contentW * 0.44, fontSize: bodyFontSize, bold: true, color: opts?.negative ? PDF_COLORS.gold : opts?.positive ? PDF_COLORS.sage : PDF_COLORS.ink, align: rtl ? "left" : "right" });
+    cursorY += height + (opts?.background ? 6 : 2);
+  };
+
+  ensureSpace(36);
+  setFillColor(PDF_COLORS.soft);
+  setDrawColor(PDF_COLORS.line);
+  pdf.roundedRect(marginX, cursorY, contentW, 30, 6, 6, "FD");
+  if (data.brand.logo) {
+    try {
+      const logoData = await urlToDataUrl(data.brand.logo);
+      pdf.addImage(logoData, "PNG", marginX + 4, cursorY + 4, 18, 18, undefined, "FAST");
+    } catch {
+      drawTextBlock({ text: (data.brand.name || "A").trim().slice(0, 1), x: marginX + 7, y: cursorY + 14, width: 12, fontSize: 14, bold: true, color: PDF_COLORS.sage, align: "center" });
+    }
+  } else {
+    drawTextBlock({ text: (data.brand.name || "A").trim().slice(0, 1), x: marginX + 7, y: cursorY + 14, width: 12, fontSize: 14, bold: true, color: PDF_COLORS.sage, align: "center" });
+  }
+
+  drawTextBlock({ text: L("سند استلام إيجار", "Rent Receipt"), x: marginX + 26, y: cursorY + 10, width: contentW * 0.5, fontSize: titleFontSize, bold: true, color: PDF_COLORS.ink });
+  drawTextBlock({ text: data.brand.name || "—", x: marginX + 26, y: cursorY + 18, width: contentW * 0.45, fontSize: bodyFontSize, color: PDF_COLORS.muted });
+  drawTextBlock({ text: `${L("رقم السند", "Receipt no.")}: ${data.receiptNumber || "—"}\n${L("التاريخ", "Date")}: ${paymentDateLabel}`, x: marginX + contentW * 0.62, y: cursorY + 9, width: contentW * 0.3, fontSize: smallFontSize, color: PDF_COLORS.muted, align: rtl ? "left" : "right" });
+  cursorY += 38;
+
+  if (installmentNote) {
+    ensureSpace(10);
+    setFillColor(PDF_COLORS.soft);
+    setDrawColor(PDF_COLORS.line);
+    pdf.roundedRect(marginX, cursorY - 2, contentW, 10, 4, 4, "FD");
+    drawTextBlock({ text: installmentNote, x: marginX + 4, y: cursorY + 4, width: contentW - 8, fontSize: smallFontSize, bold: true, color: statusKey === "paid" ? PDF_COLORS.sage : PDF_COLORS.gold, align: "center" });
+    cursorY += 12;
+  }
+
+  if (data.brand.address || data.brand.phone) {
+    const meta = [data.brand.address, data.brand.phone].filter(Boolean).join(" · ");
+    if (meta) {
+      ensureSpace(8);
+      drawTextBlock({ text: meta, x: marginX, y: cursorY + 2, width: contentW, fontSize: smallFontSize, color: PDF_COLORS.muted, align: "center" });
+      cursorY += 8;
+    }
+  }
+
+  cursorY += 2;
+  drawSectionTitle(L("بيانات السند", "Receipt details"));
+  const detailCards = [
+    { label: L("تاريخ الدفع", "Payment date"), value: paymentDateLabel },
+    { label: L("المبنى", "Building"), value: data.building || "—" },
+    { label: L("رقم الوحدة", "Unit"), value: data.unitNumber ? `#${data.unitNumber}` : "—" },
+    { label: L("المستأجر", "Tenant"), value: data.tenantName || "—" },
+    { label: L("طريقة السداد", "Method"), value: data.method || "—" },
+    { label: L("فترة الإيجار", "Rent period"), value: data.periodLabel || "—" },
+  ];
+  for (let i = 0; i < detailCards.length; i += 2) {
+    const left = detailCards[i];
+    const right = detailCards[i + 1];
+    const cardH = Math.max(measureDetailCard(left.value), right ? measureDetailCard(right.value) : 0);
+    ensureSpace(cardH + 4);
+    drawDetailCard(marginX, cursorY, left.label, left.value);
+    if (right) drawDetailCard(marginX + cardW + cardGap, cursorY, right.label, right.value);
+    cursorY += cardH + 4;
+  }
+
+  drawSectionTitle(L("ملخص الدفعة", "Payment summary"));
+  drawKeyValueRow(L("إجمالي مستحق الدورة", "Cycle total due"), cycleDueLabel);
+  drawKeyValueRow(L("المدفوع حتى الآن", "Paid to date"), cyclePaidLabel, { positive: true });
+  drawKeyValueRow(L("هذه الدفعة", "This payment"), amountLabel, { positive: true });
+
+  ensureSpace(18);
+  setFillColor(PDF_COLORS.soft);
+  setDrawColor(PDF_COLORS.line);
+  pdf.roundedRect(marginX, cursorY, contentW, 18, 5, 5, "FD");
+  drawTextBlock({ text: L("المبلغ المستلم", "Amount received"), x: marginX + 6, y: cursorY + 7, width: contentW * 0.45, fontSize: bodyFontSize, bold: true, color: PDF_COLORS.ink });
+  drawTextBlock({ text: grandTotalLabel, x: marginX + contentW * 0.5, y: cursorY + 8, width: contentW * 0.42, fontSize: totalFontSize, bold: true, color: PDF_COLORS.sage, align: rtl ? "left" : "right" });
+  cursorY += 24;
+
+  drawKeyValueRow(L("المتبقي على الدورة", "Cycle remaining"), cycleRemainingLabel, { positive: cycleRemaining <= 0.009, negative: cycleRemaining > 0.009, background: PDF_COLORS.soft, border: PDF_COLORS.line });
+  if (otherOutstanding > 0.009) drawKeyValueRow(L("متأخرات أخرى على الوحدة", "Other outstanding on unit"), otherOutstandingLabel, { negative: true, background: PDF_COLORS.soft, border: PDF_COLORS.line });
+
+  if (data.settlementNote) {
+    drawSectionTitle(L("إشعار سداد", "Settlement notice"));
+    ensureSpace(16);
+    setFillColor(PDF_COLORS.soft);
+    setDrawColor(PDF_COLORS.line);
+    pdf.roundedRect(marginX, cursorY - 2, contentW, 14, 4, 4, "FD");
+    const noteH = drawTextBlock({ text: data.settlementNote, x: marginX + 4, y: cursorY + 4, width: contentW - 8, fontSize: bodyFontSize, color: PDF_COLORS.ink });
+    cursorY += Math.max(14, noteH + 6);
+  } else if (data.expectedAmount) {
+    drawKeyValueRow(L("الإيجار المتوقع للفترة", "Expected rent"), formatMoney(data.expectedAmount, data.currency));
+  }
+
+  if (data.collectedArrears?.length) {
+    drawSectionTitle(L("تفاصيل التحصيل", "Collection breakdown"));
+    drawKeyValueRow(`${L("إيجار", "Rent")} — ${data.periodLabel || "—"}`, formatMoney(amountPaid - data.collectedArrears.reduce((s, a) => s + a.amount, 0), data.currency));
+    data.collectedArrears.forEach((row) => drawKeyValueRow(`${L("متأخرات", "Arrears")} — ${row.label}`, formatMoney(row.amount, data.currency)));
+    drawKeyValueRow(L("الإجمالي المحصَّل", "Total collected"), grandTotalLabel, { positive: true, background: PDF_COLORS.soft, border: PDF_COLORS.line });
+  }
+
+  if (data.unpaidMonths?.length) {
+    drawSectionTitle(L("الأشهر غير المسدّدة", "Remaining unpaid months"));
+    data.unpaidMonths.forEach((row) => drawKeyValueRow(row.label, formatMoney(row.remaining, data.currency)));
+  }
+
+  if ((data.unpaidTotal || 0) > 0.009) {
+    drawKeyValueRow(`${L("إجمالي المتأخرات", "Total outstanding")}${data.unpaidUpToLabel ? ` ${L("حتى نهاية", "through")} ${data.unpaidUpToLabel}` : ""}`, unpaidTotalLabel, { negative: true, background: PDF_COLORS.soft, border: PDF_COLORS.line });
+  }
+
+  if (data.notes) {
+    drawSectionTitle(L("ملاحظات", "Notes"));
+    ensureSpace(16);
+    setFillColor(PDF_COLORS.soft);
+    setDrawColor(PDF_COLORS.line);
+    pdf.roundedRect(marginX, cursorY - 2, contentW, 14, 4, 4, "FD");
+    const notesH = drawTextBlock({ text: data.notes, x: marginX + 4, y: cursorY + 4, width: contentW - 8, fontSize: bodyFontSize, color: PDF_COLORS.ink });
+    cursorY += Math.max(14, notesH + 6);
+  }
+
+  ensureSpace(28);
+  cursorY += 4;
+  setDrawColor(PDF_COLORS.line);
+  pdf.line(marginX, cursorY + 10, marginX + contentW * 0.42, cursorY + 10);
+  pdf.line(pageW - marginX - contentW * 0.42, cursorY + 10, pageW - marginX, cursorY + 10);
+  drawTextBlock({ text: L("توقيع المستلم", "Recipient signature"), x: marginX, y: cursorY + 15, width: contentW * 0.42, fontSize: smallFontSize, color: PDF_COLORS.muted, align: "center" });
+  drawTextBlock({ text: L("ختم المؤسسة", "Company stamp"), x: pageW - marginX - contentW * 0.42, y: cursorY + 15, width: contentW * 0.42, fontSize: smallFontSize, color: PDF_COLORS.muted, align: "center" });
+
+  return { pdf, statusKey };
+}
+
+export async function downloadReceiptPDFDirect(data: ReceiptData, filename: string): Promise<void> {
+  const startedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
+  const { pdf, statusKey } = await createReceiptPDFDirect(data);
+  const endedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
+  console.info("[receipt-pdf:direct] done", { ms: Math.round(endedAt - startedAt), receiptNumber: data.receiptNumber, native: isNative(), statusKey });
+  await savePdfBlob(pdf, filename);
+}
+
+export async function printReceiptPDFDirect(data: ReceiptData, filename: string): Promise<void> {
+  const startedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
+  const { pdf, statusKey } = await createReceiptPDFDirect(data);
+  const endedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
+  console.info("[receipt-pdf:direct-print] done", { ms: Math.round(endedAt - startedAt), receiptNumber: data.receiptNumber, native: isNative(), statusKey });
+  if (isNative()) {
+    await handlePdfBlobNative(pdf.output("blob"), filename, "print", { title: filename });
+    return;
+  }
   await savePdfBlob(pdf, filename);
 }
 
