@@ -12,6 +12,7 @@ export function SettingsPanel({ open, onOpenChange }: { open: boolean; onOpenCha
   const { t, lang, setLang } = useI18n();
   const { currency, setCurrency } = useCurrency();
   const { user, signOut } = useAuth();
+  const { theme, setTheme, resolved } = useTheme();
   const navigate = useNavigate();
   const [tab, setTab] = useState<"account" | "language" | "currency">("account");
 
