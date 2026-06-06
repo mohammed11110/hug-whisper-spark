@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
 import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
 import { X, Image as ImageIcon, Loader2 } from "lucide-react";
+import { BackdatedContractCard, type BackdatedResolution } from "@/components/BackdatedContractCard";
 
 
 interface Props {
