@@ -289,7 +289,7 @@ export default function Payments() {
       building: r.building_name,
       unitNumber: r.unit_number,
       tenantName: r.tenant_name,
-      currency,
+      currency: String(currency),
       lang: lng,
       cycleTotalDue: cycleDue,
       cyclePaidToDate: cumulativePaid,
