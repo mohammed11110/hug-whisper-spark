@@ -11,7 +11,6 @@ import { Input } from "@/components/ui/input";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { useI18n, docLang } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
@@ -21,8 +20,8 @@ import { suffixOf, isPartialSuffix, isFinalSuffix, derivePartialMetaForDisplay, 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
-import { isNative, handlePdfBlobNative } from "@/lib/nativeFiles";
-import { printHTML, openPrintView } from "@/lib/pdfDocs";
+import { isNative } from "@/lib/nativeFiles";
+import { openPrintView } from "@/lib/pdfDocs";
 import { isIOS } from "@/lib/platform";
 
 interface Row {
