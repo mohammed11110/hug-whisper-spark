@@ -2464,20 +2464,29 @@ function ddTable(
   ctx.cursor.y += headerH;
 
   rows.forEach((row, idx) => {
+    const isEviction = row._kind === "eviction";
     const cellHeights = cols.map((c) => {
       const v = splitPdfText(pdf, row[c.key], c.width - 4, 10, false);
       return Math.max(7, v.lines.length * getPdfLineHeight(10, 1.25) + 3);
     });
-    const rowH = Math.max(...cellHeights, 8);
+    const rowH = Math.max(...cellHeights, isEviction ? 10 : 8);
     ddEnsureSpace(ctx, rowH);
-    if (idx % 2 === 1) {
+    if (isEviction) {
+      // Sage-tinted highlight band spanning from date to balance columns
+      pdf.setFillColor(225, 234, 220);
+      pdf.rect(marginX, ctx.cursor.y, ctx.contentW, rowH, "F");
+    } else if (idx % 2 === 1) {
       pdf.setFillColor(250, 248, 240);
       pdf.rect(marginX, ctx.cursor.y, ctx.contentW, rowH, "F");
     }
     let cx = marginX;
     cols.forEach((c) => {
-      const color = c.color ? c.color(row) : undefined;
-      ddText(ctx, { text: row[c.key] ?? "—", x: cx + 2, y: ctx.cursor.y + 5, width: c.width - 4, fontSize: 10, color, align: c.align });
+      const color = isEviction
+        ? PDF_COLORS.ink
+        : c.color
+          ? c.color(row)
+          : undefined;
+      ddText(ctx, { text: row[c.key] ?? "—", x: cx + 2, y: ctx.cursor.y + 5, width: c.width - 4, fontSize: 10, bold: isEviction, color, align: c.align });
       cx += c.width;
     });
     pdf.setDrawColor(PDF_COLORS.line[0], PDF_COLORS.line[1], PDF_COLORS.line[2]);
