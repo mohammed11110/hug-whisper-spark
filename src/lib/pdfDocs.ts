@@ -90,20 +90,25 @@ async function registerFontsInDocument(doc: Document, urls: Record<FontKey, stri
   try { await anyDoc.fonts.ready; } catch { /* noop */ }
 }
 
+// Midnight Gold PDF palette — cream page, printable deep gold, midnight ink.
+// Page bg stays light for print legibility; brand color is the deep gold,
+// "sage" key is kept as the alias for primary brand accent (now gold) so all
+// existing call sites map cleanly without rewriting every section.
 const PDF_COLORS = {
-  ink: [34, 49, 39] as const,
-  muted: [106, 120, 107] as const,
-  line: [217, 226, 213] as const,
-  soft: [246, 243, 236] as const,
-  sage: [95, 126, 101] as const,
-  gold: [168, 148, 86] as const,
-  settlementBg: [238, 245, 236] as const,
-  settlementInk: [44, 90, 54] as const,
-  partialBg: [250, 242, 221] as const,
+  ink: [15, 26, 46] as const,             // #0f1a2e midnight ink (was sage-ink)
+  muted: [120, 116, 100] as const,        // warm dusty
+  line: [222, 208, 170] as const,         // soft gold hairline
+  soft: [251, 248, 240] as const,         // cream page surface
+  sage: [155, 126, 58] as const,          // #9b7e3a deep printable gold (brand accent on paper)
+  gold: [155, 126, 58] as const,          // same deep gold
+  settlementBg: [240, 232, 208] as const, // soft cream-gold for paid badge
+  settlementInk: [80, 60, 20] as const,   // deep gold ink for paid label
+  partialBg: [250, 240, 215] as const,
   lateBg: [246, 225, 225] as const,
   lateInk: [138, 42, 42] as const,
-  goldSoft: [245, 240, 224] as const,
+  goldSoft: [246, 238, 215] as const,
 };
+
 
 const MM_PER_POINT = 0.352778;
 const ARABIC_TEXT_RE = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/;
