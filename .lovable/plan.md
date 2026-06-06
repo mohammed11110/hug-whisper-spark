@@ -1,41 +1,78 @@
-# تطبيق الهوية الجديدة (Midnight Gold) على iOS و Android
+# إصلاح ألوان الصفحات على iOS (والويب)
 
-الهدف: مزامنة الشاشات الأصلية (Splash، خلفية التطبيق، شريط الحالة، أيقونة PWA) مع ألوان الهوية الجديدة المزدوجة Light/Dark.
+## السبب الجذري
 
-## التغييرات
+التحديث `c502fd1` ضبط ملف `src/index.css` و tokens النظام (Midnight + Gold). لكن صفحات وعناصر كثيرة لا تزال تستخدم **أسماء ألوان قديمة مباشرة من الباليت السابق** (`bg-white`, `bg-sage-*`, `bg-slate-*`, `text-white`, `bg-emerald-*`, `bg-burgundy`…). هذه الأسماء **لا تتفاعل مع التبديل بين Light/Dark** ولا مع هوية Midnight Gold، فتظهر باهتة/خاطئة داخل iOS WebView.
 
-### 1. `capacitor.config.ts`
-تحديث ألوان الخلفية والـ Splash من اللون القديم `#0d1426` إلى لون الهوية الجديد:
-- `ios.backgroundColor`: `#0e1118` (Midnight الرسمي للوضع الداكن)
-- `android.backgroundColor`: `#0e1118`
-- `SplashScreen.backgroundColor`: `#0e1118`
-- إبقاء `launchShowDuration: 500` و `showSpinner: false` كما هي
+## الملفات المتأثرة (≈18 ملف)
 
-ملاحظة: نستخدم لون الـ Dark لأن شاشة الإقلاع الأصلية ثابتة ولا تتبدّل مع النظام، واللون الذهبي على Midnight هو توقيع الهوية.
+**مجموعة "Daily" (الباقة اليومية) — الأكثر تأثراً:**
+- `src/pages/daily/DailyDashboard.tsx`
+- `src/pages/daily/DailyUnits.tsx`
+- `src/pages/daily/DailyBookings.tsx`
+- `src/pages/daily/DailyPricing.tsx`
+- `src/pages/daily/DailyReports.tsx`
+- `src/pages/daily/DailyMessages.tsx`
+- `src/pages/daily/DailyCalendar.tsx`
+- `src/pages/daily/DailyCleaning.tsx`
+- `src/pages/daily/DailyLayout.tsx`
 
-### 2. `public/manifest.webmanifest` (PWA)
-- `background_color`: `#0e1118` (بدل `#faf6ee`)
-- `theme_color`: `#c9a44c` (الذهب الساطع — بدل الـ sage القديم `#5a7359`)
+**الصفحات الأساسية:**
+- `src/pages/Settings.tsx` (بطاقات subscription + brand)
+- `src/pages/Maintenance.tsx` (badges حالة)
+- `src/pages/Notifications.tsx`
+- `src/pages/Activity.tsx`
+- `src/pages/PaymentsTrash.tsx`
+- `src/pages/Unsubscribe.tsx`
+- `src/pages/UnitDetail.tsx` (badges)
 
-### 3. `index.html`
-بالفعل يحتوي على `theme-color` مزدوج للـ light/dark — لا تغيير مطلوب.
+**مكوّنات:**
+- `src/components/NotificationBell.tsx`
+- `src/components/GraceBanner.tsx`
+- `src/components/EndTrialDialog.tsx`
+- `src/components/BusinessWhatsAppSection.tsx`
+- `src/components/AddPaymentDialog.tsx`
+- `src/components/AddMaintenanceDialog.tsx`
+- `src/components/FilePreviewDialog.tsx`
+- `src/components/UnitHealthBadge.tsx`
+- `src/components/dashboard/RecentActivityCard.tsx`
 
-### 4. أيقونات iOS Splash (توثيق فقط)
-ملفات `ios/App/App/Assets.xcassets/Splash.imageset/` و `AppIcon` لا تُولَّد من Lovable. سأضيف ملاحظة في الرد النهائي بأن المستخدم يحتاج تشغيل `npx cap sync ios` بعد التعديل، ولو أراد تحديث صور الـ Splash نفسها (الخلفية + الشعار) عليه إعادة توليدها في Xcode أو رفع PNG جديد.
+## خريطة الاستبدال
 
-### 5. `AnimatedSplash` overlay
-المكوّن الحالي يستخدم class `amlaki-splash` المعرّف في `index.css` — سأتحقق من الألوان داخله وأحدّثها إن كانت لا تزال تشير إلى `#0d1426` لضمان انسجام كامل مع `#0e1118`.
+| القديم | الجديد (semantic token) |
+|---|---|
+| `bg-white` | `bg-card` |
+| `bg-sage-50/60`, `bg-sage-100` | `bg-muted` |
+| `border-sage-200/*`, `border-sage-300` | `border-border` |
+| `text-sage-600`, `text-sage-700` | `text-muted-foreground` / `text-foreground` |
+| `bg-sage-400/500/600/700` (أزرار) | `bg-primary text-primary-foreground` |
+| `bg-emerald-600/700` | `bg-primary` (أو `bg-success` للحالات الإيجابية) |
+| `bg-slate-100/200/300` (badges) | `bg-muted text-muted-foreground` |
+| `bg-burgundy text-white` | `bg-destructive text-destructive-foreground` |
+| `bg-gold text-white` | `bg-accent text-accent-foreground` |
+| `bg-white/15`, `bg-white/25` (داخل بطاقات midnight) | تبقى كما هي — صحيحة فوق سطح midnight |
 
-## ملفات ستُعدَّل
-- `capacitor.config.ts`
-- `public/manifest.webmanifest`
-- `src/index.css` (فقط قسم `.amlaki-splash` إن لزم)
+## ما يبقى كما هو (مقصود)
 
-## ما لن يتغير
-- منطق الأعمال، التوجيه، المصادقة، قاعدة البيانات.
-- ملفات `ios/` و `android/` الأصلية (تُولَّد محلياً عند المستخدم عبر `npx cap sync`).
+- **PDF** في `src/lib/pdfDocs.ts` — يبقى بخلفية كريمية + ذهبي داكن + Midnight ink (مطلوب للطباعة).
+- **بطاقات Hero/Signature** على سطح midnight (Settings header, Dashboard hero) — `text-white` و `bg-white/15` صحيحان لأنهما فوق midnight ثابت.
+- **مكوّنات shadcn/ui** في `src/components/ui/` — لا تُعدّل.
 
-## خطوات المستخدم بعد التطبيق
-1. `git pull`
-2. `npx cap sync ios && npx cap sync android`
-3. إعادة بناء المشروع في Xcode / Android Studio.
+## الخطوات
+
+1. استبدال الكلاسات القديمة بـ semantic tokens في الملفات أعلاه (مرور موحّد).
+2. الإبقاء على `text-white` و `bg-white/*` **فقط** داخل أسطح midnight الدائمة (التحقّق سياقياً).
+3. تشغيل المعاينة والتأكد بصرياً من:
+   - الباقة اليومية بكامل صفحاتها في وضعَي Light/Dark
+   - badges الصيانة + التفاصيل
+   - الإشعارات + Activity
+4. بعد القبول، يقوم المستخدم بـ:
+   ```bash
+   git pull && npx cap sync ios
+   ```
+   ثم إعادة بناء التطبيق من Xcode.
+
+## ما لن يتغيّر في هذه المهمة
+
+- الأيقونة الأصلية و LaunchScreen (تتطلّب صور jpg/png تُولَّد بشكل منفصل في طلب آخر).
+- منطق الأعمال أو هيكلة قاعدة البيانات.
