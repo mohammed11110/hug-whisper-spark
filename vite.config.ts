@@ -104,7 +104,6 @@ export default defineConfig(({ mode }) => ({
         manualChunks(id) {
           if (!id.includes("node_modules")) return undefined;
           if (id.includes("/jspdf") || id.includes("/html2canvas")) return "pdf-vendor";
-          if (id.includes("/recharts") || id.includes("/d3-")) return "charts";
           if (id.includes("/@radix-ui/") || id.includes("/cmdk/") || id.includes("/lucide-react/")) return "ui-vendor";
           if (id.includes("/@tanstack/") || id.includes("/@supabase/")) return "data-vendor";
           if (
