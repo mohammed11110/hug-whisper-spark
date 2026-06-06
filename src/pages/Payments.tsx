@@ -401,7 +401,7 @@ export default function Payments() {
       building: r.building_name,
       unitNumber: r.unit_number,
       tenantName: r.tenant_name || "—",
-      currency,
+      currency: currency.symbol,
       lang: lng,
       cycleTotalDue: cycleDue,
       cyclePaidToDate: cumulativePaid,
@@ -417,6 +417,7 @@ export default function Payments() {
     try {
       const filename = `${r.receipt_number || r.id}.pdf`;
       const receiptData = buildReceiptDocData(r, lng);
+      console.info("[receipt:print:start]", { receiptNumber: receiptData.receiptNumber, native: isNative(), ios: isIOS() });
       // Native iOS/Android: generate a real PDF and hand it to the OS print
       // flow. This avoids window.open/sessionStorage/window.print issues.
       if (isNative()) {
@@ -458,6 +459,7 @@ export default function Payments() {
     try {
       const filename = `${r.receipt_number || r.id}.pdf`;
       const receiptData = buildReceiptDocData(r, lng);
+      console.info("[receipt:download:start]", { receiptNumber: receiptData.receiptNumber, native: isNative(), ios: isIOS() });
       if (isNative()) {
         await downloadReceiptPDFDirect(receiptData, filename);
         return;
