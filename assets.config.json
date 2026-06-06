@@ -1,0 +1,12 @@
+{
+  "ios": {
+    "iconBackgroundColor": "#5f7e65",
+    "iconBackgroundColorDark": "#2c3a2e"
+  },
+  "android": {
+    "iconBackgroundColor": "#5f7e65",
+    "iconBackgroundColorDark": "#2c3a2e",
+    "adaptiveIconForegroundImage": "resources/icon-foreground.png",
+    "adaptiveIconBackgroundImage": "resources/icon-background.png"
+  }
+}
