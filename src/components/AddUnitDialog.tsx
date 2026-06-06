@@ -101,7 +101,39 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
     if (occupied && (!tenantName.trim() || !tenantPhone.trim())) {
       return toast.error(t2("tenant_required"));
     }
+    if (isBackdated && !backdated) {
+      return toast.error(lang === "ar"
+        ? "العقد بتاريخ سابق — يجب اختيار أحد خيارات المتأخرات أولاً"
+        : "Backdated contract — pick one of the prior-arrears options first");
+    }
     setBusy(true);
+
+    // Resolve opening_balance / opening_balance_date / paid_up_to.
+    // Backdated card wins; otherwise fall back to the legacy arrears distribution.
+    const openingFields: Record<string, any> = (() => {
+      if (occupied && isBackdated && backdated) {
+        return {
+          opening_balance: backdated.openingBalance,
+          opening_balance_date: backdated.openingBalanceDate,
+          paid_up_to: backdated.paidUpTo,
+        };
+      }
+      if (occupied && arrN > 0 && rentN > 0 && rentType === "monthly") {
+        const dueInt = Math.min(28, Math.max(1, parseInt(dueDay) || 1));
+        const months = Math.floor(arrN / rentN);
+        const remainder = Math.max(0, arrN - months * rentN);
+        const monthsBack = rentTiming === "arrears" ? months : Math.max(0, months - 1);
+        const today = new Date();
+        const anchor = new Date(today.getFullYear(), today.getMonth() - monthsBack, dueInt);
+        const iso = `${anchor.getFullYear()}-${String(anchor.getMonth() + 1).padStart(2, "0")}-${String(anchor.getDate()).padStart(2, "0")}`;
+        return { opening_balance: remainder, opening_balance_date: iso };
+      }
+      return {
+        opening_balance: occupied ? arrN : 0,
+        opening_balance_date: occupied && arrN > 0 ? (contractStart || new Date().toISOString().slice(0, 10)) : null,
+      };
+    })();
+
     const { data: created, error } = await supabase.from("units").insert({
       building_id: buildingId,
       unit_number: unitNumber.trim(),
@@ -119,22 +151,7 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
       // status omitted — derived by DB trigger (recompute_unit_state)
       contract_type: contractType,
       contract_start_date: contractStart || null,
-      ...(occupied && arrN > 0 && rentN > 0 && rentType === "monthly"
-        ? (() => {
-            const dueInt = Math.min(28, Math.max(1, parseInt(dueDay) || 1));
-            // floor + remainder كي لا يتم تقريب المتأخرات لأعلى.
-            const months = Math.floor(arrN / rentN);
-            const remainder = Math.max(0, arrN - months * rentN);
-            const monthsBack = rentTiming === "arrears" ? months : Math.max(0, months - 1);
-            const today = new Date();
-            const anchor = new Date(today.getFullYear(), today.getMonth() - monthsBack, dueInt);
-            const iso = `${anchor.getFullYear()}-${String(anchor.getMonth() + 1).padStart(2, "0")}-${String(anchor.getDate()).padStart(2, "0")}`;
-            return { opening_balance: remainder, opening_balance_date: iso };
-          })()
-        : {
-            opening_balance: occupied ? arrN : 0,
-            opening_balance_date: occupied && arrN > 0 ? (contractStart || new Date().toISOString().slice(0, 10)) : null,
-          }),
+      ...openingFields,
     }).select("id").single();
 
     if (error || !created) {
