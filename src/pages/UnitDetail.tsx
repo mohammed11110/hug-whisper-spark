@@ -296,11 +296,43 @@ export default function UnitDetail() {
       });
     });
     entries.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+
+    // Determine eviction + current unit status for header/marker row
+    const norm = (s: any) => String(s || "").trim().toLowerCase();
+    const subjectName = unit.tenant_name || "";
+    const subjectTenancy =
+      (tenancies || []).find((t: any) => norm(t.tenant_name) === norm(subjectName)) ||
+      (tenancies || [])[0] ||
+      null;
+    const evictionDate = subjectTenancy?.ended_at || null;
+    const activeTenancy = (tenancies || []).find((t: any) => t.status === "active");
+    const currentTenantName = activeTenancy?.tenant_name || "";
+    const unitCurrentlyVacant = !currentTenantName;
+    const successorTenantName =
+      currentTenantName && norm(currentTenantName) !== norm(subjectName)
+        ? currentTenantName
+        : null;
+
     let bal = 0;
     const rows: StatementRow[] = entries.map((e) => {
       bal += e.charge - e.payment;
       return { date: e.date, month: e.month, description: e.description, charge: e.charge, payment: e.payment, balance: bal };
     });
+    // Insert eviction marker row at the right chronological position
+    if (evictionDate) {
+      const evRow: StatementRow = {
+        date: evictionDate,
+        month: evictionDate.slice(0, 7),
+        description: lang === "ar" ? "إخلاء المستأجر / Tenant move-out" : "Tenant move-out / إخلاء المستأجر",
+        charge: 0,
+        payment: 0,
+        balance: bal,
+        kind: "eviction",
+      };
+      let insertAt = rows.findIndex((r) => r.date > evictionDate);
+      if (insertAt === -1) insertAt = rows.length;
+      rows.splice(insertAt, 0, evRow);
+    }
     const totalCharges = entries.reduce((s, e) => s + e.charge, 0);
     const totalPaid = entries.reduce((s, e) => s + e.payment, 0);
 
@@ -316,6 +348,9 @@ export default function UnitDetail() {
       contractEnd: unit.contract_end_date,
       rentAmount: rent,
       rentType: t2(unit.rent_type as any),
+      evictionDate,
+      successorTenantName,
+      unitCurrentlyVacant,
       rows,
       totals: {
         totalCharges,

@@ -240,6 +240,7 @@ export interface StatementRow {
   charge: number;
   payment: number;
   balance: number;
+  kind?: "normal" | "eviction";
 }
 
 export interface TenantStatementData {
@@ -255,6 +256,9 @@ export interface TenantStatementData {
   contractEnd?: string | null;
   rentAmount?: number | null;
   rentType?: string | null;
+  evictionDate?: string | null;
+  successorTenantName?: string | null;
+  unitCurrentlyVacant?: boolean;
   rows: StatementRow[];
   totals: {
     totalCharges: number;
@@ -1594,18 +1598,28 @@ export async function printReceiptPDFDirect(data: ReceiptData, filename: string)
 
 export function buildTenantStatementHTML(data: TenantStatementData): string {
   const rows = data.rows
-    .map(
-      (row) => `
-        <tr>
+    .map((row) => {
+      const isEv = row.kind === "eviction";
+      const trStyle = isEv
+        ? ' style="background:#e1eadc;font-weight:700;color:#2c3a2e;"'
+        : "";
+      return `
+        <tr${trStyle}>
           <td>${formatDate(row.date)}</td>
           <td>${escapeHtml(row.month || "—")}</td>
           <td>${escapeHtml(row.description)}</td>
           <td>${escapeHtml(formatMoney(row.charge, data.currency))}</td>
           <td>${escapeHtml(formatMoney(row.payment, data.currency))}</td>
-          <td class="${row.balance > 0 ? "amount-negative" : "amount-positive"}">${escapeHtml(formatMoney(row.balance, data.currency))}</td>
-        </tr>`
-    )
+          <td class="${isEv ? "" : row.balance > 0 ? "amount-negative" : "amount-positive"}">${escapeHtml(formatMoney(row.balance, data.currency))}</td>
+        </tr>`;
+    })
     .join("");
+
+  const currentStatusValue = data.successorTenantName
+    ? data.successorTenantName
+    : data.unitCurrentlyVacant
+      ? "شاغر / Vacant"
+      : "—";
 
   const body = `
     ${brandBlock(
@@ -1622,6 +1636,8 @@ export function buildTenantStatementHTML(data: TenantStatementData): string {
         <div class="card"><div class="label">Contract end / نهاية العقد</div><div class="value">${formatDate(data.contractEnd)}</div></div>
         <div class="card"><div class="label">Rent / الإيجار</div><div class="value">${escapeHtml(formatMoney(data.rentAmount || 0, data.currency))}</div></div>
         <div class="card"><div class="label">Rent type / النوع</div><div class="value">${escapeHtml(data.rentType || "—")}</div></div>
+        <div class="card"><div class="label">Current status / حالة الوحدة الآن</div><div class="value"><strong>${escapeHtml(currentStatusValue)}</strong></div></div>
+        ${data.evictionDate ? `<div class="card"><div class="label">Move-out / تاريخ الإخلاء</div><div class="value"><strong>${formatDate(data.evictionDate)}</strong></div></div>` : ""}
       </div>
       <div class="section-title">Transactions / الحركات</div>
       <table>
@@ -2460,20 +2476,29 @@ function ddTable(
   ctx.cursor.y += headerH;
 
   rows.forEach((row, idx) => {
+    const isEviction = row._kind === "eviction";
     const cellHeights = cols.map((c) => {
       const v = splitPdfText(pdf, row[c.key], c.width - 4, 10, false);
       return Math.max(7, v.lines.length * getPdfLineHeight(10, 1.25) + 3);
     });
-    const rowH = Math.max(...cellHeights, 8);
+    const rowH = Math.max(...cellHeights, isEviction ? 10 : 8);
     ddEnsureSpace(ctx, rowH);
-    if (idx % 2 === 1) {
+    if (isEviction) {
+      // Sage-tinted highlight band spanning from date to balance columns
+      pdf.setFillColor(225, 234, 220);
+      pdf.rect(marginX, ctx.cursor.y, ctx.contentW, rowH, "F");
+    } else if (idx % 2 === 1) {
       pdf.setFillColor(250, 248, 240);
       pdf.rect(marginX, ctx.cursor.y, ctx.contentW, rowH, "F");
     }
     let cx = marginX;
     cols.forEach((c) => {
-      const color = c.color ? c.color(row) : undefined;
-      ddText(ctx, { text: row[c.key] ?? "—", x: cx + 2, y: ctx.cursor.y + 5, width: c.width - 4, fontSize: 10, color, align: c.align });
+      const color = isEviction
+        ? PDF_COLORS.ink
+        : c.color
+          ? c.color(row)
+          : undefined;
+      ddText(ctx, { text: row[c.key] ?? "—", x: cx + 2, y: ctx.cursor.y + 5, width: c.width - 4, fontSize: 10, bold: isEviction, color, align: c.align });
       cx += c.width;
     });
     pdf.setDrawColor(PDF_COLORS.line[0], PDF_COLORS.line[1], PDF_COLORS.line[2]);
@@ -2530,14 +2555,25 @@ async function createTenantStatementPDFDirect(data: TenantStatementData): Promis
     `${data.generatedAt || ""}\n${data.building || ""}`
   );
 
-  ddInfoGrid(ctx, [
+  const currentStatusValue = data.successorTenantName
+    ? data.successorTenantName
+    : data.unitCurrentlyVacant
+      ? "شاغر / Vacant"
+      : "—";
+
+  const infoItems: Array<{ label: string; value: string }> = [
     { label: "المستأجر / Tenant", value: [data.tenantName, data.tenantNameEn].filter(Boolean).join(" / ") || data.tenantName || "—" },
     { label: "الهاتف / Phone", value: data.tenantPhone || "—" },
     { label: "بداية العقد / Start", value: formatDate(data.contractStart) },
     { label: "نهاية العقد / End", value: formatDate(data.contractEnd) },
     { label: "الإيجار / Rent", value: formatMoney(data.rentAmount || 0, data.currency) },
     { label: "النوع / Type", value: data.rentType || "—" },
-  ]);
+    { label: "حالة الوحدة الآن / Current status", value: currentStatusValue },
+  ];
+  if (data.evictionDate) {
+    infoItems.push({ label: "تاريخ الإخلاء / Move-out", value: formatDate(data.evictionDate) });
+  }
+  ddInfoGrid(ctx, infoItems);
 
   ctx.cursor.y += 2;
   ddSection(ctx, "الحركات / Transactions");
@@ -2564,6 +2600,7 @@ async function createTenantStatementPDFDirect(data: TenantStatementData): Promis
     payment: r.payment ? formatMoney(r.payment, data.currency) : "—",
     balance: formatMoney(r.balance, data.currency),
     _balRaw: r.balance,
+    _kind: r.kind || "normal",
   }));
   if (tableRows.length === 0) {
     ddText(ctx, { text: "لا توجد حركات / No records", x: ctx.marginX, y: ctx.cursor.y + 4, width: ctx.contentW, fontSize: 10, color: PDF_COLORS.muted, align: "center" });
