@@ -240,6 +240,7 @@ export interface StatementRow {
   charge: number;
   payment: number;
   balance: number;
+  kind?: "normal" | "eviction";
 }
 
 export interface TenantStatementData {
@@ -255,6 +256,9 @@ export interface TenantStatementData {
   contractEnd?: string | null;
   rentAmount?: number | null;
   rentType?: string | null;
+  evictionDate?: string | null;
+  successorTenantName?: string | null;
+  unitCurrentlyVacant?: boolean;
   rows: StatementRow[];
   totals: {
     totalCharges: number;
