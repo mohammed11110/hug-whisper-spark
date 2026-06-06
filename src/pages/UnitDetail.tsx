@@ -157,7 +157,7 @@ export default function UnitDetail() {
     // dedicated direct generator; the Omani template still uses HTML.
     const doDirectSave = async () => {
       if (isOman) {
-        const html = buildOmaniLeaseHTML(leaseData);
+        const html = await buildOmaniLeaseHTML(leaseData);
         await downloadHTMLAsPDF(html, filename, settings);
       } else {
         await downloadLeasePDF(leaseData, filename);
@@ -170,8 +170,8 @@ export default function UnitDetail() {
         if (isNative() || isIOS()) {
           await doDirectSave();
         } else {
-          const html = isOman ? buildOmaniLeaseHTML(leaseData) : buildLeaseHTML(leaseData);
-          printHTML(html);
+          const html = isOman ? await buildOmaniLeaseHTML(leaseData) : await buildLeaseHTML(leaseData);
+          await printHTML(html);
         }
       } catch (e: any) { toast.error(e.message || "PDF error"); }
       return;
@@ -195,7 +195,7 @@ export default function UnitDetail() {
       } catch (e: any) { toast.error(e.message || "PDF error"); }
       return;
     }
-    const html = isOman ? buildOmaniLeaseHTML(leaseData) : buildLeaseHTML(leaseData);
+    const html = isOman ? await buildOmaniLeaseHTML(leaseData) : await buildLeaseHTML(leaseData);
     openPreview({
       type: "pdf",
       title: lang === "ar"
@@ -210,7 +210,7 @@ export default function UnitDetail() {
           closePreview();
         } catch (e: any) { toast.error(e.message || "PDF error"); }
       },
-      onPrint: () => { printHTML(html); },
+      onPrint: async () => { await printHTML(html); },
     });
   };
 
@@ -377,7 +377,7 @@ export default function UnitDetail() {
 
     // Desktop: show the existing preview for review, but save/print using
     // the direct (vector) generator — no more html2canvas pass.
-    const html = buildTenantStatementHTML(statementData);
+    const html = await buildTenantStatementHTML(statementData);
     openPreview({
       type: "pdf",
       title: lang === "ar" ? "كشف حساب المستأجر" : "Tenant statement",
