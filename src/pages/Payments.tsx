@@ -11,7 +11,6 @@ import { Input } from "@/components/ui/input";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { useI18n, docLang } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
@@ -21,8 +20,9 @@ import { suffixOf, isPartialSuffix, isFinalSuffix, derivePartialMetaForDisplay, 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
-import { isNative, handlePdfBlobNative } from "@/lib/nativeFiles";
-import { printHTML } from "@/lib/pdfDocs";
+import { isNative } from "@/lib/nativeFiles";
+import { openPrintView } from "@/lib/pdfDocs";
+import { isIOS } from "@/lib/platform";
 
 interface Row {
   id: string;
@@ -365,53 +365,70 @@ export default function Payments() {
   };
 
   const printReceipt = (r: Row, lng: RLang = receiptLang) => {
-    const { html } = buildReceiptHTML(r, lng);
-    // Capacitor / iOS: route through native flow (AirPrint via Share sheet).
-    // Web: open a new window and trigger window.print().
-    if (isNative()) {
-      printHTML(html).catch((e: any) => toast.error(e?.message || "Print error"));
-      return;
+    try {
+      const { html } = buildReceiptHTML(r, lng);
+      const filename = `${r.receipt_number || r.id}.pdf`;
+      // iOS (native Capacitor or mobile Safari): route to the dedicated
+      // /p/:token PrintView — it renders the receipt and exposes native
+      // Share (AirPrint, Save to Files) + Print buttons. This avoids
+      // html2canvas (which can fail silently in WKWebView) and keeps the
+      // user-gesture chain intact (synchronous window.open).
+      if (isNative() || isIOS()) {
+        if (openPrintView(html, filename, { lang: lng, title: filename })) return;
+      }
+      // Web fallback: open a new window and trigger window.print().
+      const w = window.open("", "_blank", "width=600,height=800");
+      if (!w) {
+        // Popup blocked — fall back to the print view in the same tab.
+        openPrintView(html, filename, { lang: lng, title: filename });
+        return;
+      }
+      w.document.write(html);
+      w.document.close();
+      setTimeout(() => w.print(), 300);
+    } catch (e: any) {
+      console.error("[receipt:print]", e);
+      toast.error(String(e?.message || e) || "Print error");
     }
-    const w = window.open("", "_blank", "width=600,height=800");
-    if (!w) return;
-    w.document.write(html);
-    w.document.close();
-    setTimeout(() => w.print(), 300);
   };
 
   const downloadReceiptPDF = async (r: Row, lng: RLang = receiptLang) => {
-    const { html } = buildReceiptHTML(r, lng);
-    const container = document.createElement("div");
-    container.style.position = "fixed";
-    container.style.left = "-10000px";
-    container.style.top = "0";
-    container.style.width = "640px";
-    container.innerHTML = html;
-    document.body.appendChild(container);
     try {
-      const card = container.querySelector("#receipt-card") as HTMLElement;
-      const canvas = await html2canvas(card, { scale: 2, backgroundColor: "#ffffff" });
-      const img = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({ unit: "mm", format: settings.pageSize.toLowerCase() as any });
-      const pageW = pdf.internal.pageSize.getWidth();
-      const m = settings.margins;
-      const w = pageW - m.left - m.right;
-      const h = (canvas.height * w) / canvas.width;
-      pdf.addImage(img, "PNG", m.left, m.top, w, h);
+      const { html } = buildReceiptHTML(r, lng);
       const filename = `${r.receipt_number || r.id}.pdf`;
-      // Capacitor / iOS: hand the Blob to the OS share sheet (Save to Files,
-      // AirPrint, AirDrop, WhatsApp, Mail). On web, keep jsPDF.save().
-      if (isNative()) {
-        await handlePdfBlobNative(pdf.output("blob"), filename, "save", { title: filename });
-      } else {
+      // iOS (native or Safari): route through PrintView — the Share sheet
+      // there provides "Save to Files" / AirDrop / Mail reliably.
+      if (isNative() || isIOS()) {
+        if (openPrintView(html, filename, { lang: lng, title: filename })) return;
+      }
+      // Web: render via html2canvas + jsPDF and trigger pdf.save().
+      const container = document.createElement("div");
+      container.style.position = "fixed";
+      container.style.left = "-10000px";
+      container.style.top = "0";
+      container.style.width = "640px";
+      container.innerHTML = html;
+      document.body.appendChild(container);
+      try {
+        const card = container.querySelector("#receipt-card") as HTMLElement;
+        const canvas = await html2canvas(card, { scale: 2, backgroundColor: "#ffffff" });
+        const img = canvas.toDataURL("image/png");
+        const pdf = new jsPDF({ unit: "mm", format: settings.pageSize.toLowerCase() as any });
+        const pageW = pdf.internal.pageSize.getWidth();
+        const m = settings.margins;
+        const w = pageW - m.left - m.right;
+        const h = (canvas.height * w) / canvas.width;
+        pdf.addImage(img, "PNG", m.left, m.top, w, h);
         pdf.save(filename);
+      } finally {
+        document.body.removeChild(container);
       }
     } catch (e: any) {
-      toast.error(e.message || "PDF error");
-    } finally {
-      document.body.removeChild(container);
+      console.error("[receipt:download]", e);
+      toast.error(String(e?.message || e) || "PDF error");
     }
   };
+
 
 
   return (
@@ -549,36 +566,25 @@ export default function Payments() {
                 <div className="text-end">
                   <p className="font-black text-sage-600 text-lg whitespace-nowrap">{format(r.amount)}</p>
                   <div className="flex gap-1 mt-1 justify-end flex-wrap">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-sage-500" title={lang === "ar" ? "طباعة" : "Print"}>
-                          <Printer className="h-3.5 w-3.5" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => printReceipt(r, "ar")}>
-                          {lang === "ar" ? "طباعة بالعربية" : "Print in Arabic"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => printReceipt(r, "en")}>
-                          {lang === "ar" ? "طباعة بالإنجليزية" : "Print in English"}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-sage-600" title={lang === "ar" ? "تحميل PDF" : "Download PDF"}>
-                          <Download className="h-3.5 w-3.5" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => downloadReceiptPDF(r, "ar")}>
-                          {lang === "ar" ? "تحميل PDF بالعربية" : "Download PDF in Arabic"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => downloadReceiptPDF(r, "en")}>
-                          {lang === "ar" ? "تحميل PDF بالإنجليزية" : "Download PDF in English"}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 rounded-lg text-sage-500"
+                      title={lang === "ar" ? "طباعة" : "Print"}
+                      onClick={() => printReceipt(r, receiptLang)}
+                    >
+                      <Printer className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 rounded-lg text-sage-600"
+                      title={lang === "ar" ? "تحميل PDF" : "Download PDF"}
+                      onClick={() => downloadReceiptPDF(r, receiptLang)}
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                    </Button>
+
                     <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-sage-600" onClick={() => setEditId(r.id)}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
