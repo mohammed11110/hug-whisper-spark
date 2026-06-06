@@ -215,22 +215,27 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
       updatePayload.handover_photos = [...existing, ...unitPhotos];
     }
 
-    // المتأخرات الافتتاحية: تُوزَّع تلقائياً على الأشهر السابقة بنفس منطق AddUnitDialog.
-    // months = round(arrears / rent), opening_balance_date = اليوم − months × دورة.
-    const arrN = parseFloat(arrears) || 0;
-    if (arrN > 0 && rentNum > 0 && rentType === "monthly") {
-      // نستخدم floor كي يظل المجموع = arrN بالضبط (أشهر كاملة + باقي).
-      const months = Math.floor(arrN / rentNum);
-      const remainder = Math.max(0, arrN - months * rentNum);
-      const monthsBack = rentTiming === "arrears" ? months : Math.max(0, months - 1);
-      const today = new Date();
-      const anchor = new Date(today.getFullYear(), today.getMonth() - monthsBack, dueNum);
-      const iso = `${anchor.getFullYear()}-${String(anchor.getMonth() + 1).padStart(2, "0")}-${String(anchor.getDate()).padStart(2, "0")}`;
-      updatePayload.opening_balance = remainder;
-      updatePayload.opening_balance_date = iso;
-    } else if (arrN > 0) {
-      updatePayload.opening_balance = arrN;
-      updatePayload.opening_balance_date = startDate || new Date().toISOString().slice(0, 10);
+    // Backdated-contract resolution overrides the legacy free-text "arrears"
+    // input — the user already declared their prior position via the card.
+    if (isBackdated && backdated) {
+      updatePayload.opening_balance = backdated.openingBalance;
+      updatePayload.opening_balance_date = backdated.openingBalanceDate;
+    } else {
+      // المتأخرات الافتتاحية: تُوزَّع تلقائياً على الأشهر السابقة بنفس منطق AddUnitDialog.
+      const arrN = parseFloat(arrears) || 0;
+      if (arrN > 0 && rentNum > 0 && rentType === "monthly") {
+        const months = Math.floor(arrN / rentNum);
+        const remainder = Math.max(0, arrN - months * rentNum);
+        const monthsBack = rentTiming === "arrears" ? months : Math.max(0, months - 1);
+        const today = new Date();
+        const anchor = new Date(today.getFullYear(), today.getMonth() - monthsBack, dueNum);
+        const iso = `${anchor.getFullYear()}-${String(anchor.getMonth() + 1).padStart(2, "0")}-${String(anchor.getDate()).padStart(2, "0")}`;
+        updatePayload.opening_balance = remainder;
+        updatePayload.opening_balance_date = iso;
+      } else if (arrN > 0) {
+        updatePayload.opening_balance = arrN;
+        updatePayload.opening_balance_date = startDate || new Date().toISOString().slice(0, 10);
+      }
     }
 
 
