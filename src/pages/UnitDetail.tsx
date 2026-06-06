@@ -152,26 +152,50 @@ export default function UnitDetail() {
     const leaseData = buildLeaseData();
     if (!leaseData) return;
     const filename = `lease-${unit.unit_number}-${unit.tenant_name || "tenant"}.pdf`;
-    const html = isOman ? buildOmaniLeaseHTML(leaseData) : buildLeaseHTML(leaseData);
-    const doSave = async () => {
+
+    // Direct (vector) lease PDF — fast on iPad. The generic lease has a
+    // dedicated direct generator; the Omani template still uses HTML.
+    const doDirectSave = async () => {
       if (isOman) {
+        const html = buildOmaniLeaseHTML(leaseData);
         await downloadHTMLAsPDF(html, filename, settings);
       } else {
         await downloadLeasePDF(leaseData, filename);
       }
     };
+
+    // Print path — keep current behavior for desktop, share-as-PDF on iOS/native.
     if (mode === "print") {
-      printHTML(html);
+      try {
+        if (isNative() || isIOS()) {
+          await doDirectSave();
+        } else {
+          const html = isOman ? buildOmaniLeaseHTML(leaseData) : buildLeaseHTML(leaseData);
+          printHTML(html);
+        }
+      } catch (e: any) { toast.error(e.message || "PDF error"); }
       return;
     }
+
+    // Download path — always direct, fast.
     if (mode === "download") {
       try {
-        await doSave();
+        await doDirectSave();
         toast.success(lang === "ar" ? "تم حفظ الملف ✓" : "Saved ✓");
       } catch (e: any) { toast.error(e.message || "PDF error"); }
       return;
     }
-    // preview
+
+    // Preview path — on iOS / native, skip the heavy iframe preview and
+    // route straight to the native share sheet. Desktop keeps full preview.
+    if (isNative() || isIOS()) {
+      try {
+        await doDirectSave();
+        toast.success(lang === "ar" ? "تم حفظ الملف ✓" : "Saved ✓");
+      } catch (e: any) { toast.error(e.message || "PDF error"); }
+      return;
+    }
+    const html = isOman ? buildOmaniLeaseHTML(leaseData) : buildLeaseHTML(leaseData);
     openPreview({
       type: "pdf",
       title: lang === "ar"
@@ -181,7 +205,7 @@ export default function UnitDetail() {
       html,
       onSave: async () => {
         try {
-          await doSave();
+          await doDirectSave();
           toast.success(lang === "ar" ? "تم حفظ الملف ✓" : "Saved ✓");
           closePreview();
         } catch (e: any) { toast.error(e.message || "PDF error"); }
