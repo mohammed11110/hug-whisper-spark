@@ -1,78 +1,47 @@
-# إصلاح ألوان الصفحات على iOS (والويب)
+# إصلاح شاشة بيضاء على https://amlaki1.app
 
-## السبب الجذري
+## المشكلة
+النسخة المنشورة على الدومين تعرض شاشة بيضاء على المتصفح بسبب خطأ JavaScript:
 
-التحديث `c502fd1` ضبط ملف `src/index.css` و tokens النظام (Midnight + Gold). لكن صفحات وعناصر كثيرة لا تزال تستخدم **أسماء ألوان قديمة مباشرة من الباليت السابق** (`bg-white`, `bg-sage-*`, `bg-slate-*`, `text-white`, `bg-emerald-*`, `bg-burgundy`…). هذه الأسماء **لا تتفاعل مع التبديل بين Light/Dark** ولا مع هوية Midnight Gold، فتظهر باهتة/خاطئة داخل iOS WebView.
+```
+TypeError: Cannot read properties of undefined 
+(reading '__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED')
+   at react-vendor-ByxrdbF-.js
+```
 
-## الملفات المتأثرة (≈18 ملف)
+السبب الجذري في `vite.config.ts` — قاعدة `manualChunks`:
+- تضع `react-dom` و `react-router` و `scheduler` في chunk اسمه **react-vendor**
+- لكن `react` نفسه لا يطابق أي شرط ⇒ يذهب إلى chunk افتراضي
+- `react-dom` يحمّل قبل `react` ⇒ ينهار التطبيق
 
-**مجموعة "Daily" (الباقة اليومية) — الأكثر تأثراً:**
-- `src/pages/daily/DailyDashboard.tsx`
-- `src/pages/daily/DailyUnits.tsx`
-- `src/pages/daily/DailyBookings.tsx`
-- `src/pages/daily/DailyPricing.tsx`
-- `src/pages/daily/DailyReports.tsx`
-- `src/pages/daily/DailyMessages.tsx`
-- `src/pages/daily/DailyCalendar.tsx`
-- `src/pages/daily/DailyCleaning.tsx`
-- `src/pages/daily/DailyLayout.tsx`
+النسخة الـ Preview وiOS WebView (بعد `cap sync`) لا تظهر المشكلة لأنها dev build بدون code splitting.
 
-**الصفحات الأساسية:**
-- `src/pages/Settings.tsx` (بطاقات subscription + brand)
-- `src/pages/Maintenance.tsx` (badges حالة)
-- `src/pages/Notifications.tsx`
-- `src/pages/Activity.tsx`
-- `src/pages/PaymentsTrash.tsx`
-- `src/pages/Unsubscribe.tsx`
-- `src/pages/UnitDetail.tsx` (badges)
+## التغيير المطلوب
+ملف واحد فقط: `vite.config.ts` — تعديل سطر واحد ليضم `react` إلى نفس الـ chunk:
 
-**مكوّنات:**
-- `src/components/NotificationBell.tsx`
-- `src/components/GraceBanner.tsx`
-- `src/components/EndTrialDialog.tsx`
-- `src/components/BusinessWhatsAppSection.tsx`
-- `src/components/AddPaymentDialog.tsx`
-- `src/components/AddMaintenanceDialog.tsx`
-- `src/components/FilePreviewDialog.tsx`
-- `src/components/UnitHealthBadge.tsx`
-- `src/components/dashboard/RecentActivityCard.tsx`
+```ts
+// قبل
+if (id.includes("/react-dom/") || id.includes("/react-router") || id.includes("/scheduler/")) 
+  return "react-vendor";
 
-## خريطة الاستبدال
+// بعد
+if (
+  id.includes("/node_modules/react/") ||
+  id.includes("/node_modules/react-dom/") ||
+  id.includes("/react-router") ||
+  id.includes("/scheduler/")
+) return "react-vendor";
+```
 
-| القديم | الجديد (semantic token) |
-|---|---|
-| `bg-white` | `bg-card` |
-| `bg-sage-50/60`, `bg-sage-100` | `bg-muted` |
-| `border-sage-200/*`, `border-sage-300` | `border-border` |
-| `text-sage-600`, `text-sage-700` | `text-muted-foreground` / `text-foreground` |
-| `bg-sage-400/500/600/700` (أزرار) | `bg-primary text-primary-foreground` |
-| `bg-emerald-600/700` | `bg-primary` (أو `bg-success` للحالات الإيجابية) |
-| `bg-slate-100/200/300` (badges) | `bg-muted text-muted-foreground` |
-| `bg-burgundy text-white` | `bg-destructive text-destructive-foreground` |
-| `bg-gold text-white` | `bg-accent text-accent-foreground` |
-| `bg-white/15`, `bg-white/25` (داخل بطاقات midnight) | تبقى كما هي — صحيحة فوق سطح midnight |
+هذا يضمن تحميل `react` و `react-dom` في نفس الملف وبالترتيب الصحيح.
 
-## ما يبقى كما هو (مقصود)
+## ما لن يتغير
+- لا تعديل على أي صفحة، UI، ألوان، PDF، أو منطق
+- لا تعديل على iOS / Android native
+- لا migrations
+- لا تغيير في الـ design tokens
 
-- **PDF** في `src/lib/pdfDocs.ts` — يبقى بخلفية كريمية + ذهبي داكن + Midnight ink (مطلوب للطباعة).
-- **بطاقات Hero/Signature** على سطح midnight (Settings header, Dashboard hero) — `text-white` و `bg-white/15` صحيحان لأنهما فوق midnight ثابت.
-- **مكوّنات shadcn/ui** في `src/components/ui/` — لا تُعدّل.
-
-## الخطوات
-
-1. استبدال الكلاسات القديمة بـ semantic tokens في الملفات أعلاه (مرور موحّد).
-2. الإبقاء على `text-white` و `bg-white/*` **فقط** داخل أسطح midnight الدائمة (التحقّق سياقياً).
-3. تشغيل المعاينة والتأكد بصرياً من:
-   - الباقة اليومية بكامل صفحاتها في وضعَي Light/Dark
-   - badges الصيانة + التفاصيل
-   - الإشعارات + Activity
-4. بعد القبول، يقوم المستخدم بـ:
-   ```bash
-   git pull && npx cap sync ios
-   ```
-   ثم إعادة بناء التطبيق من Xcode.
-
-## ما لن يتغيّر في هذه المهمة
-
-- الأيقونة الأصلية و LaunchScreen (تتطلّب صور jpg/png تُولَّد بشكل منفصل في طلب آخر).
-- منطق الأعمال أو هيكلة قاعدة البيانات.
+## بعد الإصلاح
+1. **Publish → Update** لإعادة نشر النسخة على `amlaki1.app`
+2. مسح cache المتصفح أو فتح نافذة خاصة للاختبار
+3. لا حاجة لإعادة `cap sync` لأن iOS WebView لا يستخدم البناء المنشور للويب

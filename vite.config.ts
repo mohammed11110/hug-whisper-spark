@@ -107,7 +107,12 @@ export default defineConfig(({ mode }) => ({
           if (id.includes("/recharts") || id.includes("/d3-")) return "charts";
           if (id.includes("/@radix-ui/") || id.includes("/cmdk/") || id.includes("/lucide-react/")) return "ui-vendor";
           if (id.includes("/@tanstack/") || id.includes("/@supabase/")) return "data-vendor";
-          if (id.includes("/react-dom/") || id.includes("/react-router") || id.includes("/scheduler/")) return "react-vendor";
+          if (
+            id.includes("/node_modules/react/") ||
+            id.includes("/node_modules/react-dom/") ||
+            id.includes("/react-router") ||
+            id.includes("/scheduler/")
+          ) return "react-vendor";
           return undefined;
         },
       },
