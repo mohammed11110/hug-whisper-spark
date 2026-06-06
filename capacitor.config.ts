@@ -33,6 +33,14 @@ const config: CapacitorConfig = {
       splashFullScreen: true,
       splashImmersive: false,
     },
+    // Native Google Sign-In (used only inside the iOS/Android app).
+    // Fill in the same values as src/lib/nativeGoogleAuth.ts.
+    SocialLogin: {
+      google: {
+        iOSClientId: "REPLACE_WITH_IOS_CLIENT_ID.apps.googleusercontent.com",
+        webClientId: "REPLACE_WITH_WEB_CLIENT_ID.apps.googleusercontent.com",
+      },
+    },
   },
 };
 
