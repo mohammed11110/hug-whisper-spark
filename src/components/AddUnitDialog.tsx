@@ -13,6 +13,7 @@ import { logActivity } from "@/lib/activityLogger";
 import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
 import { BuyAddonUnitsDialog } from "@/components/BuyAddonUnitsDialog";
 import { useSubscription, useUnitUsage } from "@/hooks/useSubscription";
+import { BackdatedContractCard, type BackdatedResolution } from "@/components/BackdatedContractCard";
 
 const UNIT_TYPES = ["apartment", "shop", "room", "villa"] as const;
 const RENT_TYPES = ["monthly", "daily", "yearly"] as const;
@@ -71,7 +72,11 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
   const [payAmount, setPayAmount] = useState<string>("0");
   const [payMethod, setPayMethod] = useState<typeof PAYMENT_METHODS[number]>("cash");
   const [busy, setBusy] = useState(false);
+  const [backdated, setBackdated] = useState<BackdatedResolution | null>(null);
   const guard = useUnsavedGuard({ open, onOpenChange });
+
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const isBackdated = occupied && !!contractStart && contractStart < todayIso;
   const { unitLimit, phase, plan } = useSubscription();
   const { unitCount } = useUnitUsage();
   const showQuota = phase !== "trial" && Number.isFinite(unitLimit);
@@ -83,6 +88,7 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
     setTenantName(""); setTenantNameEn(""); setTenantPhone(""); setTenantEmail(""); setRentAmount("0"); setRentType("monthly");
     setContractType("yearly"); setContractStart(""); setDueDay("1"); setRentTiming("advance");
     setArrears("0"); setRecordPay(false); setPayAmount("0"); setPayMethod("cash");
+    setBackdated(null);
   };
 
   const arrN = parseFloat(arrears) || 0;
@@ -95,7 +101,39 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
     if (occupied && (!tenantName.trim() || !tenantPhone.trim())) {
       return toast.error(t2("tenant_required"));
     }
+    if (isBackdated && !backdated) {
+      return toast.error(lang === "ar"
+        ? "العقد بتاريخ سابق — يجب اختيار أحد خيارات المتأخرات أولاً"
+        : "Backdated contract — pick one of the prior-arrears options first");
+    }
     setBusy(true);
+
+    // Resolve opening_balance / opening_balance_date / paid_up_to.
+    // Backdated card wins; otherwise fall back to the legacy arrears distribution.
+    const openingFields: Record<string, any> = (() => {
+      if (occupied && isBackdated && backdated) {
+        return {
+          opening_balance: backdated.openingBalance,
+          opening_balance_date: backdated.openingBalanceDate,
+          paid_up_to: backdated.paidUpTo,
+        };
+      }
+      if (occupied && arrN > 0 && rentN > 0 && rentType === "monthly") {
+        const dueInt = Math.min(28, Math.max(1, parseInt(dueDay) || 1));
+        const months = Math.floor(arrN / rentN);
+        const remainder = Math.max(0, arrN - months * rentN);
+        const monthsBack = rentTiming === "arrears" ? months : Math.max(0, months - 1);
+        const today = new Date();
+        const anchor = new Date(today.getFullYear(), today.getMonth() - monthsBack, dueInt);
+        const iso = `${anchor.getFullYear()}-${String(anchor.getMonth() + 1).padStart(2, "0")}-${String(anchor.getDate()).padStart(2, "0")}`;
+        return { opening_balance: remainder, opening_balance_date: iso };
+      }
+      return {
+        opening_balance: occupied ? arrN : 0,
+        opening_balance_date: occupied && arrN > 0 ? (contractStart || new Date().toISOString().slice(0, 10)) : null,
+      };
+    })();
+
     const { data: created, error } = await supabase.from("units").insert({
       building_id: buildingId,
       unit_number: unitNumber.trim(),
@@ -113,22 +151,7 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
       // status omitted — derived by DB trigger (recompute_unit_state)
       contract_type: contractType,
       contract_start_date: contractStart || null,
-      ...(occupied && arrN > 0 && rentN > 0 && rentType === "monthly"
-        ? (() => {
-            const dueInt = Math.min(28, Math.max(1, parseInt(dueDay) || 1));
-            // floor + remainder كي لا يتم تقريب المتأخرات لأعلى.
-            const months = Math.floor(arrN / rentN);
-            const remainder = Math.max(0, arrN - months * rentN);
-            const monthsBack = rentTiming === "arrears" ? months : Math.max(0, months - 1);
-            const today = new Date();
-            const anchor = new Date(today.getFullYear(), today.getMonth() - monthsBack, dueInt);
-            const iso = `${anchor.getFullYear()}-${String(anchor.getMonth() + 1).padStart(2, "0")}-${String(anchor.getDate()).padStart(2, "0")}`;
-            return { opening_balance: remainder, opening_balance_date: iso };
-          })()
-        : {
-            opening_balance: occupied ? arrN : 0,
-            opening_balance_date: occupied && arrN > 0 ? (contractStart || new Date().toISOString().slice(0, 10)) : null,
-          }),
+      ...openingFields,
     }).select("id").single();
 
     if (error || !created) {
@@ -345,7 +368,20 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
                 </div>
               </Field>
 
-              {/* Arrears */}
+              {/* MANDATORY backdated-contract handler */}
+              {isBackdated && (
+                <BackdatedContractCard
+                  contractStartDate={contractStart}
+                  rentAmount={rentN}
+                  rentType={rentType}
+                  rentTiming={rentTiming}
+                  dueDay={Math.min(28, Math.max(1, parseInt(dueDay) || 1))}
+                  onResolved={setBackdated}
+                />
+              )}
+
+              {/* Arrears — hidden when backdated card is governing */}
+              {!isBackdated && (
               <div className="pt-2 border-t border-sage-100">
                 <Field label={t2("arrears_amount")}>
                   <Input type="number" inputMode="decimal" min={0} step="0.001" value={arrears}
@@ -382,6 +418,7 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
                   })()}
                 </Field>
               </div>
+              )}
 
 
               {/* Initial payment */}
@@ -440,7 +477,7 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
 
           <div className="flex gap-2 pt-2">
             <Button data-guard-ignore variant="outline" className="flex-1 rounded-xl border-sage-200" onClick={() => guard.handleOpenChange(false)}>{t2("cancel")}</Button>
-            <Button data-guard-ignore onClick={submit} disabled={busy || !unitNumber.trim()} className="flex-1 rounded-xl bg-gradient-sage text-primary-foreground font-semibold">{t2("save")}</Button>
+            <Button data-guard-ignore onClick={submit} disabled={busy || !unitNumber.trim() || (isBackdated && !backdated)} className="flex-1 rounded-xl bg-gradient-sage text-primary-foreground font-semibold">{t2("save")}</Button>
           </div>
         </div>
         {guard.ConfirmDiscardUI}

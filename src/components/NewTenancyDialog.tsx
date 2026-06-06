@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
 import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
 import { X, Image as ImageIcon, Loader2 } from "lucide-react";
+import { BackdatedContractCard, type BackdatedResolution } from "@/components/BackdatedContractCard";
 
 
 interface Props {
@@ -54,8 +55,12 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
   const [graceDays, setGraceDays] = useState<string>("0");
   // الرقم الرسمي للعقد من الجهة الحكومية (بلدية / سند) — اختياري.
   const [officialNumber, setOfficialNumber] = useState<string>("");
+  const [backdated, setBackdated] = useState<BackdatedResolution | null>(null);
   const guard = useUnsavedGuard({ open, onOpenChange });
   const lastExtractedRef = useRef<string | null>(null);
+
+  const todayIso = today;
+  const isBackdated = !!startDate && startDate < todayIso;
 
 
   const extractFromId = async () => {
@@ -101,6 +106,7 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
     setPaidUpTo("");
     setGraceDays(String(unit.grace_days ?? "0"));
     setOfficialNumber("");
+    setBackdated(null);
     lastExtractedRef.current = null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, unit?.id]);
@@ -131,6 +137,11 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
   const submit = async () => {
     if (!unit) return;
     if (!name.trim()) return toast.error(lang === "ar" ? "اسم المستأجر مطلوب" : "Tenant name required");
+    if (isBackdated && !backdated) {
+      return toast.error(lang === "ar"
+        ? "العقد بتاريخ سابق — يجب اختيار أحد خيارات المتأخرات أولاً"
+        : "Backdated contract — pick one of the prior-arrears options first");
+    }
     setSaving(true);
 
     // GUARD: refuse to start a new lease while one is still active on this
@@ -152,7 +163,8 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
     const dueNum = startDate ? Math.min(28, Math.max(1, new Date(startDate).getDate() || 1)) : Math.min(31, Math.max(1, Number(dueDay) || 1));
     const depositNum = Number(deposit) || 0;
     const graceNum = Math.max(0, Math.min(30, Math.floor(Number(graceDays) || 0)));
-    const paidUpToVal = paidUpTo || null;
+    // Backdated-contract resolution wins over the raw "paid_up_to" field.
+    const paidUpToVal = isBackdated && backdated ? backdated.paidUpTo : (paidUpTo || null);
     const { data: insertedTenancy, error: tErr } = await supabase.from("tenancies").insert({
       building_id: unit.building_id,
       unit_id: unit.id,
@@ -203,22 +215,27 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
       updatePayload.handover_photos = [...existing, ...unitPhotos];
     }
 
-    // المتأخرات الافتتاحية: تُوزَّع تلقائياً على الأشهر السابقة بنفس منطق AddUnitDialog.
-    // months = round(arrears / rent), opening_balance_date = اليوم − months × دورة.
-    const arrN = parseFloat(arrears) || 0;
-    if (arrN > 0 && rentNum > 0 && rentType === "monthly") {
-      // نستخدم floor كي يظل المجموع = arrN بالضبط (أشهر كاملة + باقي).
-      const months = Math.floor(arrN / rentNum);
-      const remainder = Math.max(0, arrN - months * rentNum);
-      const monthsBack = rentTiming === "arrears" ? months : Math.max(0, months - 1);
-      const today = new Date();
-      const anchor = new Date(today.getFullYear(), today.getMonth() - monthsBack, dueNum);
-      const iso = `${anchor.getFullYear()}-${String(anchor.getMonth() + 1).padStart(2, "0")}-${String(anchor.getDate()).padStart(2, "0")}`;
-      updatePayload.opening_balance = remainder;
-      updatePayload.opening_balance_date = iso;
-    } else if (arrN > 0) {
-      updatePayload.opening_balance = arrN;
-      updatePayload.opening_balance_date = startDate || new Date().toISOString().slice(0, 10);
+    // Backdated-contract resolution overrides the legacy free-text "arrears"
+    // input — the user already declared their prior position via the card.
+    if (isBackdated && backdated) {
+      updatePayload.opening_balance = backdated.openingBalance;
+      updatePayload.opening_balance_date = backdated.openingBalanceDate;
+    } else {
+      // المتأخرات الافتتاحية: تُوزَّع تلقائياً على الأشهر السابقة بنفس منطق AddUnitDialog.
+      const arrN = parseFloat(arrears) || 0;
+      if (arrN > 0 && rentNum > 0 && rentType === "monthly") {
+        const months = Math.floor(arrN / rentNum);
+        const remainder = Math.max(0, arrN - months * rentNum);
+        const monthsBack = rentTiming === "arrears" ? months : Math.max(0, months - 1);
+        const today = new Date();
+        const anchor = new Date(today.getFullYear(), today.getMonth() - monthsBack, dueNum);
+        const iso = `${anchor.getFullYear()}-${String(anchor.getMonth() + 1).padStart(2, "0")}-${String(anchor.getDate()).padStart(2, "0")}`;
+        updatePayload.opening_balance = remainder;
+        updatePayload.opening_balance_date = iso;
+      } else if (arrN > 0) {
+        updatePayload.opening_balance = arrN;
+        updatePayload.opening_balance_date = startDate || new Date().toISOString().slice(0, 10);
+      }
     }
 
 
@@ -337,7 +354,8 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
             </div>
           </div>
 
-          {/* مدفوع حتى — اختياري: تاريخ آخر شهر سُدِّد فعلاً قبل بدء هذا العقد */}
+          {/* مدفوع حتى — اختياري: مخفي عند العقد بتاريخ سابق (يُتعامَل عبر البطاقة الذهبية) */}
+          {!isBackdated && (
           <div className="space-y-1.5">
             <Label className="text-xs text-sage-500 inline-flex items-center gap-1">
               {lang === "ar" ? "مدفوع حتى (اختياري)" : "Paid up to (optional)"}
@@ -355,6 +373,19 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
                 : "Last date already paid. Arrears start the day after — no need to enter old receipts."}
             </p>
           </div>
+          )}
+
+          {/* MANDATORY backdated-contract handler */}
+          {isBackdated && (
+            <BackdatedContractCard
+              contractStartDate={startDate}
+              rentAmount={Number(rent) || 0}
+              rentType={rentType}
+              rentTiming={rentTiming}
+              dueDay={Math.min(28, Math.max(1, startDate ? new Date(startDate).getDate() : Number(dueDay) || 1))}
+              onResolved={setBackdated}
+            />
+          )}
 
           {/* الرقم الرسمي للعقد — اختياري */}
           <div className="space-y-1.5">
@@ -399,7 +430,8 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
             </p>
           </div>
 
-          {/* المتأخرات الافتتاحية — يُحوَّل المبلغ تلقائياً إلى عدد أشهر متأخرة */}
+          {/* المتأخرات الافتتاحية — مخفية عند العقد بتاريخ سابق (تُدار من البطاقة) */}
+          {!isBackdated && (
           <div className="pt-2 border-t border-sage-100 space-y-1.5">
             <Label className="text-xs text-sage-500 inline-flex items-center gap-1">
               {t2("arrears_amount")}
@@ -451,6 +483,7 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
               );
             })()}
           </div>
+          )}
 
 
 
@@ -521,7 +554,7 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
         </div>
         <DialogFooter className="gap-2 sm:gap-2">
           <Button data-guard-ignore variant="outline" onClick={() => guard.handleOpenChange(false)} className="rounded-xl">{t2("cancel")}</Button>
-          <Button data-guard-ignore onClick={submit} disabled={saving} className="rounded-xl bg-gradient-sage text-primary-foreground">{t2("save")}</Button>
+          <Button data-guard-ignore onClick={submit} disabled={saving || (isBackdated && !backdated)} className="rounded-xl bg-gradient-sage text-primary-foreground">{t2("save")}</Button>
         </DialogFooter>
         {guard.ConfirmDiscardUI}
       </DialogContent>
