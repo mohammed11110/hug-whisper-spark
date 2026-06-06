@@ -650,8 +650,8 @@ html[lang="ar"] body {
   align-items: center;
   justify-content: center;
   gap: 18px;
-  background: radial-gradient(ellipse at 50% 60%, #14223b 0%, #0a1322 55%, #050912 100%);
-  color: #f3ead2;
+  background: radial-gradient(ellipse at 50% 60%, #1a1f2b 0%, #0e1118 55%, #06080d 100%);
+  color: #e8eaed;
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
   opacity: 0;
