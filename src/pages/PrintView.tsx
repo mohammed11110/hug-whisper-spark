@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Loader2, Printer, Share2, ArrowRight, ArrowLeft } from "lucide-react";
-import { inlinePdfFonts } from "@/lib/pdfDocs";
+import { downloadHTMLAsPDF, inlinePdfFonts } from "@/lib/pdfDocs";
+import { toast } from "sonner";
 
 interface StoredPrintPayload {
   html: string;
@@ -84,8 +85,21 @@ export default function PrintView() {
     ? "انتهت صلاحية المعاينة. أعد فتح الملف من التطبيق."
     : "This preview expired. Reopen the document from the app.";
 
+  const doShare = async () => {
+    if (!payload) return;
+    try {
+      await downloadHTMLAsPDF(payload.html, payload.filename || "document.pdf");
+    } catch (e) {
+      console.error("[print-view:share]", e);
+      toast.error(ar ? "تعذر حفظ الملف" : "Couldn't save the file");
+    }
+  };
+
   const doPrint = () => {
-    try { window.print(); } catch { /* noop */ }
+    try { window.print(); } catch (e) {
+      console.error("[print-view:print]", e);
+      toast.error(ar ? "تعذرت الطباعة" : "Couldn't print");
+    }
   };
 
   const doBack = () => {
@@ -206,7 +220,7 @@ export default function PrintView() {
         </button>
         <button
           className="print-toolbar-btn"
-          onClick={doPrint}
+          onClick={() => { void doShare(); }}
           style={{ background: "#5f7e65", color: "white", marginInlineStart: "auto" }}
           aria-label={labelShare}
         >

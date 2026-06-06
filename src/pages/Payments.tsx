@@ -21,7 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
 import { isNative } from "@/lib/nativeFiles";
-import { openPrintView } from "@/lib/pdfDocs";
+import { downloadHTMLAsPDF, printHTMLAsPDFNative } from "@/lib/pdfDocs";
 import { isIOS } from "@/lib/platform";
 
 interface Row {
@@ -368,19 +368,31 @@ export default function Payments() {
     try {
       const { html } = buildReceiptHTML(r, lng);
       const filename = `${r.receipt_number || r.id}.pdf`;
-      // iOS (native Capacitor or mobile Safari): route to the dedicated
-      // /p/:token PrintView — it renders the receipt and exposes native
-      // Share (AirPrint, Save to Files) + Print buttons. This avoids
-      // html2canvas (which can fail silently in WKWebView) and keeps the
-      // user-gesture chain intact (synchronous window.open).
-      if (isNative() || isIOS()) {
-        if (openPrintView(html, filename, { lang: lng, title: filename })) return;
+      // Native iOS/Android: generate a real PDF and hand it to the OS print
+      // flow. This avoids window.open/sessionStorage/window.print issues.
+      if (isNative()) {
+        void printHTMLAsPDFNative(html, filename, settings).catch((e: any) => {
+          console.error("[receipt:print:native]", e);
+          toast.error(String(e?.message || e) || "Print error");
+        });
+        return;
+      }
+      // Mobile Safari: generate the PDF and hand it to the platform viewer /
+      // share flow so the user can print from there.
+      if (isIOS()) {
+        void downloadHTMLAsPDF(html, filename, settings).catch((e: any) => {
+          console.error("[receipt:print:ios]", e);
+          toast.error(String(e?.message || e) || "Print error");
+        });
+        return;
       }
       // Web fallback: open a new window and trigger window.print().
       const w = window.open("", "_blank", "width=600,height=800");
       if (!w) {
-        // Popup blocked — fall back to the print view in the same tab.
-        openPrintView(html, filename, { lang: lng, title: filename });
+        void downloadHTMLAsPDF(html, filename, settings).catch((e: any) => {
+          console.error("[receipt:print:web-fallback]", e);
+          toast.error(String(e?.message || e) || "Print error");
+        });
         return;
       }
       w.document.write(html);
@@ -396,10 +408,13 @@ export default function Payments() {
     try {
       const { html } = buildReceiptHTML(r, lng);
       const filename = `${r.receipt_number || r.id}.pdf`;
-      // iOS (native or Safari): route through PrintView — the Share sheet
-      // there provides "Save to Files" / AirDrop / Mail reliably.
-      if (isNative() || isIOS()) {
-        if (openPrintView(html, filename, { lang: lng, title: filename })) return;
+      if (isNative()) {
+        await downloadHTMLAsPDF(html, filename, settings);
+        return;
+      }
+      if (isIOS()) {
+        await downloadHTMLAsPDF(html, filename, settings);
+        return;
       }
       // Web: render via html2canvas + jsPDF and trigger pdf.save().
       const container = document.createElement("div");

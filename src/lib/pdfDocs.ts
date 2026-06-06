@@ -1809,15 +1809,19 @@ async function savePdfBlob(pdf: jsPDF, filename: string) {
  */
 export async function previewHTMLAsPDFNative(html: string, filename: string, settings?: PdfSettings): Promise<boolean> {
   if (!isNative()) return false;
-  const pageSize = settings?.pageSize || DEFAULT_PAGE_SIZE;
-  const margins = settings?.margins || DEFAULT_MARGINS;
-  const finalHtml = await inlinePdfFonts(html);
-  let canvas: HTMLCanvasElement | null = null;
-  try { canvas = await renderInMainDocument(finalHtml); }
-  catch { /* fallback below */ }
-  if (!canvas) canvas = await renderInIframe(finalHtml);
-  const pdf = renderCanvasToPdf(canvas, pageSize, margins);
+  const pdf = await renderHTMLToPdf(html, settings);
   await previewBlobNative(pdf.output("blob"), filename);
+  return true;
+}
+
+/**
+ * Generate a PDF from HTML then route it to the native share sheet for
+ * printing. AirPrint lives in the share sheet on iOS.
+ */
+export async function printHTMLAsPDFNative(html: string, filename: string, settings?: PdfSettings): Promise<boolean> {
+  if (!isNative()) return false;
+  const pdf = await renderHTMLToPdf(html, settings);
+  await handlePdfBlobNative(pdf.output("blob"), filename, "print", { title: filename });
   return true;
 }
 
@@ -1862,6 +1866,25 @@ function renderCanvasToPdf(canvas: HTMLCanvasElement, pageSize: PageSize, margin
     }
   }
   return pdf;
+}
+
+async function renderHTMLToPdf(html: string, settings?: PdfSettings): Promise<jsPDF> {
+  const pageSize = settings?.pageSize || DEFAULT_PAGE_SIZE;
+  const margins = settings?.margins || DEFAULT_MARGINS;
+  const finalHtml = await inlinePdfFonts(html);
+
+  let canvas: HTMLCanvasElement | null = null;
+  try {
+    canvas = await renderInMainDocument(finalHtml);
+  } catch (e) {
+    console.warn("[pdf] main-document render failed, falling back to iframe", e);
+  }
+
+  if (!canvas) {
+    canvas = await renderInIframe(finalHtml);
+  }
+
+  return renderCanvasToPdf(canvas, pageSize, margins);
 }
 
 function buildPdfFromCanvas(canvas: HTMLCanvasElement, filename: string, pageSize: PageSize, margins: Margins) {
@@ -2027,34 +2050,6 @@ async function renderInIframe(html: string): Promise<HTMLCanvasElement> {
 }
 
 export async function downloadHTMLAsPDF(html: string, filename: string, settings?: PdfSettings) {
-  // Capacitor native handled inside savePdfBlob — falls through to render
-  // path here so we generate a real PDF blob, then native Share sheet
-  // saves it to Files / AirPrint / etc.
-  //
-  // Mobile Safari (web, not Capacitor): keep the dedicated print-view
-  // fallback because popups stay open from the user gesture.
-  if (!isNative() && isIOS()) {
-    if (openPrintView(html, filename)) return;
-  }
-
-  const pageSize = settings?.pageSize || DEFAULT_PAGE_SIZE;
-  const margins = settings?.margins || DEFAULT_MARGINS;
-
-  // Inject @font-face (data URLs) so both render paths see the Arabic font
-  // declarations inline — no reliance on relative /fonts/ URLs.
-  const finalHtml = await inlinePdfFonts(html);
-
-  let canvas: HTMLCanvasElement | null = null;
-
-  try {
-    canvas = await renderInMainDocument(finalHtml);
-  } catch (e) {
-    console.warn("[pdf] main-document render failed, falling back to iframe", e);
-  }
-
-  if (!canvas) {
-    canvas = await renderInIframe(finalHtml);
-  }
-
-  await buildPdfFromCanvas(canvas, filename, pageSize, margins);
+  const pdf = await renderHTMLToPdf(html, settings);
+  await savePdfBlob(pdf, filename);
 }
