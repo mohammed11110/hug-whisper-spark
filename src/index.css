@@ -587,7 +587,7 @@ html[lang="ar"] body {
 .driver-popover-prev-btn {
   background: transparent !important;
   color: hsl(var(--muted-foreground)) !important;
-  border: 1px solid rgba(95,126,101,0.25) !important;
+  border: 1px solid rgba(202,168,105,0.28) !important;
 }
 .driver-popover-close-btn {
   position: absolute;
@@ -602,7 +602,7 @@ html[lang="ar"] body {
   font-size: 16px !important;
 }
 .driver-popover-close-btn:hover {
-  background: rgba(95,126,101,0.08) !important;
+  background: rgba(202,168,105,0.10) !important;
 }
 .driver-popover-arrow {
   border-color: hsl(var(--card)) transparent transparent transparent;
@@ -628,8 +628,8 @@ html[lang="ar"] body {
   align-items: center;
   justify-content: center;
   gap: 18px;
-  background: linear-gradient(160deg, #5f7e65 0%, #3d5443 55%, #2c3a2e 100%);
-  color: #faf6ee;
+  background: radial-gradient(ellipse at 50% 60%, #14223b 0%, #0a1322 55%, #050912 100%);
+  color: #f3ead2;
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
   opacity: 0;
@@ -648,18 +648,21 @@ html[lang="ar"] body {
     amlaki-splash-logo-in 400ms cubic-bezier(0.32, 0.72, 0, 1) 100ms forwards,
     amlaki-splash-pulse 3.2s ease-in-out 600ms infinite;
   will-change: transform, opacity;
+  filter: drop-shadow(0 0 24px rgba(202, 168, 105, 0.35));
 }
 .amlaki-splash__logo-tile {
   width: 108px;
   height: 108px;
   border-radius: 26px;
-  background: rgba(250, 246, 238, 0.10);
-  border: 1px solid rgba(250, 246, 238, 0.18);
+  background: rgba(202, 168, 105, 0.06);
+  border: 1px solid rgba(202, 168, 105, 0.22);
   display: grid;
   place-items: center;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  box-shadow: 0 12px 40px -10px rgba(20, 30, 24, 0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 240, 200, 0.10),
+    0 18px 50px -12px rgba(202, 168, 105, 0.35);
 }
 .amlaki-splash__name {
   text-align: center;
@@ -674,14 +677,17 @@ html[lang="ar"] body {
   font-size: 32px;
   letter-spacing: -0.03em;
   margin: 0;
-  color: #faf6ee;
+  background: linear-gradient(135deg, #e5c98a 0%, #caa869 50%, #b8954a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 .amlaki-splash__name p {
   font-family: 'Noto Kufi Arabic', Tahoma, sans-serif;
   font-weight: 700;
   font-size: 22px;
   margin: 6px 0 0;
-  color: #faf6ee;
+  color: #caa869;
 }
 .amlaki-splash__tag {
   font-family: 'Outfit', system-ui, sans-serif;
@@ -689,7 +695,7 @@ html[lang="ar"] body {
   font-weight: 600;
   letter-spacing: 0.32em;
   text-transform: uppercase;
-  color: rgba(250, 246, 238, 0.55);
+  color: rgba(202, 168, 105, 0.55);
   opacity: 0;
   animation: amlaki-splash-tag-in 300ms cubic-bezier(0.32, 0.72, 0, 1) 750ms forwards;
 }
