@@ -430,7 +430,8 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
             </p>
           </div>
 
-          {/* المتأخرات الافتتاحية — يُحوَّل المبلغ تلقائياً إلى عدد أشهر متأخرة */}
+          {/* المتأخرات الافتتاحية — مخفية عند العقد بتاريخ سابق (تُدار من البطاقة) */}
+          {!isBackdated && (
           <div className="pt-2 border-t border-sage-100 space-y-1.5">
             <Label className="text-xs text-sage-500 inline-flex items-center gap-1">
               {t2("arrears_amount")}
@@ -482,6 +483,7 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
               );
             })()}
           </div>
+          )}
 
 
 
