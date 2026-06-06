@@ -21,7 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
 import { isNative } from "@/lib/nativeFiles";
-import { downloadHTMLAsPDF, printHTMLAsPDFNative } from "@/lib/pdfDocs";
+import { downloadHTMLAsPDF, downloadReceiptPDFDirect, printReceiptPDFDirect, type ReceiptData } from "@/lib/pdfDocs";
 import { isIOS } from "@/lib/platform";
 
 interface Row {
@@ -364,14 +364,63 @@ export default function Payments() {
     return { us, html };
   };
 
+  const buildReceiptDocData = (r: Row, lng: RLang): ReceiptData => {
+    const L = RECEIPT_TXT[lng];
+    const meta = r.derivedMeta;
+    const cycleDue = meta?.cycleDue && meta.cycleDue > 0
+      ? meta.cycleDue
+      : (r.expected_amount && r.expected_amount > 0 ? r.expected_amount : r.amount);
+    const cumulativePaid = meta?.cumulativePaid ?? r.amount;
+    const receiptRemaining = Math.max(0, cycleDue - cumulativePaid);
+    const otherOutstanding = Math.max(0, r.remaining - receiptRemaining);
+    const sfx = meta?.derivedSuffix ?? suffixOf(r.receipt_number);
+    const isPartialInstallment = isPartialSuffix(sfx);
+    const isFinalInstallment = isFinalSuffix(sfx) || (meta?.cycleClosed && (meta?.cycleSize ?? 1) > 1 && !isPartialInstallment);
+    const partialIndex = isPartialInstallment ? parseInt(sfx as string, 10) : 0;
+    const installmentNote = isPartialInstallment
+      ? L.partial_note(partialIndex)
+      : (isFinalInstallment ? L.final_note : "");
+    const cycleClosed = receiptRemaining <= 0.009 || !!meta?.cycleClosed;
+    const statusKey: ReceiptData["statusKey"] = isPartialInstallment
+      ? "partial"
+      : (cycleClosed ? "paid" : "late");
+    const statusLabel = {
+      paid: L.paid,
+      late: L.late,
+      soon: L.soon,
+      partial: L.partial,
+    }[statusKey || "paid"];
+
+    return {
+      brand: settings.brand,
+      receiptNumber: r.receipt_number || r.id,
+      paymentDate: r.payment_date,
+      amount: r.amount,
+      expectedAmount: cycleDue,
+      periodLabel: r.period_start ? cycleLabel(r, lng) : "—",
+      building: r.building_name,
+      unitNumber: r.unit_number,
+      tenantName: r.tenant_name || "—",
+      currency,
+      lang: lng,
+      cycleTotalDue: cycleDue,
+      cyclePaidToDate: cumulativePaid,
+      cycleRemaining: receiptRemaining,
+      otherOutstanding,
+      statusKey,
+      statusLabel,
+      installmentNote,
+    };
+  };
+
   const printReceipt = (r: Row, lng: RLang = receiptLang) => {
     try {
-      const { html } = buildReceiptHTML(r, lng);
       const filename = `${r.receipt_number || r.id}.pdf`;
+      const receiptData = buildReceiptDocData(r, lng);
       // Native iOS/Android: generate a real PDF and hand it to the OS print
       // flow. This avoids window.open/sessionStorage/window.print issues.
       if (isNative()) {
-        void printHTMLAsPDFNative(html, filename, settings).catch((e: any) => {
+        void printReceiptPDFDirect(receiptData, filename).catch((e: any) => {
           console.error("[receipt:print:native]", e);
           toast.error(String(e?.message || e) || "Print error");
         });
@@ -380,12 +429,13 @@ export default function Payments() {
       // Mobile Safari: generate the PDF and hand it to the platform viewer /
       // share flow so the user can print from there.
       if (isIOS()) {
-        void downloadHTMLAsPDF(html, filename, settings).catch((e: any) => {
+        void printReceiptPDFDirect(receiptData, filename).catch((e: any) => {
           console.error("[receipt:print:ios]", e);
           toast.error(String(e?.message || e) || "Print error");
         });
         return;
       }
+      const { html } = buildReceiptHTML(r, lng);
       // Web fallback: open a new window and trigger window.print().
       const w = window.open("", "_blank", "width=600,height=800");
       if (!w) {
@@ -406,16 +456,17 @@ export default function Payments() {
 
   const downloadReceiptPDF = async (r: Row, lng: RLang = receiptLang) => {
     try {
-      const { html } = buildReceiptHTML(r, lng);
       const filename = `${r.receipt_number || r.id}.pdf`;
+      const receiptData = buildReceiptDocData(r, lng);
       if (isNative()) {
-        await downloadHTMLAsPDF(html, filename, settings);
+        await downloadReceiptPDFDirect(receiptData, filename);
         return;
       }
       if (isIOS()) {
-        await downloadHTMLAsPDF(html, filename, settings);
+        await downloadReceiptPDFDirect(receiptData, filename);
         return;
       }
+      const { html } = buildReceiptHTML(r, lng);
       // Web: render via html2canvas + jsPDF and trigger pdf.save().
       const container = document.createElement("div");
       container.style.position = "fixed";
