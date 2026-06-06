@@ -1598,18 +1598,28 @@ export async function printReceiptPDFDirect(data: ReceiptData, filename: string)
 
 export function buildTenantStatementHTML(data: TenantStatementData): string {
   const rows = data.rows
-    .map(
-      (row) => `
-        <tr>
+    .map((row) => {
+      const isEv = row.kind === "eviction";
+      const trStyle = isEv
+        ? ' style="background:#e1eadc;font-weight:700;color:#2c3a2e;"'
+        : "";
+      return `
+        <tr${trStyle}>
           <td>${formatDate(row.date)}</td>
           <td>${escapeHtml(row.month || "—")}</td>
           <td>${escapeHtml(row.description)}</td>
           <td>${escapeHtml(formatMoney(row.charge, data.currency))}</td>
           <td>${escapeHtml(formatMoney(row.payment, data.currency))}</td>
-          <td class="${row.balance > 0 ? "amount-negative" : "amount-positive"}">${escapeHtml(formatMoney(row.balance, data.currency))}</td>
-        </tr>`
-    )
+          <td class="${isEv ? "" : row.balance > 0 ? "amount-negative" : "amount-positive"}">${escapeHtml(formatMoney(row.balance, data.currency))}</td>
+        </tr>`;
+    })
     .join("");
+
+  const currentStatusValue = data.successorTenantName
+    ? data.successorTenantName
+    : data.unitCurrentlyVacant
+      ? "شاغر / Vacant"
+      : "—";
 
   const body = `
     ${brandBlock(
@@ -1626,6 +1636,8 @@ export function buildTenantStatementHTML(data: TenantStatementData): string {
         <div class="card"><div class="label">Contract end / نهاية العقد</div><div class="value">${formatDate(data.contractEnd)}</div></div>
         <div class="card"><div class="label">Rent / الإيجار</div><div class="value">${escapeHtml(formatMoney(data.rentAmount || 0, data.currency))}</div></div>
         <div class="card"><div class="label">Rent type / النوع</div><div class="value">${escapeHtml(data.rentType || "—")}</div></div>
+        <div class="card"><div class="label">Current status / حالة الوحدة الآن</div><div class="value"><strong>${escapeHtml(currentStatusValue)}</strong></div></div>
+        ${data.evictionDate ? `<div class="card"><div class="label">Move-out / تاريخ الإخلاء</div><div class="value"><strong>${formatDate(data.evictionDate)}</strong></div></div>` : ""}
       </div>
       <div class="section-title">Transactions / الحركات</div>
       <table>
