@@ -52,63 +52,71 @@
 
 @layer base {
   :root {
-    /* Amlaki — Midnight Gold (primary identity) */
-    --background: 222 50% 10%;          /* #0d1426 midnight navy */
-    --foreground: 44 60% 89%;           /* #f3ead2 warm cream */
+    color-scheme: light;
+    /* Amlaki — LIGHT (daytime) — Midnight + Gold accent on light surfaces */
+    --background: 220 11% 95%;          /* #f0f1f3 */
+    --foreground: 222 25% 14%;          /* #1a1f2b midnight */
 
-    --card: 220 44% 14%;                /* #142036 surface */
-    --card-foreground: 44 60% 89%;
+    --card: 0 0% 100%;                  /* #ffffff */
+    --card-foreground: 222 25% 14%;
 
-    --popover: 220 44% 16%;
-    --popover-foreground: 44 60% 89%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 25% 14%;
 
-    /* Midnight scale (was sage) — light → deep */
-    --sage-100: 220 35% 22%;            /* lightest surface variant on dark */
-    --sage-200: 220 30% 28%;
-    --sage-300: 42 14% 66%;             /* dusty cream — muted text */
-    --sage-400: 40 50% 60%;             /* #caa869 PRIMARY gold */
-    --sage-500: 40 43% 51%;             /* #b8954a deeper gold */
-    --sage-600: 44 60% 89%;             /* cream headings */
-    --sage-700: 222 50% 6%;             /* darkest midnight */
+    /* Sage scale → neutral midnight scale on light */
+    --sage-100: 220 11% 92%;
+    --sage-200: 220 11% 88%;            /* #dde0e5 borders */
+    --sage-300: 220 10% 58%;            /* muted text */
+    --sage-400: 40 50% 44%;             /* gold-dark accent */
+    --sage-500: 222 22% 21%;            /* slate */
+    --sage-600: 222 25% 14%;            /* midnight — headings */
+    --sage-700: 222 26% 8%;             /* deepest midnight */
 
-    --primary: 40 50% 60%;              /* gold */
-    --primary-foreground: 222 60% 8%;
+    --primary: 222 25% 14%;             /* midnight brand */
+    --primary-foreground: 44 60% 92%;
 
-    --secondary: 220 35% 20%;
-    --secondary-foreground: 44 60% 89%;
+    --secondary: 222 22% 21%;           /* #2a3142 slate */
+    --secondary-foreground: 44 60% 92%;
 
-    --muted: 220 30% 18%;
-    --muted-foreground: 42 14% 66%;
+    --muted: 220 11% 92%;
+    --muted-foreground: 220 10% 58%;    /* #8a92a0 */
 
-    --accent: 40 43% 51%;               /* deeper gold */
-    --accent-foreground: 222 60% 8%;
+    --accent: 40 50% 44%;               /* #a8853a darker gold — AA on white */
+    --accent-foreground: 0 0% 100%;
 
-    --gold: 40 50% 60%;
-    --terracotta: 25 55% 63%;
-    --burgundy: 0 55% 65%;
-    --slate-info: 207 30% 70%;
+    --gold: 40 50% 44%;                 /* small text / icons on light */
+    --gold-bright: 44 56% 54%;          /* #c9a44c — only on midnight surfaces */
+    --terracotta: 25 55% 50%;
+    --burgundy: 0 38% 51%;              /* #a85d5d */
+    --slate-info: 222 22% 35%;
 
-    --destructive: 0 55% 60%;
-    --destructive-foreground: 44 60% 95%;
+    --destructive: 0 38% 51%;
+    --destructive-foreground: 0 30% 97%;
 
-    --border: 40 50% 60%;               /* gold — used with alpha via rgba helper or opacity classes */
-    --input: 220 28% 22%;
-    --ring: 40 50% 60%;
+    --border: 220 11% 88%;              /* #dde0e5 */
+    --input: 220 11% 92%;
+    --ring: 40 50% 44%;
 
     --radius: 1rem;
 
-    /* Gradients (Midnight Gold) */
-    --gradient-sage: linear-gradient(135deg, hsl(40 55% 64%), hsl(40 43% 48%));   /* gold — primary CTA */
-    --gradient-deep: linear-gradient(160deg, hsl(222 50% 12%), hsl(222 55% 6%));  /* midnight depth */
-    --gradient-cream: linear-gradient(135deg, hsl(220 44% 16%), hsl(220 40% 12%));/* dark surface */
-    --gradient-gold: linear-gradient(135deg, hsl(40 60% 68%), hsl(40 45% 48%));   /* premium gold */
-    --gradient-midnight: linear-gradient(160deg, #0f1a2e 0%, #0a1220 55%, #060b16 100%);
+    /* Semantic data (light) */
+    --success-bg: 140 26% 88%;
+    --success-fg: 145 49% 33%;
+    --danger-bg:  0 50% 89%;
+    --danger-fg:  0 28% 51%;
+    --warning-fg: 40 71% 42%;
 
-    /* Shadows — gold-tinted */
-    --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(202, 168, 105, 0.08);
-    --shadow-elev: 0 4px 10px rgba(0, 0, 0, 0.35), 0 14px 32px rgba(202, 168, 105, 0.14);
-    --shadow-glow: 0 14px 36px -10px rgba(202, 168, 105, 0.45);
-    --shadow-gold: 0 14px 36px -10px rgba(202, 168, 105, 0.55);
+    /* Hero / signature surfaces stay midnight + gold in BOTH modes */
+    --gradient-sage: linear-gradient(135deg, #2a3142, #1a1f2b);
+    --gradient-deep: linear-gradient(135deg, #2a3142, #1a1f2b);
+    --gradient-cream: linear-gradient(135deg, #ffffff, #f0f1f3);
+    --gradient-gold: linear-gradient(135deg, #d4b35a, #a8853a);
+    --gradient-midnight: linear-gradient(160deg, #2a3142 0%, #1a1f2b 60%, #0e1118 100%);
+
+    --shadow-soft: 0 1px 2px rgba(26,31,43,0.06), 0 4px 12px rgba(26,31,43,0.06);
+    --shadow-elev: 0 4px 10px rgba(26,31,43,0.08), 0 14px 32px rgba(26,31,43,0.10);
+    --shadow-glow: 0 14px 36px -10px rgba(168,133,58,0.30);
+    --shadow-gold: 0 10px 28px -10px rgba(168,133,58,0.40);
 
     --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
     --ease-out: cubic-bezier(0, 0, 0.2, 1);
@@ -118,48 +126,50 @@
     --dur-base: 200ms;
     --dur-slow: 300ms;
 
-    --sidebar-background: 222 50% 8%;
-    --sidebar-foreground: 44 60% 89%;
-    --sidebar-primary: 40 50% 60%;
-    --sidebar-primary-foreground: 222 60% 8%;
-    --sidebar-accent: 220 35% 16%;
-    --sidebar-accent-foreground: 44 60% 89%;
-    --sidebar-border: 40 50% 60%;
-    --sidebar-ring: 40 50% 60%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 25% 14%;
+    --sidebar-primary: 222 25% 14%;
+    --sidebar-primary-foreground: 44 60% 92%;
+    --sidebar-accent: 220 11% 92%;
+    --sidebar-accent-foreground: 222 25% 14%;
+    --sidebar-border: 220 11% 88%;
+    --sidebar-ring: 40 50% 44%;
   }
 
   .dark {
-    /* Dark mode is essentially the same identity, slightly deeper */
-    --background: 222 55% 7%;
-    --foreground: 44 60% 92%;
+    color-scheme: dark;
+    /* Midnight Gold — premium night identity */
+    --background: 222 26% 8%;           /* #0e1118 */
+    --foreground: 220 8% 91%;           /* #e8eaed */
 
-    --card: 220 48% 11%;
-    --card-foreground: 44 60% 92%;
+    --card: 222 22% 14%;                /* #1a1f2b */
+    --card-foreground: 220 8% 91%;
 
-    --popover: 220 48% 13%;
-    --popover-foreground: 44 60% 92%;
+    --popover: 222 22% 14%;
+    --popover-foreground: 220 8% 91%;
 
-    --sage-100: 220 35% 18%;
-    --sage-200: 220 30% 24%;
-    --sage-300: 42 14% 68%;
-    --sage-400: 40 55% 64%;
-    --sage-500: 40 48% 55%;
-    --sage-600: 44 60% 92%;
-    --sage-700: 222 55% 5%;
+    --sage-100: 222 22% 18%;
+    --sage-200: 222 22% 21%;            /* #2a3142 border */
+    --sage-300: 220 9% 59%;
+    --sage-400: 44 56% 54%;             /* gold */
+    --sage-500: 44 50% 46%;
+    --sage-600: 220 8% 91%;
+    --sage-700: 222 26% 5%;
 
-    --primary: 40 55% 64%;
-    --primary-foreground: 222 60% 6%;
+    --primary: 44 56% 54%;              /* #c9a44c gold */
+    --primary-foreground: 222 26% 8%;
 
-    --secondary: 220 35% 16%;
-    --secondary-foreground: 44 60% 92%;
+    --secondary: 222 22% 18%;
+    --secondary-foreground: 220 8% 91%;
 
-    --muted: 220 30% 14%;
-    --muted-foreground: 42 14% 70%;
+    --muted: 222 22% 14%;
+    --muted-foreground: 220 9% 59%;     /* #8a90a0 */
 
-    --accent: 40 48% 55%;
-    --accent-foreground: 222 60% 6%;
+    --accent: 44 56% 54%;
+    --accent-foreground: 222 26% 8%;
 
-    --gold: 40 55% 64%;
+    --gold: 44 56% 54%;
+    --gold-bright: 44 56% 54%;
     --terracotta: 25 60% 68%;
     --burgundy: 0 60% 70%;
     --slate-info: 207 35% 75%;
@@ -167,33 +177,45 @@
     --destructive: 0 58% 62%;
     --destructive-foreground: 44 60% 95%;
 
-    --border: 40 55% 64%;
-    --input: 220 28% 18%;
-    --ring: 40 55% 64%;
+    --border: 222 22% 21%;
+    --input: 222 22% 18%;
+    --ring: 44 56% 54%;
 
-    --gradient-sage: linear-gradient(135deg, hsl(40 58% 66%), hsl(40 46% 50%));
-    --gradient-deep: linear-gradient(160deg, hsl(222 55% 10%), hsl(222 60% 4%));
-    --gradient-cream: linear-gradient(135deg, hsl(220 48% 13%), hsl(220 44% 9%));
-    --gradient-gold: linear-gradient(135deg, hsl(40 62% 70%), hsl(40 48% 50%));
-    --gradient-midnight: linear-gradient(160deg, #0b1426 0%, #060c18 55%, #03060e 100%);
+    /* Semantic data (dark) */
+    --success-bg: 145 27% 23%;
+    --success-fg: 145 53% 67%;
+    --danger-bg:  0 24% 23%;
+    --danger-fg:  0 56% 75%;
+    --warning-fg: 44 56% 54%;
+
+    --gradient-sage: linear-gradient(135deg, #1a1f2b, #2a3142);
+    --gradient-deep: linear-gradient(160deg, #1a1f2b, #0e1118);
+    --gradient-cream: linear-gradient(135deg, #1a1f2b, #141a26);
+    --gradient-gold: linear-gradient(135deg, #d8b65d, #a8853a);
+    --gradient-midnight: linear-gradient(160deg, #1a1f2b 0%, #0e1118 60%, #060a12 100%);
 
     --shadow-soft: 0 4px 14px rgba(0, 0, 0, 0.55);
     --shadow-elev: 0 10px 30px rgba(0, 0, 0, 0.65);
-    --shadow-glow: 0 14px 44px rgba(202, 168, 105, 0.30);
-    --shadow-gold: 0 14px 36px -10px rgba(202, 168, 105, 0.65);
+    --shadow-glow: 0 14px 44px rgba(201, 164, 76, 0.30);
+    --shadow-gold: 0 14px 36px -10px rgba(201, 164, 76, 0.65);
 
-    --sidebar-background: 222 55% 6%;
-    --sidebar-foreground: 44 60% 92%;
-    --sidebar-primary: 40 55% 64%;
-    --sidebar-primary-foreground: 222 60% 6%;
-    --sidebar-accent: 220 35% 14%;
-    --sidebar-accent-foreground: 44 60% 92%;
-    --sidebar-border: 40 55% 64%;
-    --sidebar-ring: 40 55% 64%;
+    --sidebar-background: 222 26% 6%;
+    --sidebar-foreground: 220 8% 91%;
+    --sidebar-primary: 44 56% 54%;
+    --sidebar-primary-foreground: 222 26% 8%;
+    --sidebar-accent: 222 22% 14%;
+    --sidebar-accent-foreground: 220 8% 91%;
+    --sidebar-border: 222 22% 21%;
+    --sidebar-ring: 44 56% 54%;
+  }
+
+  /* Smooth theme transition */
+  html, body {
+    transition: background-color 200ms var(--ease-out), color 200ms var(--ease-out);
   }
 
   .dark .glass {
-    background: hsl(135 11% 13% / 0.7);
+    background: hsl(222 22% 14% / 0.72);
     backdrop-filter: blur(20px) saturate(1.4);
     -webkit-backdrop-filter: blur(20px) saturate(1.4);
   }

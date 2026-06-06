@@ -22,7 +22,7 @@ function getSystem(): "light" | "dark" {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(() => (localStorage.getItem(KEY) as Theme) || "light");
+  const [theme, setThemeState] = useState<Theme>(() => (localStorage.getItem(KEY) as Theme) || "system");
   const [resolved, setResolved] = useState<"light" | "dark">(() =>
     theme === "system" ? getSystem() : (theme as "light" | "dark")
   );
