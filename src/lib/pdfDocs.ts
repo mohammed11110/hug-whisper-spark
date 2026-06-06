@@ -2060,24 +2060,6 @@ export async function downloadHTMLAsPDF(html: string, filename: string, settings
     if (openPrintView(html, filename)) return;
   }
 
-  const pageSize = settings?.pageSize || DEFAULT_PAGE_SIZE;
-  const margins = settings?.margins || DEFAULT_MARGINS;
-
-  // Inject @font-face (data URLs) so both render paths see the Arabic font
-  // declarations inline — no reliance on relative /fonts/ URLs.
-  const finalHtml = await inlinePdfFonts(html);
-
-  let canvas: HTMLCanvasElement | null = null;
-
-  try {
-    canvas = await renderInMainDocument(finalHtml);
-  } catch (e) {
-    console.warn("[pdf] main-document render failed, falling back to iframe", e);
-  }
-
-  if (!canvas) {
-    canvas = await renderInIframe(finalHtml);
-  }
-
-  await buildPdfFromCanvas(canvas, filename, pageSize, margins);
+  const pdf = await renderHTMLToPdf(html, settings);
+  await savePdfBlob(pdf, filename);
 }
