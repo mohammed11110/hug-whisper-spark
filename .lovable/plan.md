@@ -1,47 +1,41 @@
-# إصلاح شاشة بيضاء على https://amlaki1.app
+## ما وجدته من الفحص المباشر
+- **الرابط نفسه يعمل الآن**: الصفحة العامة `https://amlaki1.app` تحمل بشكل طبيعي وليست بيضاء حاليًا.
+- **المشكلة الأرجح ليست الصفحة الترحيبية** بل تحدث بعد النشر/التحديث أو داخل الجزء المحمي بعد تسجيل الدخول.
+- وجدت **سببين واقعيين** قد يفسّران الشاشة البيضاء المتقطعة:
+  1. **Version skew مع PWA + lazy chunks**: العميل القديم قد يطلب ملفات JS مجزأة قديمة بعد أي Publish جديد، فينتج white screen بدل إعادة تحميل آمنة.
+  2. **خطأ backend أثناء تهيئة التطبيق بعد الدخول**: الاستدعاء `ensure_receipt_counter_seeded()` يرجّع `400` بسبب تحويل رقم كبير جدًا إلى `int` (`value ... is out of range for type integer`). هذا قد يكسر تحميل التطبيق داخل الحساب لبعض المستخدمين/الحالات.
 
-## المشكلة
-النسخة المنشورة على الدومين تعرض شاشة بيضاء على المتصفح بسبب خطأ JavaScript:
+## الخطة
+1. **تحصين التطبيق ضد أخطاء الـ lazy chunks بعد التحديث**
+   - إضافة معالجة عالمية لأخطاء `Failed to fetch dynamically imported module` وأخطاء تحميل الـ chunks.
+   - عند اكتشافها: تنفيذ **reload واحد آمن فقط** بدل بقاء الصفحة بيضاء.
+   - ربط ذلك مع آلية تحديث الـ PWA الحالية حتى ينتقل المستخدم تلقائيًا للنسخة الصحيحة.
 
-```
-TypeError: Cannot read properties of undefined 
-(reading '__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED')
-   at react-vendor-ByxrdbF-.js
-```
+2. **منع انهيار التهيئة داخل الحساب**
+   - تعديل منطق `refreshReceiptCounter()` بحيث لا يسمح لخطأ RPC بكسر تجربة البدء.
+   - إبقاء fallback القراءة المباشرة فعالًا مع تسجيل تحذير فقط بدل فشل صامت أو انهيار واجهة.
 
-السبب الجذري في `vite.config.ts` — قاعدة `manualChunks`:
-- تضع `react-dom` و `react-router` و `scheduler` في chunk اسمه **react-vendor**
-- لكن `react` نفسه لا يطابق أي شرط ⇒ يذهب إلى chunk افتراضي
-- `react-dom` يحمّل قبل `react` ⇒ ينهار التطبيق
+3. **إصلاح سبب خطأ قاعدة البيانات من الجذر**
+   - تحديث الدالة `ensure_receipt_counter_seeded()` لتتعامل مع أرقام الإيصالات الكبيرة بدون overflow.
+   - غالبًا سيكون ذلك بتحويل الحساب من `int` إلى `bigint` أو قصّ/تنظيف القيمة قبل التحويل، بحسب البنية الحالية للإيصالات.
 
-النسخة الـ Preview وiOS WebView (بعد `cap sync`) لا تظهر المشكلة لأنها dev build بدون code splitting.
+4. **التحقق على النسخة المنشورة فعليًا**
+   - اختبار الصفحة العامة على الدومين.
+   - اختبار التنقل والتحميل داخل التطبيق بعد تسجيل الدخول.
+   - التأكد أن التحديثات الجديدة لا تعيد إنتاج white screen بعد Publish جديد.
 
-## التغيير المطلوب
-ملف واحد فقط: `vite.config.ts` — تعديل سطر واحد ليضم `react` إلى نفس الـ chunk:
+## الملفات المتوقعة للتعديل
+- `src/main.tsx` — معالجة أخطاء تحميل chunks / reload recovery
+- `src/lib/appSettings.tsx` — تحصين تهيئة الإعدادات وعدم كسر البداية عند فشل RPC
+- `supabase/migrations/...` — إصلاح دالة `ensure_receipt_counter_seeded()` من جهة backend
+- وقد أحتاج تعديلًا صغيرًا في `src/components/ErrorBoundary.tsx` فقط إذا لزم إظهار fallback أوضح بدل الشاشة البيضاء
 
-```ts
-// قبل
-if (id.includes("/react-dom/") || id.includes("/react-router") || id.includes("/scheduler/")) 
-  return "react-vendor";
+## تفاصيل تقنية
+- المسار العام الحالي لا يظهر blank screen، لذا **لن أتعامل مع المشكلة كعطل CSS أو HTML**.
+- إعدادات Vite/PWA الحالية مع route lazy-loading تجعل التطبيق حساسًا لمشكلة **النسخة القديمة مقابل الـ hashed assets الجديدة** بعد النشر.
+- خطأ قاعدة البيانات الحالي موثّق بالفعل من الشبكة:
+  - `ensure_receipt_counter_seeded` → `400`
+  - الرسالة: `value "1777981447816" is out of range for type integer`
+- هذا يعني أن جزءًا من التهيئة بعد الدخول **غير robust** ويحتاج إصلاحًا من جهتين: الواجهة + backend.
 
-// بعد
-if (
-  id.includes("/node_modules/react/") ||
-  id.includes("/node_modules/react-dom/") ||
-  id.includes("/react-router") ||
-  id.includes("/scheduler/")
-) return "react-vendor";
-```
-
-هذا يضمن تحميل `react` و `react-dom` في نفس الملف وبالترتيب الصحيح.
-
-## ما لن يتغير
-- لا تعديل على أي صفحة، UI، ألوان، PDF، أو منطق
-- لا تعديل على iOS / Android native
-- لا migrations
-- لا تغيير في الـ design tokens
-
-## بعد الإصلاح
-1. **Publish → Update** لإعادة نشر النسخة على `amlaki1.app`
-2. مسح cache المتصفح أو فتح نافذة خاصة للاختبار
-3. لا حاجة لإعادة `cap sync` لأن iOS WebView لا يستخدم البناء المنشور للويب
+إذا وافقت، سأنفذ هذه الخطة ثم أتحقق من الدومين المنشور مرة أخرى بعد الإصلاح.
