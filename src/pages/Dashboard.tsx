@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { RecentActivityCard } from "@/components/dashboard/RecentActivityCard";
 import { useCountUp } from "@/hooks/useCountUp";
+import { useSubscription } from "@/hooks/useSubscription";
 
 
 interface Stats {
@@ -155,14 +156,8 @@ export default function Dashboard() {
 
 
         {/* Subscription */}
-        <button className="w-full bg-gradient-gold rounded-2xl p-3.5 flex items-center gap-3 shadow-soft animate-float-up" style={{ animationDelay: "0.1s" }}>
-          <span className="text-xl">⚜️</span>
-          <div className="text-start flex-1">
-            <p className="text-xs text-primary-foreground/80">{t("current_plan")}</p>
-            <p className="font-bold text-primary-foreground uppercase text-sm">{t("free")}</p>
-          </div>
-          <span className="text-primary-foreground rtl:rotate-180">›</span>
-        </button>
+        <SubscriptionCard />
+
 
         {/* Mini stats */}
         <div data-tour="dashboard-stats" className="grid grid-cols-2 gap-3 md:gap-4 anim-stagger" style={{ animationDelay: "0.15s" } as React.CSSProperties}>
