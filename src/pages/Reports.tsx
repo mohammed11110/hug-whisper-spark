@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Building2, Users, AlertCircle, TrendingUp, CheckCircle2, Home, Download, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { exportToCSV } from "@/lib/exportCSV";
-import { buildReportHTML, downloadHTMLAsPDF, type ReportData } from "@/lib/pdfDocs";
+import { buildReportHTML, downloadHTMLAsPDF, downloadReportPDFDirect, type ReportData } from "@/lib/pdfDocs";
 import { useAppSettings } from "@/lib/appSettings";
 import { getUnitArrears } from "@/lib/balance";
 import {
@@ -247,10 +247,9 @@ export default function Reports() {
       monthly: months.map((m) => ({ label: m.label, income: m.income, expenses: m.expenses, net: m.net })),
       buildings: buildingBreakdown,
     };
-    await downloadHTMLAsPDF(
-      buildReportHTML(data),
-      `amlaki-report-${new Date().toISOString().slice(0, 10)}.pdf`,
-      { pageSize: settings.pageSize, margins: settings.margins }
+    await downloadReportPDFDirect(
+      data,
+      `amlaki-report-${new Date().toISOString().slice(0, 10)}.pdf`
     );
   };
 

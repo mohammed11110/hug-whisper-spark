@@ -8,7 +8,9 @@ import { useI18n } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
 import { useAppSettings } from "@/lib/appSettings";
-import { buildLeaseHTML, buildOmaniLeaseHTML, downloadHTMLAsPDF, downloadLeasePDF, printHTML, buildTenantStatementHTML, type StatementRow } from "@/lib/pdfDocs";
+import { buildLeaseHTML, buildOmaniLeaseHTML, downloadHTMLAsPDF, downloadLeasePDF, printHTML, buildTenantStatementHTML, downloadTenantStatementPDFDirect, printTenantStatementPDFDirect, type StatementRow } from "@/lib/pdfDocs";
+import { isIOS } from "@/lib/platform";
+import { isNative } from "@/lib/nativeFiles";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
@@ -150,26 +152,50 @@ export default function UnitDetail() {
     const leaseData = buildLeaseData();
     if (!leaseData) return;
     const filename = `lease-${unit.unit_number}-${unit.tenant_name || "tenant"}.pdf`;
-    const html = isOman ? buildOmaniLeaseHTML(leaseData) : buildLeaseHTML(leaseData);
-    const doSave = async () => {
+
+    // Direct (vector) lease PDF — fast on iPad. The generic lease has a
+    // dedicated direct generator; the Omani template still uses HTML.
+    const doDirectSave = async () => {
       if (isOman) {
+        const html = buildOmaniLeaseHTML(leaseData);
         await downloadHTMLAsPDF(html, filename, settings);
       } else {
         await downloadLeasePDF(leaseData, filename);
       }
     };
+
+    // Print path — keep current behavior for desktop, share-as-PDF on iOS/native.
     if (mode === "print") {
-      printHTML(html);
+      try {
+        if (isNative() || isIOS()) {
+          await doDirectSave();
+        } else {
+          const html = isOman ? buildOmaniLeaseHTML(leaseData) : buildLeaseHTML(leaseData);
+          printHTML(html);
+        }
+      } catch (e: any) { toast.error(e.message || "PDF error"); }
       return;
     }
+
+    // Download path — always direct, fast.
     if (mode === "download") {
       try {
-        await doSave();
+        await doDirectSave();
         toast.success(lang === "ar" ? "تم حفظ الملف ✓" : "Saved ✓");
       } catch (e: any) { toast.error(e.message || "PDF error"); }
       return;
     }
-    // preview
+
+    // Preview path — on iOS / native, skip the heavy iframe preview and
+    // route straight to the native share sheet. Desktop keeps full preview.
+    if (isNative() || isIOS()) {
+      try {
+        await doDirectSave();
+        toast.success(lang === "ar" ? "تم حفظ الملف ✓" : "Saved ✓");
+      } catch (e: any) { toast.error(e.message || "PDF error"); }
+      return;
+    }
+    const html = isOman ? buildOmaniLeaseHTML(leaseData) : buildLeaseHTML(leaseData);
     openPreview({
       type: "pdf",
       title: lang === "ar"
@@ -179,7 +205,7 @@ export default function UnitDetail() {
       html,
       onSave: async () => {
         try {
-          await doSave();
+          await doDirectSave();
           toast.success(lang === "ar" ? "تم حفظ الملف ✓" : "Saved ✓");
           closePreview();
         } catch (e: any) { toast.error(e.message || "PDF error"); }
@@ -278,7 +304,7 @@ export default function UnitDetail() {
     const totalCharges = entries.reduce((s, e) => s + e.charge, 0);
     const totalPaid = entries.reduce((s, e) => s + e.payment, 0);
 
-    const html = buildTenantStatementHTML({
+    const statementData = {
       brand: settings.brand,
       currency: currency.symbol,
       generatedAt: new Date().toISOString().slice(0, 10),
@@ -298,8 +324,25 @@ export default function UnitDetail() {
         openingBalance: opening,
         securityDeposit: Number((unit as any).security_deposit || 0),
       },
-    });
+    };
     const filename = `statement-${unit.unit_number}-${(unit.tenant_name || "tenant").replace(/\s+/g, "_")}.pdf`;
+
+    // On iPad/iPhone/native: skip the preview iframe entirely and route the
+    // freshly-generated PDF straight to the native share sheet. Eliminates
+    // the html2canvas double-render that caused the lag/glitch.
+    if (isNative() || isIOS()) {
+      try {
+        await downloadTenantStatementPDFDirect(statementData, filename);
+        toast.success(lang === "ar" ? "تم تجهيز كشف الحساب ✓" : "Statement ready ✓");
+      } catch (e: any) {
+        toast.error(e.message || "PDF error");
+      }
+      return;
+    }
+
+    // Desktop: show the existing preview for review, but save/print using
+    // the direct (vector) generator — no more html2canvas pass.
+    const html = buildTenantStatementHTML(statementData);
     openPreview({
       type: "pdf",
       title: lang === "ar" ? "كشف حساب المستأجر" : "Tenant statement",
@@ -307,12 +350,16 @@ export default function UnitDetail() {
       html,
       onSave: async () => {
         try {
-          await downloadHTMLAsPDF(html, filename, settings);
+          await downloadTenantStatementPDFDirect(statementData, filename);
           toast.success(lang === "ar" ? "تم حفظ الملف ✓" : "Saved ✓");
           closePreview();
         } catch (e: any) { toast.error(e.message || "PDF error"); }
       },
-      onPrint: () => { printHTML(html); },
+      onPrint: async () => {
+        try {
+          await printTenantStatementPDFDirect(statementData, filename);
+        } catch (e: any) { toast.error(e.message || "PDF error"); }
+      },
     });
   };
 
