@@ -379,6 +379,7 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
           {isBackdated && (
             <BackdatedContractCard
               contractStartDate={startDate}
+              contractEndDate={endDate || undefined}
               rentAmount={Number(rent) || 0}
               rentType={rentType}
               rentTiming={rentTiming}
