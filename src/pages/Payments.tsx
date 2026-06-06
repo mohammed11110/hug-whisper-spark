@@ -366,53 +366,70 @@ export default function Payments() {
   };
 
   const printReceipt = (r: Row, lng: RLang = receiptLang) => {
-    const { html } = buildReceiptHTML(r, lng);
-    // Capacitor / iOS: route through native flow (AirPrint via Share sheet).
-    // Web: open a new window and trigger window.print().
-    if (isNative()) {
-      printHTML(html).catch((e: any) => toast.error(e?.message || "Print error"));
-      return;
+    try {
+      const { html } = buildReceiptHTML(r, lng);
+      const filename = `${r.receipt_number || r.id}.pdf`;
+      // iOS (native Capacitor or mobile Safari): route to the dedicated
+      // /p/:token PrintView — it renders the receipt and exposes native
+      // Share (AirPrint, Save to Files) + Print buttons. This avoids
+      // html2canvas (which can fail silently in WKWebView) and keeps the
+      // user-gesture chain intact (synchronous window.open).
+      if (isNative() || isIOS()) {
+        if (openPrintView(html, filename, { lang: lng, title: filename })) return;
+      }
+      // Web fallback: open a new window and trigger window.print().
+      const w = window.open("", "_blank", "width=600,height=800");
+      if (!w) {
+        // Popup blocked — fall back to the print view in the same tab.
+        openPrintView(html, filename, { lang: lng, title: filename });
+        return;
+      }
+      w.document.write(html);
+      w.document.close();
+      setTimeout(() => w.print(), 300);
+    } catch (e: any) {
+      console.error("[receipt:print]", e);
+      toast.error(String(e?.message || e) || "Print error");
     }
-    const w = window.open("", "_blank", "width=600,height=800");
-    if (!w) return;
-    w.document.write(html);
-    w.document.close();
-    setTimeout(() => w.print(), 300);
   };
 
   const downloadReceiptPDF = async (r: Row, lng: RLang = receiptLang) => {
-    const { html } = buildReceiptHTML(r, lng);
-    const container = document.createElement("div");
-    container.style.position = "fixed";
-    container.style.left = "-10000px";
-    container.style.top = "0";
-    container.style.width = "640px";
-    container.innerHTML = html;
-    document.body.appendChild(container);
     try {
-      const card = container.querySelector("#receipt-card") as HTMLElement;
-      const canvas = await html2canvas(card, { scale: 2, backgroundColor: "#ffffff" });
-      const img = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({ unit: "mm", format: settings.pageSize.toLowerCase() as any });
-      const pageW = pdf.internal.pageSize.getWidth();
-      const m = settings.margins;
-      const w = pageW - m.left - m.right;
-      const h = (canvas.height * w) / canvas.width;
-      pdf.addImage(img, "PNG", m.left, m.top, w, h);
+      const { html } = buildReceiptHTML(r, lng);
       const filename = `${r.receipt_number || r.id}.pdf`;
-      // Capacitor / iOS: hand the Blob to the OS share sheet (Save to Files,
-      // AirPrint, AirDrop, WhatsApp, Mail). On web, keep jsPDF.save().
-      if (isNative()) {
-        await handlePdfBlobNative(pdf.output("blob"), filename, "save", { title: filename });
-      } else {
+      // iOS (native or Safari): route through PrintView — the Share sheet
+      // there provides "Save to Files" / AirDrop / Mail reliably.
+      if (isNative() || isIOS()) {
+        if (openPrintView(html, filename, { lang: lng, title: filename })) return;
+      }
+      // Web: render via html2canvas + jsPDF and trigger pdf.save().
+      const container = document.createElement("div");
+      container.style.position = "fixed";
+      container.style.left = "-10000px";
+      container.style.top = "0";
+      container.style.width = "640px";
+      container.innerHTML = html;
+      document.body.appendChild(container);
+      try {
+        const card = container.querySelector("#receipt-card") as HTMLElement;
+        const canvas = await html2canvas(card, { scale: 2, backgroundColor: "#ffffff" });
+        const img = canvas.toDataURL("image/png");
+        const pdf = new jsPDF({ unit: "mm", format: settings.pageSize.toLowerCase() as any });
+        const pageW = pdf.internal.pageSize.getWidth();
+        const m = settings.margins;
+        const w = pageW - m.left - m.right;
+        const h = (canvas.height * w) / canvas.width;
+        pdf.addImage(img, "PNG", m.left, m.top, w, h);
         pdf.save(filename);
+      } finally {
+        document.body.removeChild(container);
       }
     } catch (e: any) {
-      toast.error(e.message || "PDF error");
-    } finally {
-      document.body.removeChild(container);
+      console.error("[receipt:download]", e);
+      toast.error(String(e?.message || e) || "PDF error");
     }
   };
+
 
 
   return (
