@@ -554,7 +554,7 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
         </div>
         <DialogFooter className="gap-2 sm:gap-2">
           <Button data-guard-ignore variant="outline" onClick={() => guard.handleOpenChange(false)} className="rounded-xl">{t2("cancel")}</Button>
-          <Button data-guard-ignore onClick={submit} disabled={saving} className="rounded-xl bg-gradient-sage text-primary-foreground">{t2("save")}</Button>
+          <Button data-guard-ignore onClick={submit} disabled={saving || (isBackdated && !backdated)} className="rounded-xl bg-gradient-sage text-primary-foreground">{t2("save")}</Button>
         </DialogFooter>
         {guard.ConfirmDiscardUI}
       </DialogContent>
