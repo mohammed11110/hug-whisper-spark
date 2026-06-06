@@ -354,7 +354,8 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
             </div>
           </div>
 
-          {/* مدفوع حتى — اختياري: تاريخ آخر شهر سُدِّد فعلاً قبل بدء هذا العقد */}
+          {/* مدفوع حتى — اختياري: مخفي عند العقد بتاريخ سابق (يُتعامَل عبر البطاقة الذهبية) */}
+          {!isBackdated && (
           <div className="space-y-1.5">
             <Label className="text-xs text-sage-500 inline-flex items-center gap-1">
               {lang === "ar" ? "مدفوع حتى (اختياري)" : "Paid up to (optional)"}
@@ -372,6 +373,19 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
                 : "Last date already paid. Arrears start the day after — no need to enter old receipts."}
             </p>
           </div>
+          )}
+
+          {/* MANDATORY backdated-contract handler */}
+          {isBackdated && (
+            <BackdatedContractCard
+              contractStartDate={startDate}
+              rentAmount={Number(rent) || 0}
+              rentType={rentType}
+              rentTiming={rentTiming}
+              dueDay={Math.min(28, Math.max(1, startDate ? new Date(startDate).getDate() : Number(dueDay) || 1))}
+              onResolved={setBackdated}
+            />
+          )}
 
           {/* الرقم الرسمي للعقد — اختياري */}
           <div className="space-y-1.5">
