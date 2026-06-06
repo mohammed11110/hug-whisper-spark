@@ -12,6 +12,7 @@ import { useI18n } from "@/lib/i18n";
 import { SEO } from "@/components/SEO";
 import { useT2 } from "@/lib/i18n2";
 import { toast } from "sonner";
+import { isNativeApp, nativeGoogleSignIn } from "@/lib/nativeGoogleAuth";
 
 const ASCII_RE = /^[\x20-\x7E]*$/;
 const REMEMBER_KEY = "remembered_email";
@@ -185,6 +186,12 @@ export default function Auth() {
             onClick={async () => {
               setBusy(true);
               try {
+                if (isNativeApp()) {
+                  // Native iOS/Android: use Google SDK + Supabase signInWithIdToken
+                  await nativeGoogleSignIn();
+                  navigate("/");
+                  return;
+                }
                 const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
                 if (result.error) { toast.error(result.error.message || "Google sign-in failed"); setBusy(false); return; }
                 if (result.redirected) return;
