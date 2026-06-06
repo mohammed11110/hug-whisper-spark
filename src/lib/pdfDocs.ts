@@ -97,6 +97,12 @@ const PDF_COLORS = {
   soft: [246, 243, 236] as const,
   sage: [95, 126, 101] as const,
   gold: [168, 148, 86] as const,
+  settlementBg: [238, 245, 236] as const,
+  settlementInk: [44, 90, 54] as const,
+  partialBg: [250, 242, 221] as const,
+  lateBg: [246, 225, 225] as const,
+  lateInk: [138, 42, 42] as const,
+  goldSoft: [245, 240, 224] as const,
 };
 
 const MM_PER_POINT = 0.352778;
