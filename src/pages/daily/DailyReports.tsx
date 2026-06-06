@@ -46,7 +46,7 @@ export default function DailyReports() {
           { l: "عدد الحجوزات", v: totalBookings },
           { l: "متوسط الحجز", v: `${avg.toFixed(0)} ر.ع` },
         ].map((c) => (
-          <div key={c.l} className="bg-white rounded-2xl border border-sage-200/40 p-5">
+          <div key={c.l} className="bg-card rounded-2xl border border-sage-200/40 p-5">
             <div className="text-xs text-muted-foreground">{c.l}</div>
             <div className="text-2xl font-black text-sage-700 mt-1">{c.v}</div>
           </div>
@@ -54,7 +54,7 @@ export default function DailyReports() {
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
-        <div className="bg-white rounded-2xl border border-sage-200/40 p-5">
+        <div className="bg-card rounded-2xl border border-sage-200/40 p-5">
           <h3 className="font-black text-sage-700 mb-4">الإيرادات الشهرية</h3>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={monthly}>
@@ -65,7 +65,7 @@ export default function DailyReports() {
             </BarChart>
           </ResponsiveContainer>
         </div>
-        <div className="bg-white rounded-2xl border border-sage-200/40 p-5">
+        <div className="bg-card rounded-2xl border border-sage-200/40 p-5">
           <h3 className="font-black text-sage-700 mb-4">مصادر الحجوزات</h3>
           <ResponsiveContainer width="100%" height={260}>
             <PieChart>

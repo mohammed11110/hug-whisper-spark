@@ -57,7 +57,7 @@ export default function DailyDashboard() {
         {cards.map((c) => {
           const Icon = c.icon;
           return (
-            <div key={c.label} className="bg-white rounded-2xl border border-sage-200/40 p-5 shadow-[0_4px_18px_-12px_rgba(95,126,101,0.3)]">
+            <div key={c.label} className="bg-card rounded-2xl border border-sage-200/40 p-5 shadow-[0_4px_18px_-12px_rgba(95,126,101,0.3)]">
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${c.tone}`}>
                 <Icon className="w-5 h-5" />
               </div>
@@ -69,7 +69,7 @@ export default function DailyDashboard() {
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
-        <div className="bg-white rounded-2xl border border-sage-200/40 p-5">
+        <div className="bg-card rounded-2xl border border-sage-200/40 p-5">
           <h3 className="font-black text-sage-700 mb-3">دخول اليوم</h3>
           {today.ins.length === 0 ? (
             <p className="text-sm text-muted-foreground">لا يوجد</p>
@@ -84,7 +84,7 @@ export default function DailyDashboard() {
             </ul>
           )}
         </div>
-        <div className="bg-white rounded-2xl border border-sage-200/40 p-5">
+        <div className="bg-card rounded-2xl border border-sage-200/40 p-5">
           <h3 className="font-black text-sage-700 mb-3">مغادرة اليوم</h3>
           {today.outs.length === 0 ? (
             <p className="text-sm text-muted-foreground">لا يوجد</p>

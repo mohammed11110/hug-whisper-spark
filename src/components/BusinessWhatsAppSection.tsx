@@ -218,7 +218,7 @@ export function BusinessWhatsAppSection() {
               <Button
                 onClick={verifyCode}
                 disabled={busy || code.length !== 6}
-                className="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="flex-1 rounded-xl bg-primary hover:bg-primary text-white"
               >
                 {busy ? <Loader2 className="h-4 w-4 animate-spin me-2" /> : <CheckCircle2 className="h-4 w-4 me-2" />}
                 {tr(lang, "تأكيد الكود", "Confirm code")}

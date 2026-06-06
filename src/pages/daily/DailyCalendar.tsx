@@ -17,7 +17,7 @@ const ymd = (d: Date) =>
 const STATUS_COLOR: Record<string, string> = {
   confirmed: "bg-sage-300",
   checked_in: "bg-sage-500",
-  checked_out: "bg-slate-300",
+  checked_out: "bg-muted",
   cancelled: "bg-burgundy/30",
   pending: "bg-gold/40",
 };
@@ -60,7 +60,7 @@ export default function DailyCalendar() {
   const today = ymd(new Date());
 
   return (
-    <div className="bg-white rounded-2xl border border-sage-200/40 p-4">
+    <div className="bg-card rounded-2xl border border-sage-200/40 p-4">
       <div className="flex items-center justify-between mb-4">
         <Button variant="ghost" size="icon" onClick={() => move(-1)}><ChevronRight className="w-4 h-4" /></Button>
         <h3 className="font-black text-sage-700">{monthLabel}</h3>
@@ -71,7 +71,7 @@ export default function DailyCalendar() {
         <table className="border-separate border-spacing-0 text-xs">
           <thead>
             <tr>
-              <th className="sticky right-0 bg-white text-right p-2 min-w-32 z-10 border-b border-sage-200/40">الوحدة</th>
+              <th className="sticky right-0 bg-card text-right p-2 min-w-32 z-10 border-b border-sage-200/40">الوحدة</th>
               {days.map((d) => (
                 <th key={ymd(d)} className={`w-8 p-1 text-center border-b border-sage-200/40 ${ymd(d) === today ? "bg-sage-100" : ""}`}>
                   <div className="font-bold text-sage-700">{d.getDate()}</div>
@@ -83,7 +83,7 @@ export default function DailyCalendar() {
           <tbody>
             {units.map((u) => (
               <tr key={u.id}>
-                <td className="sticky right-0 bg-white p-2 font-bold text-sage-700 border-b border-sage-100 z-10">{u.name}</td>
+                <td className="sticky right-0 bg-card p-2 font-bold text-sage-700 border-b border-sage-100 z-10">{u.name}</td>
                 {days.map((d) => {
                   const b = cellBooking(u.id, d);
                   return (

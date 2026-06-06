@@ -105,7 +105,7 @@ export default function DailyPricing() {
         </Dialog>
       </div>
 
-      <div className="bg-white rounded-2xl border border-sage-200/40 overflow-hidden">
+      <div className="bg-card rounded-2xl border border-sage-200/40 overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-sage-100/60 text-sage-700">
             <tr>

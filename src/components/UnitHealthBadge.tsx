@@ -44,7 +44,7 @@ export function UnitHealthBadge({ unit, payments, className, activeTenancyId }: 
     const styleMap: Record<RentStatus, string> = {
       paid:     "bg-sage-100 text-sage-700 border-sage-300",
       credit:   "bg-gold/15 text-[hsl(var(--gold,40_45%_45%))] border-gold/40",
-      upcoming: "bg-slate-100 text-slate-700 border-slate-300",
+      upcoming: "bg-muted text-foreground border-border",
       due:      "bg-gold/15 text-gold border-gold/40",
       grace:    "bg-terracotta/10 text-terracotta border-terracotta/30",
       overdue:  "bg-terracotta/15 text-terracotta border-terracotta/40",

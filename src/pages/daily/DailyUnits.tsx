@@ -286,7 +286,7 @@ export default function DailyUnits() {
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
         {rows.map((u) => (
-          <div key={u.id} className="bg-white rounded-2xl border border-sage-200/40 p-5">
+          <div key={u.id} className="bg-card rounded-2xl border border-sage-200/40 p-5">
             <div className="flex justify-between items-start">
               <div>
                 <h3 className="font-black text-sage-700">{u.name}</h3>

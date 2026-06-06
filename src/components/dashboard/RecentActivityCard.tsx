@@ -27,7 +27,7 @@ const actionIcon: Record<string, any> = {
 
 const actionColor: Record<string, string> = {
   created: "bg-sage-100 text-sage-500",
-  updated: "bg-slate-100 text-slate-600",
+  updated: "bg-muted text-foreground",
   deleted: "bg-burgundy/10 text-burgundy",
   paid: "bg-gold/15 text-gold",
   restored: "bg-sage-100 text-sage-400",
