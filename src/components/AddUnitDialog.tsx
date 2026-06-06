@@ -477,7 +477,7 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
 
           <div className="flex gap-2 pt-2">
             <Button data-guard-ignore variant="outline" className="flex-1 rounded-xl border-sage-200" onClick={() => guard.handleOpenChange(false)}>{t2("cancel")}</Button>
-            <Button data-guard-ignore onClick={submit} disabled={busy || !unitNumber.trim()} className="flex-1 rounded-xl bg-gradient-sage text-primary-foreground font-semibold">{t2("save")}</Button>
+            <Button data-guard-ignore onClick={submit} disabled={busy || !unitNumber.trim() || (isBackdated && !backdated)} className="flex-1 rounded-xl bg-gradient-sage text-primary-foreground font-semibold">{t2("save")}</Button>
           </div>
         </div>
         {guard.ConfirmDiscardUI}
