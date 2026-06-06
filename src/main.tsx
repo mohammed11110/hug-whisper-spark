@@ -7,6 +7,45 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 
 initSentry();
 
+// ---------------------------------------------------------------------------
+// Recovery from stale lazy-loaded chunks after a new deploy.
+// After Publish, the previous client may try to fetch old hashed JS files
+// that no longer exist on the CDN, producing a white screen. We detect that
+// specific class of error and trigger ONE safe reload (guarded with a session
+// flag) so the user lands on the fresh bundle instead of a blank page.
+// ---------------------------------------------------------------------------
+const CHUNK_RELOAD_KEY = "amlaki:chunk-reload-once";
+function isChunkLoadError(msg: unknown): boolean {
+  const s = String(msg ?? "");
+  return (
+    s.includes("Failed to fetch dynamically imported module") ||
+    s.includes("error loading dynamically imported module") ||
+    s.includes("Importing a module script failed") ||
+    /ChunkLoadError/i.test(s) ||
+    /Loading chunk \d+ failed/i.test(s) ||
+    /Loading CSS chunk/i.test(s)
+  );
+}
+function recoverFromChunkError() {
+  try {
+    if (sessionStorage.getItem(CHUNK_RELOAD_KEY) === "1") return;
+    sessionStorage.setItem(CHUNK_RELOAD_KEY, "1");
+  } catch { /* ignore */ }
+  // Hard reload bypassing the bfcache.
+  window.location.reload();
+}
+window.addEventListener("error", (e) => {
+  if (isChunkLoadError(e?.message) || isChunkLoadError((e as ErrorEvent).error?.message)) {
+    recoverFromChunkError();
+  }
+});
+window.addEventListener("unhandledrejection", (e) => {
+  const reason = (e as PromiseRejectionEvent).reason;
+  if (isChunkLoadError(reason?.message) || isChunkLoadError(reason)) {
+    recoverFromChunkError();
+  }
+});
+
 createRoot(document.getElementById("root")!).render(
   <HelmetProvider>
     <ErrorBoundary>
