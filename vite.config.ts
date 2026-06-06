@@ -96,4 +96,24 @@ export default defineConfig(({ mode }) => ({
     },
     dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime", "@tanstack/react-query", "@tanstack/query-core"],
   },
+  build: {
+    target: "es2020",
+    cssCodeSplit: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          if (id.includes("/jspdf") || id.includes("/html2canvas")) return "pdf-vendor";
+          if (id.includes("/recharts") || id.includes("/d3-")) return "charts";
+          if (id.includes("/@radix-ui/") || id.includes("/cmdk/") || id.includes("/lucide-react/")) return "ui-vendor";
+          if (id.includes("/@tanstack/") || id.includes("/@supabase/")) return "data-vendor";
+          if (id.includes("/react-dom/") || id.includes("/react-router") || id.includes("/scheduler/")) return "react-vendor";
+          return undefined;
+        },
+      },
+    },
+  },
+  esbuild: {
+    legalComments: "none",
+  },
 }));
