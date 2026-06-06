@@ -14,7 +14,9 @@
     "cap:icons": "capacitor-assets generate --iconBackgroundColor '#5f7e65' --iconBackgroundColorDark '#2c3a2e'",
     "cap:icons:ios": "capacitor-assets generate --ios --iconBackgroundColor '#5f7e65' --iconBackgroundColorDark '#2c3a2e'",
     "cap:icons:android": "capacitor-assets generate --android --iconBackgroundColor '#5f7e65' --iconBackgroundColorDark '#2c3a2e'",
-    "cap:sync": "cap sync ios && cap sync android"
+    "cap:sync": "cap sync ios && cap sync android",
+    "build:ios": "npm run build && npm run cap:icons:ios && npx cap sync ios",
+    "build:android": "npm run build && npm run cap:icons:android && npx cap sync android"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.4",

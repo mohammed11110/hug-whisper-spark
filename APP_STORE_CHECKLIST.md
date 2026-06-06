@@ -10,8 +10,24 @@
 - [x] إنشاء `capacitor.config.ts` مع `appId` و `appName`
 - [x] ميزة **حذف الحساب** (إعدادات → منطقة الخطر) — شرط إلزامي من Apple
 - [x] Edge Function آمنة `delete-account` تحذف كل البيانات وحساب المصادقة
-- [x] أيقونة 1024×1024 (`resources/icon.png`)
-- [x] شاشة بداية (`resources/splash.png`)
+- [x] أيقونة 1024×1024 (`resources/icon.png`) + foreground/background للأندرويد
+- [x] شاشة بداية 2732×2732 (`resources/splash.png` / `splash-dark.png`)
+- [x] `assets.config.json` يضمن توليد كل مقاسات iOS (60, 76, **120**, 152, **167**, 180, 1024) و Android adaptive
+- [x] سكربتات `build:ios` / `build:android` تجمع build + توليد أيقونات + cap sync في خطوة واحدة
+
+---
+
+## 🔁 قبل كل Archive في Xcode (إلزامي)
+
+نفّذ على Mac من جذر المشروع:
+```bash
+git pull
+npm install
+npm run build:ios     # ← هذه السطر يولّد كل مقاسات الأيقونة تلقائياً
+```
+ثم في Xcode: **Product → Clean Build Folder → Archive**.
+
+هذا يحل خطأ "Missing required icon file (120×120 / 167×167)" نهائياً.
 - [x] إخفاء شارة Lovable في النسخة المنشورة
 - [x] صفحات الشروط والخصوصية وسياسة الاسترجاع موجودة
 
