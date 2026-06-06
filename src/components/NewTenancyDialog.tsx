@@ -163,7 +163,8 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
     const dueNum = startDate ? Math.min(28, Math.max(1, new Date(startDate).getDate() || 1)) : Math.min(31, Math.max(1, Number(dueDay) || 1));
     const depositNum = Number(deposit) || 0;
     const graceNum = Math.max(0, Math.min(30, Math.floor(Number(graceDays) || 0)));
-    const paidUpToVal = paidUpTo || null;
+    // Backdated-contract resolution wins over the raw "paid_up_to" field.
+    const paidUpToVal = isBackdated && backdated ? backdated.paidUpTo : (paidUpTo || null);
     const { data: insertedTenancy, error: tErr } = await supabase.from("tenancies").insert({
       building_id: unit.building_id,
       unit_id: unit.id,
