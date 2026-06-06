@@ -98,8 +98,37 @@ export function SettingsPanel({ open, onOpenChange }: { open: boolean; onOpenCha
             </div>
           )}
           {tab === "account" && (
-            <div className="space-y-3 text-sm text-sage-600">
-              <p className="text-muted-foreground">{t("settings")}</p>
+            <div className="space-y-4 text-sm text-foreground">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                  {t("appearance") || "Appearance"}
+                </p>
+                <div className="grid grid-cols-3 gap-2 p-1 bg-muted rounded-xl">
+                  {([
+                    { v: "light" as Theme, icon: Sun, label: t("light") || "Light" },
+                    { v: "dark" as Theme, icon: Moon, label: t("dark") || "Dark" },
+                    { v: "system" as Theme, icon: Monitor, label: t("system") || "Auto" },
+                  ]).map(({ v, icon: Icon, label }) => (
+                    <button
+                      key={v}
+                      onClick={() => setTheme(v)}
+                      className={`flex flex-col items-center gap-1 py-2.5 rounded-lg transition-all ${
+                        theme === v
+                          ? "bg-card shadow-soft text-primary"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span className="text-xs font-semibold">{label}</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  {theme === "system"
+                    ? `${t("following_system") || "Following system"} · ${resolved}`
+                    : ""}
+                </p>
+              </div>
               <Button variant="outline" className="w-full border-burgundy/30 text-burgundy hover:bg-burgundy/5 rounded-xl" onClick={handleSignOut}>
                 <LogOut className="h-4 w-4 me-2 rtl:rotate-180" /> {t("sign_out")}
               </Button>
