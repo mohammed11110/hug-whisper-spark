@@ -161,8 +161,9 @@ export function BackdatedContractCard({
       opening_balance: resolution.openingBalance,
       opening_balance_date: resolution.openingBalanceDate,
     };
-    const arrears = getUnitArrears(virtual, [], new Date(), lang);
-    const next = getNextDueInfo(virtual, [], lang);
+    const lng: "ar" | "en" = ar ? "ar" : "en";
+    const arrears = getUnitArrears(virtual, [], new Date(), lng);
+    const next = getNextDueInfo(virtual, [], lng);
 
     // Ignored period label.
     const firstCountedIso =
