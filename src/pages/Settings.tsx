@@ -383,13 +383,13 @@ export default function Settings() {
         </section>
       )}
 
-      {/* Admin shortcut */}
+      {/* Admin shortcut (non-destructive — calm styling) */}
       {isAdmin && (
         <section className="px-5 md:px-8 lg:px-12 mt-3">
-          <Link to="/admin" className="flex items-center gap-3 rounded-2xl bg-burgundy/5 border border-burgundy/25 p-3 hover:bg-burgundy/10 transition">
-            <div className="p-2 rounded-xl bg-burgundy/15 text-burgundy"><Shield className="h-4 w-4" /></div>
-            <p className="flex-1 text-sm font-bold text-burgundy text-start">{tr(lang, "لوحة المسؤول", "Admin panel")}</p>
-            <ArrowRight className="h-4 w-4 text-burgundy rtl:rotate-180" />
+          <Link to="/admin" className="flex items-center gap-3 rounded-2xl bg-card border border-sage-200/60 p-3 shadow-soft hover:bg-sage-50 transition">
+            <div className="p-2 rounded-xl bg-sage-100 text-sage-600"><Shield className="h-4 w-4" /></div>
+            <p className="flex-1 text-sm font-bold text-sage-600 text-start">{tr(lang, "لوحة المسؤول", "Admin panel")}</p>
+            <ArrowRight className="h-4 w-4 text-sage-400 rtl:rotate-180" />
           </Link>
         </section>
       )}
