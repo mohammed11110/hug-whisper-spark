@@ -123,7 +123,7 @@ export function BillingStatusSection() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="font-black text-sm text-foreground">
-                {tr(lang, "حالة الفوترة", "Billing status")}
+                {t("billing_status")}
               </h3>
               <span className={`inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${style.chip}`}>
                 <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
