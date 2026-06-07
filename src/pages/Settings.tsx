@@ -5,6 +5,7 @@ import {
   Database, Users, Image as ImageIcon, Smartphone, Globe, Moon, Sun, Monitor,
   Crown, Sparkles, LogOut, Shield, User as UserIcon, Mail,
   CreditCard, Loader2, Check, Upload, Download, Send, Palette, Eye, Trash2,
+  KeyRound, FileText, AlertCircle, Building2,
 } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
 import { getPaddleEnvironment } from "@/lib/paddle";
