@@ -117,6 +117,23 @@ const dict: Dict = {
   current_plan: { ar: "الخطة الحالية", en: "Current plan", ur: "موجودہ منصوبہ", zh: "当前套餐", hi: "वर्तमान योजना", bn: "বর্তমান পরিকল্পনা", fr: "Plan actuel", es: "Plan actual", tr: "Mevcut plan" },
   free: { ar: "مجاني", en: "Free", ur: "مفت", zh: "免费", hi: "मुफ़्त", bn: "ফ্রি", fr: "Gratuit", es: "Gratis", tr: "Ücretsiz" },
   loading: { ar: "جارٍ التحميل…", en: "Loading…", ur: "لوڈ ہو رہا ہے…", zh: "加载中…", hi: "लोड हो रहा है…", bn: "লোড হচ্ছে…", fr: "Chargement…", es: "Cargando…", tr: "Yükleniyor…" },
+  billing_status: { ar: "حالة الفوترة", en: "Billing status" },
+  billing_status_active: { ar: "نشط", en: "Active" },
+  billing_status_grace: { ar: "مهلة الدفع", en: "Grace" },
+  billing_status_limited: { ar: "قراءة فقط", en: "Read-only" },
+  billing_status_frozen: { ar: "مجمّد", en: "Frozen" },
+  billing_status_none: { ar: "لا يوجد اشتراك", en: "No subscription" },
+  billing_desc_trial: { ar: "تجربة مجانية — {days} يوم متبقي.", en: "Free trial — {days} day(s) left." },
+  billing_desc_renews: { ar: "التجديد التالي {date}.", en: "Renews on {date}." },
+  billing_desc_ends: { ar: "يستمر الوصول حتى {date}.", en: "Access continues until {date}." },
+  billing_desc_active: { ar: "اشتراكك فعّال.", en: "Your subscription is active." },
+  billing_desc_grace: { ar: "تعذّر تجديد الدفع. سنحاول مجدداً تلقائياً — حدّث طريقة الدفع لتجنّب الانقطاع.", en: "We couldn't renew your payment. We'll retry automatically — update your payment method to avoid interruption." },
+  billing_desc_limited: { ar: "حسابك للقراءة فقط مؤقتاً. بياناتك بأمان — جدّد اشتراكك لاستعادة التحرير.", en: "Your account is read-only for now. Your data is safe — renew to restore editing." },
+  billing_desc_frozen: { ar: "تم تجميد الحساب. بياناتك محفوظة بالكامل ولن تُحذف — جدّد لإعادة الوصول الكامل.", en: "Account frozen. Your data is fully preserved and won't be deleted — renew to restore full access." },
+  billing_desc_none: { ar: "اختر خطة لإدارة عقاراتك بدون قيود.", en: "Pick a plan to manage your properties without limits." },
+  update_payment_method: { ar: "تحديث طريقة الدفع", en: "Update payment method" },
+  renew_now: { ar: "تجديد الآن", en: "Renew now" },
+  couldnt_open_portal: { ar: "تعذّر فتح بوابة الإدارة", en: "Couldn't open the portal" },
 };
 
 interface I18nCtx {

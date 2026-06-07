@@ -29,10 +29,12 @@ const VARIANT_STYLES: Record<Variant, { icon: any; chip: string; ring: string; d
   none:    { icon: CreditCard,   chip: "bg-muted text-muted-foreground",                            ring: "border-border",         dot: "bg-muted-foreground" },
 };
 
-const tr = (lang: string, ar: string, en: string) => (lang === "ar" ? ar : en);
+function interp(template: string, vars: Record<string, string>) {
+  return template.replace(/\{(\w+)\}/g, (_, key) => vars[key] ?? _);
+}
 
 export function BillingStatusSection() {
-  const { lang } = useI18n();
+  const { t, lang } = useI18n();
   const navigate = useNavigate();
   const sub = useSubscription();
   const [portalLoading, setPortalLoading] = useState(false);
@@ -44,46 +46,39 @@ export function BillingStatusSection() {
 
   const label = (() => {
     switch (variant) {
-      case "active":  return tr(lang, "نشط", "Active");
-      case "grace":   return tr(lang, "مهلة الدفع", "Grace");
-      case "limited": return tr(lang, "قراءة فقط", "Limited");
-      case "frozen":  return tr(lang, "مجمّد", "Frozen");
-      default:        return tr(lang, "لا يوجد اشتراك", "No subscription");
+      case "active":  return t("billing_status_active");
+      case "grace":   return t("billing_status_grace");
+      case "limited": return t("billing_status_limited");
+      case "frozen":  return t("billing_status_frozen");
+      default:        return t("billing_status_none");
     }
   })();
 
   const description = (() => {
-    if (sub.loading) return tr(lang, "جارٍ التحميل…", "Loading…");
+    if (sub.loading) return t("loading");
     switch (variant) {
       case "active":
         if (sub.isTrialing) {
-          return tr(lang,
-            `تجربة مجانية — ${sub.trialDaysLeft ?? 0} يوم متبقي.`,
-            `Free trial — ${sub.trialDaysLeft ?? 0} day${(sub.trialDaysLeft ?? 0) === 1 ? "" : "s"} left.`);
+          const days = String(sub.trialDaysLeft ?? 0);
+          return ar
+            ? interp(t("billing_desc_trial"), { days })
+            : `Free trial — ${days} day${days === "1" ? "" : "s"} left.`;
         }
         if (sub.currentPeriodEnd) {
           const date = sub.currentPeriodEnd.toLocaleDateString(ar ? "ar" : "en");
           return sub.cancelAtPeriodEnd
-            ? tr(lang, `يستمر الوصول حتى ${date}.`, `Access continues until ${date}.`)
-            : tr(lang, `التجديد التالي ${date}.`, `Renews on ${date}.`);
+            ? interp(t("billing_desc_ends"), { date })
+            : interp(t("billing_desc_renews"), { date });
         }
-        return tr(lang, "اشتراكك فعّال.", "Your subscription is active.");
+        return t("billing_desc_active");
       case "grace":
-        return tr(lang,
-          "تعذّر تجديد الدفع. سنحاول مجدداً تلقائياً — حدّث طريقة الدفع لتجنّب الانقطاع.",
-          "We couldn't renew your payment. We'll retry automatically — update your payment method to avoid interruption.");
+        return t("billing_desc_grace");
       case "limited":
-        return tr(lang,
-          "حسابك للقراءة فقط مؤقتاً. بياناتك بأمان — جدّد اشتراكك لاستعادة التحرير.",
-          "Your account is read-only for now. Your data is safe — renew to restore editing.");
+        return t("billing_desc_limited");
       case "frozen":
-        return tr(lang,
-          "تم تجميد الحساب. بياناتك محفوظة بالكامل ولن تُحذف — جدّد لإعادة الوصول الكامل.",
-          "Account frozen. Your data is fully preserved and won't be deleted — renew to restore full access.");
+        return t("billing_desc_frozen");
       default:
-        return tr(lang,
-          "اختر خطة لإدارة عقاراتك بدون قيود.",
-          "Pick a plan to manage your properties without limits.");
+        return t("billing_desc_none");
     }
   })();
 
@@ -101,7 +96,7 @@ export function BillingStatusSection() {
       await openExternal(data.url);
       setTimeout(sub.refresh, 3000);
     } catch {
-      toast.error(tr(lang, "تعذّر فتح بوابة الإدارة", "Couldn't open the portal"));
+      toast.error(t("couldnt_open_portal"));
     } finally {
       setPortalLoading(false);
     }
@@ -128,7 +123,7 @@ export function BillingStatusSection() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="font-black text-sm text-foreground">
-                {tr(lang, "حالة الفوترة", "Billing status")}
+                {t("billing_status")}
               </h3>
               <span className={`inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${style.chip}`}>
                 <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
@@ -149,7 +144,7 @@ export function BillingStatusSection() {
                   className="rounded-xl h-9"
                 >
                   {portalLoading ? <Loader2 className="h-4 w-4 animate-spin me-2" /> : <CreditCard className="h-4 w-4 me-2" />}
-                  {tr(lang, "تحديث طريقة الدفع", "Update payment method")}
+                  {t("update_payment_method")}
                 </Button>
               )}
               {showRenew && (
@@ -160,7 +155,7 @@ export function BillingStatusSection() {
                   className="rounded-xl h-9 bg-gold hover:bg-gold/90 text-white"
                 >
                   {portalLoading ? <Loader2 className="h-4 w-4 animate-spin me-2" /> : <RefreshCw className="h-4 w-4 me-2" />}
-                  {tr(lang, "تجديد الآن", "Renew now")}
+                  {t("renew_now")}
                 </Button>
               )}
             </div>
