@@ -668,10 +668,28 @@ export default function Payments() {
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="min-w-[200px]">
+                    <DropdownMenuContent align="end" className="min-w-[220px]">
                       <DropdownMenuItem onClick={() => setEditId(r.id)}>
                         <Pencil className="h-3.5 w-3.5 me-2" />
                         {lang === "ar" ? "تعديل" : "Edit"}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => printReceipt(r, "ar")}>
+                        <Eye className="h-3.5 w-3.5 me-2" />
+                        {lang === "ar" ? "عرض بالعربية" : "View (Arabic)"}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => printReceipt(r, "en")}>
+                        <Eye className="h-3.5 w-3.5 me-2" />
+                        {lang === "ar" ? "عرض بالإنجليزية" : "View (English)"}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => shareReceipt(r, "ar")}>
+                        <Share2 className="h-3.5 w-3.5 me-2" />
+                        {lang === "ar" ? "مشاركة بالعربية" : "Share (Arabic)"}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => shareReceipt(r, "en")}>
+                        <Share2 className="h-3.5 w-3.5 me-2" />
+                        {lang === "ar" ? "مشاركة بالإنجليزية" : "Share (English)"}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => downloadReceiptPDF(r, "ar")}>
