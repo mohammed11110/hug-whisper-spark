@@ -843,6 +843,7 @@ export type Database = {
           canceled_at: string | null
           country_code: string | null
           created_at: string
+          deactivated_at: string | null
           email: string | null
           grace_ends_at: string | null
           id: string
@@ -850,6 +851,7 @@ export type Database = {
           paddle_customer_id: string | null
           paddle_subscription_id: string | null
           phone: string | null
+          purge_at: string | null
           subscription_expires_at: string | null
           subscription_interval: string | null
           subscription_plan: string
@@ -867,6 +869,7 @@ export type Database = {
           canceled_at?: string | null
           country_code?: string | null
           created_at?: string
+          deactivated_at?: string | null
           email?: string | null
           grace_ends_at?: string | null
           id: string
@@ -874,6 +877,7 @@ export type Database = {
           paddle_customer_id?: string | null
           paddle_subscription_id?: string | null
           phone?: string | null
+          purge_at?: string | null
           subscription_expires_at?: string | null
           subscription_interval?: string | null
           subscription_plan?: string
@@ -891,6 +895,7 @@ export type Database = {
           canceled_at?: string | null
           country_code?: string | null
           created_at?: string
+          deactivated_at?: string | null
           email?: string | null
           grace_ends_at?: string | null
           id?: string
@@ -898,6 +903,7 @@ export type Database = {
           paddle_customer_id?: string | null
           paddle_subscription_id?: string | null
           phone?: string | null
+          purge_at?: string | null
           subscription_expires_at?: string | null
           subscription_interval?: string | null
           subscription_plan?: string
@@ -1525,6 +1531,7 @@ export type Database = {
         }[]
       }
       can_write: { Args: { _user_id: string }; Returns: boolean }
+      cancel_account_deletion: { Args: never; Returns: Json }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
@@ -1602,6 +1609,7 @@ export type Database = {
       }
       recompute_unit_state: { Args: { _uid: string }; Returns: undefined }
       redeem_promo_code: { Args: { _code: string }; Returns: Json }
+      request_account_deletion: { Args: never; Returns: Json }
       seed_receipt_counter: { Args: { _seed: number }; Returns: undefined }
       subscription_phase: { Args: { _user_id: string }; Returns: string }
       update_receipt_settings: {
