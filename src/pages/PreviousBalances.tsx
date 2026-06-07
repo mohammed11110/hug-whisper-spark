@@ -205,7 +205,10 @@ export default function PreviousBalances() {
 
   return (
     <div className="mobile-shell min-h-screen pb-24 bg-background">
-      <TopBar title={ar ? "ذمم سابقة" : "Previous balances"} />
+      <TopBar />
+      <div className="px-5 pt-2 pb-1">
+        <h1 className="text-xl font-black">{ar ? "ذمم سابقة" : "Previous balances"}</h1>
+      </div>
 
       {/* Hero summary — midnight + gold */}
       <div className="mx-4 mt-3 rounded-3xl p-5 bg-[#0e1118] border border-gold/25 shadow-lg">
