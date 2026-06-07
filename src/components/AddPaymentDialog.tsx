@@ -591,13 +591,21 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     }
 
     // === Assign receipt numbers per row with /1, /2, /D suffixes. ===
-    // Fetch all current non-deleted payments for this unit, then derive
+    // Fetch current non-deleted payments for this unit, then derive
     // prior-in-cycle context per row (existing DB + earlier rows in this batch).
-    const { data: existingForUnit } = await supabase
+    // Grouping key = (lease_id + period_start + period_end). We restrict the
+    // prior set to the ACTIVE lease (or legacy NULL-tenancy rows when there
+    // is no active lease) so a previous tenant's partial receipts can never
+    // become "prior" for a new tenant's first payment in the same period.
+    const activeTId: string | null = (activeT as any)?.id || null;
+    const { data: existingForUnitRaw } = await supabase
       .from("payments")
-      .select("amount, expected_amount, receipt_number, period_start, period_end")
+      .select("amount, expected_amount, receipt_number, period_start, period_end, tenancy_id")
       .eq("unit_id", unitId)
       .is("deleted_at", null);
+    const existingForUnit = (existingForUnitRaw || []).filter((p: any) =>
+      activeTId ? p.tenancy_id === activeTId : !p.tenancy_id
+    );
     const cycleKey = (s: string | null, e: string | null) => `${s || ""}|${e || ""}`;
     const priorByCycle: Record<string, CyclePaymentRef[]> = {};
     (existingForUnit || []).forEach((p: any) => {
