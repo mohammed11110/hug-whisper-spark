@@ -77,8 +77,8 @@ export default function Dashboard() {
         .select("id, unit_number, status, rent_amount, rent_type, rent_timing, building_id, tenant_name, contract_start_date, opening_balance, opening_balance_date, paid_up_to, due_day, grace_days")
         .in("building_id", bIds);
       const units = uRows?.length ?? 0;
-      const occupied = (uRows || []).filter((u: any) => u.status !== "vacant");
-      const tenants = (uRows || []).filter((u: any) => !!u.tenant_name).length;
+      const occupied = (uRows || []).filter((u: any) => !!u.tenant_name);
+      const tenants = occupied.length;
       const expected = occupied.reduce((s: number, u: any) => s + Number(u.rent_amount || 0), 0);
       setExpectedBase(expected);
       setOccupiedCount(occupied.length);
