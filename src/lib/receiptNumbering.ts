@@ -244,7 +244,12 @@ export function derivePartialMetaForDisplay(
       });
       continue;
     }
-    const key = `${p.unit_id}|${p.period_start}|${p.period_end}`;
+    // Cycle grouping key — prefer lease (tenancy_id) so two tenants who
+    // occupied the same unit in the same calendar period can never share a
+    // receipt-number base. Legacy rows without tenancy_id fall back to
+    // unit_id, preserving the original behavior for old data.
+    const leaseKey = p.tenancy_id || `unit:${p.unit_id}`;
+    const key = `${leaseKey}|${p.period_start}|${p.period_end}`;
     const arr = groups.get(key) || [];
     arr.push(p);
     groups.set(key, arr);
