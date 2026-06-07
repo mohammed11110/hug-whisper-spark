@@ -144,7 +144,7 @@ export function BillingStatusSection() {
                   className="rounded-xl h-9"
                 >
                   {portalLoading ? <Loader2 className="h-4 w-4 animate-spin me-2" /> : <CreditCard className="h-4 w-4 me-2" />}
-                  {tr(lang, "تحديث طريقة الدفع", "Update payment method")}
+                  {t("update_payment_method")}
                 </Button>
               )}
               {showRenew && (
@@ -155,7 +155,7 @@ export function BillingStatusSection() {
                   className="rounded-xl h-9 bg-gold hover:bg-gold/90 text-white"
                 >
                   {portalLoading ? <Loader2 className="h-4 w-4 animate-spin me-2" /> : <RefreshCw className="h-4 w-4 me-2" />}
-                  {tr(lang, "تجديد الآن", "Renew now")}
+                  {t("renew_now")}
                 </Button>
               )}
             </div>
