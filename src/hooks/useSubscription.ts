@@ -144,7 +144,10 @@ export function useSubscription(): SubscriptionState {
     const addonUnits = Number(sub?.addon_units ?? 0);
 
     const isActive = phase === "active" || phase === "trial";
-    const isReadOnly = phase === "readonly_grace" || phase === "subscription_grace";
+    const isReadOnly =
+      phase === "readonly_grace" ||
+      phase === "subscription_grace" ||
+      phase === "frozen";
 
     setState({
       loading: false,
@@ -163,7 +166,7 @@ export function useSubscription(): SubscriptionState {
       unitLimit: phase === "trial"
         ? Infinity
         : phase === "active"
-          ? PLAN_UNIT_LIMITS[plan] + addonUnits
+          ? PLAN_UNIT_LIMITS[plan]
           : PLAN_UNIT_LIMITS.free,
       phase,
       canceledAt,
