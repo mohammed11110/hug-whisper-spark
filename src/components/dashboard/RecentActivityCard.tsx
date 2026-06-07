@@ -34,7 +34,7 @@ const actionColor: Record<string, string> = {
   ended: "bg-terracotta/15 text-terracotta",
 };
 
-export function RecentActivityCard({ limit = 8 }: { limit?: number }) {
+export function RecentActivityCard({ limit = 8, hideWhenEmpty = false }: { limit?: number; hideWhenEmpty?: boolean }) {
   const { lang } = useI18n();
   const t2 = useT2();
   const [rows, setRows] = useState<Row[]>([]);
@@ -65,6 +65,8 @@ export function RecentActivityCard({ limit = 8 }: { limit?: number }) {
       supabase.removeChannel(channel);
     };
   }, [limit]);
+
+  if (!loading && hideWhenEmpty && rows.length === 0) return null;
 
   return (
     <div className="bg-card rounded-3xl p-5 shadow-soft border border-sage-200/40 animate-float-up" style={{ animationDelay: "0.3s" }}>
