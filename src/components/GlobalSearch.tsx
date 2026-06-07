@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Search, Building2, DoorOpen, User, Receipt, X, Sparkles, Loader2 } from "lucide-react";
+import { Search, Building2, DoorOpen, User, Receipt, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 
 interface SearchItem {
   type: "building" | "unit" | "tenant" | "payment";
@@ -22,16 +21,12 @@ export function GlobalSearch({ open, onClose }: { open: boolean; onClose: () => 
   const [q, setQ] = useState("");
   const [items, setItems] = useState<SearchItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [aiItems, setAiItems] = useState<SearchItem[]>([]);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiUsed, setAiUsed] = useState(false);
 
   useEffect(() => {
-    if (!open) { setQ(""); setItems([]); setAiItems([]); setAiUsed(false); }
+    if (!open) { setQ(""); setItems([]); }
   }, [open]);
 
   useEffect(() => {
-    setAiItems([]); setAiUsed(false);
     if (!user || !open) return;
     if (!q.trim()) { setItems([]); return; }
     const handle = setTimeout(async () => {
@@ -81,21 +76,6 @@ export function GlobalSearch({ open, onClose }: { open: boolean; onClose: () => 
     return () => clearTimeout(handle);
   }, [q, user, open, ar]);
 
-  const runAiSearch = async () => {
-    if (!q.trim() || aiLoading) return;
-    setAiLoading(true);
-    setAiUsed(true);
-    try {
-      const resp = await supabase.functions.invoke("smart-search", { body: { q: q.trim(), lang } });
-      if (resp.error) throw resp.error;
-      const results = ((resp.data as any)?.results || []) as SearchItem[];
-      setAiItems(results);
-    } catch (e: any) {
-      toast.error(e?.message || (ar ? "تعذّر البحث الذكي" : "AI search failed"));
-    } finally {
-      setAiLoading(false);
-    }
-  };
 
   if (!open) return null;
 
