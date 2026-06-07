@@ -781,6 +781,33 @@ export default function Settings() {
             <Card>
               <div className="p-4 space-y-3">
                 <div className="flex items-center gap-2">
+                  <KeyRound className="h-4 w-4 text-sage-600" />
+                  <p className="font-bold text-sm text-sage-600">{tr(lang, "أمان الحساب", "Account security")}</p>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  {tr(lang, "غيّر كلمة المرور بانتظام. التحقق بخطوتين قادم قريباً.",
+                            "Change your password regularly. Two-factor authentication coming soon.")}
+                </p>
+                <div className="grid grid-cols-1 gap-2">
+                  <Button variant="outline" onClick={() => setPwdOpen(true)}
+                    className="rounded-xl border-sage-300 text-sage-600 justify-start h-11">
+                    <KeyRound className="h-4 w-4 me-2" /> {tr(lang, "تغيير كلمة المرور", "Change password")}
+                  </Button>
+                  <button disabled
+                    className="rounded-xl border border-sage-200 bg-sage-50/40 text-sage-500 h-11 px-3 flex items-center text-sm font-bold opacity-70 cursor-not-allowed">
+                    <Shield className="h-4 w-4 me-2" />
+                    <span className="flex-1 text-start">{tr(lang, "التحقق بخطوتين (2FA)", "Two-factor authentication (2FA)")}</span>
+                    <span className="text-[10px] bg-gold/15 text-gold px-2 py-0.5 rounded-full font-black">
+                      {tr(lang, "قريباً", "Soon")}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </Card>
+
+            <Card>
+              <div className="p-4 space-y-3">
+                <div className="flex items-center gap-2">
                   <ShieldAlert className="h-4 w-4 text-sage-600" />
                   <p className="font-bold text-sm text-sage-600">{tr(lang, "رمز حماية الحذف (PIN)", "Delete PIN")}</p>
                 </div>
