@@ -2862,6 +2862,12 @@ export interface UnitStatementLeaseBlock {
   rentAmount: number;
   rentType?: string | null;
   status: "current" | "previous";
+  /** How an outstanding balance at eviction was handled (previous leases only). */
+  debtResolution?: "kept" | "collected" | "written_off" | "none" | null;
+  /** True when a previously kept debt has since been settled. */
+  debtSettled?: boolean;
+  /** Free-text reason captured at write-off time (shown next to the pill). */
+  writeOffReason?: string | null;
   rows: UnitStatementRow[];
   totals: {
     totalCharges: number;
