@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Trash2, RotateCcw, AlertTriangle, CheckSquare, X } from "lucide-react";
 import { TopBar } from "@/components/TopBar";
-import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useI18n } from "@/lib/i18n";
@@ -327,7 +326,6 @@ export default function PaymentsTrash() {
         )}
       </div>
 
-      <BottomNav />
       <ConfirmDeleteDialog
         open={!!pendingPurge}
         onOpenChange={(o) => !o && setPendingPurge(null)}

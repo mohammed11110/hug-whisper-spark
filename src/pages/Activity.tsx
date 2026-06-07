@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Activity as ActivityIcon, Plus, Pencil, Trash2, Wallet, RotateCcw, CircleSlash, Search } from "lucide-react";
 import { TopBar } from "@/components/TopBar";
-import { BottomNav } from "@/components/BottomNav";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
@@ -165,7 +164,6 @@ export default function Activity() {
           </ul>
         )}
       </div>
-      <BottomNav />
     </div>
   );
 }

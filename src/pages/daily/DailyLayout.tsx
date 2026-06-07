@@ -1,6 +1,5 @@
 import { Outlet, NavLink, useLocation } from "react-router-dom";
 import { TopBar } from "@/components/TopBar";
-import { BottomNav } from "@/components/BottomNav";
 import { useDailyBuilding } from "@/lib/daily/useDailyBuilding";
 import {
   Select,
@@ -112,7 +111,6 @@ export default function DailyLayout() {
         )}
       </div>
 
-      <BottomNav />
     </div>
   );
 }

@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, UserPlus, Trash2, Shield, Mail, Crown } from "lucide-react";
 import { TopBar } from "@/components/TopBar";
-import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -254,7 +253,6 @@ export default function Team() {
           </div>
         </div>
       )}
-      <BottomNav />
     </div>
   );
 }

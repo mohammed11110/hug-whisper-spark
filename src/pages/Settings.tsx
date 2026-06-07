@@ -14,7 +14,6 @@ import { useTheme } from "@/lib/theme";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Textarea } from "@/components/ui/textarea";
 import { TopBar } from "@/components/TopBar";
-import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -847,7 +846,6 @@ export default function Settings() {
       </section>
 
       <DeleteAccountSection />
-      <BottomNav />
       <EndTrialDialog open={endTrialOpen} onOpenChange={setEndTrialOpen} onEnded={() => sub.refresh()} />
 
       {/* Currency Sheet */}

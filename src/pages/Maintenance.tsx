@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Plus, Wrench, Pencil, Ban, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TopBar } from "@/components/TopBar";
-import { BottomNav } from "@/components/BottomNav";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
@@ -237,7 +236,6 @@ export default function Maintenance() {
 
       <AddMaintenanceDialog open={open} onOpenChange={setOpen} onCreated={load} />
       <EditMaintenanceDialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)} request={editing} onSaved={load} />
-      <BottomNav />
     </div>
   );
 }

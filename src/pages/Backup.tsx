@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Download, Upload, Database, ShieldCheck } from "lucide-react";
 import { TopBar } from "@/components/TopBar";
-import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
@@ -147,7 +146,6 @@ export default function Backup() {
           </div>
         </div>
       </div>
-      <BottomNav />
     </div>
   );
 }
