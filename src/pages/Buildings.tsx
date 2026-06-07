@@ -56,7 +56,7 @@ export default function Buildings() {
 
     if (data?.length) {
       const ids = data.map((b) => b.id);
-      const { data: us } = await supabase.from("units").select("id, building_id, status, rent_amount").in("building_id", ids);
+      const { data: us } = await supabase.from("units").select("id, building_id, status, rent_amount, tenant_name").in("building_id", ids);
       const unitsByBuilding: Record<string, any[]> = {};
       (us || []).forEach((u: any) => {
         (unitsByBuilding[u.building_id] ||= []).push(u);
@@ -87,7 +87,7 @@ export default function Buildings() {
       const stats: Record<string, BuildingStats> = {};
       for (const b of data) {
         const list = unitsByBuilding[b.id] || [];
-        const occupied = list.filter((u) => u.status !== "vacant");
+        const occupied = list.filter((u) => !!u.tenant_name);
         const hasArrears = list.some((u) => u.status === "late");
         const allCollected = occupied.length > 0 && occupied.every((u) => paidUnitIds.has(u.id));
         stats[b.id] = {
