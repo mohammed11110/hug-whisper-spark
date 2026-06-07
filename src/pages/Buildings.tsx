@@ -41,6 +41,7 @@ export default function Buildings() {
   const { t, lang } = useI18n();
   const t2 = useT2();
   const { user } = useAuth();
+  const { format } = useCurrency();
   const [items, setItems] = useState<Building[]>([]);
   const [bStats, setBStats] = useState<Record<string, BuildingStats>>({});
   const [filter, setFilter] = useState<string>("all");
