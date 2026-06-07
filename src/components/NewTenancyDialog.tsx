@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
 import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
-import { X, Image as ImageIcon, Loader2 } from "lucide-react";
+import { X, Image as ImageIcon } from "lucide-react";
 import { BackdatedContractCard, type BackdatedResolution } from "@/components/BackdatedContractCard";
 
 
@@ -45,7 +45,7 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
   const [unitPhotos, setUnitPhotos] = useState<string[]>([]);
   const [pendingPhoto, setPendingPhoto] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [extracting, setExtracting] = useState(false);
+  
   // المتأخرات الافتتاحية — يتم توزيعها تلقائياً على الأشهر السابقة (نفس منطق AddUnitDialog).
   const [arrears, setArrears] = useState<string>("0");
   // مدفوع حتى (اختياري): تاريخ آخر شهر تم سداده فعلاً قبل بداية هذا العقد —
@@ -57,7 +57,7 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
   const [officialNumber, setOfficialNumber] = useState<string>("");
   const [backdated, setBackdated] = useState<BackdatedResolution | null>(null);
   const guard = useUnsavedGuard({ open, onOpenChange });
-  const lastExtractedRef = useRef<string | null>(null);
+  
 
   const todayIso = today;
   const isBackdated = !!startDate && startDate < todayIso;
@@ -84,7 +84,7 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
     setGraceDays(String(unit.grace_days ?? "0"));
     setOfficialNumber("");
     setBackdated(null);
-    lastExtractedRef.current = null;
+    
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, unit?.id]);
 
