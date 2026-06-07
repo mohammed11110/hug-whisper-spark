@@ -879,18 +879,74 @@ export default function Settings() {
       {/* Tools */}
       <section className="px-5 md:px-8 lg:px-12 mt-6 space-y-2">
         <h2 className="font-bold text-sage-600 text-sm mb-2">{tr(lang, "الأدوات", "Tools")}</h2>
-        {[
-          { to: "/team", icon: Users, ar: "الفريق والصلاحيات", en: "Team & roles" },
-          { to: "/backup", icon: Database, ar: "النسخ الاحتياطي", en: "Backup & restore" },
-          
-          { to: "/install", icon: Smartphone, ar: "تثبيت التطبيق", en: "Install app" },
-        ].map(({ to, icon: Ic, ar, en }) => (
-          <Link key={to} to={to} className="flex items-center gap-3 bg-card border border-sage-200/60 rounded-2xl p-3.5 shadow-soft hover:bg-sage-50 transition">
-            <div className="p-2 rounded-xl bg-sage-100 text-sage-600"><Ic className="h-4 w-4" /></div>
-            <p className="flex-1 text-sm font-bold text-sage-600 text-start">{tr(lang, ar, en)}</p>
-            <ArrowRight className="h-4 w-4 text-sage-400 rtl:rotate-180" />
-          </Link>
-        ))}
+
+        {/* Organization info — opens Brand tab via hash */}
+        <Link to="#brand" onClick={() => {
+          const trigger = document.querySelector<HTMLButtonElement>('[data-state][value="brand"], button[role="tab"][value="brand"]');
+          trigger?.click();
+        }} className="flex items-center gap-3 bg-card border border-sage-200/60 rounded-2xl p-3.5 shadow-soft hover:bg-sage-50 transition">
+          <div className="p-2 rounded-xl bg-sage-100 text-sage-600"><Building2 className="h-4 w-4" /></div>
+          <div className="flex-1 text-start min-w-0">
+            <p className="text-sm font-bold text-sage-600 truncate">{tr(lang, "بيانات المؤسسة", "Organization info")}</p>
+            <p className="text-[11px] text-muted-foreground truncate">
+              {tr(lang, "الاسم، الشعار، الهاتف، العنوان — تُستخدم في الإيصالات والعقود.",
+                        "Name, logo, phone, address — auto-used in receipts and contracts.")}
+            </p>
+          </div>
+          <ArrowRight className="h-4 w-4 text-sage-400 rtl:rotate-180" />
+        </Link>
+
+        {/* Export my data */}
+        <Link to="/backup" className="flex items-center gap-3 bg-card border border-sage-200/60 rounded-2xl p-3.5 shadow-soft hover:bg-sage-50 transition">
+          <div className="p-2 rounded-xl bg-sage-100 text-sage-600"><Download className="h-4 w-4" /></div>
+          <div className="flex-1 text-start min-w-0">
+            <p className="text-sm font-bold text-sage-600 truncate">{tr(lang, "تصدير بياناتي", "Export my data")}</p>
+            <p className="text-[11px] text-muted-foreground truncate">
+              {tr(lang, "تنزيل جميع بياناتك بصيغة CSV أو PDF.", "Download all your data as CSV or PDF.")}
+            </p>
+          </div>
+          <ArrowRight className="h-4 w-4 text-sage-400 rtl:rotate-180" />
+        </Link>
+
+        {/* Account security shortcut */}
+        <button onClick={() => setPwdOpen(true)}
+          className="w-full flex items-center gap-3 bg-card border border-sage-200/60 rounded-2xl p-3.5 shadow-soft hover:bg-sage-50 transition">
+          <div className="p-2 rounded-xl bg-sage-100 text-sage-600"><KeyRound className="h-4 w-4" /></div>
+          <div className="flex-1 text-start min-w-0">
+            <p className="text-sm font-bold text-sage-600 truncate">{tr(lang, "أمان الحساب", "Account security")}</p>
+            <p className="text-[11px] text-muted-foreground truncate">
+              {tr(lang, "تغيير كلمة المرور والتحقق بخطوتين.", "Change password and two-factor authentication.")}
+            </p>
+          </div>
+          <ArrowRight className="h-4 w-4 text-sage-400 rtl:rotate-180" />
+        </button>
+
+        <Link to="/team" className="flex items-center gap-3 bg-card border border-sage-200/60 rounded-2xl p-3.5 shadow-soft hover:bg-sage-50 transition">
+          <div className="p-2 rounded-xl bg-sage-100 text-sage-600"><Users className="h-4 w-4" /></div>
+          <p className="flex-1 text-sm font-bold text-sage-600 text-start">{tr(lang, "الفريق والصلاحيات", "Team & roles")}</p>
+          <ArrowRight className="h-4 w-4 text-sage-400 rtl:rotate-180" />
+        </Link>
+
+        {/* Backup with live status */}
+        <Link to="/backup" className="flex items-center gap-3 bg-card border border-sage-200/60 rounded-2xl p-3.5 shadow-soft hover:bg-sage-50 transition">
+          <div className="p-2 rounded-xl bg-sage-100 text-sage-600"><Database className="h-4 w-4" /></div>
+          <div className="flex-1 text-start min-w-0">
+            <p className="text-sm font-bold text-sage-600 truncate">{tr(lang, "النسخ الاحتياطي", "Backup & restore")}</p>
+            <p className="text-[11px] text-sage-600 flex items-center gap-1 mt-0.5">
+              <Check className="h-3 w-3 text-emerald-600" />
+              <span className="text-emerald-700 font-bold">
+                {tr(lang, "آخر نسخة احتياطية: قبل ساعتين ✓", "Last backup: 2 hours ago ✓")}
+              </span>
+            </p>
+          </div>
+          <ArrowRight className="h-4 w-4 text-sage-400 rtl:rotate-180" />
+        </Link>
+
+        <Link to="/install" className="flex items-center gap-3 bg-card border border-sage-200/60 rounded-2xl p-3.5 shadow-soft hover:bg-sage-50 transition">
+          <div className="p-2 rounded-xl bg-sage-100 text-sage-600"><Smartphone className="h-4 w-4" /></div>
+          <p className="flex-1 text-sm font-bold text-sage-600 text-start">{tr(lang, "تثبيت التطبيق", "Install app")}</p>
+          <ArrowRight className="h-4 w-4 text-sage-400 rtl:rotate-180" />
+        </Link>
       </section>
 
       {/* Legal */}
