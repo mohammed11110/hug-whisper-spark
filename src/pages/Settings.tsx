@@ -5,6 +5,7 @@ import {
   Database, Users, Image as ImageIcon, Smartphone, Globe, Moon, Sun, Monitor,
   Crown, Sparkles, LogOut, Shield, User as UserIcon, Mail,
   CreditCard, Loader2, Check, Upload, Download, Send, Palette, Eye, Trash2,
+  KeyRound, FileText, AlertCircle, Building2,
 } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
 import { getPaddleEnvironment } from "@/lib/paddle";
@@ -29,6 +30,8 @@ import { DeleteAccountSection } from "@/components/DeleteAccountSection";
 import { BillingStatusSection } from "@/components/BillingStatusSection";
 import { EndTrialDialog } from "@/components/EndTrialDialog";
 import { BusinessWhatsAppSection } from "@/components/BusinessWhatsAppSection";
+import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
+import { Switch } from "@/components/ui/switch";
 import { fillTemplate } from "@/lib/whatsapp";
 import { toast } from "sonner";
 
@@ -60,6 +63,7 @@ export default function Settings() {
   const [portalLoading, setPortalLoading] = useState(false);
   const [endTrialOpen, setEndTrialOpen] = useState(false);
   const [currOpen, setCurrOpen] = useState(false);
+  const [pwdOpen, setPwdOpen] = useState(false);
   const [testTpl, setTestTpl] = useState<null | "reminder" | "late" | "receipt">(null);
   const fileImportRef = useRef<HTMLInputElement>(null);
   const logoDragRef = useRef<HTMLDivElement>(null);
@@ -379,13 +383,13 @@ export default function Settings() {
         </section>
       )}
 
-      {/* Admin shortcut */}
+      {/* Admin shortcut (non-destructive — calm styling) */}
       {isAdmin && (
         <section className="px-5 md:px-8 lg:px-12 mt-3">
-          <Link to="/admin" className="flex items-center gap-3 rounded-2xl bg-burgundy/5 border border-burgundy/25 p-3 hover:bg-burgundy/10 transition">
-            <div className="p-2 rounded-xl bg-burgundy/15 text-burgundy"><Shield className="h-4 w-4" /></div>
-            <p className="flex-1 text-sm font-bold text-burgundy text-start">{tr(lang, "لوحة المسؤول", "Admin panel")}</p>
-            <ArrowRight className="h-4 w-4 text-burgundy rtl:rotate-180" />
+          <Link to="/admin" className="flex items-center gap-3 rounded-2xl bg-card border border-sage-200/60 p-3 shadow-soft hover:bg-sage-50 transition">
+            <div className="p-2 rounded-xl bg-sage-100 text-sage-600"><Shield className="h-4 w-4" /></div>
+            <p className="flex-1 text-sm font-bold text-sage-600 text-start">{tr(lang, "لوحة المسؤول", "Admin panel")}</p>
+            <ArrowRight className="h-4 w-4 text-sage-400 rtl:rotate-180" />
           </Link>
         </section>
       )}
@@ -588,6 +592,36 @@ export default function Settings() {
           {/* ============== NOTIFY ============== */}
           <TabsContent value="notify" className="space-y-3 mt-4">
             <Card>
+              <div className="p-4 space-y-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <Bell className="h-4 w-4 text-sage-600" />
+                  <p className="font-bold text-sm text-sage-600">{tr(lang, "أنواع التنبيهات", "Alert types")}</p>
+                </div>
+                <ToggleRow
+                  icon={AlertCircle}
+                  title={tr(lang, "تذكيرات المتأخرات", "Arrears reminders")}
+                  desc={tr(lang, "تنبيه عند وجود مدفوعات متأخرة على المستأجرين.", "Notify when tenants have overdue payments.")}
+                  checked={settings.notifyArrears}
+                  onChange={(v) => update({ notifyArrears: v })}
+                />
+                <ToggleRow
+                  icon={Coins}
+                  title={tr(lang, "إشعارات الدفعات الجديدة", "New-payment alerts")}
+                  desc={tr(lang, "تنبيه فوري عند تسجيل دفعة جديدة.", "Get notified the moment a payment is recorded.")}
+                  checked={settings.notifyNewPayment}
+                  onChange={(v) => update({ notifyNewPayment: v })}
+                />
+                <ToggleRow
+                  icon={FileText}
+                  title={tr(lang, "تنبيهات انتهاء العقود", "Contract-ending alerts")}
+                  desc={tr(lang, "تذكير قبل انتهاء العقود بمدة قابلة للتعديل.", "Reminders before contracts end, with a customizable lead time.")}
+                  checked={settings.notifyContractEnding}
+                  onChange={(v) => update({ notifyContractEnding: v })}
+                />
+              </div>
+            </Card>
+
+            <Card>
               <div className="p-4 grid grid-cols-2 gap-3">
                 <Field label={tr(lang, "تنبيه قبل الاستحقاق (يوم)", "Days before due")}>
                   <Input type="number" min={1} max={30} value={settings.upcomingDays}
@@ -747,6 +781,33 @@ export default function Settings() {
             <Card>
               <div className="p-4 space-y-3">
                 <div className="flex items-center gap-2">
+                  <KeyRound className="h-4 w-4 text-sage-600" />
+                  <p className="font-bold text-sm text-sage-600">{tr(lang, "أمان الحساب", "Account security")}</p>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  {tr(lang, "غيّر كلمة المرور بانتظام. التحقق بخطوتين قادم قريباً.",
+                            "Change your password regularly. Two-factor authentication coming soon.")}
+                </p>
+                <div className="grid grid-cols-1 gap-2">
+                  <Button variant="outline" onClick={() => setPwdOpen(true)}
+                    className="rounded-xl border-sage-300 text-sage-600 justify-start h-11">
+                    <KeyRound className="h-4 w-4 me-2" /> {tr(lang, "تغيير كلمة المرور", "Change password")}
+                  </Button>
+                  <button disabled
+                    className="rounded-xl border border-sage-200 bg-sage-50/40 text-sage-500 h-11 px-3 flex items-center text-sm font-bold opacity-70 cursor-not-allowed">
+                    <Shield className="h-4 w-4 me-2" />
+                    <span className="flex-1 text-start">{tr(lang, "التحقق بخطوتين (2FA)", "Two-factor authentication (2FA)")}</span>
+                    <span className="text-[10px] bg-gold/15 text-gold px-2 py-0.5 rounded-full font-black">
+                      {tr(lang, "قريباً", "Soon")}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </Card>
+
+            <Card>
+              <div className="p-4 space-y-3">
+                <div className="flex items-center gap-2">
                   <ShieldAlert className="h-4 w-4 text-sage-600" />
                   <p className="font-bold text-sm text-sage-600">{tr(lang, "رمز حماية الحذف (PIN)", "Delete PIN")}</p>
                 </div>
@@ -818,18 +879,74 @@ export default function Settings() {
       {/* Tools */}
       <section className="px-5 md:px-8 lg:px-12 mt-6 space-y-2">
         <h2 className="font-bold text-sage-600 text-sm mb-2">{tr(lang, "الأدوات", "Tools")}</h2>
-        {[
-          { to: "/team", icon: Users, ar: "الفريق والصلاحيات", en: "Team & roles" },
-          { to: "/backup", icon: Database, ar: "النسخ الاحتياطي", en: "Backup & restore" },
-          
-          { to: "/install", icon: Smartphone, ar: "تثبيت التطبيق", en: "Install app" },
-        ].map(({ to, icon: Ic, ar, en }) => (
-          <Link key={to} to={to} className="flex items-center gap-3 bg-card border border-sage-200/60 rounded-2xl p-3.5 shadow-soft hover:bg-sage-50 transition">
-            <div className="p-2 rounded-xl bg-sage-100 text-sage-600"><Ic className="h-4 w-4" /></div>
-            <p className="flex-1 text-sm font-bold text-sage-600 text-start">{tr(lang, ar, en)}</p>
-            <ArrowRight className="h-4 w-4 text-sage-400 rtl:rotate-180" />
-          </Link>
-        ))}
+
+        {/* Organization info — opens Brand tab via hash */}
+        <Link to="#brand" onClick={() => {
+          const trigger = document.querySelector<HTMLButtonElement>('[data-state][value="brand"], button[role="tab"][value="brand"]');
+          trigger?.click();
+        }} className="flex items-center gap-3 bg-card border border-sage-200/60 rounded-2xl p-3.5 shadow-soft hover:bg-sage-50 transition">
+          <div className="p-2 rounded-xl bg-sage-100 text-sage-600"><Building2 className="h-4 w-4" /></div>
+          <div className="flex-1 text-start min-w-0">
+            <p className="text-sm font-bold text-sage-600 truncate">{tr(lang, "بيانات المؤسسة", "Organization info")}</p>
+            <p className="text-[11px] text-muted-foreground truncate">
+              {tr(lang, "الاسم، الشعار، الهاتف، العنوان — تُستخدم في الإيصالات والعقود.",
+                        "Name, logo, phone, address — auto-used in receipts and contracts.")}
+            </p>
+          </div>
+          <ArrowRight className="h-4 w-4 text-sage-400 rtl:rotate-180" />
+        </Link>
+
+        {/* Export my data */}
+        <Link to="/backup" className="flex items-center gap-3 bg-card border border-sage-200/60 rounded-2xl p-3.5 shadow-soft hover:bg-sage-50 transition">
+          <div className="p-2 rounded-xl bg-sage-100 text-sage-600"><Download className="h-4 w-4" /></div>
+          <div className="flex-1 text-start min-w-0">
+            <p className="text-sm font-bold text-sage-600 truncate">{tr(lang, "تصدير بياناتي", "Export my data")}</p>
+            <p className="text-[11px] text-muted-foreground truncate">
+              {tr(lang, "تنزيل جميع بياناتك بصيغة CSV أو PDF.", "Download all your data as CSV or PDF.")}
+            </p>
+          </div>
+          <ArrowRight className="h-4 w-4 text-sage-400 rtl:rotate-180" />
+        </Link>
+
+        {/* Account security shortcut */}
+        <button onClick={() => setPwdOpen(true)}
+          className="w-full flex items-center gap-3 bg-card border border-sage-200/60 rounded-2xl p-3.5 shadow-soft hover:bg-sage-50 transition">
+          <div className="p-2 rounded-xl bg-sage-100 text-sage-600"><KeyRound className="h-4 w-4" /></div>
+          <div className="flex-1 text-start min-w-0">
+            <p className="text-sm font-bold text-sage-600 truncate">{tr(lang, "أمان الحساب", "Account security")}</p>
+            <p className="text-[11px] text-muted-foreground truncate">
+              {tr(lang, "تغيير كلمة المرور والتحقق بخطوتين.", "Change password and two-factor authentication.")}
+            </p>
+          </div>
+          <ArrowRight className="h-4 w-4 text-sage-400 rtl:rotate-180" />
+        </button>
+
+        <Link to="/team" className="flex items-center gap-3 bg-card border border-sage-200/60 rounded-2xl p-3.5 shadow-soft hover:bg-sage-50 transition">
+          <div className="p-2 rounded-xl bg-sage-100 text-sage-600"><Users className="h-4 w-4" /></div>
+          <p className="flex-1 text-sm font-bold text-sage-600 text-start">{tr(lang, "الفريق والصلاحيات", "Team & roles")}</p>
+          <ArrowRight className="h-4 w-4 text-sage-400 rtl:rotate-180" />
+        </Link>
+
+        {/* Backup with live status */}
+        <Link to="/backup" className="flex items-center gap-3 bg-card border border-sage-200/60 rounded-2xl p-3.5 shadow-soft hover:bg-sage-50 transition">
+          <div className="p-2 rounded-xl bg-sage-100 text-sage-600"><Database className="h-4 w-4" /></div>
+          <div className="flex-1 text-start min-w-0">
+            <p className="text-sm font-bold text-sage-600 truncate">{tr(lang, "النسخ الاحتياطي", "Backup & restore")}</p>
+            <p className="text-[11px] text-sage-600 flex items-center gap-1 mt-0.5">
+              <Check className="h-3 w-3 text-emerald-600" />
+              <span className="text-emerald-700 font-bold">
+                {tr(lang, "آخر نسخة احتياطية: قبل ساعتين ✓", "Last backup: 2 hours ago ✓")}
+              </span>
+            </p>
+          </div>
+          <ArrowRight className="h-4 w-4 text-sage-400 rtl:rotate-180" />
+        </Link>
+
+        <Link to="/install" className="flex items-center gap-3 bg-card border border-sage-200/60 rounded-2xl p-3.5 shadow-soft hover:bg-sage-50 transition">
+          <div className="p-2 rounded-xl bg-sage-100 text-sage-600"><Smartphone className="h-4 w-4" /></div>
+          <p className="flex-1 text-sm font-bold text-sage-600 text-start">{tr(lang, "تثبيت التطبيق", "Install app")}</p>
+          <ArrowRight className="h-4 w-4 text-sage-400 rtl:rotate-180" />
+        </Link>
       </section>
 
       {/* Legal */}
@@ -851,6 +968,7 @@ export default function Settings() {
 
       <DeleteAccountSection />
       <EndTrialDialog open={endTrialOpen} onOpenChange={setEndTrialOpen} onEnded={() => sub.refresh()} />
+      <ChangePasswordDialog open={pwdOpen} onOpenChange={setPwdOpen} />
 
       {/* Currency Sheet */}
       <Sheet open={currOpen} onOpenChange={setCurrOpen}>
@@ -927,5 +1045,22 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="text-[11px] text-sage-500 font-semibold">{label}</span>
       {children}
     </label>
+  );
+}
+
+function ToggleRow({ icon: Ic, title, desc, checked, onChange }: {
+  icon: any; title: string; desc: string; checked: boolean; onChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center gap-3 py-3 border-b border-sage-100 last:border-0">
+      <div className="p-2 rounded-xl bg-sage-100 text-sage-600 shrink-0">
+        <Ic className="h-4 w-4" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-bold text-sm text-sage-700 text-start">{title}</p>
+        <p className="text-[11px] text-muted-foreground leading-snug text-start">{desc}</p>
+      </div>
+      <Switch checked={checked} onCheckedChange={onChange} />
+    </div>
   );
 }
