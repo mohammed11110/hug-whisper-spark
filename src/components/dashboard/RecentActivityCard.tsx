@@ -34,7 +34,7 @@ const actionColor: Record<string, string> = {
   ended: "bg-terracotta/15 text-terracotta",
 };
 
-export function RecentActivityCard({ limit = 8 }: { limit?: number }) {
+export function RecentActivityCard({ limit = 8, hideWhenEmpty = false }: { limit?: number; hideWhenEmpty?: boolean }) {
   const { lang } = useI18n();
   const t2 = useT2();
   const [rows, setRows] = useState<Row[]>([]);
