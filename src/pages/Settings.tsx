@@ -30,6 +30,8 @@ import { DeleteAccountSection } from "@/components/DeleteAccountSection";
 import { BillingStatusSection } from "@/components/BillingStatusSection";
 import { EndTrialDialog } from "@/components/EndTrialDialog";
 import { BusinessWhatsAppSection } from "@/components/BusinessWhatsAppSection";
+import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
+import { Switch } from "@/components/ui/switch";
 import { fillTemplate } from "@/lib/whatsapp";
 import { toast } from "sonner";
 
