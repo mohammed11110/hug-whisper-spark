@@ -66,6 +66,8 @@ export function RecentActivityCard({ limit = 8, hideWhenEmpty = false }: { limit
     };
   }, [limit]);
 
+  if (!loading && hideWhenEmpty && rows.length === 0) return null;
+
   return (
     <div className="bg-card rounded-3xl p-5 shadow-soft border border-sage-200/40 animate-float-up" style={{ animationDelay: "0.3s" }}>
       <div className="flex items-center justify-between mb-4">
