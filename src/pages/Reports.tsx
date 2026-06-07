@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { TopBar } from "@/components/TopBar";
-import { BottomNav } from "@/components/BottomNav";
 import { useI18n } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
@@ -489,7 +488,6 @@ export default function Reports() {
           </div>
         )}
       </div>
-      <BottomNav />
     </div>
   );
 }

@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Bell, AlertTriangle, Calendar, Clock, MessageCircle, Phone } from "lucide-react";
 import { TopBar } from "@/components/TopBar";
-import { BottomNav } from "@/components/BottomNav";
 import { useI18n } from "@/lib/i18n";
 import { useCurrency } from "@/lib/currency";
 import { useAuth } from "@/lib/auth";
@@ -246,7 +245,6 @@ export default function Notifications() {
           </div>
         ))}
       </div>
-      <BottomNav />
     </div>
   );
 }

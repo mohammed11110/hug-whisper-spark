@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Plus, Building2, ArrowUpDown, Search, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { TopBar } from "@/components/TopBar";
-import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -326,7 +325,6 @@ export default function Buildings() {
       </div>
 
       <AddBuildingDialog open={open} onOpenChange={setOpen} onCreated={load} />
-      <BottomNav />
     </div>
   );
 }

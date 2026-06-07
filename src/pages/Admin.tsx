@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { Users, Crown, Clock, Building2, Search, Download, Ticket } from "lucide-react";
 import { TopBar } from "@/components/TopBar";
-import { BottomNav } from "@/components/BottomNav";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAdmin } from "@/lib/useAdmin";
@@ -187,7 +186,6 @@ export default function Admin() {
         </div>
       )}
 
-      <BottomNav />
     </div>
   );
 }

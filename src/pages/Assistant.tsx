@@ -3,7 +3,6 @@ import { ArrowRight, Send, Sparkles, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import { TopBar } from "@/components/TopBar";
-import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useI18n } from "@/lib/i18n";
@@ -211,7 +210,6 @@ export default function Assistant() {
         </form>
       </div>
 
-      <BottomNav />
     </div>
   );
 }
