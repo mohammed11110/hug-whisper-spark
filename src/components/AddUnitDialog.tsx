@@ -233,8 +233,9 @@ export function AddUnitDialog({ open, onOpenChange, buildingId, floors, onCreate
                 {(atLimit || nearLimit) && (
                   <button type="button" onClick={() => setShowAddons(true)}
                     className="text-[11px] font-bold underline underline-offset-2">
-                    {lang === "ar" ? "ترقية / شراء وحدات" : "Upgrade / buy units"}
+                    {lang === "ar" ? "ترقية الباقة" : "Upgrade plan"}
                   </button>
+
                 )}
               </div>
               {atLimit && (

@@ -10,15 +10,25 @@ export const PLAN_UNIT_LIMITS: Record<PlanTier, number> = {
   free: 3,
   personal: 10,
   pro: 25,
-  business: 75,
-  enterprise: Infinity,
+  business: 50,
+  enterprise: 100,
 };
 
+// Suggested next-tier upgrade when nearing limit
+export const NEXT_TIER: Record<PlanTier, PlanTier | null> = {
+  free: "personal",
+  personal: "pro",
+  pro: "business",
+  business: "enterprise",
+  enterprise: null,
+};
+
+// Deprecated — kept as no-op for backward compatibility with old imports
 export const ADDON_UNIT_PRICE: Record<PlanTier, number> = {
   free: 0,
-  personal: 0.99,
-  pro: 0.69,
-  business: 0.49,
+  personal: 0,
+  pro: 0,
+  business: 0,
   enterprise: 0,
 };
 
@@ -35,6 +45,7 @@ export type AccountPhase =
   | "active"
   | "readonly_grace"
   | "subscription_grace"
+  | "frozen"
   | "deleted"
   | "free";
 
@@ -133,7 +144,10 @@ export function useSubscription(): SubscriptionState {
     const addonUnits = Number(sub?.addon_units ?? 0);
 
     const isActive = phase === "active" || phase === "trial";
-    const isReadOnly = phase === "readonly_grace" || phase === "subscription_grace";
+    const isReadOnly =
+      phase === "readonly_grace" ||
+      phase === "subscription_grace" ||
+      phase === "frozen";
 
     setState({
       loading: false,
@@ -152,7 +166,7 @@ export function useSubscription(): SubscriptionState {
       unitLimit: phase === "trial"
         ? Infinity
         : phase === "active"
-          ? PLAN_UNIT_LIMITS[plan] + addonUnits
+          ? PLAN_UNIT_LIMITS[plan]
           : PLAN_UNIT_LIMITS.free,
       phase,
       canceledAt,
