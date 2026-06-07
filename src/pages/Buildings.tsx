@@ -10,6 +10,7 @@ import { AddBuildingDialog } from "@/components/AddBuildingDialog";
 import { useI18n } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
 import { useAuth } from "@/lib/auth";
+import { useCurrency } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 
@@ -28,6 +29,8 @@ interface BuildingStats {
   occupied: number;
   hasArrears: boolean;
   allCollected: boolean;
+  collectedMonth: number;
+  expectedMonth: number;
 }
 
 type SortKey = "newest" | "oldest" | "name_az" | "name_za" | "units_high" | "units_low";
@@ -38,6 +41,7 @@ export default function Buildings() {
   const { t, lang } = useI18n();
   const t2 = useT2();
   const { user } = useAuth();
+  const { format } = useCurrency();
   const [items, setItems] = useState<Building[]>([]);
   const [bStats, setBStats] = useState<Record<string, BuildingStats>>({});
   const [filter, setFilter] = useState<string>("all");
@@ -67,6 +71,7 @@ export default function Buildings() {
       const monthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
       const unitIds = (us || []).map((u: any) => u.id);
       const paidUnitIds = new Set<string>();
+      const perBuildingCollected: Record<string, number> = {};
       let monthSum = 0;
       if (unitIds.length) {
         const { data: pays } = await supabase
@@ -74,11 +79,14 @@ export default function Buildings() {
           .select("unit_id, amount, period_start, payment_date")
           .in("unit_id", unitIds)
           .is("deleted_at", null);
+        const unitToBuilding = new Map<string, string>((us || []).map((u: any) => [u.id, u.building_id]));
         (pays || []).forEach((p: any) => {
           const k = ((p.period_start || p.payment_date) || "").slice(0, 7);
           if (k === monthKey) {
             paidUnitIds.add(p.unit_id);
             monthSum += Number(p.amount || 0);
+            const bId = unitToBuilding.get(p.unit_id);
+            if (bId) perBuildingCollected[bId] = (perBuildingCollected[bId] || 0) + Number(p.amount || 0);
           }
         });
       }
@@ -88,13 +96,19 @@ export default function Buildings() {
       for (const b of data) {
         const list = unitsByBuilding[b.id] || [];
         const occupied = list.filter((u) => !!u.tenant_name);
-        const hasArrears = list.some((u) => u.status === "late");
+        const expectedMonth = occupied.reduce((sum, u) => sum + Number(u.rent_amount || 0), 0);
+        const collectedMonth = perBuildingCollected[b.id] || 0;
         const allCollected = occupied.length > 0 && occupied.every((u) => paidUnitIds.has(u.id));
+        const hasArrears = !allCollected && occupied.some((u) => !paidUnitIds.has(u.id)) && collectedMonth > 0
+          ? false // partial — handled as in-progress
+          : occupied.length > 0 && collectedMonth === 0 && new Date().getDate() > 10;
         stats[b.id] = {
           total: list.length,
           occupied: occupied.length,
           hasArrears,
           allCollected,
+          collectedMonth,
+          expectedMonth,
         };
       }
       setBStats(stats);
@@ -220,7 +234,7 @@ export default function Buildings() {
           ))}
         </div>
 
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
           {loading ? (
             <p className="text-center text-muted-foreground py-10">{t("loading")}</p>
           ) : visible.length === 0 ? (
@@ -241,26 +255,32 @@ export default function Buildings() {
             </div>
           ) : (
             visible.map((b, i) => {
-              const s = bStats[b.id] || { total: 0, occupied: 0, hasArrears: false, allCollected: false };
+              const s = bStats[b.id] || { total: 0, occupied: 0, hasArrears: false, allCollected: false, collectedMonth: 0, expectedMonth: 0 };
               const occPct = s.total > 0 ? Math.round((s.occupied / s.total) * 100) : 0;
-              const statusDotClass = s.hasArrears
-                ? "bg-terracotta"
-                : s.allCollected
-                ? "bg-gold"
-                : "bg-sage-300";
-              const statusLabel = s.hasArrears
-                ? (lang === "ar" ? "متأخرات" : "Arrears")
-                : s.allCollected
+              const collectPct = s.expectedMonth > 0 ? Math.min(100, Math.round((s.collectedMonth / s.expectedMonth) * 100)) : 0;
+              // Visual status: green = fully collected, gold = in progress, red = behind
+              const behind = s.hasArrears;
+              const fully = s.allCollected;
+              const statusDotClass = behind ? "bg-burgundy" : fully ? "bg-sage-400" : "bg-gold";
+              const statusPillClass = behind
+                ? "bg-burgundy/25 ring-1 ring-burgundy/40"
+                : fully
+                ? "bg-sage-500/30 ring-1 ring-sage-400/50"
+                : "bg-gold/25 ring-1 ring-gold/40";
+              const statusLabel = behind
+                ? (lang === "ar" ? "متأخّر" : "Behind")
+                : fully
                 ? (lang === "ar" ? "محصّل بالكامل" : "Fully collected")
                 : (lang === "ar" ? "قيد التحصيل" : "In progress");
+              const barClass = fully ? "bg-sage-400" : behind ? "bg-burgundy/80" : "bg-gold";
               return (
                 <Link key={b.id} to={`/buildings/${b.id}`} className="block animate-float-up" style={{ animationDelay: `${i * 0.04}s` }}>
                   <div className="relative overflow-hidden rounded-3xl bg-gradient-sage p-5 text-primary-foreground shadow-elev hover:shadow-glow transition-all">
-                    
-                    {/* status dot */}
-                    <div className="absolute top-3 start-3 z-10 flex items-center gap-1.5 bg-card/15 backdrop-blur rounded-full px-2 py-0.5">
+
+                    {/* status pill */}
+                    <div className={`absolute top-3 start-3 z-10 flex items-center gap-1.5 rounded-full px-2 py-0.5 backdrop-blur ${statusPillClass}`}>
                       <span className={`h-1.5 w-1.5 rounded-full ${statusDotClass}`} />
-                      <span className="text-[10px] font-semibold opacity-90">{statusLabel}</span>
+                      <span className="text-[10px] font-bold opacity-95">{statusLabel}</span>
                     </div>
                     <div className="relative z-10 mt-5">
                       <p className="text-xs uppercase tracking-wider opacity-75">{t2(b.type as any)}</p>
@@ -271,8 +291,27 @@ export default function Buildings() {
                         <span className="bg-card/15 backdrop-blur rounded-full px-2.5 py-1">◉ {s.occupied}/{s.total} {lang === "ar" ? "مشغول" : "occupied"}</span>
                         {b.city && <span className="opacity-80">📍 {b.city}</span>}
                       </div>
-                      {/* occupancy bar */}
-                      {s.total > 0 && (
+
+                      {/* Monthly income — collected / expected */}
+                      {s.expectedMonth > 0 && (
+                        <div className="mt-3 flex items-baseline justify-between gap-2">
+                          <span className="text-[10px] uppercase tracking-wider opacity-80 font-bold">
+                            {lang === "ar" ? "دخل الشهر" : "This month"}
+                          </span>
+                          <span className="text-sm font-black tabular-nums">
+                            {format(Math.round(s.collectedMonth))} <span className="opacity-70">/ {format(Math.round(s.expectedMonth))}</span>
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Collection rate bar */}
+                      {s.expectedMonth > 0 && (
+                        <div className="mt-1.5 h-1.5 rounded-full bg-card/20 overflow-hidden">
+                          <div className={`h-full ${barClass} transition-all duration-500`} style={{ width: `${collectPct}%` }} />
+                        </div>
+                      )}
+                      {/* Occupancy bar (fallback if no expected) */}
+                      {s.expectedMonth === 0 && s.total > 0 && (
                         <div className="mt-3 h-1 rounded-full bg-card/20 overflow-hidden">
                           <div className="h-full bg-primary-foreground/80" style={{ width: `${occPct}%` }} />
                         </div>

@@ -376,17 +376,38 @@ export default function Tenants() {
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className={`h-2 w-2 rounded-full flex-shrink-0 ${
-                        r.outstanding > 0.009 ? "bg-burgundy" : r.status === "paid" ? "bg-sage-500" : "bg-terracotta"
+                        r.outstanding > 0.009 ? "bg-burgundy" : "bg-sage-500"
                       }`} />
                       <p className="font-bold text-sage-600 truncate">{r.tenant_name}</p>
                     </div>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${STATUS_STYLES[r.status] || "bg-muted text-muted-foreground"}`}>{t2(r.status as any)}</span>
+                    {(() => {
+                      const monthName = new Date().toLocaleDateString(lang === "ar" ? "ar" : "en", { month: "long" });
+                      const unpaid = r.outstanding > 0.009;
+                      if (unpaid) {
+                        return (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-burgundy/15 text-burgundy whitespace-nowrap">
+                            ⚠ {lang === "ar" ? `${monthName} غير مدفوع · ${format(r.outstanding)}` : `${monthName} unpaid · ${format(r.outstanding)}`}
+                          </span>
+                        );
+                      }
+                      return (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sage-300/30 text-sage-600 whitespace-nowrap">
+                          ✓ {lang === "ar" ? `${monthName} مدفوع` : `${monthName} paid`}
+                        </span>
+                      );
+                    })()}
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5 truncate">
                     {r.building_name} · {t2("unit_number")} {r.unit_number}
                   </p>
+                  {!r.tenant_phone && (
+                    <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-[hsl(var(--gold))] bg-[hsl(var(--gold))]/10 border border-[hsl(var(--gold))]/30 rounded-full px-2 py-0.5">
+                      <Phone className="h-2.5 w-2.5" />
+                      {lang === "ar" ? "بدون رقم هاتف" : "No phone number"}
+                    </span>
+                  )}
                   {r.arrears_label && r.arrears_count > 0 && (
-                    <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-burgundy bg-burgundy/10 border border-burgundy/25 rounded-full px-2 py-0.5">
+                    <span className="inline-flex items-center gap-1 mt-1 ms-1 text-[10px] font-bold text-burgundy bg-burgundy/10 border border-burgundy/25 rounded-full px-2 py-0.5">
                       <span aria-hidden className="text-[9px] leading-none">⚠</span>
                       {lang === "ar" ? "متأخر" : "Overdue"}: {r.arrears_label}
                       {r.arrears_count > 1 ? ` +${r.arrears_count - 1}` : ""} − {format(r.arrears_total)}
@@ -445,7 +466,7 @@ export default function Tenants() {
                           : (lang === "ar" ? `تم استلام ${format(r.rent_amount)}` : `Collected ${format(r.rent_amount)}`)}
                       </button>
                     )}
-                    {r.tenant_phone && (
+                    {r.tenant_phone ? (
                       <button onClick={(e) => {
                         e.preventDefault(); e.stopPropagation();
                         const tpl = r.status === "late" ? settings.templates.late : settings.templates.reminder;
@@ -453,9 +474,18 @@ export default function Tenants() {
                           tenant: r.tenant_name, unit: r.unit_number, building: r.building_name, amount: format(r.rent_amount),
                         }));
                       }}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#25D366]/15 text-[#128C7E] text-[11px] font-bold hover:bg-[#25D366]/25">
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[hsl(var(--gold))]/15 text-[hsl(var(--gold))] border border-[hsl(var(--gold))]/30 text-[11px] font-bold hover:bg-[hsl(var(--gold))]/25 transition-colors">
                         <MessageCircle className="h-3 w-3" />
                         {lang === "ar" ? "إرسال تذكير" : "Send reminder"}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        disabled
+                        title={lang === "ar" ? "أضف رقم الهاتف أولاً" : "Add phone number first"}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted text-muted-foreground border border-sage-200/60 text-[11px] font-bold cursor-not-allowed opacity-80">
+                        <Phone className="h-3 w-3" />
+                        {lang === "ar" ? "أضف رقم الهاتف أولاً" : "Add phone number first"}
                       </button>
                     )}
                   </div>
