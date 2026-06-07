@@ -96,7 +96,7 @@ export function BillingStatusSection() {
       await openExternal(data.url);
       setTimeout(sub.refresh, 3000);
     } catch {
-      toast.error(tr(lang, "تعذّر فتح بوابة الإدارة", "Couldn't open the portal"));
+      toast.error(t("couldnt_open_portal"));
     } finally {
       setPortalLoading(false);
     }
