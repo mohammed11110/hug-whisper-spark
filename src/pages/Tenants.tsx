@@ -376,17 +376,38 @@ export default function Tenants() {
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className={`h-2 w-2 rounded-full flex-shrink-0 ${
-                        r.outstanding > 0.009 ? "bg-burgundy" : r.status === "paid" ? "bg-sage-500" : "bg-terracotta"
+                        r.outstanding > 0.009 ? "bg-burgundy" : "bg-sage-500"
                       }`} />
                       <p className="font-bold text-sage-600 truncate">{r.tenant_name}</p>
                     </div>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${STATUS_STYLES[r.status] || "bg-muted text-muted-foreground"}`}>{t2(r.status as any)}</span>
+                    {(() => {
+                      const monthName = new Date().toLocaleDateString(lang === "ar" ? "ar" : "en", { month: "long" });
+                      const unpaid = r.outstanding > 0.009;
+                      if (unpaid) {
+                        return (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-burgundy/15 text-burgundy whitespace-nowrap">
+                            ⚠ {lang === "ar" ? `${monthName} غير مدفوع · ${format(r.outstanding)}` : `${monthName} unpaid · ${format(r.outstanding)}`}
+                          </span>
+                        );
+                      }
+                      return (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sage-300/30 text-sage-600 whitespace-nowrap">
+                          ✓ {lang === "ar" ? `${monthName} مدفوع` : `${monthName} paid`}
+                        </span>
+                      );
+                    })()}
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5 truncate">
                     {r.building_name} · {t2("unit_number")} {r.unit_number}
                   </p>
+                  {!r.tenant_phone && (
+                    <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-[hsl(var(--gold))] bg-[hsl(var(--gold))]/10 border border-[hsl(var(--gold))]/30 rounded-full px-2 py-0.5">
+                      <Phone className="h-2.5 w-2.5" />
+                      {lang === "ar" ? "بدون رقم هاتف" : "No phone number"}
+                    </span>
+                  )}
                   {r.arrears_label && r.arrears_count > 0 && (
-                    <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-burgundy bg-burgundy/10 border border-burgundy/25 rounded-full px-2 py-0.5">
+                    <span className="inline-flex items-center gap-1 mt-1 ms-1 text-[10px] font-bold text-burgundy bg-burgundy/10 border border-burgundy/25 rounded-full px-2 py-0.5">
                       <span aria-hidden className="text-[9px] leading-none">⚠</span>
                       {lang === "ar" ? "متأخر" : "Overdue"}: {r.arrears_label}
                       {r.arrears_count > 1 ? ` +${r.arrears_count - 1}` : ""} − {format(r.arrears_total)}
