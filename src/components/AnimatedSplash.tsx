@@ -60,7 +60,7 @@ export function AnimatedSplash() {
         <h1>Amlaki</h1>
         <p dir="rtl">أملاكي</p>
       </div>
-      <div className="amlaki-splash__tag">PROPERTY MANAGEMENT</div>
+      
     </div>
   );
 }
