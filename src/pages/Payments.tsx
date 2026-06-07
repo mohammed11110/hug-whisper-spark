@@ -365,7 +365,7 @@ export default function Payments() {
       building: r.building_name,
       unitNumber: r.unit_number,
       tenantName: r.tenant_name,
-      currency: String(currency),
+      currency: (currency && (currency.symbol || currency.code)) || (lng === "ar" ? "ر.ع" : "OMR"),
       lang: lng,
       cycleTotalDue: cycleDue,
       cyclePaidToDate: cumulativePaid,
