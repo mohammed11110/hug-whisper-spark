@@ -56,7 +56,7 @@ export default function Buildings() {
 
     if (data?.length) {
       const ids = data.map((b) => b.id);
-      const { data: us } = await supabase.from("units").select("id, building_id, status, rent_amount").in("building_id", ids);
+      const { data: us } = await supabase.from("units").select("id, building_id, status, rent_amount, tenant_name").in("building_id", ids);
       const unitsByBuilding: Record<string, any[]> = {};
       (us || []).forEach((u: any) => {
         (unitsByBuilding[u.building_id] ||= []).push(u);
