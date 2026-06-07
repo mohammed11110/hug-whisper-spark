@@ -68,6 +68,9 @@ const DEFAULTS: AppSettings = {
   showAiFab: false,
   receipt: { prefix: "R-", startNumber: 1, padding: 0, nextNumber: 1 },
   autoSendReceiptWhatsApp: true,
+  notifyArrears: true,
+  notifyNewPayment: true,
+  notifyContractEnding: true,
 };
 
 
