@@ -757,3 +757,7 @@ html[lang="ar"] body {
     animation: amlaki-splash-out 150ms linear forwards;
   }
 }
+
+/* Hide scrollbar utility for horizontal chip rows */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
