@@ -879,3 +879,22 @@ export function calculateBalance(
     status,
   };
 }
+
+/**
+ * Build a UnitForBalance shape from a tenancy row.
+ * Used to compute per-lease balances (so the Account Summary card or PDF
+ * statement uses the lease's own anchors instead of the unit's current ones).
+ */
+export function tenancyToUnitShape(t: any, fallbackUnitId: string): UnitForBalance {
+  return {
+    id: fallbackUnitId,
+    rent_amount: Number(t?.rent_amount ?? 0),
+    rent_type: t?.rent_type || "monthly",
+    rent_timing: t?.rent_timing || "advance",
+    contract_start_date: t?.contract_start_date || null,
+    opening_balance: Number(t?.opening_balance ?? 0),
+    opening_balance_date: t?.opening_balance_date || null,
+    due_day: t?.due_day ?? null,
+    paid_up_to: t?.paid_up_to || null,
+  };
+}
