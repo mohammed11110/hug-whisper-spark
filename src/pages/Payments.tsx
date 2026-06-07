@@ -404,7 +404,7 @@ export default function Payments() {
   };
 
   const shareReceipt = async (r: Row, lng: RLang = receiptLang) => {
-    const text = lang === "ar"
+    const text = lng === "ar"
       ? `إيصال ${r.receipt_number || ""} — ${r.tenant_name || r.unit_number} — ${format(r.amount)}`
       : `Receipt ${r.receipt_number || ""} — ${r.tenant_name || r.unit_number} — ${format(r.amount)}`;
     try {
