@@ -115,7 +115,7 @@ export default function Dashboard() {
         if (arr.totalShortfall > 0.009) {
           count += 1;
           total += arr.totalShortfall;
-          const dueIso = arr.oldestUnpaid?.dueDate || null;
+          const dueIso = arr.oldestUnpaid?.periodEndIso || arr.oldestUnpaid?.periodStartIso || null;
           if (dueIso && (!oldestDate || dueIso < oldestDate)) {
             oldestDate = dueIso;
             const days = Math.max(0, Math.floor((today.getTime() - new Date(dueIso).getTime()) / 86400000));
