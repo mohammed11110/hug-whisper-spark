@@ -36,6 +36,10 @@ export interface AppSettings {
   receipt: ReceiptNumbering;
   /** Auto-open WhatsApp after a payment is registered */
   autoSendReceiptWhatsApp: boolean;
+  /** Notification preferences */
+  notifyArrears: boolean;
+  notifyNewPayment: boolean;
+  notifyContractEnding: boolean;
 }
 
 
