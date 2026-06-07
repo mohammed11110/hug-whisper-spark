@@ -15,7 +15,7 @@ import { BuyAddonUnitsDialog } from "@/components/BuyAddonUnitsDialog";
 const TYPES = ["tower", "compound", "villa", "commercial", "mixed"] as const;
 
 export function AddBuildingDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (o: boolean) => void; onCreated?: () => void }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const t2 = useT2();
   const { user } = useAuth();
   const [name, setName] = useState("");
