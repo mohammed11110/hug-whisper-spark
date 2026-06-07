@@ -1151,27 +1151,8 @@ function PhotosTab({ unit, reload }: any) {
     })();
   }, [unit.handover_photos]);
 
-  const classifyOne = async (p: string, signedUrl?: string) => {
-    let url = signedUrl;
-    if (!url) {
-      const { data } = await supabase.storage.from("unit-photos").createSignedUrl(p, 3600);
-      url = data?.signedUrl;
-    }
-    if (!url) return;
-    setClassifying((c) => ({ ...c, [p]: true }));
-    try {
-      const resp = await supabase.functions.invoke("classify-photo", { body: { imageUrl: url } });
-      if (resp.error) throw resp.error;
-      const label = (resp.data as any)?.label || "other";
-      const next = { ...labels, [p]: label };
-      await supabase.from("units").update({ photo_labels: next }).eq("id", unit.id);
-      reload?.();
-    } catch (e: any) {
-      toast.error(e?.message || (ar ? "تعذّر التصنيف" : "Classify failed"));
-    } finally {
-      setClassifying((c) => ({ ...c, [p]: false }));
-    }
-  };
+  const classifyOne = async (_p: string, _signedUrl?: string) => {};
+
 
   const cycleKind = async (p: string) => {
     const cur = kinds[p];
@@ -1196,34 +1177,8 @@ function PhotosTab({ unit, reload }: any) {
   const handoverCount = photos.filter((p) => kinds[p] === "handover").length;
   const returnCount = photos.filter((p) => kinds[p] === "return").length;
 
-  const detectDamage = async () => {
-    const handoverPaths = photos.filter((p) => kinds[p] === "handover");
-    const returnPaths = photos.filter((p) => kinds[p] === "return");
-    if (handoverPaths.length === 0 || returnPaths.length === 0) {
-      toast.error(ar ? "صنّف صور التسليم وصور الاستلام أولاً" : "Mark handover and return photos first");
-      return;
-    }
-    setDetecting(true);
-    setReport(null);
-    try {
-      const sign = async (paths: string[]) => {
-        const out: string[] = [];
-        for (const p of paths) {
-          const { data } = await supabase.storage.from("unit-photos").createSignedUrl(p, 3600);
-          if (data?.signedUrl) out.push(data.signedUrl);
-        }
-        return out;
-      };
-      const [handoverUrls, returnUrls] = await Promise.all([sign(handoverPaths), sign(returnPaths)]);
-      const resp = await supabase.functions.invoke("detect-damage", { body: { handoverUrls, returnUrls, lang } });
-      if (resp.error) throw resp.error;
-      setReport(resp.data);
-    } catch (e: any) {
-      toast.error(e?.message || (ar ? "تعذّر الفحص" : "Detection failed"));
-    } finally {
-      setDetecting(false);
-    }
-  };
+  const detectDamage = async () => {};
+
 
   const kindBadge = (k?: string) => {
     if (k === "handover") return ar ? "تسليم" : "Handover";
