@@ -19,11 +19,25 @@ import type {
   ReportData,
   StatementRow,
   TenantStatementData,
+  UnitStatementData,
+  UnitStatementLeaseBlock,
+  UnitStatementRow,
   BrandInfo,
   Lease,
 } from "@/lib/pdfDocs";
 
-export type { ReceiptData, ReportData, StatementRow, TenantStatementData, BrandInfo, Lease };
+export type {
+  ReceiptData,
+  ReportData,
+  StatementRow,
+  TenantStatementData,
+  UnitStatementData,
+  UnitStatementLeaseBlock,
+  UnitStatementRow,
+  BrandInfo,
+  Lease,
+};
+
 
 type PdfModule = typeof import("@/lib/pdfDocs");
 
