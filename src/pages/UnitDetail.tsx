@@ -381,6 +381,9 @@ export default function UnitDetail() {
         rentAmount: rent,
         rentType: t.rent_type || "monthly",
         status: t.status === "active" ? "current" : "previous",
+        debtResolution: (t.debt_resolution as any) || null,
+        debtSettled: !!t.debt_settled,
+        writeOffReason: t.write_off_reason || null,
         rows,
         totals: { totalCharges, totalPaid, closingBalance },
       } as UnitStatementLeaseBlock;
