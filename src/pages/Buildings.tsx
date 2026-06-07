@@ -255,26 +255,32 @@ export default function Buildings() {
             </div>
           ) : (
             visible.map((b, i) => {
-              const s = bStats[b.id] || { total: 0, occupied: 0, hasArrears: false, allCollected: false };
+              const s = bStats[b.id] || { total: 0, occupied: 0, hasArrears: false, allCollected: false, collectedMonth: 0, expectedMonth: 0 };
               const occPct = s.total > 0 ? Math.round((s.occupied / s.total) * 100) : 0;
-              const statusDotClass = s.hasArrears
-                ? "bg-terracotta"
-                : s.allCollected
-                ? "bg-gold"
-                : "bg-sage-300";
-              const statusLabel = s.hasArrears
-                ? (lang === "ar" ? "متأخرات" : "Arrears")
-                : s.allCollected
+              const collectPct = s.expectedMonth > 0 ? Math.min(100, Math.round((s.collectedMonth / s.expectedMonth) * 100)) : 0;
+              // Visual status: green = fully collected, gold = in progress, red = behind
+              const behind = s.hasArrears;
+              const fully = s.allCollected;
+              const statusDotClass = behind ? "bg-burgundy" : fully ? "bg-sage-400" : "bg-gold";
+              const statusPillClass = behind
+                ? "bg-burgundy/25 ring-1 ring-burgundy/40"
+                : fully
+                ? "bg-sage-500/30 ring-1 ring-sage-400/50"
+                : "bg-gold/25 ring-1 ring-gold/40";
+              const statusLabel = behind
+                ? (lang === "ar" ? "متأخّر" : "Behind")
+                : fully
                 ? (lang === "ar" ? "محصّل بالكامل" : "Fully collected")
                 : (lang === "ar" ? "قيد التحصيل" : "In progress");
+              const barClass = fully ? "bg-sage-400" : behind ? "bg-burgundy/80" : "bg-gold";
               return (
                 <Link key={b.id} to={`/buildings/${b.id}`} className="block animate-float-up" style={{ animationDelay: `${i * 0.04}s` }}>
                   <div className="relative overflow-hidden rounded-3xl bg-gradient-sage p-5 text-primary-foreground shadow-elev hover:shadow-glow transition-all">
-                    
-                    {/* status dot */}
-                    <div className="absolute top-3 start-3 z-10 flex items-center gap-1.5 bg-card/15 backdrop-blur rounded-full px-2 py-0.5">
+
+                    {/* status pill */}
+                    <div className={`absolute top-3 start-3 z-10 flex items-center gap-1.5 rounded-full px-2 py-0.5 backdrop-blur ${statusPillClass}`}>
                       <span className={`h-1.5 w-1.5 rounded-full ${statusDotClass}`} />
-                      <span className="text-[10px] font-semibold opacity-90">{statusLabel}</span>
+                      <span className="text-[10px] font-bold opacity-95">{statusLabel}</span>
                     </div>
                     <div className="relative z-10 mt-5">
                       <p className="text-xs uppercase tracking-wider opacity-75">{t2(b.type as any)}</p>
@@ -285,8 +291,27 @@ export default function Buildings() {
                         <span className="bg-card/15 backdrop-blur rounded-full px-2.5 py-1">◉ {s.occupied}/{s.total} {lang === "ar" ? "مشغول" : "occupied"}</span>
                         {b.city && <span className="opacity-80">📍 {b.city}</span>}
                       </div>
-                      {/* occupancy bar */}
-                      {s.total > 0 && (
+
+                      {/* Monthly income — collected / expected */}
+                      {s.expectedMonth > 0 && (
+                        <div className="mt-3 flex items-baseline justify-between gap-2">
+                          <span className="text-[10px] uppercase tracking-wider opacity-80 font-bold">
+                            {lang === "ar" ? "دخل الشهر" : "This month"}
+                          </span>
+                          <span className="text-sm font-black tabular-nums">
+                            {format(Math.round(s.collectedMonth))} <span className="opacity-70">/ {format(Math.round(s.expectedMonth))}</span>
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Collection rate bar */}
+                      {s.expectedMonth > 0 && (
+                        <div className="mt-1.5 h-1.5 rounded-full bg-card/20 overflow-hidden">
+                          <div className={`h-full ${barClass} transition-all duration-500`} style={{ width: `${collectPct}%` }} />
+                        </div>
+                      )}
+                      {/* Occupancy bar (fallback if no expected) */}
+                      {s.expectedMonth === 0 && s.total > 0 && (
                         <div className="mt-3 h-1 rounded-full bg-card/20 overflow-hidden">
                           <div className="h-full bg-primary-foreground/80" style={{ width: `${occPct}%` }} />
                         </div>
