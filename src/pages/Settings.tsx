@@ -968,6 +968,7 @@ export default function Settings() {
 
       <DeleteAccountSection />
       <EndTrialDialog open={endTrialOpen} onOpenChange={setEndTrialOpen} onEnded={() => sub.refresh()} />
+      <ChangePasswordDialog open={pwdOpen} onOpenChange={setPwdOpen} />
 
       {/* Currency Sheet */}
       <Sheet open={currOpen} onOpenChange={setCurrOpen}>
