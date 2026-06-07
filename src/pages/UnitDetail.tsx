@@ -1214,26 +1214,7 @@ function PhotosTab({ unit, reload }: any) {
               >
                 {kindBadge(kd)}
               </button>
-              {lbl ? (
-                <button
-                  onClick={() => classifyOne(p, signed[p])}
-                  disabled={isClassifying}
-                  title={ar ? "إعادة التصنيف" : "Reclassify"}
-                  className="absolute bottom-1 start-1 px-2 py-0.5 rounded-full bg-card/95 border border-sage-200/60 text-[10px] font-bold text-sage-600 flex items-center gap-1"
-                >
-                  {isClassifying ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Sparkles className="h-2.5 w-2.5 text-sage-500" />}
-                  {labelText(lbl)}
-                </button>
-              ) : (
-                <button
-                  onClick={() => classifyOne(p, signed[p])}
-                  disabled={isClassifying}
-                  className="absolute bottom-1 start-1 px-2 py-0.5 rounded-full bg-sage-500 text-primary-foreground text-[10px] font-bold flex items-center gap-1 shadow-soft"
-                >
-                  {isClassifying ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Sparkles className="h-2.5 w-2.5" />}
-                  {ar ? "تصنيف" : "Classify"}
-                </button>
-              )}
+              {null}
             </div>
           );
         })}
@@ -1246,52 +1227,10 @@ function PhotosTab({ unit, reload }: any) {
       </div>
 
       {photos.length > 0 && (
-        <div className="mt-3 space-y-2">
-          <div className="text-[11px] text-muted-foreground text-center">
-            {ar
-              ? `صنّف كل صورة: تسليم أو استلام — الحالي: ${handoverCount} تسليم / ${returnCount} استلام`
-              : `Mark each photo as Handover or Return — current: ${handoverCount} handover / ${returnCount} return`}
-          </div>
-          <Button
-            onClick={detectDamage}
-            disabled={detecting || handoverCount === 0 || returnCount === 0}
-            className="w-full rounded-xl bg-gradient-sage text-primary-foreground h-11 font-semibold flex items-center gap-2"
-          >
-            {detecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            {ar ? "اكتشاف الأضرار بالذكاء الاصطناعي" : "Detect damage with AI"}
-          </Button>
-        </div>
-      )}
-
-      {report && (
-        <div className="mt-3 rounded-2xl border border-sage-200/60 bg-card p-3 space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="text-sm font-bold text-sage-600 flex items-center gap-1">
-              <Sparkles className="h-3.5 w-3.5" />
-              {ar ? "تقرير الفحص" : "Damage report"}
-            </div>
-            <button onClick={() => setReport(null)} className="text-muted-foreground"><X className="h-4 w-4" /></button>
-          </div>
-          {report.summary && <p className="text-xs text-muted-foreground">{report.summary}</p>}
-          <div className={`text-xs font-semibold ${sevColor(report.overall_severity)}`}>
-            {ar ? "الخطورة الإجمالية: " : "Overall severity: "}
-            {report.overall_severity}
-          </div>
-          {Array.isArray(report.items) && report.items.length > 0 ? (
-            <ul className="space-y-1.5">
-              {report.items.map((it: any, i: number) => (
-                <li key={i} className="rounded-xl border border-sage-200/40 bg-muted/30 p-2 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-sage-600">{it.location}</span>
-                    <span className={`font-semibold ${sevColor(it.severity)}`}>{it.severity}</span>
-                  </div>
-                  <div className="text-muted-foreground mt-0.5">{it.description}</div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="text-xs text-sage-600 font-semibold">{ar ? "لا توجد أضرار مسجّلة" : "No notable damage"}</div>
-          )}
+        <div className="mt-3 text-[11px] text-muted-foreground text-center">
+          {ar
+            ? `صنّف كل صورة: تسليم أو استلام — الحالي: ${handoverCount} تسليم / ${returnCount} استلام`
+            : `Mark each photo as Handover or Return — current: ${handoverCount} handover / ${returnCount} return`}
         </div>
       )}
 
@@ -1306,7 +1245,7 @@ function PhotosTab({ unit, reload }: any) {
           const next = [...photos, ...vals];
           await supabase.from("units").update({ handover_photos: next }).eq("id", unit.id);
           reload?.();
-          vals.forEach((v) => classifyOne(v));
+          
         }}
         accept="image/*"
         label={ar ? "إضافة صور" : "Add photos"}
