@@ -216,7 +216,9 @@ export default function UnitDetail() {
 
   const exportStatement = async () => {
     if (!unit) return;
-    // Build statement timeline: opening balance + monthly charges from contract start + actual payments
+
+    // Fetch all (non-deleted) payments for this unit. tenancy_id has been
+    // backfilled, so we can group strictly by lease.
     const { data: ps } = await supabase
       .from("payments")
       .select("id, amount, expected_amount, payment_date, period_start, period_end, receipt_number, notes, kind, tenancy_id, created_at, deleted_at, unit_id")
@@ -224,179 +226,178 @@ export default function UnitDetail() {
       .is("deleted_at", null)
       .order("payment_date", { ascending: true });
 
-    type Entry = { date: string; month?: string; description: string; charge: number; payment: number; sortKey: string };
-    const entries: Entry[] = [];
-    const opening = Number((unit as any).opening_balance || 0);
-    const openingDate = (unit as any).opening_balance_date || (unit as any).contract_start_date || new Date().toISOString().slice(0, 10);
-    if (opening > 0) {
-      entries.push({
-        date: openingDate,
-        month: openingDate.slice(0, 7),
-        description: lang === "ar" ? "رصيد افتتاحي (متأخرات سابقة)" : "Opening balance (prior arrears)",
-        charge: opening,
-        payment: 0,
-        sortKey: openingDate + "0",
-      });
+    // Order leases oldest → newest for the document flow.
+    const orderedTenancies = [...(tenancies || [])].sort((a: any, b: any) => {
+      const ad = a.contract_start_date || "";
+      const bd = b.contract_start_date || "";
+      return ad.localeCompare(bd);
+    });
+    if (orderedTenancies.length === 0) {
+      toast.error(lang === "ar" ? "لا توجد عقود لإصدار الكشف" : "No leases on record");
+      return;
     }
-    // Monthly rent charges
-    const rent = Number(unit.rent_amount) || 0;
-    const paymentStarts = (ps || []).map((p: any) => p.period_start).filter(Boolean).sort();
-    const paymentDates = (ps || []).map((p: any) => p.payment_date).filter(Boolean).sort();
-    const fallbackStart =
-      (unit as any).contract_start_date ||
-      (unit as any).opening_balance_date ||
-      paymentStarts[0] ||
-      paymentDates[0] ||
-      new Date().toISOString().slice(0, 10);
-    const isMonthly = !unit.rent_type || unit.rent_type === "monthly";
-    if (rent > 0 && isMonthly) {
-      const start = new Date(fallbackStart);
-      const now = new Date();
-      const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
-      const endCursor = new Date(now.getFullYear(), now.getMonth(), 1);
-      while (cursor <= endCursor) {
-        const d = cursor.toISOString().slice(0, 10);
-        const monthLbl = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`;
+
+    const ar = lang === "ar";
+    const todayIso = new Date().toISOString().slice(0, 10);
+
+    // Build a block per tenancy.
+    const leases: UnitStatementLeaseBlock[] = orderedTenancies.map((t: any) => {
+      const tPays = (ps || []).filter((p: any) => p.tenancy_id === t.id);
+      const rent = Number(t.rent_amount) || 0;
+      const rentType = (t.rent_type || "monthly").toLowerCase();
+      const start = t.contract_start_date || (tPays[0]?.period_start ?? tPays[0]?.payment_date) || null;
+      const endRaw = t.ended_at || t.contract_end_date || null;
+      const endBound = endRaw && endRaw < todayIso ? endRaw : todayIso;
+      type Entry = { date: string; description: string; charge: number; payment: number; sortKey: string };
+      const entries: Entry[] = [];
+
+      // 1) Opening balance row (per-lease)
+      const opening = Number(t.opening_balance || 0);
+      if (opening > 0.009) {
+        const obDate = t.opening_balance_date || start || todayIso;
         entries.push({
-          date: d,
-          month: monthLbl,
-          description: (lang === "ar" ? "إيجار شهر " : "Rent ") + monthLbl,
-          charge: rent,
+          date: obDate,
+          description: ar ? "رصيد افتتاحي (متأخرات سابقة)" : "Opening balance (prior arrears)",
+          charge: opening,
           payment: 0,
-          sortKey: d + "1",
+          sortKey: obDate + "0",
         });
-        cursor.setMonth(cursor.getMonth() + 1);
       }
-    }
 
+      // 2) Rent accruals from contract_start to min(today, end). Monthly uses
+      //    the start-day cycle generator; yearly/daily fall back to simple
+      //    period increments.
+      if (rent > 0 && start) {
+        const startD = new Date(start);
+        const endD = new Date(endBound);
+        if (rentType === "monthly") {
+          const anchorDay = startD.getDate();
+          const cur = new Date(startD.getFullYear(), startD.getMonth(), 1);
+          while (cur <= endD) {
+            const cy = cur.getFullYear();
+            const cm = cur.getMonth() + 1;
+            const cycleStart = new Date(cy, cm - 1, Math.min(28, anchorDay));
+            if (cycleStart >= startD && cycleStart <= endD) {
+              const iso = cycleStart.toISOString().slice(0, 10);
+              const monthsAr = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+              const monthsEn = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+              const mName = (ar ? monthsAr : monthsEn)[cycleStart.getMonth()];
+              const label = ar
+                ? `إيجار شهر ${mName} ${cy}`
+                : `Rent — ${mName} ${cy}`;
+              entries.push({
+                date: iso,
+                description: label,
+                charge: rent,
+                payment: 0,
+                sortKey: iso + "1",
+              });
+            }
+            cur.setMonth(cur.getMonth() + 1);
+          }
+        } else if (rentType === "yearly") {
+          const cur = new Date(startD);
+          while (cur <= endD) {
+            const iso = cur.toISOString().slice(0, 10);
+            entries.push({
+              date: iso,
+              description: ar ? `إيجار سنوي — ${cur.getFullYear()}` : `Annual rent — ${cur.getFullYear()}`,
+              charge: rent,
+              payment: 0,
+              sortKey: iso + "1",
+            });
+            cur.setFullYear(cur.getFullYear() + 1);
+          }
+        }
+        // daily/other rent_types: skip accrual rows; the lease summary
+        // already reflects them via real payments below.
+      }
 
-    const activeSetStmt = activeTenancyId ? new Set([activeTenancyId]) : new Set<string>();
-    const derivedStmt = derivePartialMetaForDisplay((ps || []) as any, { activeTenancyIds: activeSetStmt });
-    (ps || []).forEach((p: any) => {
-      const m = (p.period_start || p.payment_date || "").slice(0, 7);
-      const meta = derivedStmt.get(p.id);
-      const sfx = meta?.derivedSuffix;
-      const fullReceipt = p.receipt_number
-        ? (sfx && meta?.isComputed && !p.receipt_number.includes("/")
-            ? `${p.receipt_number}/${sfx}`
-            : p.receipt_number)
-        : "";
-      const sfxLabel = sfx && meta?.isComputed
-        ? (lang === "ar"
-            ? ` ‹${sfx === "D" ? "ختامي" : `جزئي ${sfx}`} · محسوب›`
-            : ` ‹${sfx === "D" ? "Final" : `Partial ${sfx}`} · auto›`)
-        : "";
-      entries.push({
-        date: p.payment_date,
-        month: m || undefined,
-        description: (lang === "ar" ? "دفعة" : "Payment") + (fullReceipt ? ` #${fullReceipt}` : "") + sfxLabel + (p.notes ? ` — ${p.notes}` : ""),
-        charge: 0,
-        payment: Number(p.amount),
-        sortKey: p.payment_date + "2",
+      // 3) Payments for this lease
+      tPays
+        .filter((p: any) => (p.kind || "rent") !== "opening")
+        .forEach((p: any) => {
+          const amt = Number(p.amount) || 0;
+          const isAdj = (p.kind || "rent") === "adjustment";
+          const date = p.payment_date || p.period_start || "";
+          const descBase = isAdj
+            ? (ar ? "تعديل الرصيد" : "Adjustment")
+            : (ar ? "دفعة" : "Payment");
+          const desc = descBase +
+            (p.receipt_number ? ` #${p.receipt_number}` : "") +
+            (p.notes ? ` — ${p.notes}` : "");
+          const charge = isAdj && amt < 0 ? -amt : 0;
+          const payment = isAdj ? (amt > 0 ? amt : 0) : amt;
+          entries.push({
+            date,
+            description: desc,
+            charge,
+            payment,
+            sortKey: date + "2",
+          });
+        });
+
+      entries.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+
+      // 4) Running balance — RESETS to 0 for each lease
+      let bal = 0;
+      const rows: UnitStatementRow[] = entries.map((e) => {
+        bal += e.charge - e.payment;
+        return { date: e.date, description: e.description, charge: e.charge, payment: e.payment, balance: bal };
       });
-    });
-    entries.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+      const totalCharges = entries.reduce((s, e) => s + e.charge, 0);
+      const totalPaid = entries.reduce((s, e) => s + e.payment, 0);
+      // Closing balance: prefer the recorded `outstanding_at_end` for ended
+      // leases, otherwise the running balance.
+      const closingBalance = t.status === "ended" && t.outstanding_at_end != null
+        ? Number(t.outstanding_at_end)
+        : Math.max(0, totalCharges - totalPaid);
 
-    // Determine eviction + current unit status for header/marker row
-    const norm = (s: any) => String(s || "").trim().toLowerCase();
-    const subjectName = unit.tenant_name || "";
-    const subjectTenancy =
-      (tenancies || []).find((t: any) => norm(t.tenant_name) === norm(subjectName)) ||
-      (tenancies || [])[0] ||
-      null;
-    const evictionDate = subjectTenancy?.ended_at || null;
-    const activeTenancy = (tenancies || []).find((t: any) => t.status === "active");
-    const currentTenantName = activeTenancy?.tenant_name || "";
-    const unitCurrentlyVacant = !currentTenantName;
-    const successorTenantName =
-      currentTenantName && norm(currentTenantName) !== norm(subjectName)
-        ? currentTenantName
-        : null;
-
-    let bal = 0;
-    const rows: StatementRow[] = entries.map((e) => {
-      bal += e.charge - e.payment;
-      return { date: e.date, month: e.month, description: e.description, charge: e.charge, payment: e.payment, balance: bal };
+      return {
+        tenantName: t.tenant_name || "—",
+        tenantNameEn: t.tenant_name_en || null,
+        contractNumber: t.official_contract_number || t.contract_number || null,
+        contractStart: t.contract_start_date || null,
+        contractEnd: t.contract_end_date || null,
+        endedAt: t.ended_at || null,
+        rentAmount: rent,
+        rentType: t.rent_type || "monthly",
+        status: t.status === "active" ? "current" : "previous",
+        rows,
+        totals: { totalCharges, totalPaid, closingBalance },
+      } as UnitStatementLeaseBlock;
     });
-    // Insert eviction marker row at the right chronological position
-    if (evictionDate) {
-      const evRow: StatementRow = {
-        date: evictionDate,
-        month: evictionDate.slice(0, 7),
-        description: lang === "ar" ? "إخلاء المستأجر / Tenant move-out" : "Tenant move-out / إخلاء المستأجر",
-        charge: 0,
-        payment: 0,
-        balance: bal,
-        kind: "eviction",
-      };
-      let insertAt = rows.findIndex((r) => r.date > evictionDate);
-      if (insertAt === -1) insertAt = rows.length;
-      rows.splice(insertAt, 0, evRow);
-    }
-    const totalCharges = entries.reduce((s, e) => s + e.charge, 0);
-    const totalPaid = entries.reduce((s, e) => s + e.payment, 0);
 
     const statementData = {
       brand: settings.brand,
       currency: currency.symbol,
-      generatedAt: new Date().toISOString().slice(0, 10),
-      tenantName: unit.tenant_name || "—",
-      tenantPhone: unit.tenant_phone,
+      generatedAt: todayIso,
       building: buildingName || "—",
       unitNumber: unit.unit_number,
-      contractStart: (unit as any).contract_start_date,
-      contractEnd: unit.contract_end_date,
-      rentAmount: rent,
-      rentType: t2(unit.rent_type as any),
-      evictionDate,
-      successorTenantName,
-      unitCurrentlyVacant,
-      rows,
-      totals: {
-        totalCharges,
-        totalPaid,
-        outstanding: Math.max(0, totalCharges - totalPaid),
-        openingBalance: opening,
-        securityDeposit: Number((unit as any).security_deposit || 0),
-      },
+      unitType: t2(unit.type as any),
+      leases,
     };
-    const filename = `statement-${unit.unit_number}-${(unit.tenant_name || "tenant").replace(/\s+/g, "_")}.pdf`;
 
-    // On iPad/iPhone/native: skip the preview iframe entirely and route the
-    // freshly-generated PDF straight to the native share sheet. Eliminates
-    // the html2canvas double-render that caused the lag/glitch.
-    if (isNative() || isIOS()) {
-      try {
-        await downloadTenantStatementPDFDirect(statementData, filename);
-        toast.success(lang === "ar" ? "تم تجهيز كشف الحساب ✓" : "Statement ready ✓");
-      } catch (e: any) {
-        toast.error(e.message || "PDF error");
+    const filename = `unit-statement-${unit.unit_number}.pdf`;
+
+    try {
+      if (isNative() || isIOS()) {
+        await downloadUnitStatementPDFDirect(statementData, filename);
+        toast.success(ar ? "تم تجهيز كشف الحساب ✓" : "Statement ready ✓");
+      } else {
+        // Skip the HTML preview iframe: the new grouped layout has no HTML
+        // sibling renderer; jump straight to direct (vector) download.
+        await downloadUnitStatementPDFDirect(statementData, filename);
+        toast.success(ar ? "تم حفظ الملف ✓" : "Saved ✓");
       }
-      return;
+    } catch (e: any) {
+      toast.error(e.message || "PDF error");
     }
-
-    // Desktop: show the existing preview for review, but save/print using
-    // the direct (vector) generator — no more html2canvas pass.
-    const html = await buildTenantStatementHTML(statementData);
-    openPreview({
-      type: "pdf",
-      title: lang === "ar" ? "كشف حساب المستأجر" : "Tenant statement",
-      filename,
-      html,
-      onSave: async () => {
-        try {
-          await downloadTenantStatementPDFDirect(statementData, filename);
-          toast.success(lang === "ar" ? "تم حفظ الملف ✓" : "Saved ✓");
-          closePreview();
-        } catch (e: any) { toast.error(e.message || "PDF error"); }
-      },
-      onPrint: async () => {
-        try {
-          await printTenantStatementPDFDirect(statementData, filename);
-        } catch (e: any) { toast.error(e.message || "PDF error"); }
-      },
-    });
+    // unused legacy var to silence the compiler about removed branches
+    void printUnitStatementPDFDirect;
   };
+
+
 
   if (!unit) return <div className="mobile-shell flex items-center justify-center min-h-screen"><p className="text-sage-500">{t("loading")}</p></div>;
 
