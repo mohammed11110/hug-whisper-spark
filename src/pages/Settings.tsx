@@ -592,6 +592,36 @@ export default function Settings() {
           {/* ============== NOTIFY ============== */}
           <TabsContent value="notify" className="space-y-3 mt-4">
             <Card>
+              <div className="p-4 space-y-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <Bell className="h-4 w-4 text-sage-600" />
+                  <p className="font-bold text-sm text-sage-600">{tr(lang, "أنواع التنبيهات", "Alert types")}</p>
+                </div>
+                <ToggleRow
+                  icon={AlertCircle}
+                  title={tr(lang, "تذكيرات المتأخرات", "Arrears reminders")}
+                  desc={tr(lang, "تنبيه عند وجود مدفوعات متأخرة على المستأجرين.", "Notify when tenants have overdue payments.")}
+                  checked={settings.notifyArrears}
+                  onChange={(v) => update({ notifyArrears: v })}
+                />
+                <ToggleRow
+                  icon={Coins}
+                  title={tr(lang, "إشعارات الدفعات الجديدة", "New-payment alerts")}
+                  desc={tr(lang, "تنبيه فوري عند تسجيل دفعة جديدة.", "Get notified the moment a payment is recorded.")}
+                  checked={settings.notifyNewPayment}
+                  onChange={(v) => update({ notifyNewPayment: v })}
+                />
+                <ToggleRow
+                  icon={FileText}
+                  title={tr(lang, "تنبيهات انتهاء العقود", "Contract-ending alerts")}
+                  desc={tr(lang, "تذكير قبل انتهاء العقود بمدة قابلة للتعديل.", "Reminders before contracts end, with a customizable lead time.")}
+                  checked={settings.notifyContractEnding}
+                  onChange={(v) => update({ notifyContractEnding: v })}
+                />
+              </div>
+            </Card>
+
+            <Card>
               <div className="p-4 grid grid-cols-2 gap-3">
                 <Field label={tr(lang, "تنبيه قبل الاستحقاق (يوم)", "Days before due")}>
                   <Input type="number" min={1} max={30} value={settings.upcomingDays}
