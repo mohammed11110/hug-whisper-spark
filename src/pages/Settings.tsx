@@ -338,6 +338,9 @@ export default function Settings() {
         </div>
       </section>
 
+      {/* Billing status */}
+      <BillingStatusSection />
+
       {/* Free trial card */}
       {sub.isTrialing && (
         <section className="px-5 md:px-8 lg:px-12 mt-3">
