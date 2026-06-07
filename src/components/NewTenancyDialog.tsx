@@ -63,29 +63,6 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
   const isBackdated = !!startDate && startDate < todayIso;
 
 
-  const extractFromId = async () => {
-    if (!idImageUrl) return;
-    setExtracting(true);
-    try {
-      const { data: signed, error: sErr } = await supabase.storage
-        .from("tenant-ids").createSignedUrl(idImageUrl, 300);
-      if (sErr || !signed?.signedUrl) throw new Error(sErr?.message || "signed url failed");
-      const { data, error } = await supabase.functions.invoke("extract-id", {
-        body: { imageUrl: signed.signedUrl },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      let filled = 0;
-      if (data?.name && !name.trim()) { setName(data.name); filled++; }
-      if (data?.id_number && !idNumber.trim()) { setIdNumber(data.id_number); filled++; }
-      if (data?.email && !email.trim()) { setEmail(data.email); filled++; }
-      toast.success(lang === "ar" ? `تم استخراج ${filled} حقول` : `Extracted ${filled} fields`);
-    } catch (e: any) {
-      toast.error(e.message || (lang === "ar" ? "فشل الاستخراج" : "Extraction failed"));
-    } finally {
-      setExtracting(false);
-    }
-  };
 
   useEffect(() => {
     if (!open || !unit) return;
@@ -111,14 +88,6 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, unit?.id]);
 
-  // استخراج تلقائي فور رفع صورة/PDF جديد للهوية — بدون زر.
-  useEffect(() => {
-    if (!idImageUrl) return;
-    if (lastExtractedRef.current === idImageUrl) return;
-    lastExtractedRef.current = idImageUrl;
-    extractFromId();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idImageUrl]);
 
 
   // When a new unit photo finishes uploading, push to array and reset slot
@@ -505,12 +474,6 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
               label={lang === "ar" ? "صورة الهوية أو ملف PDF" : "ID image or PDF"}
               isPrivate
             />
-            {idImageUrl && extracting && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-sage-50 border border-sage-200/60 text-sage-700 text-sm">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>{lang === "ar" ? "جاري قراءة الهوية..." : "Reading ID..."}</span>
-              </div>
-            )}
 
             <FileUpload
               bucket="contracts"
