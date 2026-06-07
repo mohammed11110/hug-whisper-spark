@@ -83,7 +83,7 @@ export default function UnitDetail() {
     }
     const { data: ps } = await supabase.from("payments").select("id,unit_id,amount,expected_amount,deleted_at,payment_date,period_start,period_end,tenancy_id,kind,receipt_number,created_at,notes").eq("unit_id", id).is("deleted_at", null);
     setPayments((ps || []) as any);
-    const { data: ts } = await supabase.from("tenancies").select("id,status,tenant_name,contract_number,official_contract_number,contract_start_date,contract_end_date,ended_at,rent_amount,outstanding_at_end,deposit_status,deposit_refund_amount").eq("unit_id", id).order("contract_start_date", { ascending: false });
+    const { data: ts } = await supabase.from("tenancies").select("id,status,tenant_name,tenant_name_en,contract_number,official_contract_number,contract_start_date,contract_end_date,ended_at,rent_amount,rent_type,opening_balance,opening_balance_date,outstanding_at_end,deposit_status,deposit_refund_amount").eq("unit_id", id).order("contract_start_date", { ascending: false });
     setTenancies((ts || []) as any);
     const active = (ts || []).find((t: any) => t.status === "active");
     setActiveTenancyId(active?.id || null);
