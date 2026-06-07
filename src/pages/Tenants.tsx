@@ -466,7 +466,7 @@ export default function Tenants() {
                           : (lang === "ar" ? `تم استلام ${format(r.rent_amount)}` : `Collected ${format(r.rent_amount)}`)}
                       </button>
                     )}
-                    {r.tenant_phone && (
+                    {r.tenant_phone ? (
                       <button onClick={(e) => {
                         e.preventDefault(); e.stopPropagation();
                         const tpl = r.status === "late" ? settings.templates.late : settings.templates.reminder;
@@ -474,9 +474,18 @@ export default function Tenants() {
                           tenant: r.tenant_name, unit: r.unit_number, building: r.building_name, amount: format(r.rent_amount),
                         }));
                       }}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#25D366]/15 text-[#128C7E] text-[11px] font-bold hover:bg-[#25D366]/25">
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[hsl(var(--gold))]/15 text-[hsl(var(--gold))] border border-[hsl(var(--gold))]/30 text-[11px] font-bold hover:bg-[hsl(var(--gold))]/25 transition-colors">
                         <MessageCircle className="h-3 w-3" />
                         {lang === "ar" ? "إرسال تذكير" : "Send reminder"}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        disabled
+                        title={lang === "ar" ? "أضف رقم الهاتف أولاً" : "Add phone number first"}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted text-muted-foreground border border-sage-200/60 text-[11px] font-bold cursor-not-allowed opacity-80">
+                        <Phone className="h-3 w-3" />
+                        {lang === "ar" ? "أضف رقم الهاتف أولاً" : "Add phone number first"}
                       </button>
                     )}
                   </div>
