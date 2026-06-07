@@ -1,26 +1,36 @@
-# Fix: Dashboard shows all units as rented
+# Restore bilingual View / Share for receipts
 
-## Root cause
-Dashboard determines occupancy with `u.status !== "vacant"`, but the `units.status` column in this project never holds the value `"vacant"` — it only holds rent-state values (`paid`, `soon`, `upcoming`, `critical`, …). Vacancy is actually represented by `tenant_name IS NULL`.
+## Issue
+After the Payments redesign, the receipt card only exposes a single **View** and single **Share** button — both using the current `receiptLang`. The previous bilingual options (view & share in Arabic *and* English) were removed. Download and Print kept their AR/EN variants, but View/Share didn't.
 
-Current DB confirms this: 38 units have no tenant (vacant) yet all carry `status='soon'`, so Dashboard counts every unit as rented and reports vacant = 0.
+## Fix — `src/pages/Payments.tsx`
+Add AR/EN variants for View and Share inside the existing `DropdownMenu` (around lines 671–702), mirroring the Download/Print pattern:
 
-## Fix
-Treat a unit as occupied **iff it has a `tenant_name`** (matches how the rest of the app, e.g. arrears calculation, already works).
+```
+View (Arabic)   → printReceipt(r, "ar")
+View (English)  → printReceipt(r, "en")
+─────
+Share (Arabic)  → shareReceipt(r, "ar")
+Share (English) → shareReceipt(r, "en")
+─────
+(existing Edit, Download AR/EN, Print AR/EN, Delete)
+```
 
-### `src/pages/Dashboard.tsx`
-- Change the occupied filter (around line 80) from `u.status !== "vacant"` to `!!u.tenant_name`.
-- `stats.tenants` then equals `occupied.length`, so keep one source of truth.
-- `rented` / `vacant` subtitle on the Units stat card will then display correctly.
+Order in the menu, top to bottom:
+1. Edit
+2. ── separator ──
+3. View (Arabic) · View (English)
+4. Share (Arabic) · Share (English)
+5. ── separator ──
+6. Download (Arabic) · Download (English)
+7. Print (Arabic) · Print (English)
+8. ── separator ──
+9. Delete
 
-### `src/pages/Buildings.tsx` (same bug, same page family)
-- In `load()` (around line 78): replace `u.status !== "vacant"` with `!!u.tenant_name` when computing `occupied` and `hasArrears` (arrears uses a different signal — keep that as-is, only fix occupancy).
-- Select `tenant_name, status` on the units query so the new check has the field available.
+The primary **View** and **Share** buttons on the card stay (they use `receiptLang` for the quick-action default). Only the overflow menu gains the explicit bilingual choices.
+
+### `shareReceipt` tweak
+Currently the share text is built from `lang` (UI language). Change it to use the `lng` argument so an Arabic share generates Arabic text and English share generates English text, regardless of UI language. One-line change inside the existing function — no API change.
 
 ## Out of scope
-- No schema change, no migration. `status` keeps its current rent-state semantics everywhere else.
-- Other screens that already use tenant presence / active tenancy are unaffected.
-
-## Verification
-- Reload `/` — Units card subtitle should read `32 مؤجرة · 38 شاغرة` (matches DB).
-- `/buildings` KPI bar Occupancy % should drop from 100% to the real ratio, and per-building "occupied" chips should match.
+- No design changes, no other screens, no business logic.
