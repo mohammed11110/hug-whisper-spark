@@ -817,7 +817,7 @@ export default function Settings() {
         {[
           { to: "/team", icon: Users, ar: "الفريق والصلاحيات", en: "Team & roles" },
           { to: "/backup", icon: Database, ar: "النسخ الاحتياطي", en: "Backup & restore" },
-          { to: "/assistant", icon: Sparkles, ar: "المساعد الذكي", en: "AI Assistant" },
+          
           { to: "/install", icon: Smartphone, ar: "تثبيت التطبيق", en: "Install app" },
         ].map(({ to, icon: Ic, ar, en }) => (
           <Link key={to} to={to} className="flex items-center gap-3 bg-card border border-sage-200/60 rounded-2xl p-3.5 shadow-soft hover:bg-sage-50 transition">

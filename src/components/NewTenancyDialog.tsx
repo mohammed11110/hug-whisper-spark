@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
 import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
-import { X, Image as ImageIcon, Loader2 } from "lucide-react";
+import { X, Image as ImageIcon } from "lucide-react";
 import { BackdatedContractCard, type BackdatedResolution } from "@/components/BackdatedContractCard";
 
 
@@ -45,7 +45,7 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
   const [unitPhotos, setUnitPhotos] = useState<string[]>([]);
   const [pendingPhoto, setPendingPhoto] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [extracting, setExtracting] = useState(false);
+  
   // المتأخرات الافتتاحية — يتم توزيعها تلقائياً على الأشهر السابقة (نفس منطق AddUnitDialog).
   const [arrears, setArrears] = useState<string>("0");
   // مدفوع حتى (اختياري): تاريخ آخر شهر تم سداده فعلاً قبل بداية هذا العقد —
@@ -57,35 +57,12 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
   const [officialNumber, setOfficialNumber] = useState<string>("");
   const [backdated, setBackdated] = useState<BackdatedResolution | null>(null);
   const guard = useUnsavedGuard({ open, onOpenChange });
-  const lastExtractedRef = useRef<string | null>(null);
+  
 
   const todayIso = today;
   const isBackdated = !!startDate && startDate < todayIso;
 
 
-  const extractFromId = async () => {
-    if (!idImageUrl) return;
-    setExtracting(true);
-    try {
-      const { data: signed, error: sErr } = await supabase.storage
-        .from("tenant-ids").createSignedUrl(idImageUrl, 300);
-      if (sErr || !signed?.signedUrl) throw new Error(sErr?.message || "signed url failed");
-      const { data, error } = await supabase.functions.invoke("extract-id", {
-        body: { imageUrl: signed.signedUrl },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      let filled = 0;
-      if (data?.name && !name.trim()) { setName(data.name); filled++; }
-      if (data?.id_number && !idNumber.trim()) { setIdNumber(data.id_number); filled++; }
-      if (data?.email && !email.trim()) { setEmail(data.email); filled++; }
-      toast.success(lang === "ar" ? `تم استخراج ${filled} حقول` : `Extracted ${filled} fields`);
-    } catch (e: any) {
-      toast.error(e.message || (lang === "ar" ? "فشل الاستخراج" : "Extraction failed"));
-    } finally {
-      setExtracting(false);
-    }
-  };
 
   useEffect(() => {
     if (!open || !unit) return;
@@ -107,18 +84,10 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
     setGraceDays(String(unit.grace_days ?? "0"));
     setOfficialNumber("");
     setBackdated(null);
-    lastExtractedRef.current = null;
+    
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, unit?.id]);
 
-  // استخراج تلقائي فور رفع صورة/PDF جديد للهوية — بدون زر.
-  useEffect(() => {
-    if (!idImageUrl) return;
-    if (lastExtractedRef.current === idImageUrl) return;
-    lastExtractedRef.current = idImageUrl;
-    extractFromId();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idImageUrl]);
 
 
   // When a new unit photo finishes uploading, push to array and reset slot
@@ -505,12 +474,6 @@ export function NewTenancyDialog({ open, onOpenChange, unit, onDone }: Props) {
               label={lang === "ar" ? "صورة الهوية أو ملف PDF" : "ID image or PDF"}
               isPrivate
             />
-            {idImageUrl && extracting && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-sage-50 border border-sage-200/60 text-sage-700 text-sm">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>{lang === "ar" ? "جاري قراءة الهوية..." : "Reading ID..."}</span>
-              </div>
-            )}
 
             <FileUpload
               bucket="contracts"

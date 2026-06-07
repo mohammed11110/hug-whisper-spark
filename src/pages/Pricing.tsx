@@ -76,8 +76,8 @@ const PLANS: Plan[] = [
     taglineEn: "Most popular",
     highlight: true,
     icon: Crown,
-    featuresAr: ["حتى 25 وحدة", "مباني غير محدودة", "فريق عمل", "مساعد ذكي AI", "نسخ احتياطي تلقائي", "أولوية الدعم", "+ وحدات إضافية بـ $0.69/شهر"],
-    featuresEn: ["Up to 25 units", "Unlimited buildings", "Team members", "AI assistant", "Auto backups", "Priority support", "Extra units at $0.69/mo"],
+    featuresAr: ["حتى 25 وحدة", "مباني غير محدودة", "فريق عمل", "نسخ احتياطي تلقائي", "أولوية الدعم", "+ وحدات إضافية بـ $0.69/شهر"],
+    featuresEn: ["Up to 25 units", "Unlimited buildings", "Team members", "Auto backups", "Priority support", "Extra units at $0.69/mo"],
   },
   {
     id: "business",

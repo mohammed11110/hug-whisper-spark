@@ -39,7 +39,7 @@ const Pricing = lazy(() => import("./pages/Pricing"));
 const Terms = lazy(() => import("./pages/Terms"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const Refund = lazy(() => import("./pages/Refund"));
-const Assistant = lazy(() => import("./pages/Assistant"));
+
 const NotificationPreferences = lazy(() => import("./pages/NotificationPreferences"));
 const Admin = lazy(() => import("./pages/Admin"));
 const Maintenance = lazy(() => import("./pages/Maintenance"));
@@ -94,7 +94,7 @@ const App = () => (
                         <Route path="/notifications" element={<RequireAuth><Notifications /></RequireAuth>} />
                         <Route path="/backup" element={<RequireAuth><Backup /></RequireAuth>} />
                         <Route path="/team" element={<RequireAuth><Team /></RequireAuth>} />
-                        <Route path="/assistant" element={<RequireAuth><Assistant /></RequireAuth>} />
+                        
                         <Route path="/admin" element={<RequireAuth><Admin /></RequireAuth>} />
                         <Route path="/maintenance" element={<RequireAuth><Maintenance /></RequireAuth>} />
                         <Route path="/activity" element={<RequireAuth><Activity /></RequireAuth>} />
