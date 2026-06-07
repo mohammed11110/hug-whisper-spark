@@ -313,7 +313,12 @@ export default function UnitDetail() {
         // already reflects them via real payments below.
       }
 
-      // 3) Payments for this lease
+      // 3) Payments for this lease — preserve the EXISTING receipt_number as
+      //    stored (R-xxxx, R-xxxx/1, /2, /D). For legacy rows without a
+      //    stored suffix, compute one for DISPLAY ONLY using the shared
+      //    derivePartialMetaForDisplay helper so partial cycles still group
+      //    visually under the same base number.
+      const derivedForLease = derivePartialMetaForDisplay(tPays as any);
       tPays
         .filter((p: any) => (p.kind || "rent") !== "opening")
         .forEach((p: any) => {
@@ -323,9 +328,22 @@ export default function UnitDetail() {
           const descBase = isAdj
             ? (ar ? "تعديل الرصيد" : "Adjustment")
             : (ar ? "دفعة" : "Payment");
-          const desc = descBase +
-            (p.receipt_number ? ` #${p.receipt_number}` : "") +
-            (p.notes ? ` — ${p.notes}` : "");
+          // Receipt display: keep the stored number verbatim when present.
+          // If the row has no stored suffix but the cycle has multiple
+          // installments, append the derived suffix with a small "(محسوب)"
+          // marker so legacy receipts read like new ones without mutating
+          // the source-of-truth value.
+          const meta = derivedForLease.get(p.id);
+          let receiptDisplay = "";
+          if (p.receipt_number) {
+            const hasStoredSuffix = p.receipt_number.includes("/");
+            if (!hasStoredSuffix && meta?.isComputed && meta.derivedSuffix) {
+              receiptDisplay = ` #${p.receipt_number}/${meta.derivedSuffix}${ar ? " (محسوب)" : " (computed)"}`;
+            } else {
+              receiptDisplay = ` #${p.receipt_number}`;
+            }
+          }
+          const desc = descBase + receiptDisplay + (p.notes ? ` — ${p.notes}` : "");
           const charge = isAdj && amt < 0 ? -amt : 0;
           const payment = isAdj ? (amt > 0 ? amt : 0) : amt;
           entries.push({
