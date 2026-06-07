@@ -799,6 +799,13 @@ export default function Settings() {
                   className="w-full rounded-xl border-burgundy/30 text-burgundy hover:bg-burgundy/5">
                   <RotateCcw className="h-4 w-4 me-2" /> {tr(lang, "استعادة الافتراضيات", "Reset defaults")}
                 </Button>
+                <Button variant="outline" onClick={async () => {
+                  const { resetFabPosition } = await import("@/components/QuickAddPaymentFab");
+                  resetFabPosition();
+                  toast.success(tr(lang, "تمت إعادة موضع زر الدفع", "Payment button position reset"));
+                }} className="w-full rounded-xl border-sage-300 text-sage-600">
+                  <RotateCcw className="h-4 w-4 me-2" /> {tr(lang, "إعادة موضع زر الدفع العائم", "Reset floating payment button")}
+                </Button>
               </div>
             </Card>
           </TabsContent>
