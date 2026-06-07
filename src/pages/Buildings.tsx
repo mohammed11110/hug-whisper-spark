@@ -28,6 +28,8 @@ interface BuildingStats {
   occupied: number;
   hasArrears: boolean;
   allCollected: boolean;
+  collectedMonth: number;
+  expectedMonth: number;
 }
 
 type SortKey = "newest" | "oldest" | "name_az" | "name_za" | "units_high" | "units_low";
