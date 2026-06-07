@@ -71,13 +71,6 @@ const STEPS: Step[] = [
     descEn: "Interactive charts revealing the performance of every property.",
   },
   {
-    route: "/assistant",
-    titleAr: "مساعدك الذكي",
-    titleEn: "AI Assistant",
-    descAr: "اسأله عن أي شيء يخص عقاراتك واحصل على رؤى فورية.",
-    descEn: "Ask anything about your properties and get instant insights.",
-  },
-  {
     route: "/",
     titleAr: "جاهز للانطلاق ✦",
     titleEn: "You're all set ✦",

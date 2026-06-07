@@ -20,7 +20,7 @@ const prefetchers: Record<string, Importer> = {
   "/reports": () => import("@/pages/Reports"),
   "/maintenance": () => import("@/pages/Maintenance"),
   "/notifications": () => import("@/pages/Notifications"),
-  "/assistant": () => import("@/pages/Assistant"),
+  
   "/activity": () => import("@/pages/Activity"),
   "/team": () => import("@/pages/Team"),
   "/backup": () => import("@/pages/Backup"),

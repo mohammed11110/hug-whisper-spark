@@ -57,7 +57,6 @@ export function AppSidebar() {
   ];
   const tools = [
     { to: "/notifications", label: t("notifications"), icon: Bell },
-    { to: "/assistant", label: "AI", icon: Sparkles },
     { to: "/activity", label: t2("activity_log"), icon: ActivityIcon },
   ];
   const manage = [

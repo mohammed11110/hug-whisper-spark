@@ -32,13 +32,6 @@ const STEPS = [
     descAr: "رسوم بيانية تفاعلية تكشف لك أداء كل مبنى ووحدة.",
     descEn: "Interactive charts revealing performance of every building & unit.",
   },
-  {
-    icon: Sparkles,
-    titleAr: "مساعد ذكي بالـ AI",
-    titleEn: "AI-powered assistant",
-    descAr: "اسأل مساعدك أي شيء عن عقاراتك واحصل على رؤى فورية.",
-    descEn: "Ask your assistant anything about your properties and get instant insights.",
-  },
 ];
 
 export function OnboardingTour() {
