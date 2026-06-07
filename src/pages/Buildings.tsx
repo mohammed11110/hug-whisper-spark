@@ -87,7 +87,7 @@ export default function Buildings() {
       const stats: Record<string, BuildingStats> = {};
       for (const b of data) {
         const list = unitsByBuilding[b.id] || [];
-        const occupied = list.filter((u) => u.status !== "vacant");
+        const occupied = list.filter((u) => !!u.tenant_name);
         const hasArrears = list.some((u) => u.status === "late");
         const allCollected = occupied.length > 0 && occupied.every((u) => paidUnitIds.has(u.id));
         stats[b.id] = {
