@@ -85,6 +85,15 @@ export async function printTenantStatementPDFDirect(data: TenantStatementData, f
   return (await loadMod()).printTenantStatementPDFDirect(data, filename);
 }
 
+// ---------- Unit Statement (grouped by lease) ----------
+export async function downloadUnitStatementPDFDirect(data: UnitStatementData, filename: string): Promise<void> {
+  return (await loadMod()).downloadUnitStatementPDFDirect(data, filename);
+}
+export async function printUnitStatementPDFDirect(data: UnitStatementData, filename: string): Promise<void> {
+  return (await loadMod()).printUnitStatementPDFDirect(data, filename);
+}
+
+
 // ---------- Report ----------
 export async function buildReportHTML(data: ReportData): Promise<string> {
   return (await loadMod()).buildReportHTML(data);
