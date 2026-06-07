@@ -2836,3 +2836,297 @@ export async function downloadReportPDFDirect(data: ReportData, filename: string
   await savePdfBlob(pdf, filename);
 }
 
+
+// ---------------------------------------------------------------------------
+// Unit Statement (per-lease grouping) — replaces the legacy single-tenant
+// statement when viewing a unit's full history. Each lease is rendered as a
+// self-contained block (header + transactions + summary) with a dashed
+// terracotta eviction divider between consecutive leases.
+// ---------------------------------------------------------------------------
+
+export interface UnitStatementRow {
+  date: string;
+  description: string;
+  charge: number;
+  payment: number;
+  balance: number; // running balance WITHIN this lease (resets to 0 each lease)
+}
+
+export interface UnitStatementLeaseBlock {
+  tenantName: string;
+  tenantNameEn?: string | null;
+  contractNumber?: string | null;
+  contractStart?: string | null;
+  contractEnd?: string | null;
+  endedAt?: string | null; // eviction date (set on ended leases)
+  rentAmount: number;
+  rentType?: string | null;
+  status: "current" | "previous";
+  rows: UnitStatementRow[];
+  totals: {
+    totalCharges: number;
+    totalPaid: number;
+    closingBalance: number;
+  };
+}
+
+export interface UnitStatementData {
+  brand: BrandInfo;
+  currency?: string | null;
+  generatedAt?: string | null;
+  building?: string | null;
+  unitNumber?: string | null;
+  unitType?: string | null;
+  leases: UnitStatementLeaseBlock[]; // oldest → newest
+}
+
+// Terracotta divider color for evictions (printable; close to design token
+// hsl(0 25% 51%) → #a85d5d but tuned slightly warmer for cream paper).
+const PDF_TERRACOTTA = [168, 93, 93] as const;
+const PDF_TERRACOTTA_BG = [248, 226, 226] as const;
+const PDF_GOLD_TAG_BG = [240, 220, 165] as const;
+const PDF_MIDNIGHT = [26, 31, 43] as const;
+
+function ddStatusTag(
+  ctx: DirectPdfDrawCtx,
+  x: number,
+  y: number,
+  label: string,
+  variant: "current" | "previous",
+): number {
+  const { pdf } = ctx;
+  const pad = 2.5;
+  pdf.setFontSize(8);
+  const prepared = splitPdfText(pdf, label, 60, 8, true);
+  const textW = pdf.getTextWidth(prepared.lines[0] || label);
+  const w = Math.max(22, textW + pad * 2);
+  const h = 6;
+  if (variant === "current") {
+    pdf.setFillColor(PDF_GOLD_TAG_BG[0], PDF_GOLD_TAG_BG[1], PDF_GOLD_TAG_BG[2]);
+    pdf.setDrawColor(PDF_COLORS.gold[0], PDF_COLORS.gold[1], PDF_COLORS.gold[2]);
+    pdf.roundedRect(x, y, w, h, 1.5, 1.5, "FD");
+    pdf.setTextColor(PDF_COLORS.settlementInk[0], PDF_COLORS.settlementInk[1], PDF_COLORS.settlementInk[2]);
+  } else {
+    pdf.setFillColor(245, 245, 240);
+    pdf.setDrawColor(PDF_COLORS.line[0], PDF_COLORS.line[1], PDF_COLORS.line[2]);
+    pdf.roundedRect(x, y, w, h, 1.5, 1.5, "FD");
+    pdf.setTextColor(PDF_COLORS.muted[0], PDF_COLORS.muted[1], PDF_COLORS.muted[2]);
+  }
+  pdf.text(prepared.lines[0] || label, x + w / 2, y + 4.2, { align: "center" });
+  return w;
+}
+
+function ddLeaseHeader(ctx: DirectPdfDrawCtx, block: UnitStatementLeaseBlock, currency?: string | null) {
+  const { pdf, marginX, contentW, cursor } = ctx;
+  const headerH = 22;
+  ddEnsureSpace(ctx, headerH + 4);
+
+  // Midnight band with subtle gold accent border on the inner edge
+  pdf.setFillColor(PDF_MIDNIGHT[0], PDF_MIDNIGHT[1], PDF_MIDNIGHT[2]);
+  pdf.setDrawColor(PDF_COLORS.gold[0], PDF_COLORS.gold[1], PDF_COLORS.gold[2]);
+  pdf.roundedRect(marginX, cursor.y, contentW, headerH, 3, 3, "FD");
+
+  // Status tag (top-left in RTL, top-right in LTR — but PDF uses absolute coords)
+  const tagX = marginX + 4;
+  const tagLabel = block.status === "current"
+    ? "المستأجر الحالي / Current tenant"
+    : "مستأجر سابق / Previous tenant";
+  const tagW = ddStatusTag(ctx, tagX, cursor.y + 3, tagLabel, block.status);
+
+  // Tenant name
+  const nameParts = [block.tenantName || "—", block.tenantNameEn].filter(Boolean) as string[];
+  const nameText = nameParts.join("  /  ");
+  ddText(ctx, {
+    text: nameText,
+    x: tagX,
+    y: cursor.y + 14,
+    width: contentW * 0.55,
+    fontSize: 12,
+    bold: true,
+    color: [255, 255, 255] as any,
+  });
+  if (block.contractNumber) {
+    ddText(ctx, {
+      text: block.contractNumber,
+      x: tagX,
+      y: cursor.y + 19,
+      width: contentW * 0.55,
+      fontSize: 8,
+      color: PDF_COLORS.line as any,
+    });
+  }
+
+  // Right side: contract period + rent
+  const rightX = marginX + contentW * 0.58;
+  const rightW = contentW * 0.42 - 4;
+  const periodLabel = `${formatDate(block.contractStart)}  →  ${formatDate(block.contractEnd)}`;
+  ddText(ctx, {
+    text: "العقد / Period",
+    x: rightX,
+    y: cursor.y + 5,
+    width: rightW,
+    fontSize: 8,
+    color: PDF_COLORS.line as any,
+    align: "right",
+  });
+  ddText(ctx, {
+    text: periodLabel,
+    x: rightX,
+    y: cursor.y + 10,
+    width: rightW,
+    fontSize: 10,
+    bold: true,
+    color: [255, 255, 255] as any,
+    align: "right",
+  });
+  ddText(ctx, {
+    text: `الإيجار / Rent: ${formatMoney(block.rentAmount, currency)}`,
+    x: rightX,
+    y: cursor.y + 18,
+    width: rightW,
+    fontSize: 9,
+    color: PDF_GOLD_TAG_BG as any,
+    align: "right",
+  });
+  void tagW;
+  cursor.y += headerH + 3;
+}
+
+function ddEvictionDivider(ctx: DirectPdfDrawCtx, dateIso?: string | null) {
+  const { pdf, marginX, contentW, cursor } = ctx;
+  ddEnsureSpace(ctx, 14);
+  cursor.y += 3;
+  // Dashed terracotta rule
+  pdf.setDrawColor(PDF_TERRACOTTA[0], PDF_TERRACOTTA[1], PDF_TERRACOTTA[2]);
+  pdf.setLineDashPattern([1.6, 1.6], 0);
+  pdf.setLineWidth(0.4);
+  pdf.line(marginX, cursor.y + 3, marginX + contentW, cursor.y + 3);
+  pdf.setLineDashPattern([], 0);
+  pdf.setLineWidth(0.2);
+
+  // Centered pill
+  const dateLabel = formatDate(dateIso);
+  const label = `⊗ Vacated — ${dateLabel}   ·   تم الإخلاء — ${dateLabel}`;
+  pdf.setFontSize(8.5);
+  const prep = splitPdfText(pdf, label, contentW, 8.5, true);
+  const txt = prep.lines[0] || label;
+  const w = pdf.getTextWidth(txt) + 8;
+  const x = marginX + (contentW - w) / 2;
+  pdf.setFillColor(PDF_TERRACOTTA_BG[0], PDF_TERRACOTTA_BG[1], PDF_TERRACOTTA_BG[2]);
+  pdf.setDrawColor(PDF_TERRACOTTA[0], PDF_TERRACOTTA[1], PDF_TERRACOTTA[2]);
+  pdf.roundedRect(x, cursor.y, w, 6, 1.5, 1.5, "FD");
+  pdf.setTextColor(PDF_TERRACOTTA[0], PDF_TERRACOTTA[1], PDF_TERRACOTTA[2]);
+  pdf.text(txt, x + w / 2, cursor.y + 4.1, { align: "center" });
+  cursor.y += 10;
+}
+
+async function createUnitStatementPDFDirect(data: UnitStatementData): Promise<jsPDF> {
+  const ctx = createDirectPdfCtx(true);
+  await registerLeasePdfFonts(ctx.pdf);
+
+  await ddHeader(
+    ctx,
+    data.brand,
+    "كشف حساب الوحدة / Unit Statement",
+    `${data.unitNumber || ""}${data.unitType ? ` — ${data.unitType}` : ""}`,
+    `${data.generatedAt || ""}\n${data.building || ""}`,
+  );
+
+  if (!data.leases.length) {
+    ddText(ctx, {
+      text: "لا توجد عقود / No leases on record",
+      x: ctx.marginX,
+      y: ctx.cursor.y + 10,
+      width: ctx.contentW,
+      fontSize: 11,
+      color: PDF_COLORS.muted,
+      align: "center",
+    });
+    ddFooter(ctx, data.brand);
+    return ctx.pdf;
+  }
+
+  const w = ctx.contentW;
+  const cols = [
+    { key: "date", label: "التاريخ / Date", width: w * 0.16 },
+    { key: "description", label: "البيان / Description", width: w * 0.40 },
+    { key: "charge", label: "مدين / Charge", width: w * 0.14, align: "right" as const },
+    { key: "payment", label: "دائن / Payment", width: w * 0.14, align: "right" as const },
+    {
+      key: "balance",
+      label: "الرصيد / Balance",
+      width: w * 0.16,
+      align: "right" as const,
+      color: (row: any) => (Number(row._balRaw) > 0.009 ? PDF_TERRACOTTA : PDF_COLORS.sage),
+    },
+  ];
+
+  data.leases.forEach((lease, idx) => {
+    if (idx > 0) {
+      // Always between blocks: previous lease ended → eviction divider
+      const prev = data.leases[idx - 1];
+      ddEvictionDivider(ctx, prev.endedAt || prev.contractEnd);
+    }
+    ddLeaseHeader(ctx, lease, data.currency);
+
+    if (lease.rows.length === 0) {
+      ddText(ctx, {
+        text: "لا توجد حركات / No transactions",
+        x: ctx.marginX,
+        y: ctx.cursor.y + 4,
+        width: ctx.contentW,
+        fontSize: 10,
+        color: PDF_COLORS.muted,
+        align: "center",
+      });
+      ctx.cursor.y += 10;
+    } else {
+      ddTable(
+        ctx,
+        cols,
+        lease.rows.map((r) => ({
+          date: formatDate(r.date),
+          description: r.description || "—",
+          charge: r.charge ? formatMoney(r.charge, data.currency) : "—",
+          payment: r.payment ? formatMoney(r.payment, data.currency) : "—",
+          balance: formatMoney(r.balance, data.currency),
+          _balRaw: r.balance,
+        })),
+      );
+    }
+
+    ddSummary(ctx, [
+      { label: "إجمالي المستحق / Total charges", value: formatMoney(lease.totals.totalCharges, data.currency) },
+      {
+        label: "إجمالي المدفوع / Total paid",
+        value: formatMoney(lease.totals.totalPaid, data.currency),
+        tone: "positive",
+      },
+      {
+        label: "رصيد العقد / Lease balance",
+        value: formatMoney(lease.totals.closingBalance, data.currency),
+        tone: lease.totals.closingBalance > 0.009 ? "negative" : "positive",
+      },
+    ]);
+    ctx.cursor.y += 4;
+  });
+
+  ddFooter(ctx, data.brand);
+  return ctx.pdf;
+}
+
+export async function downloadUnitStatementPDFDirect(data: UnitStatementData, filename: string): Promise<void> {
+  const t0 = performance.now?.() ?? Date.now();
+  const pdf = await createUnitStatementPDFDirect(data);
+  console.info("[unit-statement-pdf:direct] generated in", Math.round((performance.now?.() ?? Date.now()) - t0), "ms");
+  await savePdfBlob(pdf, filename);
+}
+
+export async function printUnitStatementPDFDirect(data: UnitStatementData, filename: string): Promise<void> {
+  const pdf = await createUnitStatementPDFDirect(data);
+  if (isNative()) {
+    await handlePdfBlobNative(pdf.output("blob"), filename, "print", { title: filename });
+    return;
+  }
+  await savePdfBlob(pdf, filename);
+}

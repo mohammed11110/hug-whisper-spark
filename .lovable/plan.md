@@ -1,68 +1,88 @@
-## Goal
+# Fix tenant-mixing in Unit Account & Statement
 
-Improve the "Some months are unpaid" option in `BackdatedContractCard` so the user picks the first unpaid month from a **visual list of the contract's real billing periods** — anchored on the contract's actual start DAY, not the 1st of the month — instead of a generic month dropdown.
+Two problems, one root cause: charges/payments are scoped to the **unit**, not the **lease (tenancy)**. After eviction + new tenant, both histories are summed together, and the statement PDF mixes them in one continuous balance.
 
-## Behavior
+---
 
-1. **Generate the period list** from the form values currently passed to the card:
-   - Start: `contract_start_date` (e.g. 2026-01-10).
-   - End: `min(contract_end_date, today)` — future periods are never "unpaid yet".
-   - Step depends on `rent_type` / contract billing cycle:
-     - `monthly` → +1 month (default).
-     - `yearly` → +12 months.
-     - `daily` → fall back to a single "before today" row (daily contracts don't have unpaid months semantically).
-   - Each row = `{ index, start, end }` where `end = nextStart − 1 day`.
-   - Format periods as `D/M/YYYY – D/M/YYYY` (no leading zeros), e.g. `10/4 – 9/5/2026`. Year is shown once on the end side when both dates share the same year.
+## 1. Data integrity — guarantee `tenancy_id` on every payment
 
-2. **Pass `contract_end_date` and `rent_type` cycle into the card.** The card currently only knows `rent_type`; add an optional `contractEndDate` prop and accept the existing `rentType` for the cycle step.
+A migration (separate approval step) will:
 
-3. **Tappable list UI** (Midnight & Gold, matches existing card styling):
-   - Vertical scrollable list (`max-h-72 overflow-y-auto`, custom gold scrollbar via existing utility classes).
-   - Each row shows:
-     - Left: `#N` badge (gold ring on dark) + period label.
-     - Right: status pill that updates live based on the currently tapped row:
-       - rows before tapped → `Paid` (success green token-equivalent on midnight: `#7ed9a8` / `bg-emerald-500/15`).
-       - tapped row → `First unpaid` (gold `#c9a44c`, filled).
-       - rows after tapped → `Will be counted` (warning red on midnight: `#e09a9a` / `bg-red-500/15`).
-   - Before any tap, every row shows a neutral muted `—` pill so the user understands they must pick one.
-   - Tapping a row sets `firstUnpaidIndex`. The whole list re-styles instantly.
+- **Backfill** `payments.tenancy_id` for legacy rows where it is `NULL`, by matching `unit_id` + `payment_date` against `tenancies(contract_start_date, ended_at/contract_end_date)`. Prefer the tenancy whose period contains `payment_date`; fall back to the most recent ended tenancy when the active one doesn't match.
+- **Backfill** `opening` kind rows similarly (they belong to the tenancy that owns the opening balance).
+- Once backfilled, leave the existing `payments_autofill_tenancy` trigger in place — it already sets `tenancy_id` for new inserts. (No `NOT NULL` constraint yet; we keep the fallback-by-date filter in `balance.ts` as a safety net for any straggler.)
 
-4. **Resolution mapping** (replaces the current `firstUnpaidMonth: "YYYY-MM"` value):
-   - `arrears_start_date` = start ISO of the tapped period.
-   - Persisted fields stay identical to today's contract — only the source changes:
-     - `paid_up_to` = `arrears_start_date − 1 day` (ISO).
-     - `opening_balance` = 0, `opening_balance_date` = null.
-   - Returned shape becomes:
-     ```ts
-     { kind: "some_unpaid", paidUpTo, arrearsStartDate, firstUnpaidIndex, openingBalance: 0, openingBalanceDate: null }
-     ```
-     Existing callers (`NewTenancyDialog`, `AddUnitDialog`) only read `paidUpTo` / `openingBalance` / `openingBalanceDate`, so they don't change.
+No schema change beyond a one-shot `UPDATE` and a partial index on `payments(unit_id, tenancy_id)` if planning shows it helps.
 
-5. **Live preview** (updates the existing preview block when option 2 is active):
-   - `Paid periods` → e.g. `Months 1–3 · 10/1 – 9/4/2026` (omit if none).
-   - `Arrears start` → `10/4/2026`.
-   - `Arrears now` → calls the existing `getUnitArrears` against the virtual unit (already wired) and shows `value OMR (N months)`, where N = number of full cycles between `arrearsStartDate` and today using `periodsElapsed` + the timing rule.
-   - Keeps the existing `Current month due` row for continuity.
+---
 
-6. **Bilingual + RTL** — every label routed through the existing AR/EN branches inside the card. Period numerals stay Western digits (matches existing receipt formatting in the project).
+## 2. Account Summary card = active lease only
 
-## Files to change
+In `src/lib/balance.ts → getUnitArrears`:
 
-- `src/components/BackdatedContractCard.tsx`
-  - Add `contractEndDate?: string` prop.
-  - Replace the `cycleOptions` month list + `<Select>` with a `periods` array (date-day-anchored) and the tappable list UI described above.
-  - Update `BackdatedResolution["some_unpaid"]` to carry `arrearsStartDate` and `firstUnpaidIndex` (still backward-compatible — `paidUpTo` is the field consumed downstream).
-  - Extend the preview block with the "Paid periods" line and the `(N months)` suffix on arrears.
-- `src/components/NewTenancyDialog.tsx` — pass `contractEndDate={endDate}` to the card.
-- `src/components/AddUnitDialog.tsx` — pass `contractEndDate={endDate}` to the card (same prop name).
-- `.lovable/plan.md` — append a short note documenting the period-list UX (the surrounding architecture in that doc stays accurate).
+- When `activeTenancyId` is provided, **strictly** require `p.tenancy_id === activeTenancyId`. Drop the "NULL tenancy_id passes the date cutoff" fallback path inside this branch — after backfill, NULL means "belongs to no active lease, ignore". (Fallback retained only when `activeTenancyId` is null, i.e. vacant unit.)
+- Build a **virtual `UnitForBalance`** from the active tenancy row (rent_amount, contract_start_date, contract_end_date, due_day, opening_balance, opening_balance_date, paid_up_to, rent_type, rent_timing, grace_days) rather than from the `units` table. This means the active card never sees a stale `unit.opening_balance` left from a prior tenant.
 
-## Non-changes
+In `src/pages/UnitDetail.tsx`:
 
-- No DB migration. No edits to `src/lib/balance.ts` — `getUnitArrears` already accrues from the anchor (`paid_up_to + 1`), which is exactly `arrears_start_date`.
-- No edits to receipts, edge functions, or `EditUnitDialog` (backdated handling is registration-only, per existing memory).
-- The other two options (`all_paid`, `manual`) are untouched.
+- `DetailsTab` already receives `activeTenancyId`; switch the `getUnitArrears(unit, ...)` call to use the active tenancy as the unit shape (helper `tenancyToUnitShape(tenancy)`).
+- `ArrearsBadge`, `UnitHealthBadge`, `LeaseHistoryCard` get the same helper so each lease card uses its own anchors.
+- `EditPaymentDialog` already passes `activeTenancyId` — keep, but feed it the tenancy-shape too.
 
-## Result
+No UI redesign on the unit screen — just correct numbers.
 
-For a contract `10/1/2026 → 10/1/2027`, today = `15/5/2026`, tapping period #4 (`10/4 – 9/5/2026`) sets `arrears_start_date = 2026-04-10`, marks periods 1–3 as paid, and the live preview shows e.g. `Paid: Months 1–3 · 10/1 – 9/4/2026`, `Arrears start: 10/4/2026`, `Arrears now: 220.000 OMR (2 months)`. The running-balance engine then accrues only from `10/4/2026` onward, using the real contract billing days.
+---
+
+## 3. Statement PDF — redesigned, grouped by lease
+
+### Data build (in `src/pages/UnitDetail.tsx → exportStatement`)
+
+1. Load all `tenancies` for the unit + all non-deleted `payments` (already done).
+2. Group payments by `tenancy_id`; legacy `NULL`s are bucketed by date into the matching tenancy (same logic as the migration backfill).
+3. For each tenancy, build its own entry stream:
+   - Opening balance row (from `tenancy.opening_balance` + `opening_balance_date`).
+   - Monthly/quarterly/yearly rent charges from `tenancy.contract_start_date` to `min(tenancy.ended_at || contract_end_date, today)` using the tenancy's `rent_type` and start day (re-use the period generator from `BackdatedContractCard`).
+   - Payment rows for that tenancy.
+   - Running balance **starts at 0** and accrues only within the block.
+4. Per-tenant totals: `totalCharges`, `totalPaid`, `closingBalance` (= `outstanding_at_end` for ended leases, current arrears for the active one).
+5. Sort tenancies oldest → newest. Tag the last one **"Current tenant / المستأجر الحالي"** (gold), the rest **"Previous tenant / مستأجر سابق"** (muted).
+
+### Rendering (in `src/lib/pdfDocs.ts`)
+
+Replace `createTenantStatementPDFDirect` data shape with `UnitStatementData { unit, brand, currency, leases: LeaseBlock[] }` and add a new exporter `downloadUnitStatementPDFDirect`. Keep the old tenant-statement entry point for any other caller.
+
+For each `LeaseBlock` in order:
+
+1. **Lease header band** — full-width rounded card, Midnight bg with Gold accent:
+   - Left: status tag (`Current` gold-filled / `Previous` muted-outline), tenant name (AR + EN).
+   - Right: contract period `start – end`, rent amount, contract number if any.
+2. **Transactions table** — existing `ddTable` with columns: Date, Description, Charge, Payment, Balance (running, resets at 0 for this block).
+3. **Per-tenant summary** — `ddSummary` with Total charged / Total paid / Block balance (red if > 0, sage if ≤ 0).
+4. **Eviction divider** (only between blocks, after a `Previous` block):
+   - Full-width dashed horizontal rule in terracotta `#a85d5d` (light) / will print as solid mid-red on white PDF page.
+   - Centered pill label: `⊗ Vacated — DD/M/YYYY  ·  تم الإخلاء — DD/M/YYYY` in terracotta on cream.
+   - Use `pdf.setLineDashPattern([2, 2], 0)` then reset.
+5. Page-break safety: each lease block calls `ensureSpace(ctx, minBlockHeight)`; eviction divider never orphans at page top.
+
+Header of the whole document stays: brand, unit number, building, generation date. Title becomes **"كشف حساب الوحدة / Unit Statement"**.
+
+### Bilingual / RTL
+
+Keep the existing `rtl = true` ctx and dual-language labels (Arabic first, English second), matching the rest of the PDF suite. Period dates formatted `D/M/YYYY` with no leading zeros via existing `formatDate`.
+
+---
+
+## Files changed
+
+- `supabase/migrations/<new>.sql` — backfill `payments.tenancy_id` (migration tool, separate approval).
+- `src/lib/balance.ts` — tighten `activeTenancyId` filter; export `tenancyToUnitShape` helper.
+- `src/pages/UnitDetail.tsx` — use tenancy shape for arrears; rebuild `exportStatement` to produce grouped lease blocks.
+- `src/lib/pdfDocs.ts` — add `UnitStatementData`, `createUnitStatementPDFDirect`, `downloadUnitStatementPDFDirect`; add helpers for lease header band, eviction divider, status tag.
+- Re-use existing period generator from `BackdatedContractCard` (extract to `src/lib/balance.ts` if needed).
+
+## Out of scope
+
+- `EditUnitDialog` / `NewTenancyDialog` flows — unchanged.
+- Receipts and lease contract PDFs — unchanged.
+- Payments page filtering — already lease-aware.
+- No DB schema change beyond a one-shot `UPDATE`.

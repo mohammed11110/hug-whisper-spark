@@ -19,11 +19,25 @@ import type {
   ReportData,
   StatementRow,
   TenantStatementData,
+  UnitStatementData,
+  UnitStatementLeaseBlock,
+  UnitStatementRow,
   BrandInfo,
   Lease,
 } from "@/lib/pdfDocs";
 
-export type { ReceiptData, ReportData, StatementRow, TenantStatementData, BrandInfo, Lease };
+export type {
+  ReceiptData,
+  ReportData,
+  StatementRow,
+  TenantStatementData,
+  UnitStatementData,
+  UnitStatementLeaseBlock,
+  UnitStatementRow,
+  BrandInfo,
+  Lease,
+};
+
 
 type PdfModule = typeof import("@/lib/pdfDocs");
 
@@ -70,6 +84,15 @@ export async function downloadTenantStatementPDFDirect(data: TenantStatementData
 export async function printTenantStatementPDFDirect(data: TenantStatementData, filename: string): Promise<void> {
   return (await loadMod()).printTenantStatementPDFDirect(data, filename);
 }
+
+// ---------- Unit Statement (grouped by lease) ----------
+export async function downloadUnitStatementPDFDirect(data: UnitStatementData, filename: string): Promise<void> {
+  return (await loadMod()).downloadUnitStatementPDFDirect(data, filename);
+}
+export async function printUnitStatementPDFDirect(data: UnitStatementData, filename: string): Promise<void> {
+  return (await loadMod()).printUnitStatementPDFDirect(data, filename);
+}
+
 
 // ---------- Report ----------
 export async function buildReportHTML(data: ReportData): Promise<string> {
