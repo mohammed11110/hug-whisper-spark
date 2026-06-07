@@ -1146,11 +1146,15 @@ export type Database = {
       tenancies: {
         Row: {
           building_id: string
+          closing_balance: number | null
           contract_end_date: string | null
           contract_number: string | null
           contract_start_date: string | null
           contract_type: string
           created_at: string
+          debt_resolution: string | null
+          debt_settled: boolean
+          debt_settled_at: string | null
           deposit_refund_amount: number | null
           deposit_refunded_at: string | null
           deposit_status: string
@@ -1178,14 +1182,20 @@ export type Database = {
           tenant_phone: string | null
           unit_id: string
           updated_at: string
+          write_off_amount: number | null
+          write_off_reason: string | null
         }
         Insert: {
           building_id: string
+          closing_balance?: number | null
           contract_end_date?: string | null
           contract_number?: string | null
           contract_start_date?: string | null
           contract_type?: string
           created_at?: string
+          debt_resolution?: string | null
+          debt_settled?: boolean
+          debt_settled_at?: string | null
           deposit_refund_amount?: number | null
           deposit_refunded_at?: string | null
           deposit_status?: string
@@ -1213,14 +1223,20 @@ export type Database = {
           tenant_phone?: string | null
           unit_id: string
           updated_at?: string
+          write_off_amount?: number | null
+          write_off_reason?: string | null
         }
         Update: {
           building_id?: string
+          closing_balance?: number | null
           contract_end_date?: string | null
           contract_number?: string | null
           contract_start_date?: string | null
           contract_type?: string
           created_at?: string
+          debt_resolution?: string | null
+          debt_settled?: boolean
+          debt_settled_at?: string | null
           deposit_refund_amount?: number | null
           deposit_refunded_at?: string | null
           deposit_status?: string
@@ -1248,6 +1264,8 @@ export type Database = {
           tenant_phone?: string | null
           unit_id?: string
           updated_at?: string
+          write_off_amount?: number | null
+          write_off_reason?: string | null
         }
         Relationships: []
       }

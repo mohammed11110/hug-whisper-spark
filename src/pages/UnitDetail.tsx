@@ -83,7 +83,7 @@ export default function UnitDetail() {
     }
     const { data: ps } = await supabase.from("payments").select("id,unit_id,amount,expected_amount,deleted_at,payment_date,period_start,period_end,tenancy_id,kind,receipt_number,created_at,notes").eq("unit_id", id).is("deleted_at", null);
     setPayments((ps || []) as any);
-    const { data: ts } = await supabase.from("tenancies").select("id,status,tenant_name,tenant_name_en,contract_number,official_contract_number,contract_start_date,contract_end_date,ended_at,rent_amount,rent_type,opening_balance,opening_balance_date,outstanding_at_end,deposit_status,deposit_refund_amount").eq("unit_id", id).order("contract_start_date", { ascending: false });
+    const { data: ts } = await supabase.from("tenancies").select("id,status,tenant_name,tenant_name_en,contract_number,official_contract_number,contract_start_date,contract_end_date,ended_at,ended_reason,rent_amount,rent_type,opening_balance,opening_balance_date,outstanding_at_end,deposit_status,deposit_refund_amount,debt_resolution,debt_settled,debt_settled_at,closing_balance,write_off_amount,write_off_reason").eq("unit_id", id).order("contract_start_date", { ascending: false });
     setTenancies((ts || []) as any);
     const active = (ts || []).find((t: any) => t.status === "active");
     setActiveTenancyId(active?.id || null);
@@ -381,6 +381,9 @@ export default function UnitDetail() {
         rentAmount: rent,
         rentType: t.rent_type || "monthly",
         status: t.status === "active" ? "current" : "previous",
+        debtResolution: (t.debt_resolution as any) || null,
+        debtSettled: !!t.debt_settled,
+        writeOffReason: t.write_off_reason || null,
         rows,
         totals: { totalCharges, totalPaid, closingBalance },
       } as UnitStatementLeaseBlock;

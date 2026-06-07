@@ -2862,6 +2862,12 @@ export interface UnitStatementLeaseBlock {
   rentAmount: number;
   rentType?: string | null;
   status: "current" | "previous";
+  /** How an outstanding balance at eviction was handled (previous leases only). */
+  debtResolution?: "kept" | "collected" | "written_off" | "none" | null;
+  /** True when a previously kept debt has since been settled. */
+  debtSettled?: boolean;
+  /** Free-text reason captured at write-off time (shown next to the pill). */
+  writeOffReason?: string | null;
   rows: UnitStatementRow[];
   totals: {
     totalCharges: number;
@@ -2990,6 +2996,46 @@ function ddLeaseHeader(ctx: DirectPdfDrawCtx, block: UnitStatementLeaseBlock, cu
   });
   void tagW;
   cursor.y += headerH + 3;
+
+  // Previous-tenant resolution pill (kept debt / cleared / written off).
+  if (block.status === "previous" && block.debtResolution && block.debtResolution !== "none") {
+    let label = "";
+    let bg: readonly [number, number, number] = PDF_TERRACOTTA_BG;
+    let fg: readonly [number, number, number] = PDF_TERRACOTTA;
+    if (block.debtResolution === "kept") {
+      const amt = block.totals.closingBalance;
+      label = block.debtSettled
+        ? `✓ Settled debt  ·  دين مُسوّى`
+        : `⚠ Outstanding debt: ${formatMoney(amt)}  ·  دين قائم`;
+      bg = block.debtSettled ? ([232, 240, 230] as const) : PDF_TERRACOTTA_BG;
+      fg = block.debtSettled ? ([60, 110, 80] as const) : PDF_TERRACOTTA;
+    } else if (block.debtResolution === "collected") {
+      label = `✓ Cleared at eviction  ·  مُسدّد عند الإخلاء`;
+      bg = [232, 240, 230] as const;
+      fg = [60, 110, 80] as const;
+    } else if (block.debtResolution === "written_off") {
+      const reason = (block.writeOffReason || "").trim();
+      label = reason
+        ? `⊘ Written off — ${reason}  ·  مشطوب — ${reason}`
+        : `⊘ Written off  ·  مشطوب`;
+      bg = [245, 235, 220] as const;
+      fg = [140, 100, 40] as const;
+    }
+    if (label) {
+      ddEnsureSpace(ctx, 9);
+      pdf.setFontSize(8.5);
+      const prep = splitPdfText(pdf, label, contentW - 8, 8.5, true);
+      const txt = prep.lines[0] || label;
+      const w = Math.min(contentW, pdf.getTextWidth(txt) + 8);
+      const x = marginX;
+      pdf.setFillColor(bg[0], bg[1], bg[2]);
+      pdf.setDrawColor(fg[0], fg[1], fg[2]);
+      pdf.roundedRect(x, cursor.y, w, 6, 1.5, 1.5, "FD");
+      pdf.setTextColor(fg[0], fg[1], fg[2]);
+      pdf.text(txt, x + 4, cursor.y + 4.1, { align: "left" });
+      cursor.y += 9;
+    }
+  }
 }
 
 function ddEvictionDivider(ctx: DirectPdfDrawCtx, dateIso?: string | null) {
