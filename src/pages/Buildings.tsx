@@ -10,6 +10,7 @@ import { AddBuildingDialog } from "@/components/AddBuildingDialog";
 import { useI18n } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
 import { useAuth } from "@/lib/auth";
+import { useCurrency } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 
