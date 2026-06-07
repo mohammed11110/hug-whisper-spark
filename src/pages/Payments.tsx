@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Receipt, Printer, Trash2, Search, Calendar, Plus, Download, Pencil, Archive } from "lucide-react";
+import {
+  Receipt, Printer, Trash2, Search, Calendar, Download, Pencil, Archive,
+  ChevronLeft, ChevronRight, Eye, Share2, MoreHorizontal, AlertTriangle,
+} from "lucide-react";
 import { AddPaymentDialog } from "@/components/AddPaymentDialog";
 import { EditPaymentDialog } from "@/components/EditPaymentDialog";
 import { PinDialog } from "@/components/PinDialog";
@@ -13,7 +16,7 @@ import { useI18n, docLang } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
 import { useAppSettings, readFilters, writeFilters } from "@/lib/appSettings";
-import { getUnitArrears, getCycleForPeriodStart } from "@/lib/balance";
+import { getUnitArrears, getCycleForPeriodStart, type PaymentForBalance } from "@/lib/balance";
 import { suffixOf, isPartialSuffix, isFinalSuffix, derivePartialMetaForDisplay, type DerivedPartialMeta } from "@/lib/receiptNumbering";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -21,7 +24,7 @@ import { logActivity } from "@/lib/activityLogger";
 import { isNative } from "@/lib/nativeFiles";
 import { downloadReceiptPDFDirect, printReceiptPDFDirect, type ReceiptData } from "@/lib/pdfDocsLazy";
 import { isIOS } from "@/lib/platform";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface Row {
   id: string;
@@ -38,13 +41,7 @@ interface Row {
   period_end: string | null;
   tenancy_id: string | null;
   remaining: number;
-  /** Display-only suffix derived from cycle context when the stored
-   *  `receipt_number` has none. Lets legacy receipts visually join the new
-   *  partial-cycle system without DB writes. */
   derivedMeta?: DerivedPartialMeta;
-  /** Minimal unit context needed to rebuild the canonical cycle label
-   *  (contract_start_date drives whether the receipt shows a full month or
-   *  a D/M → (D-1)/(M+1) range). */
   unit_ctx: { contract_start_date?: string | null; opening_balance_date?: string | null; due_day?: number | null };
 }
 
@@ -57,20 +54,21 @@ const DEFAULT_FILTERS = { search: "", filter: "month" as Filter, statusFilter: "
 const AR_MONTHS = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
 const EN_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-/** Canonical cycle label for a stored payment. Honors contract start day so a
- *  contract starting 10/1/2026 shows "إيجار الفترة من 10/1/2026 إلى 9/2/2026"
- *  and a contract starting on the 1st shows "إيجار شهر يونيو 2026". */
+function ymKey(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+function endOfMonth(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
+}
+
 function cycleLabel(r: Row, lang: string): string {
   if (!r.period_start) return "";
   const c = getCycleForPeriodStart(r.unit_ctx as any, r.period_start, lang as "ar" | "en");
   if (c) return c.label;
-  // Legacy fallback: derive a full-month label.
   const d = new Date(r.period_start);
   const names = lang === "ar" ? AR_MONTHS : EN_MONTHS;
   return `${names[d.getMonth()]} ${d.getFullYear()}`;
 }
-
-
 
 const RECEIPT_TXT = {
   ar: {
@@ -105,6 +103,9 @@ export default function Payments() {
   const { settings } = useAppSettings();
   const initial = readFilters(LS_KEY, DEFAULT_FILTERS, settings.filterRetentionMin);
   const [rows, setRows] = useState<Row[]>([]);
+  const [units, setUnits] = useState<any[]>([]);
+  const [allPays, setAllPays] = useState<any[]>([]);
+  const [activeMap, setActiveMap] = useState<Map<string, string>>(new Map());
   const [search, setSearch] = useState(initial.search);
   const [filter, setFilter] = useState<Filter>(initial.filter);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>(initial.statusFilter);
@@ -114,6 +115,12 @@ export default function Payments() {
   const [addOpen, setAddOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const receiptLang: RLang = docLang(lang);
+
+  // Selected month (first day of month, local time)
+  const [selectedMonth, setSelectedMonth] = useState<Date>(() => {
+    const n = new Date();
+    return new Date(n.getFullYear(), n.getMonth(), 1);
+  });
 
   useEffect(() => {
     writeFilters(LS_KEY, { search, filter, statusFilter }, settings.filterRetentionMin);
@@ -126,35 +133,38 @@ export default function Payments() {
       .select("id, unit_id, amount, expected_amount, payment_date, receipt_number, period_start, period_end, tenancy_id, created_at, kind, deleted_at")
       .is("deleted_at", null)
       .order("payment_date", { ascending: false })
-      .limit(500);
+      .limit(1000);
     const unitIds = Array.from(new Set((pays || []).map((p: any) => p.unit_id)));
-    const { data: units } = unitIds.length
-      ? await supabase.from("units").select("id, unit_number, tenant_name, status, building_id, rent_amount, rent_type, contract_start_date, due_day, rent_timing, opening_balance, opening_balance_date, paid_up_to").in("id", unitIds)
+
+    // Also load ALL user's units (not just those with payments) so month-level
+    // overdue picks up tenants who never paid in the selected month.
+    const { data: buildings } = await supabase.from("buildings").select("id, name, name_en");
+    const bIds = (buildings || []).map((b: any) => b.id);
+    const { data: allUnits } = bIds.length
+      ? await supabase.from("units")
+          .select("id, unit_number, tenant_name, status, building_id, rent_amount, rent_type, contract_start_date, due_day, rent_timing, opening_balance, opening_balance_date, paid_up_to, grace_days")
+          .in("building_id", bIds)
       : { data: [] as any[] };
-    const buildingIds = Array.from(new Set((units || []).map((u: any) => u.building_id)));
-    const { data: builds } = buildingIds.length
-      ? await supabase.from("buildings").select("id, name, name_en").in("id", buildingIds)
+    const allUnitIds = (allUnits || []).map((u: any) => u.id);
+    const { data: everyPay } = allUnitIds.length
+      ? await supabase.from("payments")
+          .select("id, unit_id, amount, expected_amount, deleted_at, payment_date, period_start, period_end, tenancy_id, created_at, receipt_number, kind")
+          .in("unit_id", allUnitIds).is("deleted_at", null)
       : { data: [] as any[] };
-    // All non-deleted payments for involved units (used for outstanding balance + cycle derivation).
-    const { data: allPays } = unitIds.length
-      ? await supabase.from("payments").select("id, unit_id, amount, expected_amount, deleted_at, payment_date, period_start, period_end, tenancy_id, created_at, receipt_number, kind").in("unit_id", unitIds).is("deleted_at", null)
+    const { data: activeTs } = allUnitIds.length
+      ? await supabase.from("tenancies").select("id, unit_id").in("unit_id", allUnitIds).eq("status", "active")
       : { data: [] as any[] };
-    // Active-lease map keeps each unit's outstanding limited to the
-    // current tenant — past tenant payments stay archived but don't bleed in.
-    const { data: activeTs } = unitIds.length
-      ? await supabase.from("tenancies").select("id, unit_id").in("unit_id", unitIds).eq("status", "active")
-      : { data: [] as any[] };
-    const activeMap = new Map<string, string>((activeTs || []).map((t: any) => [t.unit_id, t.id]));
+    const aMap = new Map<string, string>((activeTs || []).map((t: any) => [t.unit_id, t.id]));
     const activeTenancyIds = new Set<string>((activeTs || []).map((t: any) => t.id));
-    const uMap = new Map((units || []).map((u: any) => [u.id, u]));
-    const bMap = new Map((builds || []).map((b: any) => [b.id, b]));
+    const uMap = new Map((allUnits || []).map((u: any) => [u.id, u]));
+    const bMap = new Map((buildings || []).map((b: any) => [b.id, b]));
+
     const remainingMap = new Map<string, number>();
-    (units || []).forEach((u: any) => {
-      const { totalShortfall } = getUnitArrears(u, allPays || [], new Date(), lang as "ar" | "en", activeMap.get(u.id) || null);
+    (allUnits || []).forEach((u: any) => {
+      const { totalShortfall } = getUnitArrears(u, everyPay || [], new Date(), lang as "ar" | "en", aMap.get(u.id) || null);
       remainingMap.set(u.id, totalShortfall);
     });
-    // Compute display-only partial metadata for every payment in scope.
-    const derivedMap = derivePartialMetaForDisplay((allPays || []) as any, { activeTenancyIds });
+    const derivedMap = derivePartialMetaForDisplay((everyPay || []) as any, { activeTenancyIds });
     const mapped: Row[] = (pays || []).map((p: any) => {
       const u: any = uMap.get(p.unit_id);
       const b: any = u ? bMap.get(u.building_id) : null;
@@ -182,9 +192,11 @@ export default function Payments() {
       };
     });
     setRows(mapped);
+    setUnits(allUnits || []);
+    setAllPays(everyPay || []);
+    setActiveMap(aMap);
     setLoading(false);
   };
-
 
   useEffect(() => { load(); }, []);
   useEffect(() => {
@@ -193,13 +205,53 @@ export default function Payments() {
     return () => window.removeEventListener("amlaki:payment-added", h);
   }, []);
 
+  // Month chips: 12 months back from current
+  const monthChips = useMemo(() => {
+    const out: { key: string; date: Date; label: string }[] = [];
+    const today = new Date();
+    const cur = new Date(today.getFullYear(), today.getMonth(), 1);
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(cur.getFullYear(), cur.getMonth() - i, 1);
+      const names = lang === "ar" ? AR_MONTHS : EN_MONTHS;
+      const label = i === 0
+        ? (lang === "ar" ? "هذا الشهر" : "This month")
+        : `${names[d.getMonth()]} ${d.getFullYear() !== cur.getFullYear() ? d.getFullYear() : ""}`.trim();
+      out.push({ key: ymKey(d), date: d, label });
+    }
+    return out;
+  }, [lang]);
+
+  const currentMonthKey = useMemo(() => {
+    const n = new Date();
+    return ymKey(new Date(n.getFullYear(), n.getMonth(), 1));
+  }, []);
+  const selectedKey = ymKey(selectedMonth);
+  const isCurrentMonth = selectedKey === currentMonthKey;
+
+  const goPrevMonth = () => setSelectedMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1));
+  const goNextMonth = () => {
+    setSelectedMonth((d) => {
+      const next = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+      const now = new Date();
+      const cur = new Date(now.getFullYear(), now.getMonth(), 1);
+      return next > cur ? d : next;
+    });
+  };
+  const goCurrent = () => {
+    const n = new Date();
+    setSelectedMonth(new Date(n.getFullYear(), n.getMonth(), 1));
+    setFilter("month");
+  };
+
   const filtered = useMemo(() => {
-    const now = new Date();
     const q = search.trim().toLowerCase();
     const list = rows.filter((r) => {
       const d = new Date(r.payment_date);
-      if (filter === "month" && (d.getMonth() !== now.getMonth() || d.getFullYear() !== now.getFullYear())) return false;
-      if (filter === "year" && d.getFullYear() !== now.getFullYear()) return false;
+      if (filter === "month") {
+        if (d.getMonth() !== selectedMonth.getMonth() || d.getFullYear() !== selectedMonth.getFullYear()) return false;
+      } else if (filter === "year") {
+        if (d.getFullYear() !== selectedMonth.getFullYear()) return false;
+      }
       if (statusFilter === "paid" && !(r.remaining <= 0.009)) return false;
       if (statusFilter === "late" && !(r.remaining > 0.009)) return false;
       if (q) {
@@ -212,19 +264,47 @@ export default function Payments() {
       }
       return true;
     });
-    // Newest payment first; tie-break by id for stable order.
     return list.sort((a, b) => {
       const d = (b.payment_date || "").localeCompare(a.payment_date || "");
       return d !== 0 ? d : b.id.localeCompare(a.id);
     });
-  }, [rows, search, filter, statusFilter]);
+  }, [rows, search, filter, statusFilter, selectedMonth]);
 
   const total = filtered.reduce((s, r) => s + r.amount, 0);
+
+  // Dual-summary metrics for the selected month
+  const summary = useMemo(() => {
+    // Collected: sum of receipts whose payment_date falls in selectedMonth
+    const inMonth = rows.filter((r) => {
+      const d = new Date(r.payment_date);
+      return d.getMonth() === selectedMonth.getMonth() && d.getFullYear() === selectedMonth.getFullYear();
+    });
+    const collected = inMonth.reduce((s, r) => s + r.amount, 0);
+    const receiptsCount = inMonth.length;
+
+    // Overdue as-of end of selected month, computed per unit
+    const asOf = endOfMonth(selectedMonth);
+    let overdueCount = 0;
+    let overdueTotal = 0;
+    for (const u of units) {
+      if (!u.tenant_name) continue;
+      const arr = getUnitArrears(u, allPays as PaymentForBalance[], asOf, lang as "ar" | "en", activeMap.get(u.id) || null);
+      if (arr.totalShortfall > 0.009) {
+        overdueCount += 1;
+        overdueTotal += arr.totalShortfall;
+      }
+    }
+    return { collected, receiptsCount, overdueCount, overdueTotal };
+  }, [rows, units, allPays, activeMap, selectedMonth, lang]);
+
+  const selectedMonthLabel = useMemo(() => {
+    const names = lang === "ar" ? AR_MONTHS : EN_MONTHS;
+    return `${names[selectedMonth.getMonth()]} ${selectedMonth.getFullYear()}`;
+  }, [selectedMonth, lang]);
 
   const handleDelete = async () => {
     if (!delId) return;
     const target = rows.find((r) => r.id === delId);
-    // soft delete → goes to recycle bin
     const { error } = await supabase.from("payments").update({ deleted_at: new Date().toISOString() }).eq("id", delId);
     if (error) return toast.error(error.message);
     const { paymentsBus } = await import("@/lib/paymentsBus");
@@ -252,9 +332,6 @@ export default function Payments() {
     else setDelId(id);
   };
 
-  /** Build the typed ReceiptData consumed by the direct (vector) PDF engine.
-   *  Replaces the old HTML-string + html2canvas pipeline so that switching
-   *  between AR/EN no longer pays the cost of re-snapshotting a full DOM. */
   const buildReceiptData = (r: Row, lng: RLang): ReceiptData => {
     const meta = r.derivedMeta;
     const cycleDue = meta?.cycleDue && meta.cycleDue > 0
@@ -326,9 +403,19 @@ export default function Payments() {
     }
   };
 
-
-
-
+  const shareReceipt = async (r: Row, lng: RLang = receiptLang) => {
+    const text = lang === "ar"
+      ? `إيصال ${r.receipt_number || ""} — ${r.tenant_name || r.unit_number} — ${format(r.amount)}`
+      : `Receipt ${r.receipt_number || ""} — ${r.tenant_name || r.unit_number} — ${format(r.amount)}`;
+    try {
+      if (typeof navigator !== "undefined" && (navigator as any).share) {
+        await (navigator as any).share({ title: r.receipt_number || "Receipt", text });
+        return;
+      }
+    } catch { /* user cancelled */ }
+    // Fallback → download the PDF
+    await downloadReceiptPDF(r, lng);
+  };
 
   return (
     <div className="mobile-shell min-h-screen pb-24 md:pb-8 bg-background">
@@ -360,18 +447,96 @@ export default function Payments() {
         </div>
       </div>
 
-
-
-
-      {/* Stat */}
-      <div className="px-5 md:px-8 lg:px-12 mt-4">
-        <div className="rounded-3xl bg-gradient-deep text-primary-foreground p-5 shadow-soft">
-          <p className="text-xs uppercase tracking-wider opacity-75">
-            {filter === "month" ? t2("this_month") : filter === "year" ? t2("filter_year") : t2("all_payments")}
-          </p>
-          <p className="text-3xl font-black mt-1">{format(total)}</p>
-          <p className="text-xs opacity-80 mt-1">{filtered.length} {t2("receipts")}</p>
+      {/* Month navigation */}
+      <div className="px-5 md:px-8 lg:px-12 mt-4 space-y-2">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={goPrevMonth}
+            aria-label={lang === "ar" ? "الشهر السابق" : "Previous month"}
+            className="h-9 w-9 inline-flex items-center justify-center rounded-xl bg-card border border-sage-200/60 text-sage-600 hover:bg-sage-100 transition-colors"
+          >
+            <ChevronRight className="h-4 w-4 rtl:hidden" />
+            <ChevronLeft className="h-4 w-4 hidden rtl:inline" />
+          </button>
+          <div className="flex-1 min-w-0 text-center">
+            <p className="text-sm font-black text-sage-600 tabular-nums">{selectedMonthLabel}</p>
+          </div>
+          <button
+            type="button"
+            onClick={goNextMonth}
+            disabled={isCurrentMonth}
+            aria-label={lang === "ar" ? "الشهر التالي" : "Next month"}
+            className="h-9 w-9 inline-flex items-center justify-center rounded-xl bg-card border border-sage-200/60 text-sage-600 hover:bg-sage-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <ChevronLeft className="h-4 w-4 rtl:hidden" />
+            <ChevronRight className="h-4 w-4 hidden rtl:inline" />
+          </button>
+          {!isCurrentMonth && (
+            <button
+              type="button"
+              onClick={goCurrent}
+              className="h-9 px-3 inline-flex items-center gap-1.5 rounded-xl bg-gradient-gold text-primary-foreground text-xs font-bold shadow-soft hover:opacity-90"
+            >
+              <Calendar className="h-3.5 w-3.5" />
+              {lang === "ar" ? "العودة للشهر الحالي" : "Back to current month"}
+            </button>
+          )}
         </div>
+        <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
+          {monthChips.map((m) => {
+            const active = m.key === selectedKey;
+            return (
+              <button
+                key={m.key}
+                type="button"
+                onClick={() => { setSelectedMonth(m.date); setFilter("month"); }}
+                className={`shrink-0 px-3 h-8 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
+                  active
+                    ? "bg-gradient-sage text-primary-foreground shadow-soft"
+                    : "bg-card border border-sage-200/60 text-sage-600 hover:bg-sage-100"
+                }`}
+              >
+                {m.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Dual summary */}
+      <div className="px-5 md:px-8 lg:px-12 mt-4 grid grid-cols-2 gap-3">
+        <button
+          type="button"
+          onClick={() => setStatusFilter("paid")}
+          className="text-start rounded-3xl bg-gradient-deep text-primary-foreground p-4 md:p-5 shadow-soft hover:opacity-95 transition-opacity"
+        >
+          <p className="text-[10px] uppercase tracking-wider opacity-75">
+            {lang === "ar" ? "المحصّل" : "Collected"}
+          </p>
+          <p className="text-2xl md:text-3xl font-black mt-1 tabular-nums" style={{ color: "hsl(var(--gold))" }}>
+            {format(summary.collected)}
+          </p>
+          <p className="text-[11px] opacity-80 mt-1">
+            {summary.receiptsCount} {lang === "ar" ? "إيصال" : summary.receiptsCount === 1 ? "receipt" : "receipts"}
+          </p>
+        </button>
+        <button
+          type="button"
+          onClick={() => setStatusFilter("late")}
+          className="text-start rounded-3xl bg-card border border-burgundy/30 p-4 md:p-5 shadow-soft hover:bg-burgundy/5 transition-colors"
+        >
+          <p className="text-[10px] uppercase tracking-wider font-bold text-burgundy flex items-center gap-1">
+            <AlertTriangle className="h-3 w-3" />
+            {lang === "ar" ? "المتأخرات" : "Overdue"}
+          </p>
+          <p className="text-2xl md:text-3xl font-black mt-1 text-burgundy tabular-nums">
+            {format(summary.overdueTotal)}
+          </p>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            {summary.overdueCount} {lang === "ar" ? "مستأجر متأخر" : summary.overdueCount === 1 ? "tenant" : "tenants"}
+          </p>
+        </button>
       </div>
 
       {/* Filters */}
@@ -421,106 +586,127 @@ export default function Payments() {
             <p className="font-bold text-sage-600">{t2("no_payments_msg")}</p>
           </div>
         ) : (
-          filtered.map((r, i) => (
-            <div key={r.id}
-              className="bg-card border border-sage-200/40 rounded-2xl p-4 shadow-soft animate-float-up"
-              style={{ animationDelay: `${Math.min(i * 30, 300)}ms` }}>
-              <div className="flex items-start gap-3">
-                <Link to={`/units/${r.unit_id}`} className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-sage-600 truncate">{r.building_name} · {r.unit_number}</span>
-                  </div>
-                  {r.tenant_name && <p className="text-xs text-muted-foreground truncate mt-0.5">{r.tenant_name}</p>}
-                  <div className="flex flex-wrap items-center gap-3 mt-2 text-[11px] text-sage-500">
-                    <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{r.payment_date}</span>
-                    {r.receipt_number && (
-                      <span className="font-mono inline-flex items-center gap-1">
-                        {r.receipt_number}
-                        {r.derivedMeta?.isComputed && r.derivedMeta.derivedSuffix && (
-                          <span className="font-sans not-italic text-[9px] font-bold px-1.5 py-0.5 rounded bg-sage-100 text-sage-500 tracking-normal" title={lang === "ar" ? "اللاحقة مُحتسبة من دورة الإيجار — رقم الإيصال الأصلي لم يتغيّر" : "Suffix derived from rent cycle — stored receipt # unchanged"}>
-                            /{r.derivedMeta.derivedSuffix} · {lang === "ar" ? "محسوب" : "auto"}
-                          </span>
-                        )}
-                      </span>
-                    )}
-                    {(() => {
-                      const sfx = r.derivedMeta?.derivedSuffix ?? suffixOf(r.receipt_number);
-                      if (!sfx) return null;
-                      if (isFinalSuffix(sfx)) {
-                        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sage-100 text-sage-600 font-bold" title={lang === "ar" ? "الدفعة الختامية — الدورة مسدّدة" : "Final payment — cycle settled"}>{lang === "ar" ? "ختامي" : "Final"}</span>;
-                      }
-                      if (isPartialSuffix(sfx)) {
-                        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-bold" style={{ background: "#f5e3cf", color: "#8a5a2a" }} title={lang === "ar" ? `دفعة جزئية ${sfx} — مرتبطة بدورة الإيجار` : `Partial installment ${sfx} — linked to rent cycle`}>{lang === "ar" ? `جزئي ${sfx}` : `Partial ${sfx}`}</span>;
-                      }
-                      return null;
-                    })()}
-                    {r.period_start && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sage-100 text-sage-600 font-semibold">
-                        {cycleLabel(r, lang)}
-                      </span>
-                    )}
-                  </div>
-
-                </Link>
-                <div className="text-end">
-                  <p className="font-black text-sage-600 text-lg whitespace-nowrap">{format(r.amount)}</p>
-                  <div className="flex gap-1 mt-1 justify-end flex-wrap">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7 rounded-lg text-sage-500"
-                          title={lang === "ar" ? "طباعة" : "Print"}
-                        >
-                          <Printer className="h-3.5 w-3.5" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="min-w-[180px]">
-                        <DropdownMenuItem onClick={() => printReceipt(r, "ar")}>
-                          {lang === "ar" ? "طباعة بالعربية" : "Print in Arabic"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => printReceipt(r, "en")}>
-                          {lang === "ar" ? "طباعة بالإنجليزية" : "Print in English"}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7 rounded-lg text-sage-600"
-                          title={lang === "ar" ? "تحميل PDF" : "Download PDF"}
-                        >
-                          <Download className="h-3.5 w-3.5" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="min-w-[180px]">
-                        <DropdownMenuItem onClick={() => downloadReceiptPDF(r, "ar")}>
-                          {lang === "ar" ? "تحميل بالعربية" : "Download in Arabic"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => downloadReceiptPDF(r, "en")}>
-                          {lang === "ar" ? "تحميل بالإنجليزية" : "Download in English"}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-
-
-                    <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-sage-600" onClick={() => setEditId(r.id)}>
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-burgundy hover:bg-burgundy/10" onClick={() => onDeleteClick(r.id)}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+          filtered.map((r, i) => {
+            const sfx = r.derivedMeta?.derivedSuffix ?? suffixOf(r.receipt_number);
+            const isPartial = isPartialSuffix(sfx);
+            const isFinal = isFinalSuffix(sfx) || (r.derivedMeta?.cycleClosed && (r.derivedMeta?.cycleSize ?? 1) > 1 && !isPartial);
+            const borderClass = isPartial
+              ? "border-s-4 border-s-[hsl(var(--gold))]"
+              : isFinal
+                ? "border-s-4 border-s-sage-400"
+                : "border-s-4 border-s-sage-200/60";
+            return (
+              <div key={r.id}
+                className={`bg-card border border-sage-200/40 ${borderClass} rounded-2xl p-4 shadow-soft animate-float-up`}
+                style={{ animationDelay: `${Math.min(i * 30, 300)}ms` }}>
+                <div className="flex items-start gap-3">
+                  <Link to={`/units/${r.unit_id}`} className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sage-600 truncate">{r.building_name} · {r.unit_number}</span>
+                    </div>
+                    {r.tenant_name && <p className="text-xs text-muted-foreground truncate mt-0.5">{r.tenant_name}</p>}
+                    <div className="flex flex-wrap items-center gap-2 mt-2 text-[11px] text-sage-500">
+                      <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{r.payment_date}</span>
+                      {r.receipt_number && (
+                        <span className="font-mono inline-flex items-center gap-1">
+                          {r.receipt_number}
+                          {r.derivedMeta?.isComputed && r.derivedMeta.derivedSuffix && (
+                            <span className="font-sans not-italic text-[9px] font-bold px-1.5 py-0.5 rounded bg-sage-100 text-sage-500 tracking-normal" title={lang === "ar" ? "اللاحقة مُحتسبة من دورة الإيجار — رقم الإيصال الأصلي لم يتغيّر" : "Suffix derived from rent cycle — stored receipt # unchanged"}>
+                              /{r.derivedMeta.derivedSuffix} · {lang === "ar" ? "محسوب" : "auto"}
+                            </span>
+                          )}
+                        </span>
+                      )}
+                      {isFinal ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sage-100 text-sage-600 font-bold" title={lang === "ar" ? "الدفعة الختامية — الدورة مسدّدة" : "Final payment — cycle settled"}>
+                          {lang === "ar" ? "ختامي" : "Final"}
+                        </span>
+                      ) : isPartial ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-bold" style={{ background: "hsl(var(--gold) / 0.18)", color: "hsl(var(--gold))" }} title={lang === "ar" ? `دفعة جزئية ${sfx} — مرتبطة بدورة الإيجار` : `Partial installment ${sfx} — linked to rent cycle`}>
+                          {lang === "ar" ? `جزئي ${sfx}` : `Partial ${sfx}`}
+                        </span>
+                      ) : null}
+                      {r.period_start && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sage-100 text-sage-600 font-semibold">
+                          {cycleLabel(r, lang)}
+                        </span>
+                      )}
+                    </div>
+                  </Link>
+                  <div className="text-end shrink-0">
+                    <p className="font-black text-sage-600 text-lg whitespace-nowrap">{format(r.amount)}</p>
                   </div>
                 </div>
+
+                {/* Actions row */}
+                <div className="mt-3 pt-3 border-t border-sage-200/40 flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => printReceipt(r, receiptLang)}
+                    className="flex-1 h-9 rounded-xl bg-gradient-sage text-primary-foreground text-xs font-bold shadow-soft hover:opacity-90"
+                  >
+                    <Eye className="h-3.5 w-3.5 me-1" />
+                    {lang === "ar" ? "عرض" : "View"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => shareReceipt(r, receiptLang)}
+                    className="flex-1 h-9 rounded-xl border-sage-300 text-sage-600 text-xs font-bold"
+                  >
+                    <Share2 className="h-3.5 w-3.5 me-1" />
+                    {lang === "ar" ? "مشاركة" : "Share"}
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="h-9 w-9 rounded-xl border-sage-300 text-sage-600 shrink-0"
+                        title={lang === "ar" ? "المزيد" : "More"}
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="min-w-[200px]">
+                      <DropdownMenuItem onClick={() => setEditId(r.id)}>
+                        <Pencil className="h-3.5 w-3.5 me-2" />
+                        {lang === "ar" ? "تعديل" : "Edit"}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => downloadReceiptPDF(r, "ar")}>
+                        <Download className="h-3.5 w-3.5 me-2" />
+                        {lang === "ar" ? "تحميل بالعربية" : "Download (Arabic)"}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => downloadReceiptPDF(r, "en")}>
+                        <Download className="h-3.5 w-3.5 me-2" />
+                        {lang === "ar" ? "تحميل بالإنجليزية" : "Download (English)"}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => printReceipt(r, "ar")}>
+                        <Printer className="h-3.5 w-3.5 me-2" />
+                        {lang === "ar" ? "طباعة بالعربية" : "Print (Arabic)"}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => printReceipt(r, "en")}>
+                        <Printer className="h-3.5 w-3.5 me-2" />
+                        {lang === "ar" ? "طباعة بالإنجليزية" : "Print (English)"}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => onDeleteClick(r.id)}
+                        className="text-burgundy focus:text-burgundy"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 me-2" />
+                        {lang === "ar" ? "حذف" : "Delete"}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
-
 
       <AddPaymentDialog open={addOpen} onOpenChange={setAddOpen} onSaved={load} />
       <EditPaymentDialog open={!!editId} onOpenChange={(o) => !o && setEditId(null)} paymentId={editId} onSaved={load} />
