@@ -1047,3 +1047,20 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </label>
   );
 }
+
+function ToggleRow({ icon: Ic, title, desc, checked, onChange }: {
+  icon: any; title: string; desc: string; checked: boolean; onChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center gap-3 py-3 border-b border-sage-100 last:border-0">
+      <div className="p-2 rounded-xl bg-sage-100 text-sage-600 shrink-0">
+        <Ic className="h-4 w-4" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-bold text-sm text-sage-700 text-start">{title}</p>
+        <p className="text-[11px] text-muted-foreground leading-snug text-start">{desc}</p>
+      </div>
+      <Switch checked={checked} onCheckedChange={onChange} />
+    </div>
+  );
+}
