@@ -5,6 +5,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { ActivityNotifier } from "@/components/ActivityNotifier";
 import { TourLauncher } from "@/components/TourLauncher";
 import { QuickAddPaymentFab } from "@/components/QuickAddPaymentFab";
+import { ScrollToTopButton } from "@/components/ScrollToTopButton";
 import { LifecycleBanner } from "@/components/GraceBanner";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { OfflineBanner } from "@/components/OfflineBanner";
@@ -47,6 +48,7 @@ export function AppShell() {
 
       </div>
       <QuickAddPaymentFab />
+      <ScrollToTopButton />
       <InstallPrompt />
       
     </SidebarProvider>

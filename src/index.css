@@ -150,11 +150,11 @@
 
     --sage-100: 222 22% 18%;
     --sage-200: 222 22% 21%;            /* #2a3142 border */
-    --sage-300: 220 9% 59%;
+    --sage-300: 220 9% 65%;             /* lighter muted for body on dark */
     --sage-400: 44 56% 54%;             /* gold */
-    --sage-500: 44 50% 46%;
-    --sage-600: 220 8% 91%;
-    --sage-700: 222 26% 5%;
+    --sage-500: 220 9% 78%;             /* body text on dark — was gold (unreadable) */
+    --sage-600: 216 12% 95%;            /* near-white headings #f0f2f5 */
+    --sage-700: 0 0% 100%;              /* pure white emphasis (was near-black — unreadable) */
 
     --primary: 44 56% 54%;              /* #c9a44c gold */
     --primary-foreground: 222 26% 8%;
