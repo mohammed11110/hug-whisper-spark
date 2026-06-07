@@ -69,6 +69,7 @@ export default function Buildings() {
       const monthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
       const unitIds = (us || []).map((u: any) => u.id);
       const paidUnitIds = new Set<string>();
+      const perBuildingCollected: Record<string, number> = {};
       let monthSum = 0;
       if (unitIds.length) {
         const { data: pays } = await supabase
@@ -76,11 +77,14 @@ export default function Buildings() {
           .select("unit_id, amount, period_start, payment_date")
           .in("unit_id", unitIds)
           .is("deleted_at", null);
+        const unitToBuilding = new Map<string, string>((us || []).map((u: any) => [u.id, u.building_id]));
         (pays || []).forEach((p: any) => {
           const k = ((p.period_start || p.payment_date) || "").slice(0, 7);
           if (k === monthKey) {
             paidUnitIds.add(p.unit_id);
             monthSum += Number(p.amount || 0);
+            const bId = unitToBuilding.get(p.unit_id);
+            if (bId) perBuildingCollected[bId] = (perBuildingCollected[bId] || 0) + Number(p.amount || 0);
           }
         });
       }
@@ -90,13 +94,19 @@ export default function Buildings() {
       for (const b of data) {
         const list = unitsByBuilding[b.id] || [];
         const occupied = list.filter((u) => !!u.tenant_name);
-        const hasArrears = list.some((u) => u.status === "late");
+        const expectedMonth = occupied.reduce((sum, u) => sum + Number(u.rent_amount || 0), 0);
+        const collectedMonth = perBuildingCollected[b.id] || 0;
         const allCollected = occupied.length > 0 && occupied.every((u) => paidUnitIds.has(u.id));
+        const hasArrears = !allCollected && occupied.some((u) => !paidUnitIds.has(u.id)) && collectedMonth > 0
+          ? false // partial — handled as in-progress
+          : occupied.length > 0 && collectedMonth === 0 && new Date().getDate() > 10;
         stats[b.id] = {
           total: list.length,
           occupied: occupied.length,
           hasArrears,
           allCollected,
+          collectedMonth,
+          expectedMonth,
         };
       }
       setBStats(stats);
