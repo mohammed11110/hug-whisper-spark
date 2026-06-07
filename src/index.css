@@ -223,6 +223,27 @@
   .dark .mobile-shell {
     box-shadow: 0 0 60px hsl(0 0% 0% / 0.5);
   }
+
+  /* Hero / signature midnight surfaces keep cream-gold text in BOTH modes.
+     In dark mode, --primary-foreground flips to midnight (correct for bg-primary
+     gold buttons), but on these fixed-midnight gradients that would render as
+     dark-on-dark. Scope an override so descendants stay readable. */
+  .dark .bg-gradient-sage,
+  .dark .bg-gradient-deep,
+  .dark .bg-gradient-midnight,
+  .dark .bg-gradient-gold {
+    color: hsl(44 60% 92%);
+  }
+  .dark .bg-gradient-sage .text-primary-foreground,
+  .dark .bg-gradient-sage.text-primary-foreground,
+  .dark .bg-gradient-deep .text-primary-foreground,
+  .dark .bg-gradient-deep.text-primary-foreground,
+  .dark .bg-gradient-midnight .text-primary-foreground,
+  .dark .bg-gradient-midnight.text-primary-foreground,
+  .dark .bg-gradient-gold .text-primary-foreground,
+  .dark .bg-gradient-gold.text-primary-foreground {
+    color: hsl(44 60% 92%);
+  }
 }
 
 @layer base {
