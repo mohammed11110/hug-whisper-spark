@@ -5,6 +5,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { ActivityNotifier } from "@/components/ActivityNotifier";
 import { TourLauncher } from "@/components/TourLauncher";
 import { QuickAddPaymentFab } from "@/components/QuickAddPaymentFab";
+import { BottomNav } from "@/components/BottomNav";
 import { ScrollToTopButton } from "@/components/ScrollToTopButton";
 import { LifecycleBanner } from "@/components/GraceBanner";
 import { InstallPrompt } from "@/components/InstallPrompt";
@@ -40,13 +41,14 @@ export function AppShell() {
         <div className="hidden md:block">
           <AppSidebar />
         </div>
-        <main key={location.pathname} className="flex-1 min-w-0 page-enter">
+        <main key={location.pathname} className="flex-1 min-w-0 page-enter pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">
           <Suspense fallback={<RouteFallback />}>
             <Outlet />
           </Suspense>
         </main>
 
       </div>
+      <BottomNav />
       <QuickAddPaymentFab />
       <ScrollToTopButton />
       <InstallPrompt />
