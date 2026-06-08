@@ -1,84 +1,121 @@
-## الهدف
-إصلاح تسجيل الدخول بجوجل على iOS داخل تطبيق Amlaki (Capacitor + @capgo/capacitor-social-login)، وحلّ الانهيار: *"Your app is missing support for the following URL schemes"*.
+# خطة: تسجيل الدخول عبر Apple Sign-In
 
-## القيم المعتمدة
+تطبيقك يحتوي حالياً على زر "متابعة عبر Apple" في صفحة `/auth` والكود الأساسي موجود في `src/lib/nativeGoogleAuth.ts` (دالة `nativeAppleSignIn`)، لكن يحتاج إعداد كامل من جانب Apple Developer + Supabase حتى يعمل فعلياً.
 
-| المفتاح | القيمة |
-|---|---|
-| Bundle ID | `com.mohammeddahaish.amlaki` |
-| Web Client ID (serverClientId) | `333958704131-3f0rajm780ophcb2g770apn5hkbto3hq.apps.googleusercontent.com` |
-| iOS Client ID | `333958704131-p0345q3rti29e70oesqmgvpah2q8e58a.apps.googleusercontent.com` |
-| Reversed URL Scheme | `com.googleusercontent.apps.333958704131-p0345q3rti29e70oesqmgvpah2q8e58a` |
+---
 
-> ملاحظة: قيمة الـ iOS التي أرسلتَها كانت تطابق Web Client ID تقريباً (يبدو خطأ في النسخ). اعتمدتُ على الـ REVERSED_CLIENT_ID كمصدر صحيح لأنه ما أضفته فعلياً في Xcode.
+## الخطوة 1 — حساب Apple Developer (يقوم به المستخدم)
 
-## التغييرات في الكود
+تحتاج اشتراك **Apple Developer Program** نشط ($99/سنة). من https://developer.apple.com/account:
 
-### 1) `capacitor.config.ts`
-استبدال قيم placeholder لإعدادات `SocialLogin`:
+### أ) App ID (للتطبيق iOS)
+1. **Identifiers** → **+** → **App IDs** → **App**
+2. Description: `Amlaki`
+3. Bundle ID: `com.mohammeddahaish.amlaki` (Explicit)
+4. فعّل **Sign In with Apple** capability
+5. Save
+
+### ب) Services ID (للويب + Supabase)
+1. **Identifiers** → **+** → **Services IDs**
+2. Description: `Amlaki Web`
+3. Identifier: `app.lovable.amlaki.web` (يطابق `APPLE_SERVICES_ID` في الكود)
+4. فعّل **Sign In with Apple** → **Configure**:
+   - Primary App ID: اختر App ID من الخطوة (أ)
+   - **Domains**: `amlaki1.app`, `www.amlaki1.app`, `amlaki1-app.lovable.app`, `pbfgqbtppeztnlotqnrz.supabase.co`
+   - **Return URLs**:
+     - `https://pbfgqbtppeztnlotqnrz.supabase.co/auth/v1/callback`
+     - `https://amlaki1.app/auth/callback`
+
+### ج) Key (.p8) لتوقيع الـ Client Secret
+1. **Keys** → **+** → اسم: `Amlaki Sign In Key`
+2. فعّل **Sign In with Apple** → **Configure** → اختر App ID
+3. Continue → Register → **حمّل ملف `.p8` فوراً** (متاح مرة واحدة فقط)
+4. سجّل **Key ID** (10 أحرف)
+5. سجّل **Team ID** (أعلى يمين Apple Developer Console)
+
+---
+
+## الخطوة 2 — ربط Apple مع Lovable Cloud (BYOC)
+
+Lovable Cloud يقدم خيارين:
+- **Managed** (الأسهل): يستخدم credentials افتراضية، لكن سيظهر اسم Lovable في شاشة Apple بدل اسم تطبيقك
+- **BYOC** (الموصى به لتطبيق احترافي): يظهر `Amlaki` في شاشة Apple
+
+**التوصية**: BYOC لأن تطبيقك معد للنشر على App Store.
+
+من Lovable Cloud Dashboard:
+1. Users → Authentication Settings → Sign In Methods → **Apple**
+2. اختر **Use your own credentials**
+3. اضغط **Generate Secret** وعبّئ:
+   - Team ID, Key ID, Client ID = `app.lovable.amlaki.web`, محتوى ملف `.p8`
+4. سيتولد JWT صالح 6 أشهر — ضعه في حقل Client Secret
+5. **مهم**: ضع تذكير لتجديده قبل 6 أشهر
+
+<presentation-actions>
+<presentation-open-backend>View Backend</presentation-open-backend>
+</presentation-actions>
+
+---
+
+## الخطوة 3 — تغييرات الكود (يقوم بها Lovable في build mode)
+
+الكود الحالي جاهز تقريباً، أحتاج فقط:
+
+### `src/lib/nativeGoogleAuth.ts`
+لا تغيير — `APPLE_SERVICES_ID = "app.lovable.amlaki.web"` و `APPLE_REDIRECT_URL` صحيحان بالفعل.
+
+### `capacitor.config.ts`
+موجود بالفعل بشكل صحيح:
 ```ts
-SocialLogin: {
-  google: {
-    webClientId: "333958704131-3f0rajm780ophcb2g770apn5hkbto3hq.apps.googleusercontent.com",
-    iOSClientId: "333958704131-p0345q3rti29e70oesqmgvpah2q8e58a.apps.googleusercontent.com",
-  },
-  apple: { clientId: "app.lovable.amlaki.web", redirectUrl: "https://amlaki1.app/auth/callback" },
-}
+apple: { clientId: "app.lovable.amlaki.web", redirectUrl: "https://amlaki1.app/auth/callback" }
 ```
 
-### 2) `src/lib/nativeGoogleAuth.ts`
-استبدال الثوابت العلوية بالقيم الحقيقية:
-```ts
-export const GOOGLE_IOS_CLIENT_ID = "333958704131-p0345q3rti29e70oesqmgvpah2q8e58a.apps.googleusercontent.com";
-export const GOOGLE_WEB_CLIENT_ID = "333958704131-3f0rajm780ophcb2g770apn5hkbto3hq.apps.googleusercontent.com";
-```
-(تبقى `APPLE_*` كما هي.)
+### `src/pages/Auth.tsx`
+الزر `handleOAuth("apple")` يعمل: على iOS الأصلي يستدعي `nativeAppleSignIn()` عبر `@capgo/capacitor-social-login`، وعلى الويب/Android يستدعي `supabase.auth.signInWithOAuth({ provider: "apple" })`.
 
-> هذه القيم عامّة وآمنة في المستودع (publishable).
+→ **لا حاجة لأي تعديل كود فعلياً** — كل شيء جاهز ومرتبط بنفس قيم الـ Apple Services ID.
 
-## التحقّق من الجانب الأصلي (iOS) — يحتاج تأكيداً منك في Xcode
+---
 
-لن يستطيع أي تعديل في الكود إخفاء خطأ *"missing URL schemes"* إن لم تكن القيم التالية موجودة فعلياً في مشروع iOS:
+## الخطوة 4 — إعداد iOS Xcode (يقوم به المستخدم)
 
-1. **`ios/App/App/Info.plist` → `CFBundleURLTypes`** يجب أن يحتوي:
-   ```xml
-   <key>CFBundleURLTypes</key>
-   <array>
-     <dict>
-       <key>CFBundleURLSchemes</key>
-       <array>
-         <string>com.googleusercontent.apps.333958704131-p0345q3rti29e70oesqmgvpah2q8e58a</string>
-       </array>
-     </dict>
-   </array>
-   ```
-2. **Bundle Identifier** في Xcode = `com.mohammeddahaish.amlaki` (مطابق لما في Google Cloud → iOS OAuth Client).
-3. حذف أي `GIDClientID` قديم/خاطئ في `Info.plist` (إن وُجد) لأن المكوّن الإضافي يمرّر القيمة برمجياً.
+في مشروع iOS المحلي:
+1. افتح `ios/App/App.xcworkspace`
+2. اختر target **App** → **Signing & Capabilities**
+3. تأكد Bundle Identifier = `com.mohammeddahaish.amlaki`
+4. اضغط **+ Capability** → أضف **Sign in with Apple**
+5. تأكد Team مختار وProvisioning Profile يحتوي capability
 
-## التحقّق في Supabase (Backend / Lovable Cloud)
+---
 
-- المزوّد Google مفعّل.
-- في حقل **Authorized Client IDs** أضف **كلا الـ IDs** (Web + iOS) مفصولة بفواصل — هذا ضروري كي يقبل Supabase الـ `idToken` القادم من iOS الأصلي:
-  ```
-  333958704131-3f0rajm780ophcb2g770apn5hkbto3hq.apps.googleusercontent.com,333958704131-p0345q3rti29e70oesqmgvpah2q8e58a.apps.googleusercontent.com
-  ```
-- URI الـ callback لـ Web (في Google Cloud → Web client):
-  `https://pbfgqbtppeztnlotqnrz.supabase.co/auth/v1/callback`
-
-## الأوامر بعد التعديل
+## الخطوة 5 — الأوامر بعد التعديل
 
 ```bash
+git pull
 npm install
 npm run build
 npx cap sync ios
 npx cap open ios
 ```
-ثم في Xcode: Product → Clean Build Folder → Run.
+في Xcode: Product → Clean Build Folder (⇧⌘K) → Run
 
-## نطاقات العمل بعد الإصلاح
-- **Web**: عبر `supabase.auth.signInWithOAuth({ provider: "google" })` (Redirect).
-- **iOS Simulator / Device**: عبر `@capgo/capacitor-social-login` ⇒ `signInWithIdToken`.
+---
+
+## نطاق الاختبار
+
+| المنصة | الطريقة | الحالة بعد الإعداد |
+|---|---|---|
+| **iOS device/simulator** | `nativeAppleSignIn()` → idToken → Supabase | ✅ بعد الخطوات 1+2+4 |
+| **الويب** (amlaki1.app + lovable.app) | Supabase OAuth redirect | ✅ بعد الخطوات 1+2 |
+| **Android** | Supabase OAuth redirect (نفس الويب) | ✅ بعد الخطوات 1+2 |
+
+---
 
 ## خارج النطاق
-- إعدادات Apple Sign-In (مكتملة سابقاً، لا تتغيّر).
-- Android (يعمل لاحقاً عبر نفس الـ Web Client ID + SHA-1).
+- لا تغيير على Google Sign-In (يعمل أصلاً)
+- لا تغييرات قاعدة بيانات
+- تجديد JWT بعد 6 أشهر مسؤولية المستخدم
+
+---
+
+**ملاحظة مهمة**: 99% من العمل خارج Lovable (Apple Developer + Lovable Cloud Dashboard). الكود في المشروع جاهز بالفعل ولا يحتاج تعديل. اضغط "Implement plan" فقط إذا أردت مني التحقق مرة أخيرة من الكود أو إضافة رسائل خطأ أوضح؛ وإلا ابدأ بالخطوة 1.
