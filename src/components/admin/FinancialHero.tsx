@@ -19,7 +19,7 @@ interface Stats {
 const COST_KEY = "amlaki_admin_monthly_cost";
 
 export function FinancialHero() {
-  const { format } = useCurrency();
+  const format = fmt;
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [cost, setCost] = useState<number>(() => {
