@@ -37,8 +37,8 @@ const config: CapacitorConfig = {
     // Uses @capgo/capacitor-social-login. Fill in the same values as src/lib/nativeGoogleAuth.ts.
     SocialLogin: {
       google: {
-        webClientId: "REPLACE_WITH_WEB_CLIENT_ID.apps.googleusercontent.com",
-        iOSClientId: "REPLACE_WITH_IOS_CLIENT_ID.apps.googleusercontent.com",
+        webClientId: "333958704131-3f0rajm780ophcb2g770apn5hkbto3hq.apps.googleusercontent.com",
+        iOSClientId: "333958704131-p0345q3rti29e70oesqmgvpah2q8e58a.apps.googleusercontent.com",
       },
       apple: {
         clientId: "app.lovable.amlaki.web",
