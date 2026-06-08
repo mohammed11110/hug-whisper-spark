@@ -14,8 +14,8 @@ import { SocialLogin } from "@capgo/capacitor-social-login";
 import { supabase } from "@/integrations/supabase/client";
 
 // ====== EDIT THESE VALUES AFTER CREATING OAuth IDs ======
-export const GOOGLE_IOS_CLIENT_ID = "REPLACE_WITH_IOS_CLIENT_ID.apps.googleusercontent.com";
-export const GOOGLE_WEB_CLIENT_ID = "REPLACE_WITH_WEB_CLIENT_ID.apps.googleusercontent.com";
+export const GOOGLE_IOS_CLIENT_ID = "333958704131-p0345q3rti29e70oesqmgvpah2q8e58a.apps.googleusercontent.com";
+export const GOOGLE_WEB_CLIENT_ID = "333958704131-3f0rajm780ophcb2g770apn5hkbto3hq.apps.googleusercontent.com";
 export const APPLE_SERVICES_ID = "app.lovable.amlaki.web"; // Services ID from Apple Developer
 export const APPLE_REDIRECT_URL = "https://amlaki1.app/auth/callback";
 // =========================================================
