@@ -1522,6 +1522,7 @@ export type Database = {
     }
     Functions: {
       account_phase: { Args: { _user_id: string }; Returns: string }
+      admin_financial_stats: { Args: never; Returns: Json }
       allocate_receipt_numbers: {
         Args: { _delta?: number }
         Returns: {
