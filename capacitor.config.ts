@@ -33,13 +33,17 @@ const config: CapacitorConfig = {
       splashFullScreen: true,
       splashImmersive: true,
     },
-    // Native Google Sign-In (iOS/Android only).
-    // Uses @codetrix-studio/capacitor-google-auth (Google only, no Facebook SDK).
-    // Fill in the same values as src/lib/nativeGoogleAuth.ts before shipping.
-    GoogleAuth: {
-      scopes: ["email", "profile"],
-      serverClientId: "REPLACE_WITH_WEB_CLIENT_ID.apps.googleusercontent.com",
-      forceCodeForRefreshToken: false,
+    // Native Social Sign-In (iOS/Android only).
+    // Uses @capgo/capacitor-social-login. Fill in the same values as src/lib/nativeGoogleAuth.ts.
+    SocialLogin: {
+      google: {
+        webClientId: "REPLACE_WITH_WEB_CLIENT_ID.apps.googleusercontent.com",
+        iOSClientId: "REPLACE_WITH_IOS_CLIENT_ID.apps.googleusercontent.com",
+      },
+      apple: {
+        clientId: "app.lovable.amlaki.web",
+        redirectUrl: "https://amlaki1.app/auth/callback",
+      },
     },
   },
 };
