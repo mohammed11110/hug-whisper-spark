@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useAdmin } from "@/lib/useAdmin";
 import { supabase } from "@/integrations/supabase/client";
 import { saveBlobUniversal } from "@/lib/nativeFiles";
+import { FinancialHero } from "@/components/admin/FinancialHero";
 
 interface UserRow {
   id: string;
@@ -113,6 +114,11 @@ export default function Admin() {
           <Crown className="h-5 w-5 text-accent" />
         </div>
         <p className="text-xs text-muted-foreground mt-0.5">إدارة المستخدمين والاشتراكات والأكواد</p>
+      </div>
+
+      {/* Financial hero (Priority 1) */}
+      <div className="px-5 mt-4">
+        <FinancialHero />
       </div>
 
       {/* Stats */}
