@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useAdmin } from "@/lib/useAdmin";
 import { supabase } from "@/integrations/supabase/client";
 import { saveBlobUniversal } from "@/lib/nativeFiles";
+import { FinancialHero } from "@/components/admin/FinancialHero";
 
 interface UserRow {
   id: string;
