@@ -116,6 +116,11 @@ export default function Admin() {
         <p className="text-xs text-muted-foreground mt-0.5">إدارة المستخدمين والاشتراكات والأكواد</p>
       </div>
 
+      {/* Financial hero (Priority 1) */}
+      <div className="px-5 mt-4">
+        <FinancialHero />
+      </div>
+
       {/* Stats */}
       <div className="px-5 mt-4 grid grid-cols-2 gap-3">
         <StatCard icon={<Users className="h-4 w-4" />} label="مسجّلون" value={stats.total} tone="sage" />
