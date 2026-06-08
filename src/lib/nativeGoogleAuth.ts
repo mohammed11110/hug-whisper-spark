@@ -1,9 +1,8 @@
 // Native Google sign-in for iOS/Android (Capacitor).
 // Web continues to use Lovable Cloud OAuth — this file is only used inside the native app.
 //
-// Uses @codetrix-studio/capacitor-google-auth (Google-only, does NOT pull
-// Facebook SDK on iOS — avoids the long "Fetching facebook-ios-sdk" hang
-// observed with multi-provider social login plugins).
+// Uses @capgo/capacitor-social-login (actively maintained, Capacitor 8 compatible).
+// Replaces the archived @codetrix-studio/capacitor-google-auth plugin.
 //
 // To activate on iOS / Android you must fill in:
 //   - GOOGLE_IOS_CLIENT_ID  (Google Cloud Console → OAuth Client → iOS)
@@ -11,7 +10,7 @@
 // Both are public values; safe to keep in source.
 
 import { Capacitor } from "@capacitor/core";
-import { GoogleAuth } from "@codetrix-studio/capacitor-google-auth";
+import { SocialLogin } from "@capgo/capacitor-social-login";
 import { supabase } from "@/integrations/supabase/client";
 
 // ====== EDIT THESE TWO VALUES AFTER CREATING OAuth CLIENT IDs ======
@@ -23,10 +22,12 @@ let initialized = false;
 
 async function ensureInit() {
   if (initialized) return;
-  await GoogleAuth.initialize({
-    clientId: GOOGLE_WEB_CLIENT_ID,
-    scopes: ["email", "profile"],
-    grantOfflineAccess: false,
+  await SocialLogin.initialize({
+    google: {
+      webClientId: GOOGLE_WEB_CLIENT_ID,
+      iOSClientId: GOOGLE_IOS_CLIENT_ID,
+      iOSServerClientId: GOOGLE_WEB_CLIENT_ID,
+    },
   });
   initialized = true;
 }
@@ -42,10 +43,13 @@ export function isNativeApp() {
 export async function nativeGoogleSignIn(): Promise<void> {
   await ensureInit();
 
-  const res: any = await GoogleAuth.signIn();
+  const res: any = await SocialLogin.login({
+    provider: "google",
+    options: {},
+  });
 
-  const idToken: string | undefined =
-    res?.authentication?.idToken ?? res?.idToken;
+  const result = res?.result ?? res;
+  const idToken: string | undefined = result?.idToken ?? result?.authentication?.idToken;
 
   if (!idToken) {
     throw new Error("Google sign-in did not return an idToken");
