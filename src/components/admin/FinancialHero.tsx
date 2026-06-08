@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { TrendingUp, Users, AlertTriangle, DollarSign, ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
-import { useCurrency } from "@/lib/currency";
+const fmt = (v: number) =>
+  `$${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 interface Stats {
   mrr: number;
