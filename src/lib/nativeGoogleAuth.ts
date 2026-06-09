@@ -15,8 +15,8 @@ export const GOOGLE_IOS_CLIENT_ID =
 export const GOOGLE_WEB_CLIENT_ID =
   "333958704131-3f0rajm780ophcb2g770apn5hkbto3hq.apps.googleusercontent.com";
 
-// On iOS we require the idToken audience to be the Web Client ID so Lovable Cloud
-// accepts the token. Other platforms can still accept the platform-native audience.
+// Native iOS can legitimately return the iOS audience, so our edge function accepts
+// both the web and iOS client IDs after manual Google certificate verification.
 const VALID_GOOGLE_AUDIENCES = [GOOGLE_WEB_CLIENT_ID, GOOGLE_IOS_CLIENT_ID];
 // =================================================================
 
@@ -40,9 +40,7 @@ function getGoogleInitConfig() {
 }
 
 function getAcceptedGoogleAudiences() {
-  return Capacitor.getPlatform() === "ios"
-    ? [GOOGLE_WEB_CLIENT_ID]
-    : VALID_GOOGLE_AUDIENCES;
+  return VALID_GOOGLE_AUDIENCES;
 }
 
 function getJwtAudiences(payload: any): string[] {
@@ -120,6 +118,31 @@ async function doGoogleSignInOnce(): Promise<void> {
   }
   if (payload.nonce && payload.nonce !== nonceDigest) {
     throw new Error("NONCE_MISMATCH");
+  }
+
+  if (Capacitor.getPlatform() === "ios") {
+    const { data, error } = await supabase.functions.invoke("google-native-signin", {
+      body: {
+        idToken,
+        nonce: rawNonce,
+      },
+    });
+
+    if (error) throw error;
+
+    const accessToken = data?.session?.access_token;
+    const refreshToken = data?.session?.refresh_token;
+
+    if (!accessToken || !refreshToken) {
+      throw new Error("google-native-signin did not return a valid session");
+    }
+
+    const { error: sessionError } = await supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+    if (sessionError) throw sessionError;
+    return;
   }
 
   const { error } = await supabase.auth.signInWithIdToken({
