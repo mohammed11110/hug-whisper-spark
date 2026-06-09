@@ -826,13 +826,20 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
 
   const emitReceipt = async (payload: any, includeArrears: boolean) => {
     try {
-      const html = await buildReceiptHTML({
+      const cycleTotalDue = Number(payload.baseArgs.expectedAmount) || Number(payload.baseArgs.amount) || 0;
+      const amountPaid = Number(payload.baseArgs.amount) || 0;
+      const cycleRemaining = Math.max(0, cycleTotalDue - amountPaid);
+      const data: ReceiptData = {
         ...payload.baseArgs,
         unpaidMonths: includeArrears ? payload.upTo : [],
         unpaidTotal: includeArrears ? payload.unpaidTotal : 0,
         unpaidUpToLabel: includeArrears ? payload.monthLabel : undefined,
-      });
-      await downloadHTMLAsPDF(html, payload.filename, settings);
+        cycleTotalDue,
+        cyclePaidToDate: amountPaid,
+        cycleRemaining,
+        statusKey: cycleRemaining <= 0.009 ? "paid" : "partial",
+      } as ReceiptData;
+      await downloadReceiptPDFDirect(data, payload.filename);
     } catch (e: any) {
       console.warn("receipt PDF failed", e);
     }
