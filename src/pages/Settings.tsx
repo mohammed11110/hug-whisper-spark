@@ -893,11 +893,15 @@ export default function Settings() {
       <section className="px-5 md:px-8 lg:px-12 mt-6 space-y-2">
         <h2 className="font-bold text-sage-600 text-sm mb-2">{tr(lang, "الأدوات", "Tools")}</h2>
 
-        {/* Organization info — opens Brand tab via hash */}
-        <Link to="#brand" onClick={() => {
-          const trigger = document.querySelector<HTMLButtonElement>('[data-state][value="brand"], button[role="tab"][value="brand"]');
-          trigger?.click();
-        }} className="flex items-center gap-3 bg-card border border-sage-200/60 rounded-2xl p-3.5 shadow-soft hover:bg-sage-50 transition">
+        {/* Organization info — switches to Brand tab */}
+        <button
+          type="button"
+          onClick={() => {
+            setTab("brand");
+            setTimeout(() => tabsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 30);
+          }}
+          className="w-full flex items-center gap-3 bg-card border border-sage-200/60 rounded-2xl p-3.5 shadow-soft hover:bg-sage-50 transition"
+        >
           <div className="p-2 rounded-xl bg-sage-100 text-sage-600"><Building2 className="h-4 w-4" /></div>
           <div className="flex-1 text-start min-w-0">
             <p className="text-sm font-bold text-sage-600 truncate">{tr(lang, "بيانات المؤسسة", "Organization info")}</p>
@@ -907,7 +911,7 @@ export default function Settings() {
             </p>
           </div>
           <ArrowRight className="h-4 w-4 text-sage-400 rtl:rotate-180" />
-        </Link>
+        </button>
 
         {/* Export my data */}
         <Link to="/backup" className="flex items-center gap-3 bg-card border border-sage-200/60 rounded-2xl p-3.5 shadow-soft hover:bg-sage-50 transition">
