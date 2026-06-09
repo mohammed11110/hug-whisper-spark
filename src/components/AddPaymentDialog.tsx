@@ -1375,7 +1375,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
               )}
             </DialogTitle>
           </DialogHeader>
-          <ScaledReceiptPreview html={previewHtml} rtl={lang === "ar"} />
+          <ScaledReceiptPreview blob={previewBlob} rtl={lang === "ar"} />
 
           <DialogFooter className="gap-2 sm:gap-2 flex-wrap">
             {unpaidMonths.length > 0 && (
@@ -1389,13 +1389,8 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                     setTimeout(async () => {
                       const args = buildReceiptArgs();
                       if (!args) return;
-                      const html = await buildReceiptHTML({
-                        ...args.baseArgs,
-                        unpaidMonths: next ? args.upTo : [],
-                        unpaidTotal: next ? args.unpaidTotal : 0,
-                        unpaidUpToLabel: next ? args.monthLabel : undefined,
-                      });
-                      setPreviewHtml(html);
+                      const blob = await getReceiptPDFBlob(buildReceiptDataFor(args, next));
+                      setPreviewBlob(blob);
                     }, 0);
                     return next;
                   });
