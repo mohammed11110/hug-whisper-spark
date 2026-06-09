@@ -22,14 +22,14 @@ export function BottomNav() {
 
   return (
     <nav
-      className="fixed left-0 right-0 bottom-0 z-50 md:hidden pointer-events-none"
-      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      className="fixed left-0 right-0 bottom-0 z-50 md:hidden glass border-t"
+      style={{
+        paddingBottom: "env(safe-area-inset-bottom)",
+        borderColor: "rgba(202,168,105,0.18)",
+      }}
     >
-      <div className="mx-auto max-w-[430px] pointer-events-auto">
-        <div
-          className="glass border-t px-2 pt-2 pb-2"
-          style={{ borderColor: "rgba(202,168,105,0.18)" }}
-        >
+      <div className="mx-auto max-w-[430px]">
+        <div className="px-2 pt-2 pb-2">
           <ul className="flex justify-around items-center">
             {tabs.map((tab) => (
               <li key={tab.to} className="flex-1">

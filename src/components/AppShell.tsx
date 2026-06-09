@@ -38,9 +38,7 @@ export function AppShell() {
       <OfflineBanner />
       <LifecycleBanner />
       <div className="flex w-full min-h-svh">
-        <div className="hidden md:block">
-          <AppSidebar />
-        </div>
+        <AppSidebar />
         <main key={location.pathname} className="flex-1 min-w-0 page-enter pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">
           <Suspense fallback={<RouteFallback />}>
             <Outlet />
