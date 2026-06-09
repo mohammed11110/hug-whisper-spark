@@ -12,9 +12,11 @@ import { SEO } from "@/components/SEO";
 import { useT2 } from "@/lib/i18n2";
 import { toast } from "sonner";
 import { lovable } from "@/integrations/lovable";
+import { isNative } from "@/lib/nativeFiles";
 
 const ASCII_RE = /^[\x20-\x7E]*$/;
 const REMEMBER_KEY = "remembered_email";
+const MOBILE_OAUTH_REDIRECT = "https://amlaki1.app";
 
 export default function Auth() {
   const [params] = useSearchParams();
@@ -82,12 +84,12 @@ export default function Auth() {
   const handleOAuth = async (provider: "google" | "apple") => {
     setBusy(true);
     try {
-      // Single unified path for web, published, and Capacitor WebView.
-      // Lovable Managed OAuth handles the redirect via the /~oauth proxy
-      // and returns the session through the same WebView origin, which
-      // works inside Capacitor without any native SDK.
+      const redirectUri = isNative()
+        ? MOBILE_OAUTH_REDIRECT
+        : `${window.location.origin}/`;
+
       const result = await lovable.auth.signInWithOAuth(provider, {
-        redirect_uri: `${window.location.origin}/`,
+        redirect_uri: redirectUri,
       });
       if (result.error) throw result.error;
       if (result.redirected) return; // browser/WebView is navigating away
