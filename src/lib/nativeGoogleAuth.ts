@@ -15,21 +15,47 @@ export const GOOGLE_IOS_CLIENT_ID =
 export const GOOGLE_WEB_CLIENT_ID =
   "333958704131-3f0rajm780ophcb2g770apn5hkbto3hq.apps.googleusercontent.com";
 
-// Valid Google audiences accepted in the id_token (web + iOS).
+// On iOS we require the idToken audience to be the Web Client ID so Lovable Cloud
+// accepts the token. Other platforms can still accept the platform-native audience.
 const VALID_GOOGLE_AUDIENCES = [GOOGLE_WEB_CLIENT_ID, GOOGLE_IOS_CLIENT_ID];
 // =================================================================
 
 let initialized = false;
 
-async function ensureInit() {
-  if (initialized) return;
-  await SocialLogin.initialize({
-    google: {
-      webClientId: GOOGLE_WEB_CLIENT_ID,
+function getGoogleInitConfig() {
+  if (Capacitor.getPlatform() === "ios") {
+    return {
       iOSClientId: GOOGLE_IOS_CLIENT_ID,
       iOSServerClientId: GOOGLE_WEB_CLIENT_ID,
       mode: "online",
-    } as any,
+    } as any;
+  }
+
+  return {
+    webClientId: GOOGLE_WEB_CLIENT_ID,
+    iOSClientId: GOOGLE_IOS_CLIENT_ID,
+    iOSServerClientId: GOOGLE_WEB_CLIENT_ID,
+    mode: "online",
+  } as any;
+}
+
+function getAcceptedGoogleAudiences() {
+  return Capacitor.getPlatform() === "ios"
+    ? [GOOGLE_WEB_CLIENT_ID]
+    : VALID_GOOGLE_AUDIENCES;
+}
+
+function getJwtAudiences(payload: any): string[] {
+  if (Array.isArray(payload?.aud)) {
+    return payload.aud.filter((value: unknown): value is string => typeof value === "string");
+  }
+  return typeof payload?.aud === "string" ? [payload.aud] : [];
+}
+
+async function ensureInit(force = false) {
+  if (initialized && !force) return;
+  await SocialLogin.initialize({
+    google: getGoogleInitConfig(),
     // Apple on native iOS automatically uses the app's Bundle ID — no clientId required.
     apple: {} as any,
   });
@@ -85,10 +111,12 @@ async function doGoogleSignInOnce(): Promise<void> {
   if (!idToken) throw new Error("Google sign-in did not return an idToken");
 
   // Validate audience + nonce locally for clearer errors and to detect
-  // iOS cached tokens early.
+  // iOS tokens with the wrong audience before they hit the backend.
   const payload = decodeJwtPayload(idToken);
-  if (!payload || !VALID_GOOGLE_AUDIENCES.includes(payload.aud)) {
-    throw new Error("INVALID_AUDIENCE");
+  const audiences = getJwtAudiences(payload);
+  const acceptedAudiences = getAcceptedGoogleAudiences();
+  if (!payload || !audiences.some((aud) => acceptedAudiences.includes(aud))) {
+    throw new Error(`INVALID_AUDIENCE:${audiences.join(",") || "missing"}`);
   }
   if (payload.nonce && payload.nonce !== nonceDigest) {
     throw new Error("NONCE_MISMATCH");
@@ -103,7 +131,7 @@ async function doGoogleSignInOnce(): Promise<void> {
 }
 
 export async function nativeGoogleSignIn(): Promise<void> {
-  await ensureInit();
+  await ensureInit(Capacitor.getPlatform() === "ios");
   try {
     try {
       await SocialLogin.logout({ provider: "google" } as any);
@@ -116,6 +144,7 @@ export async function nativeGoogleSignIn(): Promise<void> {
       try {
         await SocialLogin.logout({ provider: "google" } as any);
       } catch {}
+      await ensureInit(true);
       await doGoogleSignInOnce();
       return;
     }
