@@ -13,10 +13,10 @@ import { useT2 } from "@/lib/i18n2";
 import { toast } from "sonner";
 import { lovable } from "@/integrations/lovable";
 import { isNative } from "@/lib/nativeFiles";
+import { nativeGoogleSignIn, nativeAppleSignIn } from "@/lib/nativeGoogleAuth";
 
 const ASCII_RE = /^[\x20-\x7E]*$/;
 const REMEMBER_KEY = "remembered_email";
-const MOBILE_OAUTH_REDIRECT = "https://amlaki1.app";
 
 export default function Auth() {
   const [params] = useSearchParams();
@@ -84,16 +84,22 @@ export default function Auth() {
   const handleOAuth = async (provider: "google" | "apple") => {
     setBusy(true);
     try {
-      const redirectUri = isNative()
-        ? MOBILE_OAUTH_REDIRECT
-        : `${window.location.origin}/`;
+      // Native (iOS/Android): use the native SDKs so the OS shows the
+      // system account picker / Face-ID sheet and returns an idToken
+      // directly — no WebView redirect, no blank page.
+      if (isNative()) {
+        if (provider === "google") await nativeGoogleSignIn();
+        else await nativeAppleSignIn();
+        navigate("/");
+        return;
+      }
 
+      // Web: use Lovable Managed OAuth (browser redirect flow).
       const result = await lovable.auth.signInWithOAuth(provider, {
-        redirect_uri: redirectUri,
+        redirect_uri: `${window.location.origin}/`,
       });
       if (result.error) throw result.error;
-      if (result.redirected) return; // browser/WebView is navigating away
-      // Tokens returned directly — session is set.
+      if (result.redirected) return;
       navigate("/");
     } catch (err: any) {
       console.error(`[oauth:${provider}]`, err);
