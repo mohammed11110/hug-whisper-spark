@@ -109,18 +109,6 @@ async function doGoogleSignInOnce(): Promise<void> {
     result?.idToken ?? result?.authentication?.idToken;
   if (!idToken) throw new Error("Google sign-in did not return an idToken");
 
-  // Validate audience + nonce locally for clearer errors and to detect
-  // iOS tokens with the wrong audience before they hit the backend.
-  const payload = decodeJwtPayload(idToken);
-  const audiences = getJwtAudiences(payload);
-  const acceptedAudiences = getAcceptedGoogleAudiences();
-  if (!payload || !audiences.some((aud) => acceptedAudiences.includes(aud))) {
-    throw new Error(`INVALID_AUDIENCE:${audiences.join(",") || "missing"}`);
-  }
-  if (payload.nonce && payload.nonce !== nonceDigest) {
-    throw new Error("NONCE_MISMATCH");
-  }
-
   if (platform === "ios") {
     console.log("[nativeGoogleSignIn] iOS token received; invoking google-native-signin");
     const { data, error } = await supabase.functions.invoke("google-native-signin", {
@@ -145,6 +133,18 @@ async function doGoogleSignInOnce(): Promise<void> {
     });
     if (sessionError) throw sessionError;
     return;
+  }
+
+  // Validate audience + nonce locally for clearer errors and to detect
+  // iOS tokens with the wrong audience before they hit the backend.
+  const payload = decodeJwtPayload(idToken);
+  const audiences = getJwtAudiences(payload);
+  const acceptedAudiences = getAcceptedGoogleAudiences();
+  if (!payload || !audiences.some((aud) => acceptedAudiences.includes(aud))) {
+    throw new Error(`INVALID_AUDIENCE:${audiences.join(",") || "missing"}`);
+  }
+  if (payload.nonce && payload.nonce !== nonceDigest) {
+    throw new Error("NONCE_MISMATCH");
   }
 
   console.log("[nativeGoogleSignIn] non-iOS native flow using direct Google id token sign-in");
