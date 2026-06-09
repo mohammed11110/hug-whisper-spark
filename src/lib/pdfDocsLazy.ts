@@ -62,6 +62,9 @@ export async function downloadReceiptPDFDirect(data: ReceiptData, filename: stri
 export async function printReceiptPDFDirect(data: ReceiptData, filename: string): Promise<void> {
   return (await loadMod()).printReceiptPDFDirect(data, filename);
 }
+export async function getReceiptPDFBlob(data: ReceiptData): Promise<Blob> {
+  return (await loadMod()).getReceiptPDFBlob(data);
+}
 
 // ---------- Lease ----------
 export async function buildLeaseHTML(data: Lease): Promise<string> {
