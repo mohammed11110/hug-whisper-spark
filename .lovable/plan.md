@@ -1,30 +1,31 @@
-## Problem
+# إصلاح الفراغ تحت الشريط السفلي (آيفون) وتثبيت الشريط الجانبي (آيباد)
 
-In Settings page, the tile **Tools → "بيانات المؤسسة" (Organization info)** does nothing when tapped. It is supposed to open the **Brand (الهوية)** tab, but:
+## المشكلتان
 
-1. The Tabs component is **uncontrolled** (`defaultValue="account"`), so it cannot be switched programmatically from outside.
-2. The tile's `onClick` queries `button[role="tab"][value="brand"]`, but Radix `TabsTrigger` does **not** expose `value` as an HTML attribute — so the selector never matches and the click never fires.
-3. The wrapping `<Link to="#brand">` only updates the URL hash; it doesn't switch tabs.
+1. **آيفون** — يظهر فراغ تحت الشريط السفلي (Bottom Nav) في منطقة الـ Home Indicator، لأن خلفية الشريط (الـ glass) موضوعة على الحاوية الداخلية فقط، بينما `padding-bottom: env(safe-area-inset-bottom)` على العنصر الخارجي يكشف خلفية الصفحة في الأسفل.
+2. **آيباد** — الشريط الجانبي يتحرك مع تمرير الصفحة بدل أن يبقى ثابتاً. السبب: في `AppShell.tsx` يُغلَّف `<AppSidebar />` بـ `<div className="hidden md:block">`، وهذا يكسر علاقة `peer` التي يعتمد عليها مكوّن `Sidebar` من shadcn، فيختفي عنصر الـ `fixed` الداخلي ويبقى الـ placeholder فقط داخل الـ flex.
 
-Result: tap = nothing happens (or just adds `#brand` to the URL).
+## الإصلاحات (واجهة فقط — لا تغييرات منطق/قاعدة بيانات)
 
-## Fix (UI-only, in `src/pages/Settings.tsx`)
+### 1) `src/components/BottomNav.tsx`
+- نقل خلفية الـ glass والحدّ العلوي إلى عنصر `<nav>` نفسه ليمتدّ من الحافة للحافة ويغطّي منطقة الـ safe-area.
+- إبقاء `padding-bottom: env(safe-area-inset-bottom)` على نفس العنصر، مع padding أفقي/علوي للمحتوى الداخلي.
+- إزالة فئات الخلفية/الحد من العنصر الداخلي (نتركه فقط كحاوية `max-w-[430px]` لتوسيط الأيقونات).
 
-1. Make the Tabs **controlled**:
-   - Add `const [tab, setTab] = useState<"account"|"brand"|"notify"|"print"|"secure">("account");`
-   - Change `<Tabs defaultValue="account" …>` → `<Tabs value={tab} onValueChange={(v) => setTab(v as any)} …>`
+النتيجة: تمتدّ نفس خلفية الشريط حتى أسفل الشاشة في الآيفون، فلا يظهر فراغ.
 
-2. Replace the broken "Organization info" tile:
-   - Change `<Link to="#brand" onClick={…querySelector…}>` to a plain `<button>` that:
-     - Calls `setTab("brand")`
-     - Scrolls smoothly to the Tabs section (using a `ref` on the tabs `<section>`)
-   - Keep all existing styling and copy unchanged.
+### 2) `src/components/AppShell.tsx`
+- حذف الغلاف `<div className="hidden md:block">` حول `<AppSidebar />`، وجعل `<AppSidebar />` ابناً مباشراً داخل `SidebarProvider` (مكوّن `Sidebar` يدير الإخفاء على الموبايل داخلياً عبر `hidden md:flex` ويستخدم `Sheet` على الموبايل).
+- إبقاء `<main>` كما هو كأخ مباشر للـ Sidebar حتى تعمل علاقة `peer-data-*` ويصبح الشريط الجانبي `fixed inset-y-0` فعلياً على الآيباد والديسكتوب.
+- لا تغيير على `defaultOpen` (يبقى مفتوحاً تلقائياً عند ‎≥1280px ومطوياً كـ rail على الآيباد، كما هو).
 
-3. On mount, if `location.hash === "#brand"` (e.g. from an old link), set `tab` to `"brand"` and scroll to the tabs section — so deep links keep working.
+النتيجة: يبقى الشريط الجانبي ثابتاً على الآيباد عند تمرير الصفحة.
 
-No business logic, no backend, no schema changes. Only the Settings page presentation.
+## ملفات معدّلة
+- `src/components/BottomNav.tsx`
+- `src/components/AppShell.tsx`
 
-## Verification
-
-- Open `/settings` → scroll to **الأدوات** → tap **بيانات المؤسسة** → page scrolls to the tabs row and the **الهوية / Brand** tab becomes active, revealing the WhatsApp + logo/name/landlord/phone/address form.
-- Other tab triggers (Account, Alerts, Print, Security) still work normally.
+## تحقّق سريع بعد التنفيذ
+- آيفون (390×844): لا فراغ أسفل شريط التنقل؛ الخلفية تمتدّ حتى الحافة.
+- آيباد (820×1180 و 1024×1366): الشريط الجانبي يبقى ظاهراً وثابتاً أثناء تمرير المحتوى.
+- ديسكتوب (≥1280px): الشريط الجانبي مفتوح كما كان دون انكسار في التخطيط.
