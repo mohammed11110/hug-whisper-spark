@@ -112,3 +112,14 @@ export function clearSignatureCache() {
     sessionStorage.removeItem(CACHE_USER_KEY);
   } catch { /* noop */ }
 }
+
+/** Seed the session cache with a freshly-saved data URL so subsequent reads
+ *  (e.g. receipt PDF generation) don't need to round-trip through Storage. */
+export async function primeSignatureCache(dataUrl: string): Promise<void> {
+  const uid = await currentUid();
+  if (!uid) return;
+  try {
+    sessionStorage.setItem(CACHE_KEY, dataUrl);
+    sessionStorage.setItem(CACHE_USER_KEY, uid);
+  } catch { /* noop */ }
+}
