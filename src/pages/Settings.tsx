@@ -408,8 +408,8 @@ export default function Settings() {
       )}
 
       {/* Tabs */}
-      <section className="px-5 md:px-8 lg:px-12 mt-5">
-        <Tabs defaultValue="account" className="w-full">
+      <section ref={tabsSectionRef} className="px-5 md:px-8 lg:px-12 mt-5">
+        <Tabs value={tab} onValueChange={(v) => setTab(v as SettingsTab)} className="w-full">
           <TabsList className="grid grid-cols-5 w-full h-auto bg-sage-100/60 p-1 rounded-2xl">
             {[
               { v: "account", icon: UserIcon, ar: "الحساب", en: "Account" },
