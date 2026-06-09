@@ -861,6 +861,8 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         cyclePaidToDate: amountPaid,
         cycleRemaining,
         statusKey: cycleRemaining <= 0.009 ? "paid" : "partial",
+        signatureDataUrl: signatureDataUrl || null,
+        signatureName,
       } as ReceiptData;
       await downloadReceiptPDFDirect(data, payload.filename);
     } catch (e: any) {
