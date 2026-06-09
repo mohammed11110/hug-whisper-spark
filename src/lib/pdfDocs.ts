@@ -1700,6 +1700,12 @@ export async function downloadReceiptPDFDirect(data: ReceiptData, filename: stri
   await savePdfBlob(pdf, filename);
 }
 
+/** Build the Midnight & Gold receipt as a Blob — for in-app preview (iframe). */
+export async function getReceiptPDFBlob(data: ReceiptData): Promise<Blob> {
+  const { pdf } = await createReceiptPDFDirect(data);
+  return pdf.output("blob");
+}
+
 export async function printReceiptPDFDirect(data: ReceiptData, filename: string): Promise<void> {
   const startedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
   const { pdf, statusKey } = await createReceiptPDFDirect(data);
