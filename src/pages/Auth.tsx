@@ -11,11 +11,6 @@ import { useI18n } from "@/lib/i18n";
 import { SEO } from "@/components/SEO";
 import { useT2 } from "@/lib/i18n2";
 import { toast } from "sonner";
-import {
-  isNativeApp,
-  nativeGoogleSignIn,
-  nativeAppleSignIn,
-} from "@/lib/nativeGoogleAuth";
 import { lovable } from "@/integrations/lovable";
 
 const ASCII_RE = /^[\x20-\x7E]*$/;
@@ -87,18 +82,15 @@ export default function Auth() {
   const handleOAuth = async (provider: "google" | "apple") => {
     setBusy(true);
     try {
-      if (isNativeApp()) {
-        if (provider === "google") await nativeGoogleSignIn();
-        else await nativeAppleSignIn();
-        navigate("/");
-        return;
-      }
-      // Use Lovable Cloud managed OAuth (routes via /~oauth proxy).
+      // Single unified path for web, published, and Capacitor WebView.
+      // Lovable Managed OAuth handles the redirect via the /~oauth proxy
+      // and returns the session through the same WebView origin, which
+      // works inside Capacitor without any native SDK.
       const result = await lovable.auth.signInWithOAuth(provider, {
         redirect_uri: `${window.location.origin}/`,
       });
       if (result.error) throw result.error;
-      if (result.redirected) return; // browser is navigating away
+      if (result.redirected) return; // browser/WebView is navigating away
       // Tokens returned directly — session is set.
       navigate("/");
     } catch (err: any) {
