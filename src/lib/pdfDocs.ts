@@ -204,6 +204,8 @@ export interface ReceiptData {
   statusKey?: "paid" | "late" | "partial" | "soon";
   statusLabel?: string | null;
   installmentNote?: string | null;
+  signatureDataUrl?: string | null;   // data:image/png;base64,... — injected from Supabase Storage
+  signatureName?: string | null;      // user's display name shown under the signature
 }
 
 export interface Lease {
