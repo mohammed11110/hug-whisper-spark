@@ -19,6 +19,8 @@ import type { ReceiptNumbering } from "@/lib/appSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { downloadReceiptPDFDirect, getReceiptPDFBlob, type ReceiptData } from "@/lib/pdfDocsLazy";
+import { getSignatureDataUrl, hasSignature } from "@/lib/signature";
+import { useAuth } from "@/lib/auth";
 import { openWhatsApp, fillTemplate } from "@/lib/whatsapp";
 import { logActivity } from "@/lib/activityLogger";
 import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
@@ -127,6 +129,23 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   const [includeArrearsInReceipt, setIncludeArrearsInReceipt] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
+  const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
+  const { user } = useAuth();
+  const signatureName = (user?.user_metadata as any)?.name || user?.email || null;
+
+  useEffect(() => { if (open) void getSignatureDataUrl().then(setSignatureDataUrl); }, [open]);
+
+  const ensureSignatureOrWarn = async (): Promise<boolean> => {
+    if (signatureDataUrl) return true;
+    const fresh = await getSignatureDataUrl();
+    if (fresh) { setSignatureDataUrl(fresh); return true; }
+    toast.error(
+      lang === "ar"
+        ? "أعدّ توقيعك الإلكتروني من الإعدادات قبل إصدار أول إيصال"
+        : "Set up your electronic signature in Settings before issuing your first receipt",
+    );
+    return false;
+  };
 
 
   const { start: periodStart, end: periodEnd } = monthRange(periodYear, periodMonthNum);
@@ -502,6 +521,8 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
       cyclePaidToDate: amountPaid,
       cycleRemaining,
       statusKey: cycleRemaining <= 0.009 ? "paid" : "partial",
+      signatureDataUrl: signatureDataUrl || null,
+      signatureName,
     } as ReceiptData;
   };
 
@@ -511,6 +532,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
       toast.error(lang === "ar" ? "أدخل المبلغ واختر الوحدة أولاً" : "Enter amount and select a unit first");
       return;
     }
+    if (!(await ensureSignatureOrWarn())) return;
     const blob = await getReceiptPDFBlob(buildReceiptDataFor(args, includeArrearsInReceipt));
     setPreviewBlob(blob);
     setPreviewOpen(true);
@@ -526,6 +548,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     if (!parsed.success) {
       return toast.error(parsed.error.issues[0].message);
     }
+    if (!(await ensureSignatureOrWarn())) return;
     setSaving(true);
     const { data: activeT } = await supabase.from("tenancies").select("id").eq("unit_id", unitId).eq("status", "active").maybeSingle();
     const mergedNotes = [settlementNote, notes.trim()].filter(Boolean).join(" — ") || null;
@@ -838,6 +861,8 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
         cyclePaidToDate: amountPaid,
         cycleRemaining,
         statusKey: cycleRemaining <= 0.009 ? "paid" : "partial",
+        signatureDataUrl: signatureDataUrl || null,
+        signatureName,
       } as ReceiptData;
       await downloadReceiptPDFDirect(data, payload.filename);
     } catch (e: any) {

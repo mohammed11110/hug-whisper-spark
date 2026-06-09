@@ -30,6 +30,7 @@ import { DeleteAccountSection } from "@/components/DeleteAccountSection";
 import { BillingStatusSection } from "@/components/BillingStatusSection";
 import { EndTrialDialog } from "@/components/EndTrialDialog";
 import { BusinessWhatsAppSection } from "@/components/BusinessWhatsAppSection";
+import { SignatureManager } from "@/components/SignatureManager";
 import { ChangePasswordDialog } from "@/components/ChangePasswordDialog";
 import { Switch } from "@/components/ui/switch";
 import { fillTemplate } from "@/lib/whatsapp";
@@ -475,6 +476,8 @@ export default function Settings() {
                 </div>
               </div>
             </Card>
+
+            <SignatureManager />
 
             <Link to="/pricing" className="flex items-center gap-3 bg-card border border-sage-200/60 rounded-2xl p-4 shadow-soft hover:bg-sage-50">
               <div className="p-2 rounded-xl bg-gold/15 text-gold"><Crown className="h-4 w-4" /></div>

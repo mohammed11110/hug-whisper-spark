@@ -852,6 +852,8 @@ export type Database = {
           paddle_subscription_id: string | null
           phone: string | null
           purge_at: string | null
+          signature_path: string | null
+          signature_updated_at: string | null
           subscription_expires_at: string | null
           subscription_interval: string | null
           subscription_plan: string
@@ -878,6 +880,8 @@ export type Database = {
           paddle_subscription_id?: string | null
           phone?: string | null
           purge_at?: string | null
+          signature_path?: string | null
+          signature_updated_at?: string | null
           subscription_expires_at?: string | null
           subscription_interval?: string | null
           subscription_plan?: string
@@ -904,6 +908,8 @@ export type Database = {
           paddle_subscription_id?: string | null
           phone?: string | null
           purge_at?: string | null
+          signature_path?: string | null
+          signature_updated_at?: string | null
           subscription_expires_at?: string | null
           subscription_interval?: string | null
           subscription_plan?: string
