@@ -1691,6 +1691,33 @@ async function createReceiptPDFDirect(data: ReceiptData): Promise<{ pdf: jsPDF; 
     });
   }
 
+  // ===== Signature block (above footer, paper-light card on midnight) =====
+  if (data.signatureDataUrl) {
+    const sigH = 32;
+    const sigY = pageH - 18 - sigH - 4;
+    if (sigY > cursorY) {
+      setFill([251, 250, 247]); // paper
+      setDraw(RX.border);
+      pdf.roundedRect(marginX, sigY, contentW, sigH, 3, 3, "FD");
+      try {
+        const imgW = 50;
+        const imgH = 18;
+        const imgX = marginX + (contentW - imgW) / 2;
+        pdf.addImage(data.signatureDataUrl, "PNG", imgX, sigY + 3, imgW, imgH, undefined, "FAST");
+      } catch { /* invalid image — skip silently */ }
+      // hairline under signature
+      setDraw([184, 146, 74]); // gold
+      pdf.setLineWidth(0.3);
+      pdf.line(marginX + 30, sigY + 23, marginX + contentW - 30, sigY + 23);
+      pdf.setLineWidth(0.2);
+      drawText({
+        text: data.signatureName || data.brand.name || "—",
+        x: marginX + 4, y: sigY + 28, width: contentW - 8,
+        fontSize: 9, bold: true, color: [39, 43, 58], align: "center",
+      });
+    }
+  }
+
   return { pdf, statusKey };
 }
 
