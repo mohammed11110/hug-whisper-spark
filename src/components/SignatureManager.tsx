@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
@@ -9,11 +9,12 @@ import {
   saveSignature,
   deleteSignature,
   clearSignatureCache,
+  primeSignatureCache,
 } from "@/lib/signature";
 
 const tr = (lang: string, ar: string, en: string) => (lang === "ar" ? ar : en);
 
-type Point = { x: number; y: number };
+type Point = { x: number; y: number; t: number; p: number };
 
 /** Trim transparent margins from a canvas; returns a fresh canvas. */
 function trimCanvas(src: HTMLCanvasElement): HTMLCanvasElement {
@@ -33,7 +34,7 @@ function trimCanvas(src: HTMLCanvasElement): HTMLCanvasElement {
     }
   }
   if (maxX < 0) return src; // empty
-  const pad = 8;
+  const pad = 12;
   const x0 = Math.max(0, minX - pad);
   const y0 = Math.max(0, minY - pad);
   const w = Math.min(width, maxX - x0 + pad * 2);
@@ -51,25 +52,43 @@ function canvasToPngBlob(c: HTMLCanvasElement): Promise<Blob> {
   });
 }
 
-/** Convert an image File into a transparent PNG: keeps PNG as-is, JPG kept on white. */
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result || ""));
+    r.onerror = () => reject(new Error("read_failed"));
+    r.readAsDataURL(blob);
+  });
+}
+
+/** Convert an image File into a transparent PNG: PNG kept as-is; others rasterized on white. */
 async function fileToSignaturePngBlob(file: File): Promise<Blob> {
+  const isHeic =
+    /heic|heif/i.test(file.type) || /\.(heic|heif)$/i.test(file.name);
+  if (isHeic) {
+    throw new Error("HEIC_UNSUPPORTED");
+  }
   if (file.type === "image/png") return file;
+
   const url = URL.createObjectURL(file);
   try {
     const img = new Image();
     await new Promise<void>((res, rej) => {
       img.onload = () => res();
-      img.onerror = rej;
+      img.onerror = () => rej(new Error("IMAGE_DECODE_FAILED"));
       img.src = url;
     });
-    const maxW = 1200;
+    const maxW = 1400;
     const scale = Math.min(1, maxW / img.naturalWidth);
-    const w = Math.round(img.naturalWidth * scale);
-    const h = Math.round(img.naturalHeight * scale);
+    const w = Math.max(1, Math.round(img.naturalWidth * scale));
+    const h = Math.max(1, Math.round(img.naturalHeight * scale));
     const c = document.createElement("canvas");
     c.width = w;
     c.height = h;
     const cx = c.getContext("2d")!;
+    // White background so JPGs don't render black on some platforms
+    cx.fillStyle = "#ffffff";
+    cx.fillRect(0, 0, w, h);
     cx.drawImage(img, 0, 0, w, h);
     return await canvasToPngBlob(c);
   } finally {
@@ -79,7 +98,6 @@ async function fileToSignaturePngBlob(file: File): Promise<Blob> {
 
 export function SignatureManager() {
   const { lang } = useI18n();
-  const isAr = lang === "ar";
 
   const [loading, setLoading] = useState(true);
   const [dataUrl, setDataUrl] = useState<string | null>(null);
@@ -98,19 +116,37 @@ export function SignatureManager() {
 
   useEffect(() => { void refresh(); }, []);
 
+  /** Save + show immediately from the in-memory blob (no round-trip). */
+  const persistAndShow = async (blob: Blob) => {
+    await saveSignature(blob);
+    const url = await blobToDataUrl(blob);
+    await primeSignatureCache(url);
+    setDataUrl(url);
+  };
+
   const handleUpload = async (file: File) => {
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error(tr(lang, "حجم الصورة كبير (الحد 2MB)", "Image too large (max 2MB)"));
+    if (file.size > 4 * 1024 * 1024) {
+      toast.error(tr(lang, "حجم الصورة كبير (الحد 4MB)", "Image too large (max 4MB)"));
       return;
     }
     setSaving(true);
     try {
       const blob = await fileToSignaturePngBlob(file);
-      await saveSignature(blob);
-      await refresh();
+      await persistAndShow(blob);
       toast.success(tr(lang, "تم حفظ التوقيع", "Signature saved"));
     } catch (e: any) {
-      toast.error(e?.message || tr(lang, "تعذّر الحفظ", "Save failed"));
+      const code = e?.message || "";
+      if (code === "HEIC_UNSUPPORTED") {
+        toast.error(tr(
+          lang,
+          "صيغة HEIC غير مدعومة — حوّل الصورة إلى JPG أو PNG ثم أعد المحاولة",
+          "HEIC is not supported — convert to JPG or PNG and try again",
+        ));
+      } else if (code === "IMAGE_DECODE_FAILED") {
+        toast.error(tr(lang, "تعذّر قراءة الصورة", "Could not read the image"));
+      } else {
+        toast.error(code || tr(lang, "تعذّر الحفظ", "Save failed"));
+      }
     } finally {
       setSaving(false);
     }
@@ -153,6 +189,7 @@ export function SignatureManager() {
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         ) : dataUrl ? (
           <img
+            key={dataUrl.slice(-32)}
             src={dataUrl}
             alt={tr(lang, "توقيعك", "Your signature")}
             className="max-h-[110px] object-contain"
@@ -222,7 +259,7 @@ export function SignatureManager() {
       <input
         ref={fileRef}
         type="file"
-        accept="image/png,image/jpeg,image/jpg"
+        accept="image/*"
         hidden
         onChange={async (e) => {
           const f = e.target.files?.[0];
@@ -237,8 +274,7 @@ export function SignatureManager() {
         onSaved={async (blob) => {
           setSaving(true);
           try {
-            await saveSignature(blob);
-            await refresh();
+            await persistAndShow(blob);
             toast.success(tr(lang, "تم حفظ التوقيع", "Signature saved"));
             setDrawOpen(false);
           } catch (e: any) {
@@ -254,6 +290,8 @@ export function SignatureManager() {
 
 /* ----------------------- Draw pad ----------------------- */
 
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
 function SignaturePadDialog({
   open,
   onOpenChange,
@@ -265,93 +303,151 @@ function SignaturePadDialog({
 }) {
   const { lang } = useI18n();
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const pointsRef = useRef<Point[]>([]);
+  const wrapRef = useRef<HTMLDivElement>(null);
   const strokesRef = useRef<Point[][]>([]);
+  const currentRef = useRef<Point[]>([]);
   const drawingRef = useRef(false);
+  const dprRef = useRef(1);
   const [hasInk, setHasInk] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Setup canvas DPR + clear when (re)opened
+  // Setup canvas to fill its wrapper + handle resize/orientation
   useEffect(() => {
     if (!open) return;
     const c = canvasRef.current;
-    if (!c) return;
-    const dpr = window.devicePixelRatio || 1;
-    const cssW = c.clientWidth;
-    const cssH = c.clientHeight;
-    c.width = Math.round(cssW * dpr);
-    c.height = Math.round(cssH * dpr);
-    const ctx = c.getContext("2d")!;
-    ctx.scale(dpr, dpr);
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.lineWidth = 2.2;
-    ctx.strokeStyle = "#1A1C24";
+    const wrap = wrapRef.current;
+    if (!c || !wrap) return;
+
+    const setupSize = () => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 3);
+      dprRef.current = dpr;
+      const cssW = wrap.clientWidth;
+      const cssH = wrap.clientHeight;
+      c.width = Math.round(cssW * dpr);
+      c.height = Math.round(cssH * dpr);
+      c.style.width = `${cssW}px`;
+      c.style.height = `${cssH}px`;
+      const ctx = c.getContext("2d")!;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.strokeStyle = "#1A1C24";
+      redrawAll();
+    };
+
     strokesRef.current = [];
-    pointsRef.current = [];
+    currentRef.current = [];
     setHasInk(false);
+    setupSize();
+
+    const ro = new ResizeObserver(setupSize);
+    ro.observe(wrap);
+    return () => ro.disconnect();
   }, [open]);
 
-  const redraw = () => {
+  const redrawAll = () => {
     const c = canvasRef.current;
     if (!c) return;
     const ctx = c.getContext("2d")!;
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = dprRef.current;
     ctx.clearRect(0, 0, c.width / dpr, c.height / dpr);
-    for (const stroke of strokesRef.current) drawStroke(ctx, stroke);
-    if (pointsRef.current.length) drawStroke(ctx, pointsRef.current);
+    for (const s of strokesRef.current) drawSmoothStroke(ctx, s);
+    if (currentRef.current.length) drawSmoothStroke(ctx, currentRef.current);
   };
 
-  const drawStroke = (ctx: CanvasRenderingContext2D, pts: Point[]) => {
-    if (pts.length < 2) return;
-    ctx.beginPath();
-    ctx.moveTo(pts[0].x, pts[0].y);
-    for (let i = 1; i < pts.length - 1; i++) {
-      const mx = (pts[i].x + pts[i + 1].x) / 2;
-      const my = (pts[i].y + pts[i + 1].y) / 2;
-      ctx.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
+  /** Catmull-Rom-ish smoothing with variable width per segment (speed + pressure). */
+  const drawSmoothStroke = (ctx: CanvasRenderingContext2D, pts: Point[]) => {
+    if (pts.length < 2) {
+      if (pts.length === 1) {
+        ctx.beginPath();
+        ctx.arc(pts[0].x, pts[0].y, 0.8, 0, Math.PI * 2);
+        ctx.fillStyle = "#1A1C24";
+        ctx.fill();
+      }
+      return;
     }
-    ctx.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
-    ctx.stroke();
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[i];
+      const p1 = pts[i + 1];
+      const dt = Math.max(1, p1.t - p0.t);
+      const dist = Math.hypot(p1.x - p0.x, p1.y - p0.y);
+      const speed = dist / dt; // px/ms
+      const pressure = (p0.p + p1.p) / 2;
+      const pFactor = pressure > 0 ? 0.55 + pressure * 0.9 : 1;
+      const width = clamp(1.9 - speed * 0.85, 0.7, 2.1) * pFactor;
+      ctx.lineWidth = width;
+
+      const pPrev = pts[i - 1] || p0;
+      const pNext = pts[i + 2] || p1;
+      const cp1x = p0.x + (p1.x - pPrev.x) / 6;
+      const cp1y = p0.y + (p1.y - pPrev.y) / 6;
+      const cp2x = p1.x - (pNext.x - p0.x) / 6;
+      const cp2y = p1.y - (pNext.y - p0.y) / 6;
+
+      ctx.beginPath();
+      ctx.moveTo(p0.x, p0.y);
+      ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p1.x, p1.y);
+      ctx.stroke();
+    }
   };
 
-  const pos = (e: PointerEvent | React.PointerEvent): Point => {
+  const pointFrom = (e: React.PointerEvent | PointerEvent): Point => {
     const c = canvasRef.current!;
     const r = c.getBoundingClientRect();
-    return { x: (e as any).clientX - r.left, y: (e as any).clientY - r.top };
+    const native: any = (e as any).nativeEvent ?? e;
+    const pressure =
+      typeof native.pressure === "number" && native.pressure > 0 && native.pressure !== 0.5
+        ? native.pressure
+        : 0;
+    return {
+      x: (e as any).clientX - r.left,
+      y: (e as any).clientY - r.top,
+      t: performance.now(),
+      p: pressure,
+    };
   };
 
   const onDown = (e: React.PointerEvent) => {
     (e.target as Element).setPointerCapture?.(e.pointerId);
     drawingRef.current = true;
-    pointsRef.current = [pos(e)];
+    currentRef.current = [pointFrom(e)];
+    redrawAll();
   };
+
   const onMove = (e: React.PointerEvent) => {
     if (!drawingRef.current) return;
-    pointsRef.current.push(pos(e));
-    redraw();
+    const native: any = e.nativeEvent;
+    const coalesced: PointerEvent[] =
+      typeof native.getCoalescedEvents === "function" ? native.getCoalescedEvents() : [];
+    if (coalesced.length > 0) {
+      for (const ce of coalesced) currentRef.current.push(pointFrom(ce as any));
+    } else {
+      currentRef.current.push(pointFrom(e));
+    }
+    redrawAll();
   };
+
   const onUp = () => {
     if (!drawingRef.current) return;
     drawingRef.current = false;
-    if (pointsRef.current.length > 1) {
-      strokesRef.current.push(pointsRef.current);
+    if (currentRef.current.length > 1) {
+      strokesRef.current.push(currentRef.current);
       setHasInk(true);
     }
-    pointsRef.current = [];
-    redraw();
+    currentRef.current = [];
+    redrawAll();
   };
 
   const undo = () => {
     strokesRef.current.pop();
     setHasInk(strokesRef.current.length > 0);
-    redraw();
+    redrawAll();
   };
   const clear = () => {
     strokesRef.current = [];
-    pointsRef.current = [];
+    currentRef.current = [];
     setHasInk(false);
-    redraw();
+    redrawAll();
   };
 
   const save = async () => {
@@ -369,28 +465,36 @@ function SignaturePadDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>{tr(lang, "ارسم توقيعك", "Draw your signature")}</DialogTitle>
+      <DialogContent
+        className="max-w-none w-screen h-[100dvh] sm:rounded-none p-0 gap-0 border-0 flex flex-col"
+      >
+        <DialogHeader className="px-4 py-3 border-b border-border bg-card/80 backdrop-blur">
+          <DialogTitle className="text-base text-start">
+            {tr(lang, "ارسم توقيعك", "Draw your signature")}
+          </DialogTitle>
+          <p className="text-[11px] text-muted-foreground text-start mt-0.5">
+            {tr(lang, "وقّع بإصبعك أو بقلم اللمس — استخدم الوضع الأفقي لمساحة أكبر", "Sign with your finger or stylus — rotate for more room")}
+          </p>
         </DialogHeader>
+
         <div
-          className="rounded-xl border border-sage-200 bg-[#FBFAF7] overflow-hidden touch-none"
-          style={{ aspectRatio: "3 / 1" }}
+          ref={wrapRef}
+          className="flex-1 bg-[#FBFAF7] touch-none relative overflow-hidden"
         >
           <canvas
             ref={canvasRef}
-            className="w-full h-full block"
+            className="block w-full h-full select-none"
             onPointerDown={onDown}
             onPointerMove={onMove}
             onPointerUp={onUp}
             onPointerLeave={onUp}
             onPointerCancel={onUp}
           />
+          {/* baseline guide */}
+          <div className="pointer-events-none absolute inset-x-8 bottom-[28%] border-t border-dashed border-sage-300/70" />
         </div>
-        <p className="text-[11px] text-muted-foreground text-center">
-          {tr(lang, "وقّع بإصبعك أو بقلم اللمس", "Sign with your finger or stylus")}
-        </p>
-        <DialogFooter className="flex !flex-row !justify-between gap-2">
+
+        <div className="flex items-center justify-between gap-2 px-4 py-3 border-t border-border bg-card/80 backdrop-blur">
           <div className="flex gap-2">
             <Button type="button" variant="outline" size="sm" onClick={clear} disabled={!hasInk || saving}>
               {tr(lang, "مسح", "Clear")}
@@ -399,10 +503,10 @@ function SignaturePadDialog({
               {tr(lang, "تراجع", "Undo")}
             </Button>
           </div>
-          <Button type="button" size="sm" onClick={save} disabled={!hasInk || saving}>
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : tr(lang, "حفظ", "Save")}
+          <Button type="button" size="sm" onClick={save} disabled={!hasInk || saving} className="min-w-[96px]">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : tr(lang, "حفظ التوقيع", "Save signature")}
           </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
