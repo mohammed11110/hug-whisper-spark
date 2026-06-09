@@ -13,7 +13,7 @@ export default function Welcome() {
     <div className="mobile-shell flex flex-col bg-gradient-cream overflow-hidden">
       <SEO
         path="/welcome"
-        title={ar ? "أملاكي · إدارة العقارات بذكاء وأناقة" : "Amlaki — Manage your properties with elegance"}
+        title={ar ? "أملاكي · إدارة العقارات بذكاء" : "Amlaki — Manage your properties intelligently"}
         description={ar
           ? "ابدأ مع أملاكي لإدارة مبانيك ووحداتك ومستأجريك ومدفوعاتك في مكان واحد."
           : "Get started with Amlaki to manage your buildings, units, tenants and payments in one place."}
