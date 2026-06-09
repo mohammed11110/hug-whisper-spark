@@ -1,55 +1,77 @@
-## السبب الجذري المؤكد
+## الهدف
+إصلاح تسجيل الدخول الأصلي على iPhone بشكل نهائي بحيث يعمل Google وApple من شاشة النظام الأصلية بدون أخطاء `invalid_audience` أو `Unacceptable audience in id_token`.
 
-السبب الحقيقي لفشل Google على iPhone هو **عدم تطابق Bundle ID**:
+## السبب الحقيقي
+المشكلة ليست من الزر أو الواجهة فقط، بل من عدم تطابق القيم التي يتوقعها نظام المصادقة الخلفي مع الـ ID Token القادم من iPhone:
 
-| الموقع | القيمة الحالية | يجب أن تكون |
-|---|---|---|
-| Xcode (التطبيق الفعلي) | `com.mohammeddahaish.amlaki` | ✓ |
-| Google Cloud iOS Client | `com.mohammeddahaish.amlaki` | ✓ |
-| `capacitor.config.ts` | `app.lovable.c6fcf97d71d44c46b75687a26fc2bf21` | **`com.mohammeddahaish.amlaki`** ❌ |
-| Apple Services ID | `app.lovable.amlaki.web` | يحتاج مراجعة |
+- **Google**: الخلفية يجب أن تقبل أكثر من Client ID عند استخدام الويب + iOS native، وبحسب التوثيق يجب وضع **كل Client IDs** في إعداد مزود Google، مع **Web Client ID أولاً** ثم iOS Client ID.
+- **Apple**: في iOS native، التوكن يستخدم **Bundle ID / App ID** كـ audience. لذلك الخلفية يجب أن تعرف **Bundle ID** كـ Client ID مقبول. وإذا بقي Apple web مفعلاً أيضاً، يلزم إضافة **Services ID** كذلك.
+- **الكود الحالي** أيضاً ناقص في نقطة مهمة: Google native الأفضل أن يمر عبر **nonce** ثم `signInWithIdToken()`، وApple على iOS لا يحتاج `clientId` مُجبراً داخل plugin لأن الـ plugin يستخدم Bundle ID تلقائياً.
 
-Google iOS SDK يتحقق أن Bundle ID وقت التشغيل = Bundle ID المسجّل في OAuth Client. عدم التطابق ينتج خطأ `invalid_audience` بالضبط كما يحدث.
+## ما سأطبقه
+### 1) ضبط إعدادات المصادقة الخلفية بما يطابق native iOS
+- **Google provider**:
+  - ضبط قائمة Client IDs لتشمل:
+    - `333958704131-3f0rajm780ophcb2g770apn5hkbto3hq.apps.googleusercontent.com` (Web)
+    - `333958704131-p0345q3rti29e70oesqmgvpah2q8e58a.apps.googleusercontent.com` (iOS)
+  - بالترتيب: **Web أولاً ثم iOS**.
+- **Apple provider**:
+  - ضبط Client ID ليقبل:
+    - `com.mohammeddahaish.amlaki` (iOS App ID / Bundle ID)
+    - وإذا استمر دعم Apple على الويب أيضاً: `app.lovable.amlaki.web` كذلك
+  - إذا كان الويب Apple مستخدماً فعلاً، أتأكد أن إعداداته الخلفية تبقى صالحة معه أيضاً.
 
-## الخطوات
+### 2) تحديث تدفق Google native في الكود
+- إعادة بناء `src/lib/nativeGoogleAuth.ts` ليتبع نمط native الموصى به:
+  - توليد `rawNonce`
+  - اشتقاق `nonceDigest`
+  - تمرير `nonceDigest` إلى Google native login
+  - تمرير `rawNonce` إلى `supabase.auth.signInWithIdToken()`
+- إضافة حماية من مشكلة **token caching** على iOS:
+  - إذا رجع توكن قديم أو nonce غير متطابق، يتم تسجيل خروج Google محلياً وإعادة المحاولة مرة واحدة.
+- الإبقاء على استخدام `GOOGLE_WEB_CLIENT_ID` و `GOOGLE_IOS_CLIENT_ID` الحاليين إذا كانت صحيحة.
 
-### 1. توحيد Bundle ID في `capacitor.config.ts`
-- تغيير `appId` من `app.lovable.c6fcf97d71d44c46b75687a26fc2bf21` إلى `com.mohammeddahaish.amlaki` ليطابق Xcode وGoogle Console.
+### 3) تصحيح Apple native في الكود
+- إزالة فرض `clientId` الخاص بـ Apple من تهيئة plugin على iOS، لأن التوثيق يشير إلى أن iOS يستخدم **Bundle ID تلقائياً**.
+- الإبقاء على `signInWithIdToken({ provider: 'apple' })` لكن بعد تنظيف التهيئة لتطابق native iOS الفعلي.
+- إذا احتاج الويب Apple مساراً مختلفاً، يبقى في `Auth.tsx` عبر OAuth الويب كما هو.
 
-### 2. التحقق من تكوين Apple Sign In
-- Apple Services ID الحالي `app.lovable.amlaki.web` لا يطابق Bundle ID الجديد.
-- سأبقي على **Apple Managed Auth** من Lovable Cloud (لا BYOC) لأنه لا يحتاج Team ID/JWT يدوي.
-- للتدفق الأصلي على iOS، Apple يستخدم Bundle ID مباشرة (لا يحتاج Services ID)، فالحل: استخدم `com.mohammeddahaish.amlaki` كـ `clientId` داخل `SocialLogin.initialize`.
+### 4) الإبقاء على بنية الشاشة الحالية
+- `src/pages/Auth.tsx` يبقى منطقياً كما هو تقريباً:
+  - **Native** → SDK أصلي
+  - **Web** → OAuth المُدار في المتصفح
+- فقط أربط التدفق الجديد المحسن بدون تغيير تصميم الصفحة.
 
-### 3. تحديث `src/lib/nativeGoogleAuth.ts`
-- تغيير `APPLE_SERVICES_ID` من `app.lovable.amlaki.web` إلى `com.mohammeddahaish.amlaki` (Bundle ID — هذا ما يقبله Apple على iOS الأصلي).
-- إزالة `APPLE_REDIRECT_URL` من Apple init (غير مطلوب على iOS الأصلي وكان سبب خطأ "Invalid response code: 200").
-- إبقاء Google `iOSClientId` كما هو (صحيح بالفعل).
+### 5) تحسين رسائل الخطأ والتشخيص
+- إضافة رسائل أدق للمستخدم عند رفض audience أو nonce.
+- إبقاء `console.error` منظم ليسهل التقاط السبب إذا ظهر خطأ جديد.
 
-### 4. إبقاء `Auth.tsx` كما هو
-- المنطق صحيح: Web → Lovable Managed، Native → SDKs.
-
-### 5. إعادة مزامنة مزوّدي Auth في Lovable Cloud
-- إعادة تشغيل `configure_social_auth` لـ google و apple لضمان توافق الإعدادات الخلفية.
-
-## ما يجب على المستخدم فعله بعد التطبيق
-
-1. في **Xcode**: التأكد أن Bundle Identifier للتطبيق = `com.mohammeddahaish.amlaki` (موجود بالفعل).
-2. `git pull` ثم `npx cap sync ios`.
-3. في Xcode: **Clean Build Folder** ثم Rebuild.
-4. تثبيت التطبيق على iPhone وتجربة Google + Apple.
-
-## ملاحظة بشأن Team ID
-
-Team ID `ABCD123456` الظاهر في Google Console هو حقل اختياري معلوماتي ولا يؤثر على عمل OAuth وقت التشغيل (Google يتحقق بـ Bundle ID + Client ID فقط). يمكن تركه أو تحديثه لاحقاً.
-
-## ملفات ستُعدَّل
-- `capacitor.config.ts`
+## الملفات المستهدفة
 - `src/lib/nativeGoogleAuth.ts`
-- `.lovable/plan.md`
+- `src/pages/Auth.tsx` (إن احتاج ربط أو رسائل فقط)
+- `capacitor.config.ts` (مراجعة فقط؛ الـ `appId` الآن صحيح)
 
-## معايير القبول
-- لا يظهر `invalid_audience` عند الضغط على Google في iPhone.
-- لا يظهر `Invalid response code: 200` عند Apple.
-- كلا الزرين يفتحان شاشة النظام الأصلية ويُنشئان جلسة فعلية.
-- الويب يبقى يعمل بدون كسر.
+## تفاصيل تقنية مهمة
+- حسب التوثيق، **Google provider في الخلفية** عند وجود Web + iOS يجب أن يقبل **عدة Client IDs مفصولة بفواصل**، مع **Web أولاً**.
+- حسب التوثيق، **Apple native على iOS** يعتمد على **Bundle ID** كـ audience، والخلفية يجب أن تقبله.
+- إذا أردنا استمرار Apple على الويب أيضاً، فالأفضل أن تقبل الخلفية **Bundle ID + Services ID** معاً بحسب المنصة.
+- هذا يعني أن **الحل الجذري يتطلب شقين معاً**:
+  1. تصحيح الكود native
+  2. تصحيح إعدادات مزودي المصادقة في الخلفية
+
+## التحقق بعد التنفيذ
+- على iPhone:
+  - زر Google يفتح شاشة اختيار الحساب الأصلية ثم يدخل بدون `Unacceptable audience in id_token`
+  - زر Apple يفتح شاشة Apple الأصلية ثم يدخل بدون `.invalid_audience`
+- على الويب:
+  - Google وApple عبر المتصفح يستمران بالعمل
+- لا يحدث كسر في تسجيل الدخول بالبريد الإلكتروني
+
+## ما ستفعله أنت بعد التنفيذ
+- `git pull`
+- `npx cap sync ios`
+- فتح Xcode ثم **Clean Build Folder**
+- إعادة التثبيت على iPhone والتجربة
+
+## ملاحظة تنفيذية
+هذا حل جذري فعلاً لأنه يعالج **مصدر رفض التوكن** في الخلفية، وليس فقط تغييرات سطحية في الواجهة أو Bundle ID.
