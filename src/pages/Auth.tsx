@@ -93,17 +93,21 @@ export default function Auth() {
         navigate("/");
         return;
       }
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: { redirectTo: `${window.location.origin}/` },
+      // Use Lovable Cloud managed OAuth (routes via /~oauth proxy).
+      const result = await lovable.auth.signInWithOAuth(provider, {
+        redirect_uri: `${window.location.origin}/`,
       });
-      if (error) throw error;
-      // Browser redirects to provider — nothing more to do.
+      if (result.error) throw result.error;
+      if (result.redirected) return; // browser is navigating away
+      // Tokens returned directly — session is set.
+      navigate("/");
     } catch (err: any) {
-      toast.error(err.message || `${provider} sign-in failed`);
+      console.error(`[oauth:${provider}]`, err);
+      toast.error(err?.message || `${provider} sign-in failed`);
       setBusy(false);
     }
   };
+
 
   return (
     <div className="mobile-shell flex flex-col bg-background min-h-screen">
