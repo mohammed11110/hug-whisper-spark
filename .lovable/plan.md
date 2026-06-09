@@ -1,49 +1,52 @@
-# الحل الجذري لمشكلة Google على iPhone
 
-## التشخيص المؤكد
+## المشكلتان
 
-الخطأ: `invalid_audience: Audience is not a valid client ID`
+1. **الرفع لا "يظهر" بعد الحفظ**: في `SignatureManager.tsx` نعتمد بعد الحفظ على دورة كاملة (تحديث `profiles.signature_path` → تنزيل الملف من جديد من Storage → تحويله إلى Data URL). أي خطأ صامت في أي خطوة (تحديث الملف الشخصي يعيد 0 سطر، كاش متصفح، عدم انتظار الكاش، أو فشل قراءة الصورة في الـ`<img>`) ينتج عنه بقاء المعاينة فارغة رغم نجاح الرفع.
+2. **خانة رسم التوقيع صغيرة 3:1 داخل مودال صغير**، والخط 2.2px ثابت يبدو خشناً.
 
-السبب: عند تسجيل الدخول بـ Google داخل تطبيق iPhone، الـ Google SDK يُصدر `idToken` يكون فيه حقل `aud` (الجمهور) = **iOS Client ID**:
+## الحل (واجهة فقط — لا تغييرات على قاعدة البيانات)
+
+### 1) ملف `src/components/SignatureManager.tsx`
+
+- **عرض فوري بعد الحفظ بدون round-trip**: بعد `saveSignature(blob)` بنجاح، نحوّل نفس `blob` المرفوع إلى Data URL ونضعه مباشرة في `setDataUrl(...)` بدل الاعتماد على `refresh()`. `refresh()` يبقى للتحميل الأول/التحديث اليدوي فقط.
+- **قبول أوسع للملفات + حماية HEIC**: تغيير `accept` إلى `image/*` (مع إبقاء قائمة بيضاء PNG/JPEG/WEBP في الكود)، ورسالة واضحة عند HEIC: "صيغة HEIC غير مدعومة — حوّلها إلى JPG/PNG".
+- **معالجة JPG بشكل صحيح**: ملء خلفية بيضاء قبل `drawImage` لتجنّب ظهور سواد عند بعض المتصفحات، وضمان أن الناتج PNG فعلاً (`Blob.type === image/png`).
+- **رسائل خطأ تشخيصية**: التقاط الخطأ الفعلي من Storage/profile.update وعرضه (بدل "تعذّر الحفظ" المبهم) حتى نرى السبب الحقيقي إن تكرر.
+- **تنظيف الـ `<img>` cache**: إضافة `?v={Date.now()}` على Data URL غير ضروري، لكن سنفرض إعادة mount عبر `key={dataUrl}` لضمان إعادة الرسم.
+
+### 2) مودال الرسم — أكبر وأدق
+
+- **ملء الشاشة**: `DialogContent` بـ `max-w-[100vw] w-screen h-[100dvh] sm:rounded-none p-0` مع شريط علوي (عنوان + زر إغلاق) وشريط سفلي (مسح/تراجع/حفظ) ومنطقة canvas تأخذ كل المساحة المتبقية.
+- **نسبة العرض الذكية**: على الموبايل nudge للوضع الأفقي عبر CSS `landscape` hint، والـcanvas يستخدم `width:100%; height:100%` بدل `aspect-ratio: 3/1`.
+- **دقة عالية**: `devicePixelRatio` يبقى، لكن نزيد سقفه إلى `min(dpr, 3)` لتجنّب canvases ضخمة على شاشات 4x.
+- **خط أدق وأكثر سلاسة**:
+  - تقليل `lineWidth` الأساسي إلى 1.4px.
+  - **سُمك متغيّر حسب السرعة** (pressure-like): عند الحركة البطيئة 2.0px، السريعة 0.8px — يعطي إحساس قلم حقيقي.
+  - استخدام `pressure` من PointerEvent عند توفّره (Apple Pencil / S-Pen).
+  - تنعيم Catmull-Rom spline بدل quadratic بسيط، مع رسم تدريجي للـstroke الحالي فقط (لا redraw كامل عند كل حركة — تحسين أداء كبير).
+  - `getCoalescedEvents()` لالتقاط نقاط أكثر بين الإطارات على الأجهزة عالية الـHz.
+
+### تفاصيل تقنية
+
+```ts
+// instead of refresh() after save:
+const dataUrl = await blobToDataUrl(blob);
+setDataUrl(dataUrl);
+// also persist in sessionStorage so other pages see it
+sessionStorage.setItem("amlaki_signature_dataurl_v1", dataUrl);
+sessionStorage.setItem("amlaki_signature_uid_v1", uid);
 ```
-333958704131-p0345q3rti29e70oesqmgvpah2q8e58a.apps.googleusercontent.com
+
+```ts
+// variable-width stroke segment
+const dist = Math.hypot(p1.x - p0.x, p1.y - p0.y);
+const speed = dist / Math.max(1, dt);          // px/ms
+const width = clamp(2.0 - speed * 0.9, 0.8, 2.0) 
+            * (event.pressure > 0 ? 0.6 + event.pressure * 0.8 : 1);
+ctx.lineWidth = width;
 ```
 
-لكن إعدادات الباك-إند الحالية تقبل **Web Client ID فقط**:
-```
-333958704131-3f0rajm780ophcb2g770apn5hkbto3hq.apps.googleusercontent.com
-```
+## خارج النطاق
 
-فعند إرسال الـ idToken إلى `supabase.auth.signInWithIdToken`، يفحص الباك-إند الـ `aud` ويرفضه لأنه غير مُسجَّل ضمن قائمة Client IDs المعتمدة.
-
-الكود من جهة التطبيق سليم بالكامل (Apple يعمل، Google ويب يعمل، nonce صحيح). المشكلة **100% في إعدادات الباك-إند فقط** — لا حاجة لأي تعديل برمجي.
-
-## الحل (خطوة واحدة في الباك-إند)
-
-افتح: **Backend → Authentication → Sign In Methods → Google**
-
-في حقل **Client IDs** (أو Authorized Client IDs)، ضع القيمتين مفصولتين بفاصلة، **والـ Web أولاً**:
-
-```
-333958704131-3f0rajm780ophcb2g770apn5hkbto3hq.apps.googleusercontent.com,333958704131-p0345q3rti29e70oesqmgvpah2q8e58a.apps.googleusercontent.com
-```
-
-ملاحظات حرجة:
-- لا توجد مسافات حول الفاصلة.
-- Web Client ID **يجب** أن يكون أولاً (هو المعرف الأساسي للموفِّر).
-- iOS Client ID ثانياً ليُقبَل الجمهور القادم من تطبيق الـ iPhone.
-- احفظ الإعدادات.
-
-## التحقق
-
-1. بعد الحفظ في الباك-إند، **لا حاجة** لإعادة بناء التطبيق أو `cap sync` — التغيير في السيرفر فقط.
-2. أغلق التطبيق على iPhone وافتحه مجدداً.
-3. اضغط "المتابعة مع Google" → يجب أن يكتمل تسجيل الدخول مباشرة.
-
-## ماذا لو لم يكتمل بعد التعديل؟
-
-أبلغني برسالة الخطأ الجديدة بالضبط، وسأفحص:
-- هل الـ iOS Client ID صحيح في Google Cloud Console (Bundle ID = `com.mohammeddahaish.amlaki`).
-- هل ملف `GoogleService-Info.plist` موجود في مشروع Xcode ومُحدَّث.
-
-لكن في 95% من الحالات هذه الخطوة وحدها كافية.
+- لا تغيير على bucket `signatures`، RLS، أو جدول `profiles`.
+- لا تغيير على حقن التوقيع في PDF (`pdfDocs.ts`) — يقرأ من نفس الـcache.
