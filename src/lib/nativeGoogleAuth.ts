@@ -16,8 +16,9 @@ import { supabase } from "@/integrations/supabase/client";
 // ====== EDIT THESE VALUES AFTER CREATING OAuth IDs ======
 export const GOOGLE_IOS_CLIENT_ID = "333958704131-p0345q3rti29e70oesqmgvpah2q8e58a.apps.googleusercontent.com";
 export const GOOGLE_WEB_CLIENT_ID = "333958704131-3f0rajm780ophcb2g770apn5hkbto3hq.apps.googleusercontent.com";
-export const APPLE_SERVICES_ID = "app.lovable.amlaki.web"; // Services ID from Apple Developer
-export const APPLE_REDIRECT_URL = "https://amlaki1.app/auth/callback";
+// On native iOS, Apple uses the app's Bundle ID directly (NOT a Services ID).
+// Services IDs are only for web-based Sign in with Apple flows.
+export const APPLE_SERVICES_ID = "com.mohammeddahaish.amlaki";
 // =========================================================
 
 let initialized = false;
@@ -32,7 +33,6 @@ async function ensureInit() {
     },
     apple: {
       clientId: APPLE_SERVICES_ID,
-      redirectUrl: APPLE_REDIRECT_URL,
     },
   });
   initialized = true;

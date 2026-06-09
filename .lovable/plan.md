@@ -1,60 +1,55 @@
-# الخطة
+## السبب الجذري المؤكد
 
-## الهدف
-إصلاح تسجيل الدخول عبر Google وApple بشكل جذري في كل البيئات: الويب، الموقع المنشور، وتطبيق Capacitor، مع إزالة أسباب التعطل الحالية بدل الاكتفاء بإخفاء الخطأ.
+السبب الحقيقي لفشل Google على iPhone هو **عدم تطابق Bundle ID**:
 
-## التشخيص الحالي
-- **الويب**: تم تحويله بالفعل إلى مسار OAuth المُدار، وهذا هو الاتجاه الصحيح.
-- **Google داخل التطبيق الأصلي**: الخطأ `invalid_audience` يعني أن **رمز Google المأخوذ من iOS/Capacitor لا يطابق معرّفات العميل المقبولة في إعدادات المصادقة الخلفية**.
-- **Apple داخل التطبيق الأصلي**: الخطأ `Invalid response code: 200` يشير إلى أن **تدفق Apple الأصلي مهيّأ كأنه تدفق ويب** عبر `redirectUrl`، بينما التطبيق لا يملك callback native/web مطابقًا لهذا الاستخدام، فيرجع مسار HTML عادي بحالة 200 بدل مسار نجاح OAuth صالح.
-- يوجد أيضًا مؤشر مهم: الإعداد الحالي يشير إلى `https://amlaki1.app/auth/callback` بينما التطبيق **لا يحتوي Route صريحًا** لهذا المسار الآن.
+| الموقع | القيمة الحالية | يجب أن تكون |
+|---|---|---|
+| Xcode (التطبيق الفعلي) | `com.mohammeddahaish.amlaki` | ✓ |
+| Google Cloud iOS Client | `com.mohammeddahaish.amlaki` | ✓ |
+| `capacitor.config.ts` | `app.lovable.c6fcf97d71d44c46b75687a26fc2bf21` | **`com.mohammeddahaish.amlaki`** ❌ |
+| Apple Services ID | `app.lovable.amlaki.web` | يحتاج مراجعة |
 
-## ما سأبنيه
-1. **تصحيح redirect في iPhone/Capacitor من الجذر**
-   - الويب يبقى على `lovable.auth.signInWithOAuth(...)` مع `window.location.origin`.
-   - داخل Capacitor لا نرسل `window.location.origin` لأنّه يصبح origin محليًا غير صالح لـ Apple/Google.
-   - سنستخدم دومين الويب المنشور `https://amlaki1.app` كـ `redirect_uri` داخل التطبيق حتى يعود OAuth إلى رابط ويب معتمد بدل صفحة بيضاء أو `Invalid web redirect url`.
+Google iOS SDK يتحقق أن Bundle ID وقت التشغيل = Bundle ID المسجّل في OAuth Client. عدم التطابق ينتج خطأ `invalid_audience` بالضبط كما يحدث.
 
-2. **إبقاء Google على المسار المُدار فقط**
-   - لا نعود إلى `idToken` الأصلي، لأن المشكلة الحالية على iPhone هي redirect/origin وليس الزر.
-   - بهذا نمنع `invalid_audience` ونستخدم نفس المسار المُدار في الويب والتطبيق.
+## الخطوات
 
-3. **إصلاح Apple من الجذر**
-   - Apple يرفض redirect المحلي/غير المسجل، وهذا ظاهر في لقطة الخطأ `Invalid web redirect url`.
-   - الحل هو إرسال redirect ويب منشور وثابت ومعتمد بدل origin التطبيق المحلي.
+### 1. توحيد Bundle ID في `capacitor.config.ts`
+- تغيير `appId` من `app.lovable.c6fcf97d71d44c46b75687a26fc2bf21` إلى `com.mohammeddahaish.amlaki` ليطابق Xcode وGoogle Console.
 
-4. **توحيد معالجة الرجوع والجلسة**
-   - جعل التطبيق يتعامل بشكل صريح مع حالات:
-     - redirect web
-     - native token exchange
-     - completion without session
-     - failure with clear message
-   - منع بقاء الزر معلقًا أو ظهور رسائل مبهمة.
+### 2. التحقق من تكوين Apple Sign In
+- Apple Services ID الحالي `app.lovable.amlaki.web` لا يطابق Bundle ID الجديد.
+- سأبقي على **Apple Managed Auth** من Lovable Cloud (لا BYOC) لأنه لا يحتاج Team ID/JWT يدوي.
+- للتدفق الأصلي على iOS، Apple يستخدم Bundle ID مباشرة (لا يحتاج Services ID)، فالحل: استخدم `com.mohammeddahaish.amlaki` كـ `clientId` داخل `SocialLogin.initialize`.
 
-5. **Fallback موثوق**
-   - إذا فشل المسار الأصلي لمزوّد معيّن على جهاز معيّن، سأضيف fallback آمنًا ومقصودًا بدل تعطل صامت، حتى لا يبقى المستخدم محصورًا.
+### 3. تحديث `src/lib/nativeGoogleAuth.ts`
+- تغيير `APPLE_SERVICES_ID` من `app.lovable.amlaki.web` إلى `com.mohammeddahaish.amlaki` (Bundle ID — هذا ما يقبله Apple على iOS الأصلي).
+- إزالة `APPLE_REDIRECT_URL` من Apple init (غير مطلوب على iOS الأصلي وكان سبب خطأ "Invalid response code: 200").
+- إبقاء Google `iOSClientId` كما هو (صحيح بالفعل).
 
-6. **تحقق نهائي شامل**
-   - اختبار Google وApple على:
-     - المعاينة/الويب
-     - الموقع المنشور
-     - Capacitor iOS/Android
-   - التأكد من الوصول إلى جلسة فعلية بعد العودة، وليس فقط فتح شاشة المزوّد.
+### 4. إبقاء `Auth.tsx` كما هو
+- المنطق صحيح: Web → Lovable Managed، Native → SDKs.
 
-## التفاصيل التقنية
-- **ملفات متوقعة للتعديل**:
-  - `src/lib/nativeGoogleAuth.ts`
-  - `capacitor.config.ts`
-  - `src/pages/Auth.tsx`
-  - `src/App.tsx` (إذا أضفنا callback route صريح)
-  - ملف callback جديد فقط إذا كان لازمًا لمسار الرجوع المنظّم
-- **إعدادات الخلفية**:
-  - إعادة ضبط Google وApple في إعدادات المصادقة الاجتماعية بحيث تطابق معرّفات التطبيق الأصلية الفعلية.
-- **معايير القبول**:
-  - Google على الجوال لا يُظهر `invalid_audience`.
-  - Apple على الجوال لا يُظهر `Invalid response code: 200`.
-  - كلا الزرين ينشئان جلسة صحيحة وينقلان المستخدم داخل التطبيق.
-  - الويب يبقى يعمل بدون تراجع أو كسر.
+### 5. إعادة مزامنة مزوّدي Auth في Lovable Cloud
+- إعادة تشغيل `configure_social_auth` لـ google و apple لضمان توافق الإعدادات الخلفية.
 
-## ملاحظة
-هذه الخطة تستهدف **حلًا جذريًا في منطق المصادقة والإعدادات** فقط، بدون تغيير بصري غير ضروري.
+## ما يجب على المستخدم فعله بعد التطبيق
+
+1. في **Xcode**: التأكد أن Bundle Identifier للتطبيق = `com.mohammeddahaish.amlaki` (موجود بالفعل).
+2. `git pull` ثم `npx cap sync ios`.
+3. في Xcode: **Clean Build Folder** ثم Rebuild.
+4. تثبيت التطبيق على iPhone وتجربة Google + Apple.
+
+## ملاحظة بشأن Team ID
+
+Team ID `ABCD123456` الظاهر في Google Console هو حقل اختياري معلوماتي ولا يؤثر على عمل OAuth وقت التشغيل (Google يتحقق بـ Bundle ID + Client ID فقط). يمكن تركه أو تحديثه لاحقاً.
+
+## ملفات ستُعدَّل
+- `capacitor.config.ts`
+- `src/lib/nativeGoogleAuth.ts`
+- `.lovable/plan.md`
+
+## معايير القبول
+- لا يظهر `invalid_audience` عند الضغط على Google في iPhone.
+- لا يظهر `Invalid response code: 200` عند Apple.
+- كلا الزرين يفتحان شاشة النظام الأصلية ويُنشئان جلسة فعلية.
+- الويب يبقى يعمل بدون كسر.

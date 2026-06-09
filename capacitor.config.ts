@@ -5,7 +5,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 const isDev = process.env.CAP_ENV === "dev";
 
 const config: CapacitorConfig = {
-  appId: "app.lovable.c6fcf97d71d44c46b75687a26fc2bf21",
+  appId: "com.mohammeddahaish.amlaki",
   appName: "Amlaki",
   webDir: "dist",
   ...(isDev
