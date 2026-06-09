@@ -33,18 +33,9 @@ const config: CapacitorConfig = {
       splashFullScreen: true,
       splashImmersive: true,
     },
-    // Native Social Sign-In (iOS/Android only).
-    // Uses @capgo/capacitor-social-login. Fill in the same values as src/lib/nativeGoogleAuth.ts.
-    SocialLogin: {
-      google: {
-        webClientId: "333958704131-3f0rajm780ophcb2g770apn5hkbto3hq.apps.googleusercontent.com",
-        iOSClientId: "333958704131-p0345q3rti29e70oesqmgvpah2q8e58a.apps.googleusercontent.com",
-      },
-      apple: {
-        clientId: "app.lovable.amlaki.web",
-        redirectUrl: "https://amlaki1.app/auth/callback",
-      },
-    },
+    // Social sign-in is handled by Lovable Managed OAuth via the in-app
+    // WebView (see src/pages/Auth.tsx). No native SocialLogin plugin
+    // configuration is required.
   },
 };
 

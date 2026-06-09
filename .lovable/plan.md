@@ -1,47 +1,61 @@
-## المشكلة
-زرّا Google و Apple في `src/pages/Auth.tsx` لا يستجيبان (في الويب، الموقع المنشور، وتطبيق Capacitor) لأن الكود على الويب يستدعي `supabase.auth.signInWithOAuth` مباشرةً، بينما المشروع مُفعَّل عليه **Lovable Cloud Managed OAuth** (`src/integrations/lovable/index.ts` موجود). في هذه الحالة المسار الصحيح هو `lovable.auth.signInWithOAuth(...)` الذي يمر عبر بروكسي `/~oauth` الخاص بـ Lovable. الاستدعاء الحالي يفشل بصمت (Unsupported provider أو redirect لا يحدث) ولا تظهر أي رسالة.
+# الخطة
 
-أيضًا على الجوال (Capacitor) المسار يستخدم `@capgo/capacitor-social-login` — هذا صحيح ولكن سنتأكد من أن init يتم قبل أي محاولة وأن الأخطاء تُعرض للمستخدم.
+## الهدف
+إصلاح تسجيل الدخول عبر Google وApple بشكل جذري في كل البيئات: الويب، الموقع المنشور، وتطبيق Capacitor، مع إزالة أسباب التعطل الحالية بدل الاكتفاء بإخفاء الخطأ.
 
-## الخطة
+## التشخيص الحالي
+- **الويب**: تم تحويله بالفعل إلى مسار OAuth المُدار، وهذا هو الاتجاه الصحيح.
+- **Google داخل التطبيق الأصلي**: الخطأ `invalid_audience` يعني أن **رمز Google المأخوذ من iOS/Capacitor لا يطابق معرّفات العميل المقبولة في إعدادات المصادقة الخلفية**.
+- **Apple داخل التطبيق الأصلي**: الخطأ `Invalid response code: 200` يشير إلى أن **تدفق Apple الأصلي مهيّأ كأنه تدفق ويب** عبر `redirectUrl`، بينما التطبيق لا يملك callback native/web مطابقًا لهذا الاستخدام، فيرجع مسار HTML عادي بحالة 200 بدل مسار نجاح OAuth صالح.
+- يوجد أيضًا مؤشر مهم: الإعداد الحالي يشير إلى `https://amlaki1.app/auth/callback` بينما التطبيق **لا يحتوي Route صريحًا** لهذا المسار الآن.
 
-### 1) تحديث الويب إلى Lovable Managed OAuth
-- في `src/pages/Auth.tsx` استبدال `supabase.auth.signInWithOAuth({ provider, ... })` بـ:
-  ```ts
-  import { lovable } from "@/integrations/lovable";
-  const result = await lovable.auth.signInWithOAuth(provider, {
-    redirect_uri: `${window.location.origin}/`,
-  });
-  if (result.error) throw result.error;
-  if (result.redirected) return; // المتصفح ينتقل
-  navigate("/");
-  ```
-- إبقاء فرع `isNativeApp()` كما هو (يعمل عبر `@capgo/capacitor-social-login`).
+## ما سأبنيه
+1. **فصل واضح بين OAuth الويب وOAuth الأصلي**
+   - الويب يبقى على `lovable.auth.signInWithOAuth(...)`.
+   - Capacitor يستخدم مسارًا أصليًا مضبوطًا لكل مزود بدل إعداد ويب عام.
 
-### 2) تحسين تجربة الخطأ والـ busy
-- إضافة `console.error` + `toast.error` واضح يضمّ اسم المزوّد ورسالة الخطأ.
-- في الويب: عدم استدعاء `setBusy(false)` فقط في `catch` بل أيضًا في حال `redirected=false` غير المتوقع، لمنع تجمد الزر.
-- إضافة `aria-busy` ومؤشر تحميل صغير داخل الزر أثناء الانتظار.
+2. **إصلاح Google الأصلي من الجذر**
+   - توحيد إعدادات Google بين التطبيق الأصلي والمصادقة الخلفية حتى يُقبل `idToken` القادم من iOS/Android.
+   - إزالة أي عدم تطابق بين `webClientId` و `iOSClientId` وما تقبله المصادقة الخلفية.
+   - عند الحاجة: إعادة ضبط إعداد Google في الخلفية ليقبل معرّفات التطبيق الأصلية الصحيحة بدل الاعتماد على إعداد الويب فقط.
 
-### 3) التحقق من إعدادات المزوّدين في Lovable Cloud
-بعد تطبيق الكود، نتأكد أن مزوّدَي `google` و `apple` مفعّلان فعلاً في **Users → Authentication Settings → Sign In Methods** عبر استدعاء `configure_social_auth({ providers: ["google", "apple"] })` لإعادة توليد أي إعداد ناقص (مع الاحتفاظ بـ email).
+3. **إصلاح Apple الأصلي من الجذر**
+   - تعديل تهيئة Apple على Capacitor لتكون **native-first** بدل ربطها بمسار redirect خاص بالويب في iOS.
+   - إن احتجنا مسار callback للويب/الاحتياط، سأضيفه صراحة بدل الاعتماد على fallback HTML عام.
+   - منع سيناريو رجوع Apple إلى صفحة SPA عادية بحالة 200 ثم انهيار الإضافة.
 
-### 4) التحقق من أن Capacitor SocialLogin مهيّأ
-- `capacitor.config.ts` يحتوي بالفعل على `webClientId` و `iOSClientId` و Apple `clientId` — صحيح.
-- التأكد من أن `nativeGoogleSignIn` / `nativeAppleSignIn` يستدعيان `ensureInit()` (موجود بالفعل) وأن أي خطأ يُعرض في `toast` بدلاً من البلع.
+4. **توحيد معالجة الرجوع والجلسة**
+   - جعل التطبيق يتعامل بشكل صريح مع حالات:
+     - redirect web
+     - native token exchange
+     - completion without session
+     - failure with clear message
+   - منع بقاء الزر معلقًا أو ظهور رسائل مبهمة.
 
-### 5) اختبار التحقق
-- على الموقع المنشور (amlaki1.app): الضغط على Google يجب أن يعيد التوجيه إلى `oauth.lovable.app` ثم Google ثم يعود ويسجّل الجلسة.
-- على معاينة Lovable: نفس السلوك (يدعم `lovable.auth.signInWithOAuth` المعاينة).
-- على iOS Capacitor: يفتح شيت Apple/Google الأصلي وتُنشأ الجلسة عبر `idToken`.
+5. **Fallback موثوق**
+   - إذا فشل المسار الأصلي لمزوّد معيّن على جهاز معيّن، سأضيف fallback آمنًا ومقصودًا بدل تعطل صامت، حتى لا يبقى المستخدم محصورًا.
 
-### 6) إن كانت المشكلة بعد التحديث لا تزال على الموقع المنشور فقط
-نتحقق من سجلات auth (`supabase analytics_query`) لرؤية أي خطأ `invalid_provider` أو `redirect_uri_mismatch`، ثم نضيف الدومين `amlaki1.app` في إعدادات المزوّد عند الحاجة.
+6. **تحقق نهائي شامل**
+   - اختبار Google وApple على:
+     - المعاينة/الويب
+     - الموقع المنشور
+     - Capacitor iOS/Android
+   - التأكد من الوصول إلى جلسة فعلية بعد العودة، وليس فقط فتح شاشة المزوّد.
 
-## ملفات سيتم تعديلها
-- `src/pages/Auth.tsx` (المنطق فقط — لا تغييرات بصرية على الأزرار)
-- `src/lib/nativeGoogleAuth.ts` (تحسين رسائل الخطأ فقط، اختياري)
-- استدعاء أداة `configure_social_auth` لإعادة تأكيد تفعيل google + apple
+## التفاصيل التقنية
+- **ملفات متوقعة للتعديل**:
+  - `src/lib/nativeGoogleAuth.ts`
+  - `capacitor.config.ts`
+  - `src/pages/Auth.tsx`
+  - `src/App.tsx` (إذا أضفنا callback route صريح)
+  - ملف callback جديد فقط إذا كان لازمًا لمسار الرجوع المنظّم
+- **إعدادات الخلفية**:
+  - إعادة ضبط Google وApple في إعدادات المصادقة الاجتماعية بحيث تطابق معرّفات التطبيق الأصلية الفعلية.
+- **معايير القبول**:
+  - Google على الجوال لا يُظهر `invalid_audience`.
+  - Apple على الجوال لا يُظهر `Invalid response code: 200`.
+  - كلا الزرين ينشئان جلسة صحيحة وينقلان المستخدم داخل التطبيق.
+  - الويب يبقى يعمل بدون تراجع أو كسر.
 
 ## ملاحظة
-هذه تغييرات منطقية في طبقة المصادقة فقط — لا تمس التصميم أو الأعمال (Payments, Receipts…).
+هذه الخطة تستهدف **حلًا جذريًا في منطق المصادقة والإعدادات** فقط، بدون تغيير بصري غير ضروري.
