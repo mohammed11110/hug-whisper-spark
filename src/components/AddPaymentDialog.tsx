@@ -1417,11 +1417,10 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   );
 }
 
-function ScaledReceiptPreview({ html, rtl }: { html: string; rtl: boolean }) {
-  // Source page is rendered at 794px (A4 @96dpi). We scale it down to fit
-  // the available container width on mobile/tablet while keeping desktop 1:1.
-  const PAGE_W = 794;
-  const PAGE_H = 1123; // A4 height @96dpi
+function ScaledReceiptPreview({ blob, rtl }: { blob: Blob | null; rtl: boolean }) {
+  // A5 portrait — matches the generated PDF (148×210mm ≈ 559×794px @96dpi).
+  const PAGE_W = 559;
+  const PAGE_H = 794;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [scale, setScale] = useState(1);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
@@ -1439,22 +1438,19 @@ function ScaledReceiptPreview({ html, rtl }: { html: string; rtl: boolean }) {
     return () => ro.disconnect();
   }, []);
 
-  // Use a Blob URL instead of srcDoc — srcDoc renders blank inside
-  // WKWebView (iPad/Capacitor) when nested in Radix Dialog.
   useEffect(() => {
-    if (!html) { setBlobUrl(null); return; }
-    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    if (!blob) { setBlobUrl(null); return; }
     const url = URL.createObjectURL(blob);
     setBlobUrl(url);
     return () => { try { URL.revokeObjectURL(url); } catch { /* noop */ } };
-  }, [html]);
+  }, [blob]);
 
   const scaledH = PAGE_H * scale;
 
   return (
     <div
       ref={containerRef}
-      className="flex-1 overflow-auto rounded-xl border border-sage-200 bg-sage-100/30 relative"
+      className="flex-1 overflow-auto rounded-xl border border-border bg-muted/30 relative"
       style={{
         height: `min(${scaledH}px, 70svh)`,
         WebkitOverflowScrolling: "touch",
@@ -1463,9 +1459,8 @@ function ScaledReceiptPreview({ html, rtl }: { html: string; rtl: boolean }) {
       {blobUrl && (
         <iframe
           title="receipt-preview"
-          src={blobUrl}
-          scrolling="no"
-          className="bg-card border-0"
+          src={`${blobUrl}#toolbar=0&navpanes=0&view=FitH`}
+          className="border-0"
           style={{
             width: `${PAGE_W}px`,
             height: `${PAGE_H}px`,
