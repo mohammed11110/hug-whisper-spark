@@ -18,7 +18,7 @@ import { computeReceiptNumber, allocateReceiptNumbers, type CyclePaymentRef } fr
 import type { ReceiptNumbering } from "@/lib/appSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { buildReceiptHTML, downloadHTMLAsPDF } from "@/lib/pdfDocsLazy";
+import { downloadReceiptPDFDirect, getReceiptPDFBlob, type ReceiptData } from "@/lib/pdfDocsLazy";
 import { openWhatsApp, fillTemplate } from "@/lib/whatsapp";
 import { logActivity } from "@/lib/activityLogger";
 import { useUnsavedGuard } from "@/lib/useUnsavedGuard";
@@ -126,7 +126,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   // (privacy-friendly). User opts in via switch before saving.
   const [includeArrearsInReceipt, setIncludeArrearsInReceipt] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewHtml, setPreviewHtml] = useState<string>("");
+  const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
 
 
   const { start: periodStart, end: periodEnd } = monthRange(periodYear, periodMonthNum);
@@ -488,19 +488,31 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
       return { baseArgs, upTo, unpaidTotal, monthLabel: primaryPeriodLabel };
   };
 
+  const buildReceiptDataFor = (args: ReturnType<typeof buildReceiptArgs>, includeArrears: boolean): ReceiptData => {
+    const a = args!;
+    const cycleTotalDue = Number(a.baseArgs.expectedAmount) || Number(a.baseArgs.amount) || 0;
+    const amountPaid = Number(a.baseArgs.amount) || 0;
+    const cycleRemaining = Math.max(0, cycleTotalDue - amountPaid);
+    return {
+      ...a.baseArgs,
+      unpaidMonths: includeArrears ? a.upTo : [],
+      unpaidTotal: includeArrears ? a.unpaidTotal : 0,
+      unpaidUpToLabel: includeArrears ? a.monthLabel : undefined,
+      cycleTotalDue,
+      cyclePaidToDate: amountPaid,
+      cycleRemaining,
+      statusKey: cycleRemaining <= 0.009 ? "paid" : "partial",
+    } as ReceiptData;
+  };
+
   const openPreview = async () => {
     const args = buildReceiptArgs();
     if (!args) {
       toast.error(lang === "ar" ? "أدخل المبلغ واختر الوحدة أولاً" : "Enter amount and select a unit first");
       return;
     }
-    const html = await buildReceiptHTML({
-      ...args.baseArgs,
-      unpaidMonths: includeArrearsInReceipt ? args.upTo : [],
-      unpaidTotal: includeArrearsInReceipt ? args.unpaidTotal : 0,
-      unpaidUpToLabel: includeArrearsInReceipt ? args.monthLabel : undefined,
-    });
-    setPreviewHtml(html);
+    const blob = await getReceiptPDFBlob(buildReceiptDataFor(args, includeArrearsInReceipt));
+    setPreviewBlob(blob);
     setPreviewOpen(true);
   };
 
@@ -814,13 +826,20 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
 
   const emitReceipt = async (payload: any, includeArrears: boolean) => {
     try {
-      const html = await buildReceiptHTML({
+      const cycleTotalDue = Number(payload.baseArgs.expectedAmount) || Number(payload.baseArgs.amount) || 0;
+      const amountPaid = Number(payload.baseArgs.amount) || 0;
+      const cycleRemaining = Math.max(0, cycleTotalDue - amountPaid);
+      const data: ReceiptData = {
         ...payload.baseArgs,
         unpaidMonths: includeArrears ? payload.upTo : [],
         unpaidTotal: includeArrears ? payload.unpaidTotal : 0,
         unpaidUpToLabel: includeArrears ? payload.monthLabel : undefined,
-      });
-      await downloadHTMLAsPDF(html, payload.filename, settings);
+        cycleTotalDue,
+        cyclePaidToDate: amountPaid,
+        cycleRemaining,
+        statusKey: cycleRemaining <= 0.009 ? "paid" : "partial",
+      } as ReceiptData;
+      await downloadReceiptPDFDirect(data, payload.filename);
     } catch (e: any) {
       console.warn("receipt PDF failed", e);
     }
@@ -1356,7 +1375,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
               )}
             </DialogTitle>
           </DialogHeader>
-          <ScaledReceiptPreview html={previewHtml} rtl={lang === "ar"} />
+          <ScaledReceiptPreview blob={previewBlob} rtl={lang === "ar"} />
 
           <DialogFooter className="gap-2 sm:gap-2 flex-wrap">
             {unpaidMonths.length > 0 && (
@@ -1370,13 +1389,8 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
                     setTimeout(async () => {
                       const args = buildReceiptArgs();
                       if (!args) return;
-                      const html = await buildReceiptHTML({
-                        ...args.baseArgs,
-                        unpaidMonths: next ? args.upTo : [],
-                        unpaidTotal: next ? args.unpaidTotal : 0,
-                        unpaidUpToLabel: next ? args.monthLabel : undefined,
-                      });
-                      setPreviewHtml(html);
+                      const blob = await getReceiptPDFBlob(buildReceiptDataFor(args, next));
+                      setPreviewBlob(blob);
                     }, 0);
                     return next;
                   });
@@ -1403,11 +1417,10 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   );
 }
 
-function ScaledReceiptPreview({ html, rtl }: { html: string; rtl: boolean }) {
-  // Source page is rendered at 794px (A4 @96dpi). We scale it down to fit
-  // the available container width on mobile/tablet while keeping desktop 1:1.
-  const PAGE_W = 794;
-  const PAGE_H = 1123; // A4 height @96dpi
+function ScaledReceiptPreview({ blob, rtl }: { blob: Blob | null; rtl: boolean }) {
+  // A5 portrait — matches the generated PDF (148×210mm ≈ 559×794px @96dpi).
+  const PAGE_W = 559;
+  const PAGE_H = 794;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [scale, setScale] = useState(1);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
@@ -1425,22 +1438,19 @@ function ScaledReceiptPreview({ html, rtl }: { html: string; rtl: boolean }) {
     return () => ro.disconnect();
   }, []);
 
-  // Use a Blob URL instead of srcDoc — srcDoc renders blank inside
-  // WKWebView (iPad/Capacitor) when nested in Radix Dialog.
   useEffect(() => {
-    if (!html) { setBlobUrl(null); return; }
-    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    if (!blob) { setBlobUrl(null); return; }
     const url = URL.createObjectURL(blob);
     setBlobUrl(url);
     return () => { try { URL.revokeObjectURL(url); } catch { /* noop */ } };
-  }, [html]);
+  }, [blob]);
 
   const scaledH = PAGE_H * scale;
 
   return (
     <div
       ref={containerRef}
-      className="flex-1 overflow-auto rounded-xl border border-sage-200 bg-sage-100/30 relative"
+      className="flex-1 overflow-auto rounded-xl border border-border bg-muted/30 relative"
       style={{
         height: `min(${scaledH}px, 70svh)`,
         WebkitOverflowScrolling: "touch",
@@ -1449,9 +1459,8 @@ function ScaledReceiptPreview({ html, rtl }: { html: string; rtl: boolean }) {
       {blobUrl && (
         <iframe
           title="receipt-preview"
-          src={blobUrl}
-          scrolling="no"
-          className="bg-card border-0"
+          src={`${blobUrl}#toolbar=0&navpanes=0&view=FitH`}
+          className="border-0"
           style={{
             width: `${PAGE_W}px`,
             height: `${PAGE_H}px`,
