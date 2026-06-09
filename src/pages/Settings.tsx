@@ -477,6 +477,8 @@ export default function Settings() {
               </div>
             </Card>
 
+            <SignatureManager />
+
             <Link to="/pricing" className="flex items-center gap-3 bg-card border border-sage-200/60 rounded-2xl p-4 shadow-soft hover:bg-sage-50">
               <div className="p-2 rounded-xl bg-gold/15 text-gold"><Crown className="h-4 w-4" /></div>
               <p className="flex-1 text-sm font-bold text-sage-600 text-start">{tr(lang, "الخطط والأسعار", "Plans & pricing")}</p>
