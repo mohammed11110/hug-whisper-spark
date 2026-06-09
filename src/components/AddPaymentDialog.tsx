@@ -126,7 +126,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
   // (privacy-friendly). User opts in via switch before saving.
   const [includeArrearsInReceipt, setIncludeArrearsInReceipt] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewHtml, setPreviewHtml] = useState<string>("");
+  const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
 
 
   const { start: periodStart, end: periodEnd } = monthRange(periodYear, periodMonthNum);
