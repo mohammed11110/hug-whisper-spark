@@ -46,6 +46,8 @@ Deno.serve(async (req: Request) => {
     return json(405, { error: 'Method not allowed' })
   }
 
+  console.log('google-native-signin invoked')
+
   let parsedBody: z.infer<typeof BodySchema>
   try {
     parsedBody = BodySchema.parse(await req.json())
@@ -134,6 +136,8 @@ Deno.serve(async (req: Request) => {
     }
 
     return json(200, {
+      access_token: verifyData.session.access_token,
+      refresh_token: verifyData.session.refresh_token,
       session: verifyData.session,
       user: verifyData.user,
     })
