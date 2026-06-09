@@ -68,6 +68,19 @@ export default function Settings() {
   const fileImportRef = useRef<HTMLInputElement>(null);
   const logoDragRef = useRef<HTMLDivElement>(null);
   const [logoDrag, setLogoDrag] = useState(false);
+  const tabsSectionRef = useRef<HTMLElement>(null);
+  type SettingsTab = "account" | "brand" | "notify" | "print" | "secure";
+  const [tab, setTab] = useState<SettingsTab>(() => {
+    if (typeof window !== "undefined" && window.location.hash === "#brand") return "brand";
+    return "account";
+  });
+  React.useEffect(() => {
+    if (typeof window !== "undefined" && window.location.hash === "#brand") {
+      setTab("brand");
+      // Defer scroll until layout has settled
+      setTimeout(() => tabsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+    }
+  }, []);
 
   const planLabel = (p: string) => {
     const map: Record<string, { ar: string; en: string }> = {
