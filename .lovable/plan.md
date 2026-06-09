@@ -1,31 +1,30 @@
-# تحديث الهوية في المتصفح وحذف كلمة "أناقة"
+## Problem
 
-## الهدف
-تحديث العنوان والوصف الظاهر في Google/المتصفح، مع إزالة كلمة "أناقة / وأناقة / بأناقة" من كل النصوص المرئية للزوار.
+In Settings page, the tile **Tools → "بيانات المؤسسة" (Organization info)** does nothing when tapped. It is supposed to open the **Brand (الهوية)** tab, but:
 
-## الشعار الجديد المقترح
-- **العنوان**: `أملاكي · إدارة العقارات بذكاء`
-- **الوصف**: `منصة أملاكي لإدارة المباني والوحدات والمستأجرين والإيجارات والمدفوعات بكل سهولة — جرّب مجاناً.`
+1. The Tabs component is **uncontrolled** (`defaultValue="account"`), so it cannot be switched programmatically from outside.
+2. The tile's `onClick` queries `button[role="tab"][value="brand"]`, but Radix `TabsTrigger` does **not** expose `value` as an HTML attribute — so the selector never matches and the click never fires.
+3. The wrapping `<Link to="#brand">` only updates the URL hash; it doesn't switch tabs.
 
-(إذا تريد صياغة مختلفة أخبرني قبل التنفيذ.)
+Result: tap = nothing happens (or just adds `#brand` to the URL).
 
-## الملفات التي ستُعدّل
+## Fix (UI-only, in `src/pages/Settings.tsx`)
 
-1. **`index.html`** (المصدر الرئيسي لما يظهر في Google):
-   - `<title>` → `أملاكي · Amlaki — إدارة العقارات بذكاء`
-   - `meta description` → الوصف الجديد بدون "وأناقة"
-   - `og:title` / `og:description`
-   - `twitter:title` / `twitter:description`
-   - `JSON-LD description`
+1. Make the Tabs **controlled**:
+   - Add `const [tab, setTab] = useState<"account"|"brand"|"notify"|"print"|"secure">("account");`
+   - Change `<Tabs defaultValue="account" …>` → `<Tabs value={tab} onValueChange={(v) => setTab(v as any)} …>`
 
-2. **`src/pages/Welcome.tsx`** (سطر 16):
-   - حذف "وأناقة" من عنوان SEO
+2. Replace the broken "Organization info" tile:
+   - Change `<Link to="#brand" onClick={…querySelector…}>` to a plain `<button>` that:
+     - Calls `setTab("brand")`
+     - Scrolls smoothly to the Tabs section (using a `ref` on the tabs `<section>`)
+   - Keep all existing styling and copy unchanged.
 
-3. **`src/pages/daily/DailyLayout.tsx`** (سطر 54):
-   - تغيير "بأناقة" إلى "بسهولة"
+3. On mount, if `location.hash === "#brand"` (e.g. from an old link), set `tab` to `"brand"` and scroll to the tabs section — so deep links keep working.
 
-## ملاحظة حول الذاكرة
-ذاكرة المشروع تذكر "أناقة" كجزء من وعد العلامة. سأحدّث `mem://index.md` لإزالة هذه الكلمة من الوعد الرسمي حتى لا تعود مستقبلاً.
+No business logic, no backend, no schema changes. Only the Settings page presentation.
 
-## بعد النشر
-نتائج Google تستغرق عادةً أيام/أسابيع حتى تعيد فهرسة العنوان والوصف الجديدين، لكن التغيير في المتصفح وعند المشاركة على واتساب/تويتر يظهر فوراً بعد النشر.
+## Verification
+
+- Open `/settings` → scroll to **الأدوات** → tap **بيانات المؤسسة** → page scrolls to the tabs row and the **الهوية / Brand** tab becomes active, revealing the WhatsApp + logo/name/landlord/phone/address form.
+- Other tab triggers (Account, Alerts, Print, Security) still work normally.
