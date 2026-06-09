@@ -76,6 +76,7 @@ async function doGoogleSignInOnce(): Promise<void> {
     options: {
       scopes: ["email", "profile"],
       nonce: nonceDigest,
+      forcePrompt: true,
     } as any,
   });
   const result = res?.result ?? res;
@@ -104,6 +105,9 @@ async function doGoogleSignInOnce(): Promise<void> {
 export async function nativeGoogleSignIn(): Promise<void> {
   await ensureInit();
   try {
+    try {
+      await SocialLogin.logout({ provider: "google" } as any);
+    } catch {}
     await doGoogleSignInOnce();
   } catch (e: any) {
     const msg = String(e?.message || e);
