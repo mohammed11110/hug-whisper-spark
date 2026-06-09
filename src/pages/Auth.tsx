@@ -16,6 +16,7 @@ import {
   nativeGoogleSignIn,
   nativeAppleSignIn,
 } from "@/lib/nativeGoogleAuth";
+import { lovable } from "@/integrations/lovable";
 
 const ASCII_RE = /^[\x20-\x7E]*$/;
 const REMEMBER_KEY = "remembered_email";
