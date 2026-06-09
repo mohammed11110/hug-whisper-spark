@@ -521,6 +521,8 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
       cyclePaidToDate: amountPaid,
       cycleRemaining,
       statusKey: cycleRemaining <= 0.009 ? "paid" : "partial",
+      signatureDataUrl: signatureDataUrl || null,
+      signatureName,
     } as ReceiptData;
   };
 
@@ -530,6 +532,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
       toast.error(lang === "ar" ? "أدخل المبلغ واختر الوحدة أولاً" : "Enter amount and select a unit first");
       return;
     }
+    if (!(await ensureSignatureOrWarn())) return;
     const blob = await getReceiptPDFBlob(buildReceiptDataFor(args, includeArrearsInReceipt));
     setPreviewBlob(blob);
     setPreviewOpen(true);
