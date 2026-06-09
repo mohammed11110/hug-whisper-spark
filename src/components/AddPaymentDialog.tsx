@@ -548,6 +548,7 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
     if (!parsed.success) {
       return toast.error(parsed.error.issues[0].message);
     }
+    if (!(await ensureSignatureOrWarn())) return;
     setSaving(true);
     const { data: activeT } = await supabase.from("tenancies").select("id").eq("unit_id", unitId).eq("status", "active").maybeSingle();
     const mergedNotes = [settlementNote, notes.trim()].filter(Boolean).join(" — ") || null;
