@@ -51,7 +51,7 @@ export default function DailyLayout() {
               الإيجارات اليومية
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              إدارة الحجوزات قصيرة المدى بأناقة
+              إدارة الحجوزات قصيرة المدى بكل سهولة
             </p>
           </div>
           {!loading && buildings.length > 0 && (
