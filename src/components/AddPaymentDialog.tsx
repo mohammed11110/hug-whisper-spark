@@ -488,19 +488,31 @@ export function AddPaymentDialog({ open, onOpenChange, onSaved, presetUnitId }: 
       return { baseArgs, upTo, unpaidTotal, monthLabel: primaryPeriodLabel };
   };
 
+  const buildReceiptDataFor = (args: ReturnType<typeof buildReceiptArgs>, includeArrears: boolean): ReceiptData => {
+    const a = args!;
+    const cycleTotalDue = Number(a.baseArgs.expectedAmount) || Number(a.baseArgs.amount) || 0;
+    const amountPaid = Number(a.baseArgs.amount) || 0;
+    const cycleRemaining = Math.max(0, cycleTotalDue - amountPaid);
+    return {
+      ...a.baseArgs,
+      unpaidMonths: includeArrears ? a.upTo : [],
+      unpaidTotal: includeArrears ? a.unpaidTotal : 0,
+      unpaidUpToLabel: includeArrears ? a.monthLabel : undefined,
+      cycleTotalDue,
+      cyclePaidToDate: amountPaid,
+      cycleRemaining,
+      statusKey: cycleRemaining <= 0.009 ? "paid" : "partial",
+    } as ReceiptData;
+  };
+
   const openPreview = async () => {
     const args = buildReceiptArgs();
     if (!args) {
       toast.error(lang === "ar" ? "أدخل المبلغ واختر الوحدة أولاً" : "Enter amount and select a unit first");
       return;
     }
-    const html = await buildReceiptHTML({
-      ...args.baseArgs,
-      unpaidMonths: includeArrearsInReceipt ? args.upTo : [],
-      unpaidTotal: includeArrearsInReceipt ? args.unpaidTotal : 0,
-      unpaidUpToLabel: includeArrearsInReceipt ? args.monthLabel : undefined,
-    });
-    setPreviewHtml(html);
+    const blob = await getReceiptPDFBlob(buildReceiptDataFor(args, includeArrearsInReceipt));
+    setPreviewBlob(blob);
     setPreviewOpen(true);
   };
 
