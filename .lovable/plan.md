@@ -1,41 +1,57 @@
-# توحيد إيصال الدفع على تصميم Midnight & Gold
 
-## المشكلة
-الإيصال المرفق (`R-01038`) تم توليده بمولِّد جاهز بالكامل اسمه `createReceiptPDFDirect` / `downloadReceiptPDFDirect` في `src/lib/pdfDocs.ts:1352` — تصميم A5 داكن، شارة gold، شارة "مسدد بالكامل"، جدول "المستحق / المدفوع / المتبقي"، وبطاقة gold للمبلغ.
+# إيصال ثنائي اللغة + توقيع إلكتروني محفوظ
 
-لكن جميع شاشات الدفع تستدعي المولِّد القديم `buildReceiptHTML` (خلفية كريمية + فقرة "استلمنا من السيد/ة…")، فيتولّد شكل مختلف تماماً.
+> ملاحظة: المشروع React/Vite + Capacitor (وليس Flutter). سأطبّق نفس الفكرة بأدوات الويب المعتمدة: `jsPDF` لتوليد PDF، `Web Share API`/`Capacitor Share` للمشاركة، Supabase Storage لتخزين التوقيع. النتيجة البصرية مطابقة لـ `bilingual_receipt.pdf` المرفق.
 
-## الحل
-استبدال كل استدعاءات `buildReceiptHTML` + `downloadHTMLAsPDF` بـ `downloadReceiptPDFDirect` (والمعاينة بـ نفس المولِّد) في الأماكن التالية:
+---
 
-### 1) `src/components/AddPaymentDialog.tsx`
-- **السطر 21**: استبدال الاستيراد من `pdfDocsLazy`:
-  - حذف: `buildReceiptHTML, downloadHTMLAsPDF`
-  - إضافة: `downloadReceiptPDFDirect, printReceiptPDFDirect`
-- **السطر ~497 (المعاينة قبل الحفظ)**: حالياً تبني HTML للمعاينة داخل iframe. ستظل المعاينة كما هي عبر iframe لكن تستخدم نفس `createReceiptPDFDirect` عبر `blob:` URL بدلاً من HTML. أو يمكن استبدال المعاينة بـ render مباشر للـ PDF (أبسط).
-- **السطر ~817-825 (بعد الحفظ)**: استبدال `buildReceiptHTML(...) → downloadHTMLAsPDF(html, filename, settings)` بـ `downloadReceiptPDFDirect(receiptData, filename)`.
-- **السطر ~1373 (زر معاينة الإيصال داخل الدايلوج)**: نفس الاستبدال.
+## 1) الباك‑إند
 
-### 2) `src/components/EditPaymentDialog.tsx`
-لا يولّد إيصالاً حالياً عند الحفظ، لكن إذا كان فيه زر "إعادة طباعة الإيصال" — استبدله بنفس المولِّد. (سأتحقق وأحدّث إن وُجد.)
+### 1.1 Bucket التوقيع
+- إنشاء bucket خاص اسمه `signatures` (private).
+- مسار الملف: `signatures/{user_id}.png` (واحد لكل مستخدم — يُستبدل عند التعديل).
+- سياسات RLS على `storage.objects`:
+  - `SELECT/INSERT/UPDATE/DELETE` لـ `authenticated` فقط على الملفات التي يبدأ مسارها بـ `auth.uid()::text`.
 
-### 3) `src/pages/UnitDetail.tsx`
-إذا كان فيه زر "تنزيل الإيصال" لدفعة موجودة، استبدله بـ `downloadReceiptPDFDirect`. (سأتحقق وأحدّث إن وُجد.)
+### 1.2 جدول `profiles` — إضافة عمودَين
+- `signature_path text` — مسار الملف داخل البكت (للسرعة، نعرف أنه موجود بدون استدعاء Storage).
+- `signature_updated_at timestamptz`.
+- لا تغييرات RLS على `profiles` (موجودة).
 
-### 4) معاينة الإيصال داخل الدايلوج (iframe HTML)
-خيارَان — سأختار **الخيار B** لأنه أبسط وأوفر للأداء:
-- **A**: توليد PDF blob وعرضه في `<iframe src={blobUrl}>` (يعمل بشكل جيد).
-- **B**: استبدال المعاينة بمعاينة React DOM خفيفة تطابق التصميم بصرياً (يحتاج عمل كثير).
+---
 
-سأختار **A**: عند فتح المعاينة، أُولِّد PDF عبر `createReceiptPDFDirect` ثم أعرضه كـ `blob:` في الـ iframe الحالي.
+## 2) واجهة التوقيع الإلكتروني (الإعدادات)
 
-### 5) تنظيف
-- إبقاء `buildReceiptHTML` في `pdfDocs.ts` كما هو (لا حاجة لحذفه — قد يُستخدم لاحقاً)، فقط إيقاف استدعائه من شاشات الدفع.
-- لا تغييرات على قاعدة البيانات، ولا على ترقيم الإيصالات، ولا على المنطق المالي.
+ملف جديد: `src/components/SignatureManager.tsx` يُدمج في `src/pages/Settings.tsx` ضمن قسم "الملف الشخصي".
 
-## النتيجة
-كل دفعة جديدة (وأي طباعة لاحقة) ستُنتج إيصالاً مطابقاً تماماً للملف `R-01038-ar.pdf` المرفق — نفس الألوان، نفس البطاقات، نفس شارة "مسدد بالكامل / دفعة جزئية"، نفس الجدول والبطاقة الذهبية.
+محتوى القسم:
+- معاينة التوقيع الحالي (إن وُجد) على خلفية بيضاء + خط ذهبي تحته.
+- زر **"رسم التوقيع"** يفتح Dialog فيه `<canvas>` (لمس + ماوس)، أزرار: مسح، تراجع، حفظ. الإخراج PNG شفاف 600×200 (نقطي).
+- زر **"رفع صورة"** يقبل PNG/JPG، يفرض حد 1MB، يحوّل JPG لـ PNG شفاف إن أمكن (وإلا يُبقى كما هو على خلفية بيضاء)، ضغط عبر `@/lib/imageCompression`.
+- زر **"تعديل"** و**"حذف"** للتوقيع الحالي.
+- بعد الحفظ: رفع إلى `signatures/{uid}.png` (upsert) + تحديث `profiles.signature_path` و`signature_updated_at`.
 
-## خارج النطاق
-- لا تغييرات على إيصالات Reports/Unit Statement/Lease — تبقى بتصميمها الحالي.
-- لا تغييرات على واتساب أو القنوات الأخرى — فقط ملف الـ PDF نفسه يتبدّل.
+مكتبة الرسم: استخدام `<canvas>` مباشرة (بدون حزمة) — خفيف وكافٍ. خوارزمية smoothing بسيطة (quadraticCurveTo بين النقاط).
+
+### 2.1 Hook موحّد
+ملف جديد: `src/lib/signature.ts`
+- `getMySignatureUrl()` → يجلب signed URL (مدّة 1 ساعة) ويحوّل لـ dataURL مخزّن في `sessionStorage` (مفتاح `amlaki_sig_dataurl`) — لتجنّب الجلب في كل إيصال.
+- `saveSignature(blob)` → upload + update profile + مسح كاش.
+- `deleteSignature()` → remove + null في profile + مسح كاش.
+- `hasSignature(): Promise<boolean>` — يقرأ `profiles.signature_path`.
+
+---
+
+## 3) مولّد الإيصال ثنائي اللغة
+
+### 3.1 ملف جديد: `src/lib/pdfBilingualReceipt.ts`
+
+مولّد مستقل (يعيش بجانب `pdfDocs.ts` ولا يلمسه). يستخدم `jsPDF` + خطوط `NotoKufiArabic` و`Outfit` المُدمجة فعلياً في `pdfDocs.ts` (سأستوردها من نفس مصدر base64).
+
+**القياس**: A5 portrait (148×210mm) — مطابق للمرفق.
+
+**التركيب** (مطابق حرفياً للـ PDF المرفق):
+
+```
+┌──────────────────────────────────────┐
+│ شريط علوي كحلي #272B3
