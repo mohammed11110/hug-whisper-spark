@@ -124,10 +124,10 @@ export function RealtimeSync() {
       }
       ch.subscribe();
       channel = ch;
-      // Warm the signature cache on this device so PDF generation and the
-      // Settings screen show the latest signature without waiting for a UI
-      // interaction. Runs once per login / device.
-      void preloadSignature();
+      // Always verify signature freshness against the server when the channel
+      // is (re)established — guarantees cross-device sync even if Realtime
+      // missed an event while this device was suspended.
+      void verifySignatureFresh({ force: true });
 
     };
 
