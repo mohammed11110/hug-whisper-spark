@@ -10,7 +10,9 @@ import {
   deleteSignature,
   clearSignatureCache,
   primeSignatureCache,
+  signatureBus,
 } from "@/lib/signature";
+
 import { supabase } from "@/integrations/supabase/client";
 
 const tr = (lang: string, ar: string, en: string) => (lang === "ar" ? ar : en);
@@ -144,6 +146,11 @@ export function SignatureManager() {
     };
     void setupRealtime();
 
+    // Cross-device bus: fires when another device (or the global RealtimeSync)
+    // detects a signature change.
+    const offBus = signatureBus.on(() => { void refresh({ hard: true, silent: true }); });
+
+
     const onVisible = () => {
       if (document.visibilityState === "visible") void refresh({ hard: true, silent: true });
     };
@@ -162,10 +169,12 @@ export function SignatureManager() {
       sub.subscription.unsubscribe();
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", onFocus);
+      offBus();
       if (realtimeChannel) {
         try { supabase.removeChannel(realtimeChannel); } catch { /* noop */ }
       }
     };
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

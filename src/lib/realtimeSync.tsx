@@ -17,6 +17,8 @@ import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { queryClient } from "@/lib/queryClient";
 import { paymentsBus } from "@/lib/paymentsBus";
+import { clearSignatureCache, preloadSignature, signatureBus } from "@/lib/signature";
+
 
 export const SYNC_EVENT = "amlaki:data-changed" as const;
 
@@ -89,6 +91,25 @@ export function RealtimeSync() {
                 paymentsBus.emit(unitId);
               } catch { /* noop */ }
             }
+            // Cross-device signature sync: when the user's own profile row
+            // changes and the signature pointer/timestamp moves, drop the
+            // local cache and notify subscribers to re-pull from Storage.
+            if (t === "profiles") {
+              try {
+                const row: any = payload?.new ?? payload?.old ?? {};
+                if (row?.id === uid) {
+                  const newPath = (payload?.new as any)?.signature_path ?? null;
+                  const newTs = (payload?.new as any)?.signature_updated_at ?? null;
+                  const oldPath = (payload?.old as any)?.signature_path ?? null;
+                  const oldTs = (payload?.old as any)?.signature_updated_at ?? null;
+                  if (newPath !== oldPath || newTs !== oldTs) {
+                    clearSignatureCache();
+                    void preloadSignature();
+                    signatureBus.emit();
+                  }
+                }
+              } catch { /* noop */ }
+            }
             try {
               window.dispatchEvent(new CustomEvent<SyncEventDetail>(SYNC_EVENT, {
                 detail: {
@@ -99,11 +120,17 @@ export function RealtimeSync() {
                 },
               }));
             } catch { /* noop */ }
+
           },
         );
       }
       ch.subscribe();
       channel = ch;
+      // Warm the signature cache on this device so PDF generation and the
+      // Settings screen show the latest signature without waiting for a UI
+      // interaction. Runs once per login / device.
+      void preloadSignature();
+
     };
 
     void setup();

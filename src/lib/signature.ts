@@ -13,9 +13,20 @@ import { supabase } from "@/integrations/supabase/client";
 // launches and after iOS killed the app).
 const CACHE_KEY = "amlaki_signature_dataurl_v2";
 const CACHE_USER_KEY = "amlaki_signature_uid_v2";
+const CACHE_UPDATED_KEY = "amlaki_signature_updated_at_v2";
 // Legacy v1 sessionStorage keys — cleaned up on read.
 const LEGACY_CACHE_KEY = "amlaki_signature_dataurl_v1";
 const LEGACY_USER_KEY = "amlaki_signature_uid_v1";
+
+/** Tiny event bus so every mounted UI refreshes when the signature changes
+ *  on this device OR on any other signed-in device (via Realtime). */
+type SigListener = () => void;
+const sigListeners = new Set<SigListener>();
+export const signatureBus = {
+  on(fn: SigListener) { sigListeners.add(fn); return () => sigListeners.delete(fn); },
+  emit() { sigListeners.forEach((f) => { try { f(); } catch { /* noop */ } }); },
+};
+
 
 function pathFor(uid: string) {
   return `${uid}.png`;
@@ -35,11 +46,13 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
-function readCache(uid: string): string | null {
+function readCache(uid: string): { dataUrl: string; updatedAt: string | null } | null {
   try {
     const cachedUid = localStorage.getItem(CACHE_USER_KEY);
     const cached = localStorage.getItem(CACHE_KEY);
-    if (cached && cachedUid === uid) return cached;
+    if (cached && cachedUid === uid) {
+      return { dataUrl: cached, updatedAt: localStorage.getItem(CACHE_UPDATED_KEY) };
+    }
     // Migrate from legacy session cache if present and matches uid.
     const legacyUid = sessionStorage.getItem(LEGACY_USER_KEY);
     const legacy = sessionStorage.getItem(LEGACY_CACHE_KEY);
@@ -48,18 +61,21 @@ function readCache(uid: string): string | null {
         localStorage.setItem(CACHE_KEY, legacy);
         localStorage.setItem(CACHE_USER_KEY, uid);
       } catch { /* quota */ }
-      return legacy;
+      return { dataUrl: legacy, updatedAt: null };
     }
   } catch { /* storage unavailable */ }
   return null;
 }
 
-function writeCache(uid: string, dataUrl: string) {
+function writeCache(uid: string, dataUrl: string, updatedAt?: string | null) {
   try {
     localStorage.setItem(CACHE_KEY, dataUrl);
     localStorage.setItem(CACHE_USER_KEY, uid);
+    if (updatedAt) localStorage.setItem(CACHE_UPDATED_KEY, updatedAt);
+    else localStorage.removeItem(CACHE_UPDATED_KEY);
   } catch { /* quota / private mode */ }
 }
+
 
 /** Returns true if the current user has a signature on file. Reads profile only. */
 export async function hasSignature(): Promise<boolean> {
@@ -98,33 +114,38 @@ export async function loadSignature(): Promise<SignatureLoadResult> {
 
   const cached = readCache(uid);
 
-  // Profile lookup
+  // Profile lookup — also pull updated_at to detect remote changes.
   let signaturePath: string | null = null;
+  let signatureUpdatedAt: string | null = null;
   let profileErr: string | null = null;
   try {
     const { data, error } = await supabase
       .from("profiles")
-      .select("signature_path")
+      .select("signature_path, signature_updated_at")
       .eq("id", uid)
       .maybeSingle();
     if (error) profileErr = error.message;
     signaturePath = data?.signature_path ?? null;
+    signatureUpdatedAt = (data as any)?.signature_updated_at ?? null;
   } catch (e: any) {
     profileErr = e?.message || "profile_lookup_failed";
   }
 
   // No registered signature server-side
   if (!signaturePath) {
-    // Profile read failed AND we have a cache → optimistic fallback
     if (profileErr && cached) {
-      return { url: cached, hasRemotePointer: false, error: profileErr, fromCache: true };
+      return { url: cached.dataUrl, hasRemotePointer: false, error: profileErr, fromCache: true };
     }
-    // Clean stale cache if the user genuinely has no signature anymore
     if (!profileErr && cached) clearSignatureCache();
     return { url: null, hasRemotePointer: false, error: profileErr, fromCache: false };
   }
 
-  // Try Storage download
+  // If cache exists AND server timestamp matches → reuse cache, skip download.
+  if (cached && signatureUpdatedAt && cached.updatedAt === signatureUpdatedAt) {
+    return { url: cached.dataUrl, hasRemotePointer: true, error: null, fromCache: true };
+  }
+
+  // Cache is stale (or missing, or server is newer) → download fresh.
   try {
     const { data, error } = await supabase
       .storage
@@ -133,17 +154,17 @@ export async function loadSignature(): Promise<SignatureLoadResult> {
     if (error || !data) {
       const msg = error?.message || "download_failed";
       if (cached) {
-        return { url: cached, hasRemotePointer: true, error: msg, fromCache: true };
+        return { url: cached.dataUrl, hasRemotePointer: true, error: msg, fromCache: true };
       }
       return { url: null, hasRemotePointer: true, error: msg, fromCache: false };
     }
     const dataUrl = await blobToDataUrl(data);
-    writeCache(uid, dataUrl);
+    writeCache(uid, dataUrl, signatureUpdatedAt);
     return { url: dataUrl, hasRemotePointer: true, error: null, fromCache: false };
   } catch (e: any) {
     const msg = e?.message || "download_failed";
     if (cached) {
-      return { url: cached, hasRemotePointer: true, error: msg, fromCache: true };
+      return { url: cached.dataUrl, hasRemotePointer: true, error: msg, fromCache: true };
     }
     return { url: null, hasRemotePointer: true, error: msg, fromCache: false };
   }
@@ -174,9 +195,6 @@ export async function saveSignature(blob: Blob): Promise<void> {
     .update({ signature_path: path, signature_updated_at: new Date().toISOString() })
     .eq("id", uid);
   if (profErr) throw profErr;
-
-  // Don't clear cache here — `primeSignatureCache` will seed it with the
-  // freshly-saved data URL so the UI can show it instantly.
 }
 
 export async function deleteSignature(): Promise<void> {
@@ -188,16 +206,25 @@ export async function deleteSignature(): Promise<void> {
     .update({ signature_path: null, signature_updated_at: null })
     .eq("id", uid);
   clearSignatureCache();
+  signatureBus.emit();
 }
 
 export function clearSignatureCache() {
   try {
     localStorage.removeItem(CACHE_KEY);
     localStorage.removeItem(CACHE_USER_KEY);
+    localStorage.removeItem(CACHE_UPDATED_KEY);
     sessionStorage.removeItem(LEGACY_CACHE_KEY);
     sessionStorage.removeItem(LEGACY_USER_KEY);
   } catch { /* noop */ }
 }
+
+/** Quietly ensure the local cache holds the latest signature. Safe to call
+ *  on every login / app resume — no UI side effects. */
+export async function preloadSignature(): Promise<void> {
+  try { await loadSignature(); } catch { /* noop */ }
+}
+
 
 /** Seed the cache with a freshly-saved data URL so subsequent reads
  *  (e.g. receipt PDF generation, page reloads, next-day launches) don't need
@@ -205,5 +232,7 @@ export function clearSignatureCache() {
 export async function primeSignatureCache(dataUrl: string): Promise<void> {
   const uid = await currentUid();
   if (!uid) return;
-  writeCache(uid, dataUrl);
+  writeCache(uid, dataUrl, new Date().toISOString());
+  signatureBus.emit();
 }
+
