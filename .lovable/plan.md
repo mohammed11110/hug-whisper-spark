@@ -1,47 +1,54 @@
-## المشكلة
-عند رفع التوقيع من الآيفون، يُحفظ في:
-1. `storage/signatures/{uid}.png`
-2. `profiles.signature_path` يُحدّث للمستخدم
+# المشكلة الجذرية
 
-لكن على الآيباد لا يظهر لأن:
-- `loadSignature()` يُستدعى مرة واحدة عند فتح الشاشة فقط — لا يوجد اشتراك Realtime على `profiles.signature_path`.
-- الكاش المحلي `amlaki_signature_dataurl_v2` على الآيباد كان فارغاً قبل الرفع، ولم يُجدَّد.
-- مزامنة `RealtimeSync` العامة لا تُبطل أي شيء خاص بالتوقيع، ولا تُعيد جلب الـ Storage blob.
-- حتى عند العودة من الخلفية، لا يوجد `visibilitychange` listener داخل `SignatureManager`.
+بعد رفع/رسم التوقيع، يحدث التسلسل التالي خلال أقل من ثانية:
 
-## الحل الجذري
+1. `persistAndShow` يرفع الملف لـ Storage ويحدّث `profiles.signature_path` + `signature_updated_at`.
+2. ينشئ data URL محلياً ويستدعي `primeSignatureCache(url)` → الذي **يُطلق `signatureBus.emit()` على نفس الجهاز**.
+3. تظهر رسالة "تم حفظ التوقيع" ✅
+4. لكن بالتوازي تنطلق **ثلاث آليات تحديث متزامنة**:
+   - `signatureBus.on(...)` داخل `SignatureManager` → `refresh({ hard: true })` → **يمسح الكاش الذي للتوّ كُتب** ويحاول إعادة التنزيل من Storage.
+   - اشتراك Realtime المحلي على `profiles` (UPDATE) → نفس المسح والتنزيل.
+   - `RealtimeSync` العام يرى نفس حدث `profiles` UPDATE → يمسح الكاش ويستدعي `preloadSignature()` ويطلق البص.
 
-### 1. مزامنة Realtime مخصّصة للتوقيع
-في `src/lib/signature.ts` أضف:
-- مُصدِر أحداث بسيط `signatureBus` (نمط `paymentsBus`) يطلق `'changed'` عند تحديث أو حذف التوقيع.
-- اشتراك Realtime عام على `profiles` للمستخدم الحالي يُراقب تغيّر `signature_path` أو `signature_updated_at`، يُفرّغ الكاش المحلي ويُطلق `signatureBus.emit('changed')`.
-- يُركَّب الاشتراك مرة واحدة من `RealtimeSync` (موجود في `AppShell`) بحيث يعمل عالمياً على جميع الأجهزة.
+نتيجة هذا التدافع:
+- التنزيل من Storage يحدث قبل أن تنتشر صلاحيات الملف الجديد على عُقد التخزين على iOS أحياناً، فيفشل بهدوء.
+- `loadSignature` يرى `signature_path` موجود لكن `download` يفشل → يُعيد `url=null` (لأن الكاش كان قد مُسح للتوّ).
+- `setDataUrl(null)` يُفرغ المعاينة، فيظن المستخدم أن التوقيع لم يُحفظ.
 
-### 2. تحديث `SignatureManager.tsx`
-- يستمع لـ `signatureBus.on('changed', () => loadSignature())`.
-- يستمع أيضاً لـ `visibilitychange`/`focus` ليُعيد `loadSignature()` عند رجوع التطبيق من الخلفية (تأمين iOS الذي يقطع Realtime).
-- عند `loadSignature()`، إذا كان `signature_updated_at` أحدث من تاريخ الكاش المحلي → تجاهل الكاش وحمّل من Storage مباشرة.
+أيضاً عند فشل التنزيل يخرج toast خطأ "تعذّر تحميل التوقيع" حتى في وضع `silent` لأن شرط الخطأ في `refresh()` لا يحترم `silent`.
 
-### 3. ختم زمني في الكاش
-في `signature.ts`:
-- خزّن `amlaki_signature_updated_at_v2` بجانب الـ data URL.
-- قبل استخدام الكاش، قارن مع `profiles.signature_updated_at` الحالي. إذا الخادم أحدث → أعد التنزيل واستبدل الكاش.
-- هذا يضمن أنه حتى لو فُتح الآيباد بكاش قديم (أو فارغ)، يجلب النسخة الصحيحة فوراً.
+# الحل
 
-### 4. تحميل استباقي عند تسجيل الدخول
-في `auth.tsx` أو `RealtimeSync` بعد توفّر `user.id`:
-- استدعِ `loadSignature()` مرة واحدة بصمت لتعبئة الكاش، حتى لو لم يفتح المستخدم شاشة الإعدادات.
-- بهذا يكون التوقيع جاهزاً لتوليد PDF فوراً على الجهاز الجديد.
+## 1. لا تمسح الكاش الذي للتوّ كُتب
+في `src/lib/signature.ts`:
+- إضافة طابع زمني `lastLocalPrimeAt` داخل الموديول يُضبط داخل `primeSignatureCache` و`saveSignature`.
+- `clearSignatureCache` يقبل خياراً `respectRecentPrime` يتجاهل المسح إذا مرّ أقل من 5 ثوانٍ على آخر prime محلي.
+- `preloadSignature` و`loadSignature` يحترمان نفس النافذة: إذا الكاش الحالي يطابق `signature_updated_at` من الخادم → استخدمه مباشرة بدون أي تنزيل.
 
-### 5. تفعيل Realtime على عمود التوقيع
-الجدول `profiles` مفعّل أصلاً في `supabase_realtime` ضمن مهاجرة المزامنة السابقة، لذا لا حاجة لمهاجرة جديدة — فقط نضيف المستمعين.
+## 2. منع الـ echo داخل نفس الجهاز
+- `primeSignatureCache` **لا يُطلق `signatureBus.emit()` فوراً**. السبب: التطبيق الذي حفظ يعرف القيمة الجديدة، ولا يحتاج إشعار نفسه.
+- يُطلق البص فقط من `deleteSignature` ومن مستمعي Realtime على الأجهزة الأخرى.
 
-## النتيجة المتوقعة
-- رفع التوقيع من الآيفون → ظهور فوري (ثوانٍ) على الآيباد دون إعادة تسجيل دخول أو تحديث يدوي.
-- العودة من الخلفية على iOS → فحص تلقائي وتحديث.
-- توليد إيصالات PDF على أي جهاز يستخدم التوقيع الصحيح دائماً.
+## 3. تبسيط `SignatureManager`
+- إزالة اشتراك Realtime المحلي المكرر (يُغطّيه `RealtimeSync` العام).
+- مستمع `signatureBus` و`visibilitychange`/`focus` يستخدم `refresh({ silent: true })` بدون `hard: true`. مسح الكاش يصبح من اختصاص `loadSignature` فقط عند اكتشاف اختلاف الـ timestamp.
+- إخفاء toast الخطأ في وضع `silent` (يبقى `console.warn` فقط).
 
-## الملفات المتأثرة
-- `src/lib/signature.ts` — إضافة `signatureBus`، ختم زمني للكاش، دالة `subscribeSignatureSync()`.
-- `src/lib/realtimeSync.tsx` — تركيب الاشتراك + تحميل استباقي عند الدخول.
-- `src/components/SignatureManager.tsx` — مستمعون للحدث + visibility/focus.
+## 4. تأخير قصير قبل أول تنزيل بعد الرفع
+- في `saveSignature`، بعد `upload` ناجح، نعتبر القيمة المرفوعة هي المصدر المعتمد ولا نعيد جلبها. الكاش يُكتب من الـ blob الأصلي مع `signature_updated_at` المرسل في `UPDATE`.
+- لو احتجنا تأكيد، نقرأ `signature_updated_at` بعد `update().select().single()` بدلاً من توليده محلياً.
+
+## 5. حماية إضافية في `RealtimeSync`
+- عند استقبال UPDATE على `profiles` لنفس المستخدم، نقارن `signature_updated_at` الجديد مع آخر طابع زمني محلي. إذا متطابق (نحن من أحدثه) → لا شيء. وإلاّ → امسح الكاش وأطلق البص.
+
+# الملفات المتأثرة
+
+- `src/lib/signature.ts` — منطق الكاش، `lastLocalPrimeAt`، إصلاح `primeSignatureCache`، `saveSignature` يُرجع `signature_updated_at` الفعلي.
+- `src/components/SignatureManager.tsx` — إزالة اشتراك Realtime المحلي، إزالة `hard: true` من المستمعين، احترام `silent` في رسائل الخطأ.
+- `src/lib/realtimeSync.tsx` — مقارنة الطابع الزمني المحلي قبل مسح الكاش وإطلاق البص.
+
+# النتيجة المتوقعة
+
+- بعد الحفظ، التوقيع يظهر فوراً ويبقى ظاهراً (لا يختفي بعد ثانية).
+- لا تنزيل تخزيني فوري بعد كل رفع — الكاش هو نفس الـ blob المرفوع.
+- المزامنة بين الأجهزة الأخرى تبقى كما هي عبر Realtime + مقارنة الطابع الزمني.

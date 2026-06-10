@@ -27,6 +27,19 @@ export const signatureBus = {
   emit() { sigListeners.forEach((f) => { try { f(); } catch { /* noop */ } }); },
 };
 
+/** Tracks the last time *this device* primed the cache after a local save.
+ *  Used to suppress echo refreshes from Realtime UPDATE events that this
+ *  same device just triggered (otherwise they wipe the freshly-saved cache
+ *  and force a premature Storage round-trip that can fail on iOS). */
+let lastLocalPrimeAt = 0;
+let lastLocalUpdatedAt: string | null = null;
+const LOCAL_PRIME_WINDOW_MS = 8000;
+export function isRecentLocalPrime(remoteUpdatedAt?: string | null): boolean {
+  if (Date.now() - lastLocalPrimeAt > LOCAL_PRIME_WINDOW_MS) return false;
+  if (!remoteUpdatedAt || !lastLocalUpdatedAt) return true;
+  return remoteUpdatedAt === lastLocalUpdatedAt;
+}
+
 
 function pathFor(uid: string) {
   return `${uid}.png`;
