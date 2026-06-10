@@ -783,21 +783,24 @@ export function buildReceiptHTML(data: ReceiptData): string {
           </div>
         </div>
 
+        ${hasRemaining ? `
         <div class="rcp-row" style="border-bottom:0;">
           <div class="lab-ar">المتبقي على المستأجر</div>
           <div class="val" style="color:${isPaid ? "#3C7A5A" : "#B4503F"};">
             ${remainingStr}${isPaid ? " — مسدّد بالكامل" : ""}
           </div>
           <div class="lab-en">Balance Due</div>
-        </div>
+        </div>` : ""}
       </div>
 
+      ${data.signatureDataUrl ? `
       <div class="rcp-esign">
         <div class="block">
           <div style="height:54px;display:flex;align-items:flex-end;">${signatureBlock}</div>
           <div class="who">${escapeHtml(signerLine)}</div>
         </div>
-      </div>
+      </div>` : ""}
+
 
       <div class="rcp-foot">
         هذا الإيصال صادر إلكترونياً ويُعد سنداً رسمياً لاستلام المبلغ المذكور أعلاه.
