@@ -1351,45 +1351,386 @@ export async function downloadLeasePDF(data: Lease, filename: string) {
   await savePdfBlob(pdf, filename);
 }
 
-// Midnight & Gold dark receipt — A5, vector-only (no html2canvas).
-async function createReceiptPDFDirect(data: ReceiptData): Promise<{ pdf: jsPDF; statusKey: "paid" | "late" | "partial" | "soon" }> {
-  const rtl = data.lang !== "en";
-  const L = (ar: string, en: string) => (rtl ? ar : en);
-  const pdf = new jsPDF({ unit: "mm", format: "a5" });
-  await registerLeasePdfFonts(pdf);
+// =============================================================
+// Bilingual A4 Payment Receipt — HTML → PDF (html2canvas pipeline)
+// Renders via the same Arabic-shaping pipeline used by the lease docs,
+// so Arabic letters are correctly joined (no more "است4م" fragments).
+// Exact A4 portrait (210 × 297 mm), zero margins.
+// =============================================================
 
-  // Dark Midnight & Gold palette (PDF-local RGB tuples).
-  const RX = {
-    bg:         [14, 17, 24] as const,     // #0e1118
-    card:       [26, 31, 43] as const,     // #1a1f2b
-    border:     [42, 49, 66] as const,     // #2a3142
-    ink:        [232, 234, 237] as const,  // #e8eaed
-    inkDim:     [184, 190, 204] as const,
-    muted:      [138, 147, 163] as const,  // #8a93a3
-    goldBright: [201, 164, 76] as const,   // #c9a44c
-    goldDeep:   [168, 133, 58] as const,   // #a8853a
-    goldOnDark: [60, 47, 20] as const,     // amber surface band
-    greenBg:    [42, 74, 58] as const,     // #2a4a3a
-    greenInk:   [126, 217, 168] as const,  // #7ed9a8
-    redInk:     [224, 154, 154] as const,  // #e09a9a
-    amberInk:   [232, 184, 100] as const,
-  };
+// ---- Local helpers for the bilingual receipt ----
+const __AR_INDIC = "٠١٢٣٤٥٦٧٨٩";
+function toArabicIndicDigits(s: string | number): string {
+  return String(s).replace(/[0-9]/g, (d) => __AR_INDIC[+d]);
+}
 
-  const pageW = pdf.internal.pageSize.getWidth();   // ~148
-  const pageH = pdf.internal.pageSize.getHeight();  // ~210
-  const marginX = 12;
-  const contentW = pageW - marginX * 2;
+function fmtMoney3(n: number): string {
+  const v = Number.isFinite(n) ? n : 0;
+  return v.toLocaleString("en-US", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+}
 
-  // ---- Safe number / money formatting (fixes the [object Object] bug) ----
-  const formatAmount = (v: unknown): string => {
-    const n = typeof v === "number"
-      ? v
-      : Number((v as { valueOf?: () => number } | null | undefined)?.valueOf?.() ?? v);
-    return Number.isFinite(n) ? n.toFixed(3) : "0.000";
-  };
-  const currency = (data.currency || "OMR").toString();
-  const money = (v: unknown) => `${formatAmount(v)} ${currency}`;
+function fmtDateBoth(value?: string | null): { ar: string; en: string } {
+  if (!value) return { ar: "—", en: "—" };
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return { ar: String(value), en: String(value) };
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = String(d.getFullYear());
+  const en = `${dd}/${mm}/${yyyy}`;
+  return { ar: toArabicIndicDigits(en), en };
+}
 
+// English integer-to-words (0..999,999)
+const __EN_ONES = ["", "one","two","three","four","five","six","seven","eight","nine","ten","eleven","twelve","thirteen","fourteen","fifteen","sixteen","seventeen","eighteen","nineteen"];
+const __EN_TENS = ["","","twenty","thirty","forty","fifty","sixty","seventy","eighty","ninety"];
+function intWordsEn(n: number): string {
+  n = Math.floor(n);
+  if (n === 0) return "zero";
+  if (n < 0) return "minus " + intWordsEn(-n);
+  const parts: string[] = [];
+  const thousands = Math.floor(n / 1000);
+  const rest = n % 1000;
+  if (thousands) parts.push(intWordsEn(thousands) + " thousand");
+  if (rest) {
+    const h = Math.floor(rest / 100);
+    const r = rest % 100;
+    if (h) parts.push(__EN_ONES[h] + " hundred");
+    if (r) {
+      if (parts.length) parts.push("and");
+      if (r < 20) parts.push(__EN_ONES[r]);
+      else {
+        const t = Math.floor(r / 10);
+        const o = r % 10;
+        parts.push(o ? `${__EN_TENS[t]}-${__EN_ONES[o]}` : __EN_TENS[t]);
+      }
+    }
+  }
+  return parts.join(" ");
+}
+
+// Arabic integer-to-words (0..999,999) — simplified masculine forms
+const __AR_ONES = ["","واحد","اثنان","ثلاثة","أربعة","خمسة","ستة","سبعة","ثمانية","تسعة","عشرة","أحد عشر","اثنا عشر","ثلاثة عشر","أربعة عشر","خمسة عشر","ستة عشر","سبعة عشر","ثمانية عشر","تسعة عشر"];
+const __AR_TENS = ["","","عشرون","ثلاثون","أربعون","خمسون","ستون","سبعون","ثمانون","تسعون"];
+const __AR_HUNDREDS = ["","مائة","مئتان","ثلاثمائة","أربعمائة","خمسمائة","ستمائة","سبعمائة","ثمانمائة","تسعمائة"];
+function intWordsAr(n: number): string {
+  n = Math.floor(n);
+  if (n === 0) return "صفر";
+  if (n < 0) return "سالب " + intWordsAr(-n);
+  const parts: string[] = [];
+  const thousands = Math.floor(n / 1000);
+  const rest = n % 1000;
+  if (thousands) {
+    if (thousands === 1) parts.push("ألف");
+    else if (thousands === 2) parts.push("ألفان");
+    else if (thousands >= 3 && thousands <= 10) parts.push(`${__AR_ONES[thousands]} آلاف`);
+    else parts.push(`${intWordsAr(thousands)} ألف`);
+  }
+  if (rest) {
+    const h = Math.floor(rest / 100);
+    const r = rest % 100;
+    const sub: string[] = [];
+    if (h) sub.push(__AR_HUNDREDS[h]);
+    if (r) {
+      if (r < 20) sub.push(__AR_ONES[r]);
+      else {
+        const t = Math.floor(r / 10);
+        const o = r % 10;
+        sub.push(o ? `${__AR_ONES[o]} و${__AR_TENS[t]}` : __AR_TENS[t]);
+      }
+    }
+    if (parts.length && sub.length) parts.push("و" + sub.join(" و"));
+    else parts.push(sub.join(" و"));
+  }
+  return parts.join(" ");
+}
+
+function amountWordsAr(amount: number): string {
+  const v = Math.max(0, amount);
+  const rial = Math.floor(v);
+  const baisa = Math.round((v - rial) * 1000);
+  const r = intWordsAr(rial);
+  const b = baisa ? ` و${intWordsAr(baisa)} بيسة` : "";
+  return `${r} ريال عماني${b} لا غير.`;
+}
+function amountWordsEn(amount: number): string {
+  const v = Math.max(0, amount);
+  const rial = Math.floor(v);
+  const baisa = Math.round((v - rial) * 1000);
+  const r = intWordsEn(rial);
+  const b = baisa ? ` and ${intWordsEn(baisa)} baisa` : "";
+  const s = `${r} Omani Rials${b} only.`;
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function buildBilingualReceiptHTML(
+  data: ReceiptData,
+  ctx: { fullyPaid: boolean; remainingAfter: number }
+): string {
+  const amount = Number(data.amount) || 0;
+  const amountEn = fmtMoney3(amount);
+  const remainEn = fmtMoney3(ctx.remainingAfter);
+  const dates = fmtDateBoth(data.paymentDate);
+  const wordsAr = amountWordsAr(amount);
+  const wordsEn = amountWordsEn(amount);
+  const tenant = data.tenantName || "—";
+  const building = `${data.building || "—"}${data.unitNumber ? " — " + data.unitNumber : ""}`;
+  const period = data.periodLabel || "—";
+  const method = data.method || "—";
+  const receiptNo = data.receiptNumber || "—";
+  const brandName = data.brand.name || "Amlaki";
+  const brandNameAr = "أملاكي";
+  const sigImg = data.signatureDataUrl || "";
+  const sigName = data.signatureName || brandName;
+
+  // A4 portrait at 96dpi → 794 × 1123 px
+  return `<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<title>Payment Receipt — إيصال استلام دفعة</title>
+<style id="pdf-fonts"></style>
+<style>
+  :root{
+    --gold:#B8924A; --gold-soft:#E9DFC8; --navy:#272B3A;
+    --paper:#FBFAF7; --ink:#1A1C24; --green:#3C7A5A;
+    --red:#B4503F; --line:#E3E0D8;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{background:#fff;}
+  body{font-family:"Noto Kufi Arabic","Outfit",Arial,sans-serif; color:var(--ink);
+       font-feature-settings:"kern","liga","calt";
+       text-rendering:optimizeLegibility;
+       -webkit-font-smoothing:antialiased;}
+  .ar{font-family:"Noto Kufi Arabic","Noto Naskh Arabic",sans-serif;}
+  .en{font-family:"Outfit","Inter",sans-serif;}
+  .page{
+    width:794px; height:1123px; background:var(--paper);
+    position:relative; overflow:hidden;
+  }
+
+  /* ---- Header (navy) ---- */
+  .header{
+    background:var(--navy); color:#fff; padding:28px 36px 24px;
+    display:flex; justify-content:space-between; align-items:flex-start; gap:24px;
+    position:relative;
+  }
+  .header::after{
+    content:""; position:absolute; left:0; right:0; bottom:0; height:4px;
+    background:linear-gradient(90deg,var(--gold) 0%,#d8b573 50%,var(--gold) 100%);
+  }
+  .brand{display:flex; align-items:center; gap:14px;}
+  .brand .logo{
+    width:56px; height:56px; border-radius:14px; background:var(--gold);
+    display:flex; align-items:center; justify-content:center;
+    color:var(--navy); font-weight:900; font-size:26px; overflow:hidden;
+    flex-shrink:0;
+  }
+  .brand .logo img{width:100%; height:100%; object-fit:cover;}
+  .brand .names{line-height:1.25; text-align:right;}
+  .brand .names .b-ar{font-size:19px; font-weight:800;}
+  .brand .names .b-en{font-size:12px; opacity:.78; margin-top:3px; letter-spacing:.14em;}
+  .title-block{text-align:left; direction:ltr;}
+  .title-block .t-ar{font-size:19px; font-weight:800; font-family:"Noto Kufi Arabic",sans-serif;}
+  .title-block .t-en{font-size:13px; opacity:.82; letter-spacing:.16em; margin-top:3px;}
+  .paid-badge{
+    margin-top:10px; display:inline-flex; align-items:center; gap:7px;
+    background:var(--green); color:#fff; padding:5px 12px; border-radius:999px;
+    font-weight:700; font-size:11px; letter-spacing:.06em;
+  }
+  .paid-badge.partial{background:var(--gold); color:var(--navy);}
+  .paid-badge .dot{width:6px; height:6px; border-radius:50%; background:#fff;}
+  .paid-badge.partial .dot{background:var(--navy);}
+
+  /* ---- Info bar (3 cells) ---- */
+  .info-bar{display:flex; background:#fff; border-bottom:1px solid var(--line);}
+  .info-bar .cell{
+    flex:1; padding:14px 16px; text-align:center;
+    border-inline-end:1px solid var(--line);
+  }
+  .info-bar .cell:last-child{border-inline-end:0;}
+  .info-bar .lbl-en{font-size:10px; color:#6c6f7a; letter-spacing:.1em; text-transform:uppercase; font-weight:600;}
+  .info-bar .lbl-ar{display:block; font-size:11px; color:#5a5e6b; margin-top:2px; font-family:"Noto Kufi Arabic",sans-serif;}
+  .info-bar .v-en{font-size:14px; font-weight:800; color:var(--navy); margin-top:6px;}
+  .info-bar .v-ar{display:block; font-size:13px; color:#3a3f50; margin-top:2px; font-family:"Noto Kufi Arabic",sans-serif;}
+
+  /* ---- Body ---- */
+  .body{padding:22px 36px 0;}
+
+  .row{
+    display:grid; grid-template-columns:1fr 1.5fr 1fr; align-items:center;
+    padding:13px 18px; background:#fff; border:1px solid var(--line);
+    border-radius:12px; margin-bottom:9px; min-height:54px;
+  }
+  .row .lbl-ar{text-align:right; font-size:13px; color:#5a5e6b; font-weight:700; font-family:"Noto Kufi Arabic",sans-serif;}
+  .row .lbl-en{text-align:left; font-size:11px; color:#7a7e8a; letter-spacing:.1em; text-transform:uppercase; font-weight:600;}
+  .row .val{text-align:center; font-size:15px; font-weight:800; color:var(--ink);}
+
+  /* ---- Amount hero bar (gold) ---- */
+  .amount-bar{
+    margin:16px 0 12px;
+    background:linear-gradient(135deg,var(--gold) 0%,#d0a55c 50%,var(--gold) 100%);
+    color:#fff; border-radius:14px; padding:18px 26px;
+    display:flex; justify-content:space-between; align-items:center;
+    box-shadow:0 6px 18px rgba(184,146,74,.25);
+  }
+  .amount-bar .side{font-size:18px; font-weight:800;}
+  .amount-bar .side.ar{font-size:22px; font-family:"Noto Kufi Arabic",sans-serif;}
+  .amount-bar .main{text-align:center; flex:1;}
+  .amount-bar .main .num{
+    font-size:36px; font-weight:900; letter-spacing:.01em; line-height:1;
+    font-family:"Outfit",sans-serif;
+  }
+  .amount-bar .main .lbl{
+    margin-top:6px; font-size:10.5px; opacity:.95; letter-spacing:.18em;
+    text-transform:uppercase; font-weight:700;
+  }
+
+  /* ---- Amount in words ---- */
+  .words{
+    background:var(--gold-soft); border:1px solid #d6c69a;
+    border-radius:12px; padding:13px 18px; margin-bottom:12px;
+  }
+  .words .ln{font-size:12.5px; line-height:1.65; color:#5a4a1f;}
+  .words .ln.ar{text-align:right; font-weight:700; font-family:"Noto Kufi Arabic",sans-serif;}
+  .words .ln.en{text-align:left; font-style:italic; margin-top:5px;}
+
+  /* ---- Remaining ---- */
+  .remaining{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:13px 20px; border-radius:12px; margin-bottom:14px;
+    border:1px solid;
+  }
+  .remaining.paid{background:#eaf3ee; border-color:#bcd9c8; color:var(--green);}
+  .remaining.due{background:#f7e7e2; border-color:#e5c5bc; color:var(--red);}
+  .remaining .lbl{font-size:11px; font-weight:800; letter-spacing:.1em; text-transform:uppercase;}
+  .remaining .lbl .ar{display:block; font-size:13px; margin-top:3px; letter-spacing:0; text-transform:none; font-family:"Noto Kufi Arabic",sans-serif;}
+  .remaining .val{font-size:18px; font-weight:900; font-family:"Outfit",sans-serif;}
+
+  /* ---- Signature ---- */
+  .sig{
+    margin-top:18px; padding:16px 18px 14px;
+    background:#fff; border:1px dashed var(--line);
+    border-radius:12px; text-align:center;
+  }
+  .sig img{max-height:64px; max-width:220px; display:block; margin:0 auto;}
+  .sig .underline{
+    border-top:1.5px solid var(--gold); width:220px; margin:8px auto 8px;
+  }
+  .sig .name{font-size:14px; font-weight:800; color:var(--navy);}
+  .sig .role{font-size:10px; color:#7a7e8a; letter-spacing:.1em; margin-top:3px; text-transform:uppercase;}
+
+  /* ---- Footer ---- */
+  .footer{
+    position:absolute; left:0; right:0; bottom:0;
+    background:var(--navy); color:#cfd2dc; padding:14px 36px 16px;
+    font-size:10.5px; line-height:1.65; text-align:center;
+  }
+  .footer::before{
+    content:""; display:block; height:3px;
+    background:linear-gradient(90deg,var(--gold) 0%,#d8b573 50%,var(--gold) 100%);
+    margin:-14px -36px 12px;
+  }
+  .footer .f-ar{font-family:"Noto Kufi Arabic",sans-serif;}
+  .footer .f-en{font-family:"Outfit",sans-serif; opacity:.78; margin-top:3px; letter-spacing:.04em;}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <div class="title-block">
+      <div class="t-ar">إيصال استلام دفعة</div>
+      <div class="t-en">PAYMENT RECEIPT</div>
+      <div class="paid-badge ${ctx.fullyPaid ? "" : "partial"}">
+        <span class="dot"></span>
+        ${ctx.fullyPaid ? "PAID · مدفوع" : "PARTIAL · جزئي"}
+      </div>
+    </div>
+    <div class="brand">
+      <div class="names">
+        <div class="b-ar">${escapeHtml(brandNameAr)} · ${escapeHtml(brandName)}</div>
+        <div class="b-en">PROPERTY MANAGEMENT</div>
+      </div>
+      <div class="logo">${data.brand.logo ? `<img src="${escapeHtml(data.brand.logo)}" alt="logo" />` : escapeHtml(brandName.trim().slice(0,1))}</div>
+    </div>
+  </div>
+
+  <div class="info-bar">
+    <div class="cell">
+      <div class="lbl-en">Receipt No.<span class="lbl-ar">رقم الإيصال</span></div>
+      <div class="v-en">#${escapeHtml(receiptNo)}</div>
+    </div>
+    <div class="cell">
+      <div class="lbl-en">Date<span class="lbl-ar">تاريخ الإصدار</span></div>
+      <div class="v-en">${escapeHtml(dates.en)}<span class="v-ar">${escapeHtml(dates.ar)}</span></div>
+    </div>
+    <div class="cell">
+      <div class="lbl-en">Method<span class="lbl-ar">طريقة الدفع</span></div>
+      <div class="v-en">${escapeHtml(method)}</div>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="row">
+      <div class="lbl-en">Tenant</div>
+      <div class="val">${escapeHtml(tenant)}</div>
+      <div class="lbl-ar">المستأجر</div>
+    </div>
+    <div class="row">
+      <div class="lbl-en">Building — Unit</div>
+      <div class="val">${escapeHtml(building)}</div>
+      <div class="lbl-ar">المبنى — الوحدة</div>
+    </div>
+    <div class="row">
+      <div class="lbl-en">Rental Period</div>
+      <div class="val">${escapeHtml(period)}</div>
+      <div class="lbl-ar">عن فترة الإيجار</div>
+    </div>
+
+    <div class="amount-bar">
+      <div class="side en">OMR</div>
+      <div class="main">
+        <div class="num">${escapeHtml(amountEn)}</div>
+        <div class="lbl">Amount Received · المبلغ المستلم</div>
+      </div>
+      <div class="side ar">ر.ع</div>
+    </div>
+
+    <div class="words">
+      <div class="ln ar">المبلغ كتابةً: ${escapeHtml(wordsAr)}</div>
+      <div class="ln en">Amount in words: ${escapeHtml(wordsEn)}</div>
+    </div>
+
+    <div class="remaining ${ctx.fullyPaid ? "paid" : "due"}">
+      <div class="lbl">
+        ${ctx.fullyPaid ? "Fully Paid" : "Remaining On Tenant"}
+        <span class="ar">${ctx.fullyPaid ? "مسدّد بالكامل" : "المتبقي على المستأجر"}</span>
+      </div>
+      <div class="val">${ctx.fullyPaid ? "0.000 OMR" : `${escapeHtml(remainEn)} OMR`}</div>
+    </div>
+
+    ${sigImg ? `
+    <div class="sig">
+      <img src="${escapeHtml(sigImg)}" alt="signature" />
+      <div class="underline"></div>
+      <div class="name">${escapeHtml(sigName)}</div>
+      <div class="role">Authorized Signature · توقيع المُصدِر</div>
+    </div>` : ""}
+  </div>
+
+  <div class="footer">
+    <div class="f-ar">هذا الإيصال صادر إلكترونياً عبر تطبيق أملاكي ويُعدّ سنداً رسمياً لاستلام الدفعة المذكورة أعلاه.</div>
+    <div class="f-en">This receipt is issued electronically by Amlaki and serves as an official record of the payment above.</div>
+  </div>
+</div>
+</body>
+</html>`;
+}
+
+// Bilingual A4 receipt — rendered via the HTML→PDF pipeline so Arabic
+// letters are correctly shaped (joined) by the browser before rasterising.
+async function createReceiptPDFDirect(
+  data: ReceiptData
+): Promise<{ pdf: jsPDF; statusKey: "paid" | "late" | "partial" | "soon" }> {
   const amountPaid = Number(data.amount) || 0;
   const dueBeforePayment =
     Number(data.cycleTotalDue ?? data.expectedAmount ?? amountPaid) || amountPaid;
@@ -1397,327 +1738,11 @@ async function createReceiptPDFDirect(data: ReceiptData): Promise<{ pdf: jsPDF; 
   const fullyPaid = remainingAfter <= 0.009;
   const statusKey: "paid" | "partial" = fullyPaid ? "paid" : "partial";
 
-  const paymentDateLabel = formatDate(data.paymentDate, rtl);
-
-  // ---- Draw helpers ----
-  const setFill = (rgb: readonly number[]) => pdf.setFillColor(rgb[0], rgb[1], rgb[2]);
-  const setDraw = (rgb: readonly number[]) => pdf.setDrawColor(rgb[0], rgb[1], rgb[2]);
-  const setInk  = (rgb: readonly number[]) => pdf.setTextColor(rgb[0], rgb[1], rgb[2]);
-
-  const drawText = ({
-    text, x, y, width, fontSize, bold = false, color = RX.ink, align,
-  }: {
-    text: unknown; x: number; y: number; width: number;
-    fontSize: number; bold?: boolean; color?: readonly number[];
-    align?: "left" | "right" | "center";
-  }) => {
-    pdf.setFontSize(fontSize);
-    const prepared = splitPdfText(pdf, text, width, fontSize, bold);
-    setInk(color);
-    const resolved = align || (prepared.arabic ? "right" : "left");
-    const tx = resolved === "right" ? x + width : resolved === "center" ? x + width / 2 : x;
-    pdf.text(prepared.lines, tx, y, { align: resolved });
-    return prepared.lines.length * getPdfLineHeight(fontSize);
-  };
-
-  // Paint full-page midnight background.
-  setFill(RX.bg);
-  pdf.rect(0, 0, pageW, pageH, "F");
-
-  let cursorY = marginX;
-
-  // ===== Header card =====
-  const headerH = 36;
-  setFill(RX.card);
-  setDraw(RX.border);
-  pdf.setLineWidth(0.3);
-  pdf.roundedRect(marginX, cursorY, contentW, headerH, 3, 3, "FD");
-
-  // Logo or gold key glyph
-  const logoSize = 14;
-  const logoX = rtl ? marginX + contentW - logoSize - 6 : marginX + 6;
-  const logoY = cursorY + 5;
-  let logoDrawn = false;
-  if (data.brand.logo) {
-    try {
-      const logoData = await urlToDataUrl(data.brand.logo);
-      pdf.addImage(logoData, "PNG", logoX, logoY, logoSize, logoSize, undefined, "FAST");
-      logoDrawn = true;
-    } catch { /* fall through to glyph */ }
-  }
-  if (!logoDrawn) {
-    setFill(RX.goldBright);
-    pdf.circle(logoX + logoSize / 2, logoY + logoSize / 2, logoSize / 2, "F");
-    drawText({
-      text: (data.brand.name || "A").trim().slice(0, 1),
-      x: logoX, y: logoY + logoSize / 2 + 2, width: logoSize,
-      fontSize: 13, bold: true, color: RX.bg, align: "center",
-    });
-  }
-
-  // Title block (next to logo)
-  const titleX = rtl ? marginX + 4 : marginX + logoSize + 12;
-  const titleW = contentW - logoSize - 16;
-  drawText({
-    text: L("إيصال استلام", "Payment Receipt"),
-    x: titleX, y: cursorY + 8, width: titleW,
-    fontSize: 14, bold: true, color: RX.ink,
-    align: rtl ? "right" : "left",
+  const html = buildBilingualReceiptHTML(data, { fullyPaid, remainingAfter });
+  const pdf = await renderHTMLToPdf(html, {
+    pageSize: "A4",
+    margins: { top: 0, right: 0, bottom: 0, left: 0 },
   });
-  drawText({
-    text: L("Payment Receipt", "إيصال استلام"),
-    x: titleX, y: cursorY + 13.5, width: titleW,
-    fontSize: 8, color: RX.muted,
-    align: rtl ? "right" : "left",
-  });
-  drawText({
-    text: `${data.brand.name || "Amlaki"} · ${L("أملاكي", "Amlaki")}`,
-    x: titleX, y: cursorY + 20, width: titleW,
-    fontSize: 9, color: RX.inkDim,
-    align: rtl ? "right" : "left",
-  });
-  drawText({
-    text: `#${data.receiptNumber || "—"}`,
-    x: titleX, y: cursorY + 25.5, width: titleW,
-    fontSize: 10, bold: true, color: RX.goldBright,
-    align: rtl ? "right" : "left",
-  });
-
-  // Status pill (bottom-right of header card)
-  {
-    const pillLabel = fullyPaid
-      ? L("مسدد بالكامل", "Paid in Full")
-      : L("دفعة جزئية", "Partial Payment");
-    pdf.setFontSize(8);
-    pdf.setFont(hasArabicText(pillLabel) ? "NotoKufiArabic" : "Outfit", "bold");
-    const pillW = Math.max(28, pdf.getTextWidth(pillLabel) + 8);
-    const pillH = 6.5;
-    const pillX = rtl
-      ? marginX + 6
-      : marginX + contentW - pillW - 6;
-    const pillY = cursorY + headerH - pillH - 5;
-    setFill(fullyPaid ? RX.greenBg : RX.goldOnDark);
-    setDraw(fullyPaid ? RX.greenBg : RX.goldOnDark);
-    pdf.roundedRect(pillX, pillY, pillW, pillH, 3, 3, "F");
-    drawText({
-      text: pillLabel, x: pillX, y: pillY + 4.5, width: pillW,
-      fontSize: 8, bold: true,
-      color: fullyPaid ? RX.greenInk : RX.amberInk,
-      align: "center",
-    });
-  }
-
-  cursorY += headerH + 6;
-
-  // ===== Info cards (2 × 2) =====
-  const cardGap = 4;
-  const cardW = (contentW - cardGap) / 2;
-  const cardH = 18;
-
-  const infoCards: Array<{ label: string; value: string }> = [
-    { label: L("المستأجر", "Tenant"), value: data.tenantName || "—" },
-    {
-      label: L("المبنى / الوحدة", "Building / Unit"),
-      value: `${data.building || "—"}${data.unitNumber ? ` · #${data.unitNumber}` : ""}`,
-    },
-    { label: L("فترة الإيجار", "Rental Period"), value: data.periodLabel || "—" },
-    { label: L("تاريخ الدفع", "Payment Date"), value: paymentDateLabel },
-  ];
-
-  const drawInfoCard = (x: number, y: number, label: string, value: string) => {
-    setFill(RX.card);
-    setDraw(RX.border);
-    pdf.roundedRect(x, y, cardW, cardH, 2.5, 2.5, "FD");
-    drawText({
-      text: label, x: x + 4, y: y + 5.5, width: cardW - 8,
-      fontSize: 7.5, color: RX.muted,
-      align: rtl ? "right" : "left",
-    });
-    drawText({
-      text: value, x: x + 4, y: y + 12, width: cardW - 8,
-      fontSize: 10, bold: true, color: RX.ink,
-      align: rtl ? "right" : "left",
-    });
-  };
-
-  for (let i = 0; i < infoCards.length; i += 2) {
-    const left = infoCards[i];
-    const right = infoCards[i + 1];
-    const leftX = rtl ? marginX + cardW + cardGap : marginX;
-    const rightX = rtl ? marginX : marginX + cardW + cardGap;
-    drawInfoCard(leftX, cursorY, left.label, left.value);
-    if (right) drawInfoCard(rightX, cursorY, right.label, right.value);
-    cursorY += cardH + cardGap;
-  }
-
-  cursorY += 2;
-
-  // ===== Payment summary box =====
-  const summaryRowH = 9;
-  const summaryH = summaryRowH * 3 + 10;
-  setFill(RX.card);
-  setDraw(RX.border);
-  pdf.roundedRect(marginX, cursorY, contentW, summaryH, 3, 3, "FD");
-
-  // section title
-  drawText({
-    text: L("ملخص الدفعة", "Payment Summary"),
-    x: marginX + 5, y: cursorY + 6, width: contentW - 10,
-    fontSize: 8, bold: true, color: RX.muted,
-    align: rtl ? "right" : "left",
-  });
-
-  const labelAlign: "left" | "right" = rtl ? "right" : "left";
-  const valueAlign: "left" | "right" = rtl ? "left" : "right";
-  const labelX = rtl ? marginX + contentW * 0.4 + 5 : marginX + 5;
-  const valueX = rtl ? marginX + 5 : marginX + contentW * 0.6;
-  const labelW = contentW * 0.55;
-  const valueW = contentW * 0.4 - 5;
-
-  const drawSummaryRow = (
-    rowY: number,
-    label: string,
-    value: string,
-    opts?: { ink?: readonly number[]; highlight?: readonly number[]; bold?: boolean }
-  ) => {
-    if (opts?.highlight) {
-      setFill(opts.highlight);
-      pdf.rect(marginX + 1, rowY - 1, contentW - 2, summaryRowH, "F");
-    }
-    drawText({
-      text: label, x: labelX, y: rowY + 5, width: labelW,
-      fontSize: 9.5, bold: !!opts?.bold,
-      color: opts?.ink ? RX.ink : RX.inkDim, align: labelAlign,
-    });
-    drawText({
-      text: value, x: valueX, y: rowY + 5, width: valueW,
-      fontSize: 10, bold: true,
-      color: opts?.ink || RX.ink, align: valueAlign,
-    });
-  };
-
-  let rowY = cursorY + 10;
-  drawSummaryRow(rowY, L("المستحق قبل الدفع", "Due Before Payment"), money(dueBeforePayment));
-  rowY += summaryRowH;
-  drawSummaryRow(
-    rowY,
-    L("المبلغ المدفوع", "Amount Paid"),
-    `− ${money(amountPaid)}`,
-    { ink: RX.redInk }
-  );
-  rowY += summaryRowH;
-
-  // divider above the highlighted "Remaining" row
-  setDraw(RX.border);
-  pdf.setLineWidth(0.2);
-  pdf.line(marginX + 4, rowY - 0.5, marginX + contentW - 4, rowY - 0.5);
-
-  drawSummaryRow(
-    rowY,
-    L("المتبقي بعد الدفع", "Remaining After Payment"),
-    money(remainingAfter),
-    {
-      ink: fullyPaid ? RX.greenInk : RX.amberInk,
-      highlight: fullyPaid ? RX.greenBg : RX.goldOnDark,
-      bold: true,
-    }
-  );
-
-  cursorY += summaryH + 6;
-
-  // ===== Hero "Amount Paid" gold gradient box =====
-  const heroH = 26;
-  // faux-gradient: 40 thin horizontal bands interpolating goldBright→goldDeep
-  const bands = 40;
-  for (let i = 0; i < bands; i++) {
-    const t = i / (bands - 1);
-    const r = Math.round(RX.goldBright[0] + (RX.goldDeep[0] - RX.goldBright[0]) * t);
-    const g = Math.round(RX.goldBright[1] + (RX.goldDeep[1] - RX.goldBright[1]) * t);
-    const b = Math.round(RX.goldBright[2] + (RX.goldDeep[2] - RX.goldBright[2]) * t);
-    pdf.setFillColor(r, g, b);
-    pdf.rect(marginX, cursorY + (heroH * i) / bands, contentW, heroH / bands + 0.2, "F");
-  }
-  // rounded mask: redraw outer corners with bg color via stroke
-  setDraw(RX.bg);
-  pdf.setLineWidth(0.6);
-  pdf.roundedRect(marginX, cursorY, contentW, heroH, 3, 3, "S");
-  pdf.setLineWidth(0.2);
-
-  drawText({
-    text: L("المبلغ المدفوع", "Amount Paid"),
-    x: marginX + 5, y: cursorY + 8, width: contentW - 10,
-    fontSize: 8.5, bold: true, color: RX.bg, align: "center",
-  });
-  drawText({
-    text: money(amountPaid),
-    x: marginX + 5, y: cursorY + 19, width: contentW - 10,
-    fontSize: 18, bold: true, color: RX.bg, align: "center",
-  });
-
-  cursorY += heroH + 8;
-
-  // ===== Optional notes =====
-  if (data.notes) {
-    const prepared = splitPdfText(pdf, data.notes, contentW - 10, 8.5, false);
-    const noteH = Math.max(10, prepared.lines.length * getPdfLineHeight(8.5, 1.35) + 6);
-    if (cursorY + noteH < pageH - 18) {
-      setFill(RX.card);
-      setDraw(RX.border);
-      pdf.roundedRect(marginX, cursorY, contentW, noteH, 2.5, 2.5, "FD");
-      drawText({
-        text: data.notes, x: marginX + 5, y: cursorY + 5,
-        width: contentW - 10, fontSize: 8.5, color: RX.inkDim,
-        align: rtl ? "right" : "left",
-      });
-      cursorY += noteH + 4;
-    }
-  }
-
-  // ===== Footer =====
-  const footerY = pageH - 12;
-  const proofLine = L(
-    "يُعدّ هذا السند إثباتاً لاستلام المبلغ المذكور أعلاه — أملاكي",
-    "Proof of payment — confirms the amount received above · Amlaki"
-  );
-  drawText({
-    text: proofLine, x: marginX, y: footerY, width: contentW,
-    fontSize: 7, color: RX.muted, align: "center",
-  });
-  const brandMeta = [data.brand.phone, data.brand.address].filter(Boolean).join(" · ");
-  if (brandMeta) {
-    drawText({
-      text: brandMeta, x: marginX, y: footerY + 4, width: contentW,
-      fontSize: 6.5, color: RX.muted, align: "center",
-    });
-  }
-
-  // ===== Signature block (above footer, paper-light card on midnight) =====
-  if (data.signatureDataUrl) {
-    const sigH = 32;
-    const sigY = pageH - 18 - sigH - 4;
-    if (sigY > cursorY) {
-      setFill([251, 250, 247]); // paper
-      setDraw(RX.border);
-      pdf.roundedRect(marginX, sigY, contentW, sigH, 3, 3, "FD");
-      try {
-        const imgW = 50;
-        const imgH = 18;
-        const imgX = marginX + (contentW - imgW) / 2;
-        pdf.addImage(data.signatureDataUrl, "PNG", imgX, sigY + 3, imgW, imgH, undefined, "FAST");
-      } catch { /* invalid image — skip silently */ }
-      // hairline under signature
-      setDraw([184, 146, 74]); // gold
-      pdf.setLineWidth(0.3);
-      pdf.line(marginX + 30, sigY + 23, marginX + contentW - 30, sigY + 23);
-      pdf.setLineWidth(0.2);
-      drawText({
-        text: data.signatureName || data.brand.name || "—",
-        x: marginX + 4, y: sigY + 28, width: contentW - 8,
-        fontSize: 9, bold: true, color: [39, 43, 58], align: "center",
-      });
-    }
-  }
-
   return { pdf, statusKey };
 }
 
