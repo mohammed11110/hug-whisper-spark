@@ -91,6 +91,13 @@ function decodeJwtPayload(token: string): any | null {
 }
 
 // ---------------- Google ----------------
+// ALL native Google sign-in (iOS + Android) is routed through the
+// `google-native-signin` Edge Function. The function manually verifies the
+// Google id_token against Google's JWKS and accepts both the web client ID
+// and the iOS client ID as valid audiences — something `signInWithIdToken`
+// cannot do because the Supabase Auth Google provider has only one
+// configured client ID slot. Direct `signInWithIdToken` calls in the
+// native path are forbidden here.
 async function doGoogleSignInOnce(): Promise<void> {
   const rawNonce = getUrlSafeNonce();
   const nonceDigest = await sha256Hex(rawNonce);
@@ -109,34 +116,8 @@ async function doGoogleSignInOnce(): Promise<void> {
     result?.idToken ?? result?.authentication?.idToken;
   if (!idToken) throw new Error("Google sign-in did not return an idToken");
 
-  if (platform === "ios") {
-    console.log("[nativeGoogleSignIn] iOS token received; invoking google-native-signin");
-    const { data, error } = await supabase.functions.invoke("google-native-signin", {
-      body: {
-        idToken,
-        nonce: rawNonce,
-      },
-    });
-
-    if (error) throw error;
-
-    const accessToken = data?.access_token ?? data?.session?.access_token;
-    const refreshToken = data?.refresh_token ?? data?.session?.refresh_token;
-
-    if (!accessToken || !refreshToken) {
-      throw new Error("google-native-signin did not return a valid session");
-    }
-
-    const { error: sessionError } = await supabase.auth.setSession({
-      access_token: accessToken,
-      refresh_token: refreshToken,
-    });
-    if (sessionError) throw sessionError;
-    return;
-  }
-
-  // Validate audience + nonce locally for clearer errors and to detect
-  // iOS tokens with the wrong audience before they hit the backend.
+  // Local pre-flight: surface a clear error before round-tripping to the
+  // edge function when the token audience is obviously wrong.
   const payload = decodeJwtPayload(idToken);
   const audiences = getJwtAudiences(payload);
   const acceptedAudiences = getAcceptedGoogleAudiences();
@@ -147,13 +128,34 @@ async function doGoogleSignInOnce(): Promise<void> {
     throw new Error("NONCE_MISMATCH");
   }
 
-  console.log("[nativeGoogleSignIn] non-iOS native flow using direct Google id token sign-in");
-  const { error } = await supabase.auth.signInWithIdToken({
-    provider: "google",
-    token: idToken,
-    nonce: rawNonce,
+  console.log(
+    `[nativeGoogleSignIn] ${platform} token received; invoking google-native-signin edge function`
+  );
+  const { data, error } = await supabase.functions.invoke("google-native-signin", {
+    body: {
+      idToken,
+      nonce: rawNonce,
+    },
   });
-  if (error) throw error;
+
+  if (error) {
+    console.error("[nativeGoogleSignIn] edge function error", error);
+    throw error;
+  }
+
+  const accessToken = data?.access_token ?? data?.session?.access_token;
+  const refreshToken = data?.refresh_token ?? data?.session?.refresh_token;
+
+  if (!accessToken || !refreshToken) {
+    console.error("[nativeGoogleSignIn] missing tokens in edge response", data);
+    throw new Error("google-native-signin did not return a valid session");
+  }
+
+  const { error: sessionError } = await supabase.auth.setSession({
+    access_token: accessToken,
+    refresh_token: refreshToken,
+  });
+  if (sessionError) throw sessionError;
 }
 
 export async function nativeGoogleSignIn(): Promise<void> {
