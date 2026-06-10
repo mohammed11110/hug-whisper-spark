@@ -1,57 +1,47 @@
-# مزامنة فورية شاملة بين كل الأجهزة
+## المشكلة
+عند رفع التوقيع من الآيفون، يُحفظ في:
+1. `storage/signatures/{uid}.png`
+2. `profiles.signature_path` يُحدّث للمستخدم
 
-نُنشئ قناة Realtime واحدة على مستوى التطبيق تستمع لتغييرات كل جداول بيانات المستخدم، ونُبلّغ الصفحات لتُعيد الجلب فوراً — بدون أي تدخل يدوي.
+لكن على الآيباد لا يظهر لأن:
+- `loadSignature()` يُستدعى مرة واحدة عند فتح الشاشة فقط — لا يوجد اشتراك Realtime على `profiles.signature_path`.
+- الكاش المحلي `amlaki_signature_dataurl_v2` على الآيباد كان فارغاً قبل الرفع، ولم يُجدَّد.
+- مزامنة `RealtimeSync` العامة لا تُبطل أي شيء خاص بالتوقيع، ولا تُعيد جلب الـ Storage blob.
+- حتى عند العودة من الخلفية، لا يوجد `visibilitychange` listener داخل `SignatureManager`.
 
-## 1) Migration: تفعيل Realtime على الجداول
+## الحل الجذري
 
-`ALTER PUBLICATION supabase_realtime ADD TABLE` + `REPLICA IDENTITY FULL` لكل من:
-- `buildings`, `units`, `tenancies`, `payments`, `expenses`, `maintenance_requests`
-- `profiles`, `receipt_counters`, `in_app_notifications`, `activity_log`
-- `building_members`, `invitations`, `unit_audit_log`
-- `daily_bookings`, `daily_units`, `daily_cleaning_tasks`, `daily_pricing_rules`, `daily_message_templates`, `daily_cleaners`
+### 1. مزامنة Realtime مخصّصة للتوقيع
+في `src/lib/signature.ts` أضف:
+- مُصدِر أحداث بسيط `signatureBus` (نمط `paymentsBus`) يطلق `'changed'` عند تحديث أو حذف التوقيع.
+- اشتراك Realtime عام على `profiles` للمستخدم الحالي يُراقب تغيّر `signature_path` أو `signature_updated_at`، يُفرّغ الكاش المحلي ويُطلق `signatureBus.emit('changed')`.
+- يُركَّب الاشتراك مرة واحدة من `RealtimeSync` (موجود في `AppShell`) بحيث يعمل عالمياً على جميع الأجهزة.
 
-RLS الموجودة تكفي لتقييد ما يصل لكل مستخدم.
+### 2. تحديث `SignatureManager.tsx`
+- يستمع لـ `signatureBus.on('changed', () => loadSignature())`.
+- يستمع أيضاً لـ `visibilitychange`/`focus` ليُعيد `loadSignature()` عند رجوع التطبيق من الخلفية (تأمين iOS الذي يقطع Realtime).
+- عند `loadSignature()`، إذا كان `signature_updated_at` أحدث من تاريخ الكاش المحلي → تجاهل الكاش وحمّل من Storage مباشرة.
 
-## 2) ناقل مركزي — `src/lib/realtimeSync.tsx`
+### 3. ختم زمني في الكاش
+في `signature.ts`:
+- خزّن `amlaki_signature_updated_at_v2` بجانب الـ data URL.
+- قبل استخدام الكاش، قارن مع `profiles.signature_updated_at` الحالي. إذا الخادم أحدث → أعد التنزيل واستبدل الكاش.
+- هذا يضمن أنه حتى لو فُتح الآيباد بكاش قديم (أو فارغ)، يجلب النسخة الصحيحة فوراً.
 
-مكوّن `<RealtimeSync />` يُركَّب مرة في `AppShell`:
-- يفتح قناة `amlaki-sync-{uid}` ويشترك بـ `postgres_changes` (`event:'*'`) لكل الجداول أعلاه.
-- لكل حدث:
-  - يستدعي `queryClient.invalidateQueries(...)` للمفاتيح ذات الصلة.
-  - يستدعي `paymentsBus.emit()` عند تغييرات `payments` (لإعادة استخدام البنية الحالية).
-  - يُطلق `CustomEvent('amlaki:data-changed', { detail: { table, eventType } })` على `window`.
-- يُعيد فتح القناة عند `auth.onAuthStateChange` ويُغلقها عند الخروج.
+### 4. تحميل استباقي عند تسجيل الدخول
+في `auth.tsx` أو `RealtimeSync` بعد توفّر `user.id`:
+- استدعِ `loadSignature()` مرة واحدة بصمت لتعبئة الكاش، حتى لو لم يفتح المستخدم شاشة الإعدادات.
+- بهذا يكون التوقيع جاهزاً لتوليد PDF فوراً على الجهاز الجديد.
 
-## 3) خطّاف للصفحات — `src/lib/useLiveData.ts`
+### 5. تفعيل Realtime على عمود التوقيع
+الجدول `profiles` مفعّل أصلاً في `supabase_realtime` ضمن مهاجرة المزامنة السابقة، لذا لا حاجة لمهاجرة جديدة — فقط نضيف المستمعين.
 
-```ts
-useLiveData(tables: string[], refetch: () => void, opts?: { debounceMs?: number })
-```
-- يستمع لـ `amlaki:data-changed` ويستدعي `refetch` (debounce 250ms) إذا كان `detail.table ∈ tables`.
-- يستدعي `refetch` أيضاً عند `visibilitychange→visible` و`focus` (لتغطية فترات نوم iOS).
+## النتيجة المتوقعة
+- رفع التوقيع من الآيفون → ظهور فوري (ثوانٍ) على الآيباد دون إعادة تسجيل دخول أو تحديث يدوي.
+- العودة من الخلفية على iOS → فحص تلقائي وتحديث.
+- توليد إيصالات PDF على أي جهاز يستخدم التوقيع الصحيح دائماً.
 
-## 4) ربط الصفحات
-
-سطر واحد في كل صفحة يستدعي `useLiveData(...)` مع دالة الجلب الحالية:
-
-| الصفحة | الجداول |
-|---|---|
-| Dashboard | units, payments, tenancies, buildings, expenses, maintenance_requests |
-| Buildings | buildings, units |
-| BuildingDetail | units, tenancies, payments, expenses |
-| UnitDetail | units, tenancies, payments, maintenance_requests, expenses |
-| Payments / PaymentsTrash / PreviousBalances | payments, units |
-| Tenants | tenancies, units |
-| Maintenance | maintenance_requests, units |
-| BuildingExpenses | expenses, units |
-| Activity | activity_log |
-| Notifications | in_app_notifications |
-| Team | building_members, invitations |
-| Reports | payments, expenses, units |
-| daily/* | daily_bookings, daily_units, daily_cleaning_tasks, daily_pricing_rules, daily_message_templates |
-
-## 5) النتيجة
-
-- تسجيل دفعة / تعديل عقد / إضافة وحدة من أي جهاز → يظهر على باقي الأجهزة خلال أقل من ثانيتين.
-- يعمل في الخلفية على iOS؛ عند العودة للتطبيق يُجبر التحديث (focus/visibility) لضمان عدم تفويت أي تغيير.
-- لا تغييرات على الواجهة أو الـ design system، ولا أي تأثير على الأداء (قناة واحدة فقط).
+## الملفات المتأثرة
+- `src/lib/signature.ts` — إضافة `signatureBus`، ختم زمني للكاش، دالة `subscribeSignatureSync()`.
+- `src/lib/realtimeSync.tsx` — تركيب الاشتراك + تحميل استباقي عند الدخول.
+- `src/components/SignatureManager.tsx` — مستمعون للحدث + visibility/focus.
