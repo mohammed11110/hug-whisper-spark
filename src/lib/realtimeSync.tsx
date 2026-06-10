@@ -76,8 +76,7 @@ export function RealtimeSync() {
       const ch = supabase.channel(`amlaki-sync-${uid}`);
       for (const t of SYNCED_TABLES) {
         ch.on(
-          // @ts-expect-error - postgres_changes is supported at runtime
-          "postgres_changes",
+          "postgres_changes" as any,
           { event: "*", schema: "public", table: t },
           (payload: any) => {
             const eventType: SyncEventDetail["eventType"] =
