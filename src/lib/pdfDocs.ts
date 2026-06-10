@@ -170,11 +170,14 @@ async function registerLeasePdfFonts(pdf: jsPDF) {
 
 export interface BrandInfo {
   name: string;
+  nameEn?: string;
   logo: string | null;
   phone: string;
   address: string;
   landlordName?: string;
   landlordNameEn?: string;
+  crNumber?: string;
+  defaultCurrency?: string;
 }
 
 export interface ReceiptData {
