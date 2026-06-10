@@ -1,25 +1,57 @@
-# مشكلة المزامنة بين iPhone و iPad
+# مزامنة فورية شاملة بين كل الأجهزة
 
-البيانات (التوقيع + معلومات المؤسسة) محفوظة فعلياً على السيرفر لكل حساب، لكن جهاز الـ iPad يجلبها **مرة واحدة فقط** عند تسجيل الدخول، ثم يعرض النسخة المخزنة محلياً. لذلك أي تعديل من الـ iPhone لا يظهر على الـ iPad حتى تخرج وتعيد تسجيل الدخول.
+نُنشئ قناة Realtime واحدة على مستوى التطبيق تستمع لتغييرات كل جداول بيانات المستخدم، ونُبلّغ الصفحات لتُعيد الجلب فوراً — بدون أي تدخل يدوي.
 
-## الإصلاحات
+## 1) Migration: تفعيل Realtime على الجداول
 
-### 1) `src/lib/appSettings.tsx` — إعادة جلب بيانات المؤسسة تلقائياً
-- إزالة شرط `brandLoadedForUid.current !== uid` الذي يمنع إعادة الجلب لنفس المستخدم.
-- إضافة مستمعَين:
-  - `visibilitychange` (عند العودة لتبويب التطبيق على الـ iPad).
-  - `focus` (عند فتح التطبيق من الخلفية).
-  - عند تشغيل أي منهما → استدعاء `hydrateBrandFromServer(uid)` لجلب آخر نسخة من السيرفر.
-- إضافة اشتراك **Realtime** على صف `profiles` للمستخدم الحالي: عند أي تحديث للأعمدة `brand_*` أو `brand_logo_path` يُعاد الجلب فوراً، فيرى الـ iPad التغييرات خلال ثوانٍ بدون أي تدخل يدوي.
+`ALTER PUBLICATION supabase_realtime ADD TABLE` + `REPLICA IDENTITY FULL` لكل من:
+- `buildings`, `units`, `tenancies`, `payments`, `expenses`, `maintenance_requests`
+- `profiles`, `receipt_counters`, `in_app_notifications`, `activity_log`
+- `building_members`, `invitations`, `unit_audit_log`
+- `daily_bookings`, `daily_units`, `daily_cleaning_tasks`, `daily_pricing_rules`, `daily_message_templates`, `daily_cleaners`
 
-### 2) `src/components/SignatureManager.tsx` — تحديث تلقائي للتوقيع
-- إضافة نفس مستمعَي `visibilitychange` و`focus` لاستدعاء `refresh({ hard: true, silent: true })`، بحيث يجلب التوقيع المحدّث من السيرفر بدلاً من إظهار النسخة المخزنة في `localStorage`.
-- اشتراك Realtime على `profiles.signature_path` للمستخدم الحالي → عند تغيّره من جهاز آخر، يتم تحديث الواجهة مباشرة.
+RLS الموجودة تكفي لتقييد ما يصل لكل مستخدم.
 
-### 3) لا حاجة لأي تغيير في قاعدة البيانات
-- جدول `profiles` فيه RLS تسمح للمستخدم بقراءة صفه فقط، وهذا يكفي لـ Realtime.
-- لا تغييرات على Storage أو الـ schema.
+## 2) ناقل مركزي — `src/lib/realtimeSync.tsx`
 
-## النتيجة المتوقعة
-- تعديل التوقيع أو معلومات المؤسسة من الـ iPhone → يظهر تلقائياً على الـ iPad خلال ثوانٍ (Realtime)، وعلى أبعد تقدير بمجرد فتح التطبيق على الـ iPad (visibility/focus).
-- الحساب الواحد = معلومات واحدة عبر كل الأجهزة.
+مكوّن `<RealtimeSync />` يُركَّب مرة في `AppShell`:
+- يفتح قناة `amlaki-sync-{uid}` ويشترك بـ `postgres_changes` (`event:'*'`) لكل الجداول أعلاه.
+- لكل حدث:
+  - يستدعي `queryClient.invalidateQueries(...)` للمفاتيح ذات الصلة.
+  - يستدعي `paymentsBus.emit()` عند تغييرات `payments` (لإعادة استخدام البنية الحالية).
+  - يُطلق `CustomEvent('amlaki:data-changed', { detail: { table, eventType } })` على `window`.
+- يُعيد فتح القناة عند `auth.onAuthStateChange` ويُغلقها عند الخروج.
+
+## 3) خطّاف للصفحات — `src/lib/useLiveData.ts`
+
+```ts
+useLiveData(tables: string[], refetch: () => void, opts?: { debounceMs?: number })
+```
+- يستمع لـ `amlaki:data-changed` ويستدعي `refetch` (debounce 250ms) إذا كان `detail.table ∈ tables`.
+- يستدعي `refetch` أيضاً عند `visibilitychange→visible` و`focus` (لتغطية فترات نوم iOS).
+
+## 4) ربط الصفحات
+
+سطر واحد في كل صفحة يستدعي `useLiveData(...)` مع دالة الجلب الحالية:
+
+| الصفحة | الجداول |
+|---|---|
+| Dashboard | units, payments, tenancies, buildings, expenses, maintenance_requests |
+| Buildings | buildings, units |
+| BuildingDetail | units, tenancies, payments, expenses |
+| UnitDetail | units, tenancies, payments, maintenance_requests, expenses |
+| Payments / PaymentsTrash / PreviousBalances | payments, units |
+| Tenants | tenancies, units |
+| Maintenance | maintenance_requests, units |
+| BuildingExpenses | expenses, units |
+| Activity | activity_log |
+| Notifications | in_app_notifications |
+| Team | building_members, invitations |
+| Reports | payments, expenses, units |
+| daily/* | daily_bookings, daily_units, daily_cleaning_tasks, daily_pricing_rules, daily_message_templates |
+
+## 5) النتيجة
+
+- تسجيل دفعة / تعديل عقد / إضافة وحدة من أي جهاز → يظهر على باقي الأجهزة خلال أقل من ثانيتين.
+- يعمل في الخلفية على iOS؛ عند العودة للتطبيق يُجبر التحديث (focus/visibility) لضمان عدم تفويت أي تغيير.
+- لا تغييرات على الواجهة أو الـ design system، ولا أي تأثير على الأداء (قناة واحدة فقط).
