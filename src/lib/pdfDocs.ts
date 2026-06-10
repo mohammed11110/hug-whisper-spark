@@ -723,9 +723,8 @@ export function buildReceiptHTML(data: ReceiptData): string {
         <div class="rcp-title">
           <div class="ar">إيصال استلام دفعة</div>
           <div class="en">Payment Receipt</div>
-          ${isPaid
-            ? `<span class="rcp-badge paid">● PAID · مدفوع</span>`
-            : `<span class="rcp-badge due">● DUE · متبقي</span>`}
+          ${badgeHtml}
+
         </div>
       </div>
 
