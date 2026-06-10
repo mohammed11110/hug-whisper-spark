@@ -192,8 +192,10 @@ export async function getSignatureDataUrl(): Promise<string | null> {
   return url;
 }
 
-/** Uploads a PNG blob and updates the profile pointer. */
-export async function saveSignature(blob: Blob): Promise<void> {
+/** Uploads a PNG blob and updates the profile pointer. Returns the
+ *  `signature_updated_at` timestamp that was written, so callers can prime
+ *  the cache with the exact same value the server holds. */
+export async function saveSignature(blob: Blob): Promise<{ updatedAt: string }> {
   const uid = await currentUid();
   if (!uid) throw new Error("not_authenticated");
   const path = pathFor(uid);
@@ -203,11 +205,17 @@ export async function saveSignature(blob: Blob): Promise<void> {
     .upload(path, blob, { upsert: true, contentType: "image/png", cacheControl: "0" });
   if (upErr) throw upErr;
 
+  const updatedAt = new Date().toISOString();
   const { error: profErr } = await supabase
     .from("profiles")
-    .update({ signature_path: path, signature_updated_at: new Date().toISOString() })
+    .update({ signature_path: path, signature_updated_at: updatedAt })
     .eq("id", uid);
   if (profErr) throw profErr;
+  // Record the local prime window so the echo UPDATE event we just produced
+  // doesn't trigger an immediate Storage round-trip on this same device.
+  lastLocalPrimeAt = Date.now();
+  lastLocalUpdatedAt = updatedAt;
+  return { updatedAt };
 }
 
 export async function deleteSignature(): Promise<void> {
@@ -219,6 +227,8 @@ export async function deleteSignature(): Promise<void> {
     .update({ signature_path: null, signature_updated_at: null })
     .eq("id", uid);
   clearSignatureCache();
+  lastLocalPrimeAt = Date.now();
+  lastLocalUpdatedAt = null;
   signatureBus.emit();
 }
 
@@ -241,11 +251,19 @@ export async function preloadSignature(): Promise<void> {
 
 /** Seed the cache with a freshly-saved data URL so subsequent reads
  *  (e.g. receipt PDF generation, page reloads, next-day launches) don't need
- *  to round-trip through Storage. */
-export async function primeSignatureCache(dataUrl: string): Promise<void> {
+ *  to round-trip through Storage.
+ *
+ *  Does NOT emit `signatureBus` — the caller already has the new data and
+ *  notifying other listeners on the same device causes a redundant Storage
+ *  download that races with the just-completed upload. Cross-device listeners
+ *  still fire through Realtime. */
+export async function primeSignatureCache(dataUrl: string, updatedAt?: string): Promise<void> {
   const uid = await currentUid();
   if (!uid) return;
-  writeCache(uid, dataUrl, new Date().toISOString());
-  signatureBus.emit();
+  const ts = updatedAt || new Date().toISOString();
+  writeCache(uid, dataUrl, ts);
+  lastLocalPrimeAt = Date.now();
+  lastLocalUpdatedAt = ts;
 }
+
 
