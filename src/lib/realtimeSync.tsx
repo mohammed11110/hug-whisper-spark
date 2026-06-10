@@ -91,6 +91,25 @@ export function RealtimeSync() {
                 paymentsBus.emit(unitId);
               } catch { /* noop */ }
             }
+            // Cross-device signature sync: when the user's own profile row
+            // changes and the signature pointer/timestamp moves, drop the
+            // local cache and notify subscribers to re-pull from Storage.
+            if (t === "profiles") {
+              try {
+                const row: any = payload?.new ?? payload?.old ?? {};
+                if (row?.id === uid) {
+                  const newPath = (payload?.new as any)?.signature_path ?? null;
+                  const newTs = (payload?.new as any)?.signature_updated_at ?? null;
+                  const oldPath = (payload?.old as any)?.signature_path ?? null;
+                  const oldTs = (payload?.old as any)?.signature_updated_at ?? null;
+                  if (newPath !== oldPath || newTs !== oldTs) {
+                    clearSignatureCache();
+                    void preloadSignature();
+                    signatureBus.emit();
+                  }
+                }
+              } catch { /* noop */ }
+            }
             try {
               window.dispatchEvent(new CustomEvent<SyncEventDetail>(SYNC_EVENT, {
                 detail: {
@@ -101,6 +120,7 @@ export function RealtimeSync() {
                 },
               }));
             } catch { /* noop */ }
+
           },
         );
       }
