@@ -1,25 +1,39 @@
-## Plan: Adopt the uploaded design as the Amlaki signup confirmation email
+# ربط بيانات المؤسسة والتوقيع بالحساب
 
-The email domain `1.amlaki1.app` is already verified, so we can scaffold and deploy auth email templates immediately.
+## المشكلة
+- **التوقيع الإلكتروني**: مرتبط بالحساب فعلاً (مخزّن في Supabase Storage `signatures/{uid}.png` + `profiles.signature_path`) ✅
+- **بيانات المؤسسة** (الاسم، الشعار، الهاتف، العنوان، اسم المالك): مخزّنة فقط في `localStorage` على الجهاز، فلا تظهر عند تسجيل الدخول من جهاز آخر ❌
 
-### Steps
-1. Scaffold Lovable auth email templates (creates the `auth-email-hook` and 6 React Email templates: signup, magic-link, recovery, invite, email-change, reauthentication).
-2. Convert the uploaded HTML into the signup template (`_shared/email-templates/signup.tsx`) using React Email components:
-   - RTL Arabic + LTR English bilingual layout
-   - Navy header `#272B3A` with gold `#B8924A` logo tile and "أملاكي / A M L A K I" wordmark
-   - Paper card `#FBFAF7` on `#ffffff` body background (Body bg must stay white per email rules)
-   - Gold accent rule, eyebrow "تأكيد الحساب · CONFIRM ACCOUNT"
-   - Heading "أهلاً بك في أملاكي / Welcome to Amlaki"
-   - Bilingual paragraph
-   - Bulletproof gold CTA button → `confirmationUrl`
-   - Fallback raw URL in light-gold pill `#E9DFC8`
-   - Bilingual security note + navy footer "فريق أملاكي · Amlaki Team / إدارة عقاراتك بذكاء"
-   - Wire `siteName`, `confirmationUrl` variables
-3. Apply the same brand shell (navy header + gold accent + paper card + bilingual footer) to the other 5 templates so the whole auth email family stays consistent, with their own AR/EN headings and CTAs (sign-in link, password reset, invite, email change, OTP code).
-4. Deploy `auth-email-hook` edge function.
-5. Provide preview buttons for signup and recovery so you can review in Cloud → Emails.
+## الحل
+نقل بيانات المؤسسة إلى الحساب بنفس نمط التوقيع.
 
-### Out of scope
-- No changes to in-app receipt PDF, settings page, or auth pages.
-- No new database tables or RLS changes.
-- No third-party email provider — using the existing Lovable Emails infrastructure on `1.amlaki1.app`.
+### 1) قاعدة البيانات
+إضافة أعمدة على جدول `profiles`:
+- `brand_name`, `brand_phone`, `brand_address`
+- `brand_landlord_name`, `brand_landlord_name_en`
+- `brand_logo_path` (مرجع داخل bucket `branding`)
+- `brand_updated_at`
+
+(Bucket `branding` موجود وعام بالفعل.)
+
+### 2) طبقة البيانات (Frontend)
+- `src/lib/appSettings.tsx`: عند تسجيل الدخول، نقرأ `brand` من `profiles` ونحدّث الحالة. عند أي تعديل على `settings.brand` نُزامن مع الخادم (debounced upsert) إضافةً للحفظ المحلي الحالي كـ cache.
+- إنشاء helper `src/lib/brand.ts` على نمط `signature.ts`:
+  - `loadBrand()` → يقرأ من profile + يحمّل الشعار من bucket `branding` كـ data URL.
+  - `saveBrand(patch)` → يحدّث الأعمدة على profile.
+  - `uploadBrandLogo(blob)` / `deleteBrandLogo()` → رفع/حذف الشعار في `branding/{uid}.png` وتحديث `brand_logo_path`.
+- عند تسجيل الخروج/دخول مستخدم آخر: نمسح الـ cache المحلي ونعيد التحميل من الخادم.
+
+### 3) واجهة الإعدادات
+لا تغيير بصري. شاشة إعدادات المؤسسة الحالية ستحفظ على الخادم تلقائياً، مع مؤشّر «تم الحفظ» قصير.
+
+### 4) الترحيل (Migration ذاتي لمرة واحدة)
+عند أول تشغيل بعد التحديث: إذا كان لدى المستخدم `brand` في localStorage ولا توجد بيانات على الخادم → نرفعها تلقائياً (بما فيها الشعار من data URL إلى bucket) ثم نعتمد الخادم كمصدر للحقيقة.
+
+## خارج النطاق
+- لا تغيير على PDF الإيصال/العقد (يستخدم نفس `settings.brand` فيصبح متزامناً تلقائياً).
+- لا تغيير على التوقيع (يعمل بشكل صحيح أصلاً).
+- لا تغيير على الترجمة، العملة، السمة (تبقى local — تفضيلات جهاز).
+
+## ملاحظة تقنية
+سأنشئ Migration واحدة تضيف أعمدة `brand_*` على `profiles` (الـ RLS الحالية تكفي لأن المستخدم يقرأ/يكتب صفّه فقط).

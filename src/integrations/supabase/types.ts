@@ -839,6 +839,13 @@ export type Database = {
       }
       profiles: {
         Row: {
+          brand_address: string | null
+          brand_landlord_name: string | null
+          brand_landlord_name_en: string | null
+          brand_logo_path: string | null
+          brand_name: string | null
+          brand_phone: string | null
+          brand_updated_at: string | null
           business_whatsapp: string | null
           canceled_at: string | null
           country_code: string | null
@@ -867,6 +874,13 @@ export type Database = {
           whatsapp_verified_at: string | null
         }
         Insert: {
+          brand_address?: string | null
+          brand_landlord_name?: string | null
+          brand_landlord_name_en?: string | null
+          brand_logo_path?: string | null
+          brand_name?: string | null
+          brand_phone?: string | null
+          brand_updated_at?: string | null
           business_whatsapp?: string | null
           canceled_at?: string | null
           country_code?: string | null
@@ -895,6 +909,13 @@ export type Database = {
           whatsapp_verified_at?: string | null
         }
         Update: {
+          brand_address?: string | null
+          brand_landlord_name?: string | null
+          brand_landlord_name_en?: string | null
+          brand_logo_path?: string | null
+          brand_name?: string | null
+          brand_phone?: string | null
+          brand_updated_at?: string | null
           business_whatsapp?: string | null
           canceled_at?: string | null
           country_code?: string | null
