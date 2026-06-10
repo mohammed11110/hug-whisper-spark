@@ -248,6 +248,83 @@ export async function preloadSignature(): Promise<void> {
   try { await loadSignature(); } catch { /* noop */ }
 }
 
+/**
+ * Force-verify the local cache against the server's `signature_updated_at`.
+ * Always runs the profile lookup (one retry on failure). If the server has a
+ * newer timestamp — or the cache is missing entirely — clears the cache,
+ * re-downloads from Storage, and emits `signatureBus` so every mounted UI
+ * refreshes. Cheap enough to call on every focus / visibilitychange / online.
+ *
+ * Returns true when something actually changed.
+ */
+let lastVerifyAt = 0;
+export async function verifySignatureFresh(opts: { force?: boolean } = {}): Promise<boolean> {
+  const now = Date.now();
+  if (!opts.force && now - lastVerifyAt < 1500) return false;
+  lastVerifyAt = now;
+
+  const uid = await currentUid();
+  if (!uid) return false;
+
+  const fetchProfile = async () => await supabase
+    .from("profiles")
+    .select("signature_path, signature_updated_at")
+    .eq("id", uid)
+    .maybeSingle();
+
+  let { data, error } = await fetchProfile();
+  if (error) {
+    await new Promise((r) => setTimeout(r, 400));
+    ({ data, error } = await fetchProfile());
+    if (error) return false;
+  }
+
+  const serverPath = (data as any)?.signature_path ?? null;
+  const serverTs = (data as any)?.signature_updated_at ?? null;
+
+  let localTs: string | null = null;
+  let hasLocal = false;
+  try {
+    const cachedUid = localStorage.getItem(CACHE_USER_KEY);
+    if (cachedUid === uid) {
+      hasLocal = !!localStorage.getItem(CACHE_KEY);
+      localTs = localStorage.getItem(CACHE_UPDATED_KEY);
+    }
+  } catch { /* noop */ }
+
+  if (!serverPath) {
+    if (hasLocal) {
+      clearSignatureCache();
+      signatureBus.emit();
+      return true;
+    }
+    return false;
+  }
+
+  if (hasLocal && serverTs && localTs === serverTs) return false;
+
+  // Suppress echo from our own just-completed save on this device.
+  if (isRecentLocalPrime(serverTs)) return false;
+
+  clearSignatureCache();
+  try {
+    const { data: blob, error: dlErr } = await supabase
+      .storage.from("signatures").download(serverPath);
+    if (dlErr || !blob) return false;
+    const dataUrl = await blobToDataUrl(blob);
+    writeCache(uid, dataUrl, serverTs);
+    signatureBus.emit();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Returns the last known server `signature_updated_at` from local cache. */
+export function getCachedSignatureUpdatedAt(): string | null {
+  try { return localStorage.getItem(CACHE_UPDATED_KEY); } catch { return null; }
+}
+
 
 /** Seed the cache with a freshly-saved data URL so subsequent reads
  *  (e.g. receipt PDF generation, page reloads, next-day launches) don't need
