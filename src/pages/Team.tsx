@@ -67,6 +67,7 @@ export default function Team() {
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [user]);
+  useLiveData(["building_members", "invitations", "buildings", "profiles"], load);
 
   const isUnlimited = allowance >= 2147483647;
   const atLimit = !isUnlimited && usage >= allowance;
