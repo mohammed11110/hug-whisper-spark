@@ -126,6 +126,11 @@ export function RealtimeSync() {
       }
       ch.subscribe();
       channel = ch;
+      // Warm the signature cache on this device so PDF generation and the
+      // Settings screen show the latest signature without waiting for a UI
+      // interaction. Runs once per login / device.
+      void preloadSignature();
+
     };
 
     void setup();
