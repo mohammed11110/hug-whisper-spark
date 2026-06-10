@@ -5,12 +5,13 @@ import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { PenTool, Upload, Trash2, RefreshCw, Loader2, Check } from "lucide-react";
 import {
-  getSignatureDataUrl,
+  loadSignature,
   saveSignature,
   deleteSignature,
   clearSignatureCache,
   primeSignatureCache,
 } from "@/lib/signature";
+import { supabase } from "@/integrations/supabase/client";
 
 const tr = (lang: string, ar: string, en: string) => (lang === "ar" ? ar : en);
 
