@@ -232,5 +232,7 @@ export async function preloadSignature(): Promise<void> {
 export async function primeSignatureCache(dataUrl: string): Promise<void> {
   const uid = await currentUid();
   if (!uid) return;
-  writeCache(uid, dataUrl);
+  writeCache(uid, dataUrl, new Date().toISOString());
+  signatureBus.emit();
 }
+
