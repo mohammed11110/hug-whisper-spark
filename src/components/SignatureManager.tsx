@@ -11,6 +11,8 @@ import {
   clearSignatureCache,
   primeSignatureCache,
   signatureBus,
+  verifySignatureFresh,
+  getCachedSignatureUpdatedAt,
 } from "@/lib/signature";
 
 import { supabase } from "@/integrations/supabase/client";
