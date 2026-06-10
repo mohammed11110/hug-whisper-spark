@@ -111,6 +111,15 @@ export function SignatureManager() {
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [drawOpen, setDrawOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [diag, setDiag] = useState<SignatureDiag>(() => signatureDiag.get());
+  const [, force] = useState(0);
+
+  // Tick every 5s so "X ثانية مضت" stays accurate.
+  useEffect(() => {
+    const id = window.setInterval(() => force((n) => n + 1), 5000);
+    const off = signatureDiag.on(() => setDiag(signatureDiag.get()));
+    return () => { window.clearInterval(id); off(); };
+  }, []);
 
   const fileRef = useRef<HTMLInputElement>(null);
 
