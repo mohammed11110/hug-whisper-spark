@@ -150,7 +150,7 @@ export async function loadSignature(): Promise<SignatureLoadResult> {
     const { data, error } = await supabase
       .storage
       .from("signatures")
-      .download(`${signaturePath}?v=${signatureUpdatedAt ?? Date.now()}`);
+      .download(signaturePath);
     if (error || !data) {
       const msg = error?.message || "download_failed";
       if (cached) {
