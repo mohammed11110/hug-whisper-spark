@@ -3,6 +3,7 @@ import jsPDF from "jspdf";
 import type { AppSettings, BusinessBrand, Margins, PageSize } from "@/lib/appSettings";
 import { isIOS, canShareFiles } from "@/lib/platform";
 import { isNative, handlePdfBlobNative, previewBlobNative } from "@/lib/nativeFiles";
+import { amountToWordsAr, amountToWordsEn } from "@/lib/numberToWords";
 
 // ---- Embedded fonts (loaded once, cached as data URLs) ----
 // Loading fonts as data URLs guarantees they are available the instant
