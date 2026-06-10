@@ -1468,21 +1468,30 @@ function buildBilingualReceiptHTML(
 ): string {
   const amount = Number(data.amount) || 0;
   const amountEn = fmtMoney3(amount);
-  const remainEn = fmtMoney3(ctx.remainingAfter);
   const dates = fmtDateBoth(data.paymentDate);
+  // Compact issue-date style for the EN cell (matches reference: "Jun 2026 08")
+  const dIssue = data.paymentDate ? new Date(data.paymentDate) : null;
+  const issueEn = (dIssue && !Number.isNaN(dIssue.getTime()))
+    ? `${dIssue.toLocaleString("en-US", { month: "short" })} ${dIssue.getFullYear()} ${String(dIssue.getDate()).padStart(2, "0")}`
+    : dates.en;
   const wordsAr = amountWordsAr(amount);
   const wordsEn = amountWordsEn(amount);
   const tenant = data.tenantName || "—";
-  const building = `${data.building || "—"}${data.unitNumber ? " — " + data.unitNumber : ""}`;
+  const unitOnly = data.unitNumber ? `${data.building || "—"} — وحدة ${data.unitNumber}` : (data.building || "—");
   const period = data.periodLabel || "—";
+  const periodEn = period;
   const method = data.method || "—";
+  const methodEn = method;
   const receiptNo = data.receiptNumber || "—";
-  const brandName = data.brand.name || "Amlaki";
-  const brandNameAr = "أملاكي";
+  const brandNameEn = data.brand.name || "Amlaki";
+  const brandNameAr = data.brand.landlordName || "أملاكي";
+  const brandSubEn = data.brand.landlordNameEn || brandNameEn;
+  const brandMeta = (data.brand.address || data.brand.phone || "").trim();
   const sigImg = data.signatureDataUrl || "";
-  const sigName = data.signatureName || brandName;
+  const sigName = data.signatureName || data.brand.landlordNameEn || brandNameEn;
+  const sigNameAr = data.brand.landlordName || data.brand.name || "";
 
-  // A4 portrait at 96dpi → 794 × 1123 px
+  // A4 portrait at 96dpi → 794 × 1123 px. Soft cream paper, gold accents, navy ink.
   return `<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
@@ -1491,9 +1500,9 @@ function buildBilingualReceiptHTML(
 <style id="pdf-fonts"></style>
 <style>
   :root{
-    --gold:#B8924A; --gold-soft:#E9DFC8; --navy:#272B3A;
-    --paper:#FBFAF7; --ink:#1A1C24; --green:#3C7A5A;
-    --red:#B4503F; --line:#E3E0D8;
+    --gold:#B8924A; --gold-soft:#E9DFC8; --gold-tint:#F5EFDC;
+    --navy:#272B3A; --paper:#FBFAF7; --ink:#1A1C24;
+    --green:#3C7A5A; --red:#B4503F; --line:#E3E0D8; --muted:#9a9685;
   }
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{background:#fff;}
@@ -1502,225 +1511,233 @@ function buildBilingualReceiptHTML(
        text-rendering:optimizeLegibility;
        -webkit-font-smoothing:antialiased;}
   .ar{font-family:"Noto Kufi Arabic","Noto Naskh Arabic",sans-serif;}
-  .en{font-family:"Outfit","Inter",sans-serif;}
+  .en{font-family:"Outfit","Inter",sans-serif; direction:ltr;}
   .page{
     width:794px; height:1123px; background:var(--paper);
     position:relative; overflow:hidden;
+    padding:64px 64px 56px;
   }
 
-  /* ---- Header (navy) ---- */
-  .header{
-    background:var(--navy); color:#fff; padding:28px 36px 24px;
-    display:flex; justify-content:space-between; align-items:flex-start; gap:24px;
-    position:relative;
+  /* Top: title (left) + brand (right) + center ornament */
+  .top{
+    display:grid; grid-template-columns:1fr auto 1fr; align-items:start;
+    gap:24px; margin-bottom:36px; min-height:96px;
   }
-  .header::after{
-    content:""; position:absolute; left:0; right:0; bottom:0; height:4px;
-    background:linear-gradient(90deg,var(--gold) 0%,#d8b573 50%,var(--gold) 100%);
-  }
-  .brand{display:flex; align-items:center; gap:14px;}
-  .brand .logo{
-    width:56px; height:56px; border-radius:14px; background:var(--gold);
-    display:flex; align-items:center; justify-content:center;
-    color:var(--navy); font-weight:900; font-size:26px; overflow:hidden;
-    flex-shrink:0;
-  }
-  .brand .logo img{width:100%; height:100%; object-fit:cover;}
-  .brand .names{line-height:1.25; text-align:right;}
-  .brand .names .b-ar{font-size:19px; font-weight:800;}
-  .brand .names .b-en{font-size:12px; opacity:.78; margin-top:3px; letter-spacing:.14em;}
-  .title-block{text-align:left; direction:ltr;}
-  .title-block .t-ar{font-size:19px; font-weight:800; font-family:"Noto Kufi Arabic",sans-serif;}
-  .title-block .t-en{font-size:13px; opacity:.82; letter-spacing:.16em; margin-top:3px;}
-  .paid-badge{
-    margin-top:10px; display:inline-flex; align-items:center; gap:7px;
-    background:var(--green); color:#fff; padding:5px 12px; border-radius:999px;
-    font-weight:700; font-size:11px; letter-spacing:.06em;
-  }
-  .paid-badge.partial{background:var(--gold); color:var(--navy);}
-  .paid-badge .dot{width:6px; height:6px; border-radius:50%; background:#fff;}
-  .paid-badge.partial .dot{background:var(--navy);}
-
-  /* ---- Info bar (3 cells) ---- */
-  .info-bar{display:flex; background:#fff; border-bottom:1px solid var(--line);}
-  .info-bar .cell{
-    flex:1; padding:14px 16px; text-align:center;
-    border-inline-end:1px solid var(--line);
-  }
-  .info-bar .cell:last-child{border-inline-end:0;}
-  .info-bar .lbl-en{font-size:10px; color:#6c6f7a; letter-spacing:.1em; text-transform:uppercase; font-weight:600;}
-  .info-bar .lbl-ar{display:block; font-size:11px; color:#5a5e6b; margin-top:2px; font-family:"Noto Kufi Arabic",sans-serif;}
-  .info-bar .v-en{font-size:14px; font-weight:800; color:var(--navy); margin-top:6px;}
-  .info-bar .v-ar{display:block; font-size:13px; color:#3a3f50; margin-top:2px; font-family:"Noto Kufi Arabic",sans-serif;}
-
-  /* ---- Body ---- */
-  .body{padding:22px 36px 0;}
-
-  .row{
-    display:grid; grid-template-columns:1fr 1.5fr 1fr; align-items:center;
-    padding:13px 18px; background:#fff; border:1px solid var(--line);
-    border-radius:12px; margin-bottom:9px; min-height:54px;
-  }
-  .row .lbl-ar{text-align:right; font-size:13px; color:#5a5e6b; font-weight:700; font-family:"Noto Kufi Arabic",sans-serif;}
-  .row .lbl-en{text-align:left; font-size:11px; color:#7a7e8a; letter-spacing:.1em; text-transform:uppercase; font-weight:600;}
-  .row .val{text-align:center; font-size:15px; font-weight:800; color:var(--ink);}
-
-  /* ---- Amount hero bar (gold) ---- */
-  .amount-bar{
-    margin:16px 0 12px;
-    background:linear-gradient(135deg,var(--gold) 0%,#d0a55c 50%,var(--gold) 100%);
-    color:#fff; border-radius:14px; padding:18px 26px;
-    display:flex; justify-content:space-between; align-items:center;
-    box-shadow:0 6px 18px rgba(184,146,74,.25);
-  }
-  .amount-bar .side{font-size:18px; font-weight:800;}
-  .amount-bar .side.ar{font-size:22px; font-family:"Noto Kufi Arabic",sans-serif;}
-  .amount-bar .main{text-align:center; flex:1;}
-  .amount-bar .main .num{
-    font-size:36px; font-weight:900; letter-spacing:.01em; line-height:1;
+  .top-l{text-align:left; direction:ltr;}
+  .top-l .t-ar{font-family:"Noto Kufi Arabic",sans-serif; font-size:22px; font-weight:800; color:var(--navy); letter-spacing:-.01em; direction:rtl; text-align:left;}
+  .top-l .t-en{font-family:"Outfit",sans-serif; font-size:13px; font-weight:700; color:var(--gold); letter-spacing:.28em; margin-top:4px;}
+  .status{
+    margin-top:14px; display:inline-flex; align-items:center; gap:8px;
+    border:1px solid #cfe1d5; background:#eff5f1; color:var(--green);
+    padding:5px 14px; border-radius:999px;
+    font-size:11px; font-weight:700; letter-spacing:.04em;
     font-family:"Outfit",sans-serif;
   }
-  .amount-bar .main .lbl{
-    margin-top:6px; font-size:10.5px; opacity:.95; letter-spacing:.18em;
-    text-transform:uppercase; font-weight:700;
+  .status .dot{width:7px; height:7px; border-radius:50%; background:var(--green);}
+  .status.partial{border-color:#e3d4a8; background:#fbf3dd; color:#8a6a1d;}
+  .status.partial .dot{background:#b8841f;}
+  .status .ar{font-family:"Noto Kufi Arabic",sans-serif; font-size:12px;}
+
+  .ornament{
+    align-self:center; color:var(--gold); font-size:28px; line-height:1;
+    user-select:none; opacity:.92; text-align:center;
+  }
+  .ornament img{display:block; margin:0 auto;}
+
+  .top-r{text-align:right; direction:rtl;}
+  .top-r .b-ar{font-family:"Noto Kufi Arabic",sans-serif; font-size:18px; font-weight:800; color:var(--navy);}
+  .top-r .b-en{font-family:"Outfit",sans-serif; font-size:11px; color:var(--gold); margin-top:5px; letter-spacing:.04em;}
+  .top-r .b-meta{font-size:10.5px; color:var(--muted); margin-top:4px;}
+
+  /* Info row (3 columns) */
+  .info{
+    display:grid; grid-template-columns:1fr 1fr 1fr; align-items:center;
+    padding:16px 0; gap:0;
+  }
+  .info .cell{padding:6px 18px; text-align:center; border-inline-end:1px solid var(--line);}
+  .info .cell:last-child{border-inline-end:0;}
+  .info .lbl{font-size:11px; color:var(--muted); font-weight:600;}
+  .info .lbl .ar{display:block; font-family:"Noto Kufi Arabic",sans-serif; font-size:11px; margin-bottom:2px;}
+  .info .lbl .en{display:block; font-family:"Outfit",sans-serif; font-size:10px; letter-spacing:.14em; text-transform:uppercase;}
+  .info .val{margin-top:8px; font-size:14px; font-weight:800; color:var(--navy); font-family:"Outfit",sans-serif;}
+  .info .val .ar{display:block; font-family:"Noto Kufi Arabic",sans-serif; font-size:13px; font-weight:800; color:var(--navy); margin-bottom:2px;}
+  .divider{border-top:1px solid var(--line); margin:8px 0 26px;}
+
+  /* Data rows */
+  .drow{
+    display:grid; grid-template-columns:1fr 1.6fr 1fr; align-items:center;
+    padding:14px 4px;
+  }
+  .drow + .drow{border-top:1px solid #ece9dd;}
+  .drow .l-en{font-size:11px; color:var(--muted); font-family:"Outfit",sans-serif; letter-spacing:.04em;}
+  .drow .l-ar{text-align:right; font-size:12.5px; color:var(--muted); font-family:"Noto Kufi Arabic",sans-serif;}
+  .drow .v{text-align:center; font-size:15px; font-weight:800; color:var(--ink);}
+  .drow .v .ar{font-family:"Noto Kufi Arabic",sans-serif;}
+
+  /* Amount hero */
+  .amount{
+    margin:30px 0 22px;
+    background:linear-gradient(180deg,#fff 0%,var(--gold-tint) 100%);
+    border:1px solid #ead9b0; border-radius:18px;
+    padding:26px 32px;
+    display:grid; grid-template-columns:1fr auto 1fr; align-items:center;
+    box-shadow:0 4px 14px rgba(184,146,74,.10);
+  }
+  .amount .side{text-align:center;}
+  .amount .side .big{font-family:"Outfit",sans-serif; font-size:20px; font-weight:800; color:var(--navy); letter-spacing:.04em;}
+  .amount .side .big.ar{font-family:"Noto Kufi Arabic",sans-serif; font-size:20px;}
+  .amount .side .sm{font-size:10.5px; color:var(--muted); margin-top:5px; letter-spacing:.06em;}
+  .amount .num{
+    text-align:center; font-family:"Outfit",sans-serif;
+    font-size:48px; font-weight:900; color:var(--navy); line-height:1; letter-spacing:.01em;
+    padding:0 24px;
   }
 
-  /* ---- Amount in words ---- */
+  /* Amount in words */
   .words{
-    background:var(--gold-soft); border:1px solid #d6c69a;
-    border-radius:12px; padding:13px 18px; margin-bottom:12px;
+    display:grid; grid-template-columns:auto 1fr; align-items:start; gap:18px;
+    padding:8px 4px 14px;
   }
-  .words .ln{font-size:12.5px; line-height:1.65; color:#5a4a1f;}
-  .words .ln.ar{text-align:right; font-weight:700; font-family:"Noto Kufi Arabic",sans-serif;}
-  .words .ln.en{text-align:left; font-style:italic; margin-top:5px;}
-
-  /* ---- Remaining ---- */
-  .remaining{
-    display:flex; justify-content:space-between; align-items:center;
-    padding:13px 20px; border-radius:12px; margin-bottom:14px;
-    border:1px solid;
+  .words .ttl{
+    text-align:right; min-width:88px;
+    font-family:"Noto Kufi Arabic",sans-serif; color:var(--gold); font-size:12.5px; font-weight:800;
   }
-  .remaining.paid{background:#eaf3ee; border-color:#bcd9c8; color:var(--green);}
-  .remaining.due{background:#f7e7e2; border-color:#e5c5bc; color:var(--red);}
-  .remaining .lbl{font-size:11px; font-weight:800; letter-spacing:.1em; text-transform:uppercase;}
-  .remaining .lbl .ar{display:block; font-size:13px; margin-top:3px; letter-spacing:0; text-transform:none; font-family:"Noto Kufi Arabic",sans-serif;}
-  .remaining .val{font-size:18px; font-weight:900; font-family:"Outfit",sans-serif;}
+  .words .ttl .en{display:block; font-family:"Outfit",sans-serif; font-size:10px; color:var(--gold); letter-spacing:.16em; margin-top:3px; text-transform:uppercase;}
+  .words .ln{font-size:13px; line-height:1.7; color:var(--ink);}
+  .words .ln.ar{text-align:right; font-family:"Noto Kufi Arabic",sans-serif;}
+  .words .ln.en{text-align:left; font-family:"Outfit",sans-serif; font-style:italic; color:#5a5d68; margin-top:6px;}
 
-  /* ---- Signature ---- */
+  /* Balance */
+  .balance{
+    display:grid; grid-template-columns:1fr auto 1fr; align-items:center;
+    padding:12px 4px; margin-top:6px;
+  }
+  .balance .l-en{font-size:11px; color:var(--muted); font-family:"Outfit",sans-serif;}
+  .balance .l-ar{text-align:right; font-size:12.5px; color:var(--muted); font-family:"Noto Kufi Arabic",sans-serif;}
+  .balance .v{text-align:center; font-size:14px; font-weight:800;}
+  .balance.paid .v{color:var(--green);}
+  .balance.due .v{color:var(--red);}
+  .balance .v .ar{font-family:"Noto Kufi Arabic",sans-serif; font-weight:700;}
+
+  /* Signature (bottom-right) */
   .sig{
-    margin-top:18px; padding:16px 18px 14px;
-    background:#fff; border:1px dashed var(--line);
-    border-radius:12px; text-align:center;
+    position:absolute; bottom:84px; right:64px; text-align:right; max-width:300px;
   }
-  .sig img{max-height:64px; max-width:220px; display:block; margin:0 auto;}
-  .sig .underline{
-    border-top:1.5px solid var(--gold); width:220px; margin:8px auto 8px;
+  .sig img{max-height:54px; max-width:200px; display:block; margin-inline-start:auto;}
+  .sig .name{
+    margin-top:6px; padding-top:8px; border-top:1px solid var(--line);
+    font-size:13px; color:var(--navy); font-weight:800;
   }
-  .sig .name{font-size:14px; font-weight:800; color:var(--navy);}
-  .sig .role{font-size:10px; color:#7a7e8a; letter-spacing:.1em; margin-top:3px; text-transform:uppercase;}
+  .sig .name .en{font-family:"Outfit",sans-serif; direction:ltr;}
+  .sig .name .sep{margin:0 6px; color:var(--gold);}
+  .sig .name .ar{font-family:"Noto Kufi Arabic",sans-serif;}
 
-  /* ---- Footer ---- */
-  .footer{
-    position:absolute; left:0; right:0; bottom:0;
-    background:var(--navy); color:#cfd2dc; padding:14px 36px 16px;
-    font-size:10.5px; line-height:1.65; text-align:center;
+  /* Bottom gold rule */
+  .rule{
+    position:absolute; left:64px; right:64px; bottom:48px;
+    height:1px; background:linear-gradient(90deg,transparent 0%,var(--gold) 50%,transparent 100%); opacity:.55;
   }
-  .footer::before{
-    content:""; display:block; height:3px;
-    background:linear-gradient(90deg,var(--gold) 0%,#d8b573 50%,var(--gold) 100%);
-    margin:-14px -36px 12px;
-  }
-  .footer .f-ar{font-family:"Noto Kufi Arabic",sans-serif;}
-  .footer .f-en{font-family:"Outfit",sans-serif; opacity:.78; margin-top:3px; letter-spacing:.04em;}
 </style>
 </head>
 <body>
 <div class="page">
-  <div class="header">
-    <div class="title-block">
+
+  <div class="top">
+    <div class="top-l">
       <div class="t-ar">إيصال استلام دفعة</div>
       <div class="t-en">PAYMENT RECEIPT</div>
-      <div class="paid-badge ${ctx.fullyPaid ? "" : "partial"}">
+      <div class="status ${ctx.fullyPaid ? "" : "partial"}">
         <span class="dot"></span>
-        ${ctx.fullyPaid ? "PAID · مدفوع" : "PARTIAL · جزئي"}
+        <span class="ar">${ctx.fullyPaid ? "مدفوع" : "جزئي"}</span> ·
+        <span>${ctx.fullyPaid ? "PAID" : "PARTIAL"}</span>
       </div>
     </div>
-    <div class="brand">
-      <div class="names">
-        <div class="b-ar">${escapeHtml(brandNameAr)} · ${escapeHtml(brandName)}</div>
-        <div class="b-en">PROPERTY MANAGEMENT</div>
-      </div>
-      <div class="logo">${data.brand.logo ? `<img src="${escapeHtml(data.brand.logo)}" alt="logo" />` : escapeHtml(brandName.trim().slice(0,1))}</div>
+
+    <div class="ornament">${data.brand.logo ? `<img src="${escapeHtml(data.brand.logo)}" alt="" style="width:42px;height:42px;object-fit:contain;" />` : "&#10070;"}</div>
+
+    <div class="top-r">
+      <div class="b-ar">${escapeHtml(brandNameAr)}</div>
+      <div class="b-en">${escapeHtml(brandSubEn)}${brandMeta ? ` · ${escapeHtml(brandMeta)}` : ""}</div>
+      ${data.brand.phone && brandMeta !== data.brand.phone ? `<div class="b-meta">${escapeHtml(data.brand.phone)}</div>` : ""}
     </div>
   </div>
 
-  <div class="info-bar">
+  <div class="info">
     <div class="cell">
-      <div class="lbl-en">Receipt No.<span class="lbl-ar">رقم الإيصال</span></div>
-      <div class="v-en">#${escapeHtml(receiptNo)}</div>
-    </div>
-    <div class="cell">
-      <div class="lbl-en">Date<span class="lbl-ar">تاريخ الإصدار</span></div>
-      <div class="v-en">${escapeHtml(dates.en)}<span class="v-ar">${escapeHtml(dates.ar)}</span></div>
-    </div>
-    <div class="cell">
-      <div class="lbl-en">Method<span class="lbl-ar">طريقة الدفع</span></div>
-      <div class="v-en">${escapeHtml(method)}</div>
-    </div>
-  </div>
-
-  <div class="body">
-    <div class="row">
-      <div class="lbl-en">Tenant</div>
-      <div class="val">${escapeHtml(tenant)}</div>
-      <div class="lbl-ar">المستأجر</div>
-    </div>
-    <div class="row">
-      <div class="lbl-en">Building — Unit</div>
-      <div class="val">${escapeHtml(building)}</div>
-      <div class="lbl-ar">المبنى — الوحدة</div>
-    </div>
-    <div class="row">
-      <div class="lbl-en">Rental Period</div>
-      <div class="val">${escapeHtml(period)}</div>
-      <div class="lbl-ar">عن فترة الإيجار</div>
-    </div>
-
-    <div class="amount-bar">
-      <div class="side en">OMR</div>
-      <div class="main">
-        <div class="num">${escapeHtml(amountEn)}</div>
-        <div class="lbl">Amount Received · المبلغ المستلم</div>
-      </div>
-      <div class="side ar">ر.ع</div>
-    </div>
-
-    <div class="words">
-      <div class="ln ar">المبلغ كتابةً: ${escapeHtml(wordsAr)}</div>
-      <div class="ln en">Amount in words: ${escapeHtml(wordsEn)}</div>
-    </div>
-
-    <div class="remaining ${ctx.fullyPaid ? "paid" : "due"}">
       <div class="lbl">
-        ${ctx.fullyPaid ? "Fully Paid" : "Remaining On Tenant"}
-        <span class="ar">${ctx.fullyPaid ? "مسدّد بالكامل" : "المتبقي على المستأجر"}</span>
+        <span class="ar">طريقة الدفع</span>
+        <span class="en">Method</span>
       </div>
-      <div class="val">${ctx.fullyPaid ? "0.000 OMR" : `${escapeHtml(remainEn)} OMR`}</div>
+      <div class="val"><span class="ar">${escapeHtml(method)}</span><span>${escapeHtml(methodEn)}</span></div>
     </div>
+    <div class="cell">
+      <div class="lbl">
+        <span class="ar">تاريخ الإصدار</span>
+        <span class="en">Issue Date</span>
+      </div>
+      <div class="val"><span class="ar">${escapeHtml(dates.ar)}</span><span>${escapeHtml(issueEn)}</span></div>
+    </div>
+    <div class="cell">
+      <div class="lbl">
+        <span class="ar">رقم الإيصال</span>
+        <span class="en">Receipt No.</span>
+      </div>
+      <div class="val">${escapeHtml(receiptNo)}</div>
+    </div>
+  </div>
+  <div class="divider"></div>
 
-    ${sigImg ? `
-    <div class="sig">
-      <img src="${escapeHtml(sigImg)}" alt="signature" />
-      <div class="underline"></div>
-      <div class="name">${escapeHtml(sigName)}</div>
-      <div class="role">Authorized Signature · توقيع المُصدِر</div>
-    </div>` : ""}
+  <div class="drow">
+    <div class="l-en">Tenant</div>
+    <div class="v"><span class="ar">${escapeHtml(tenant)}</span></div>
+    <div class="l-ar">المستأجر</div>
+  </div>
+  <div class="drow">
+    <div class="l-en">Building — Unit</div>
+    <div class="v"><span class="ar">${escapeHtml(unitOnly)}</span></div>
+    <div class="l-ar">المبنى — الوحدة</div>
+  </div>
+  <div class="drow">
+    <div class="l-en">Rent Period</div>
+    <div class="v"><span class="ar">${escapeHtml(period)}</span> · <span>${escapeHtml(periodEn)}</span></div>
+    <div class="l-ar">عن فترة الإيجار</div>
   </div>
 
-  <div class="footer">
-    <div class="f-ar">هذا الإيصال صادر إلكترونياً عبر تطبيق أملاكي ويُعدّ سنداً رسمياً لاستلام الدفعة المذكورة أعلاه.</div>
-    <div class="f-en">This receipt is issued electronically by Amlaki and serves as an official record of the payment above.</div>
+  <div class="amount">
+    <div class="side">
+      <div class="big">OMR</div>
+      <div class="sm">Amount</div>
+    </div>
+    <div class="num">${escapeHtml(amountEn)}</div>
+    <div class="side">
+      <div class="big ar">ر.ع</div>
+      <div class="sm">العملة</div>
+    </div>
   </div>
+
+  <div class="words">
+    <div class="ttl">المبلغ كتابةً<span class="en">In words</span></div>
+    <div>
+      <div class="ln ar">${escapeHtml(wordsAr)}</div>
+      <div class="ln en">${escapeHtml(wordsEn)}</div>
+    </div>
+  </div>
+
+  <div class="balance ${ctx.fullyPaid ? "paid" : "due"}">
+    <div class="l-en">Balance Due</div>
+    <div class="v">${escapeHtml(fmtMoney3(ctx.remainingAfter))} ${ctx.fullyPaid ? `— <span class="ar">مسدّد بالكامل</span>` : `— <span class="ar">متبقّي</span>`}</div>
+    <div class="l-ar">المتبقي على المستأجر</div>
+  </div>
+
+  ${sigImg || sigName ? `
+  <div class="sig">
+    ${sigImg ? `<img src="${escapeHtml(sigImg)}" alt="signature" />` : ""}
+    <div class="name">
+      ${sigNameAr ? `<span class="ar">${escapeHtml(sigNameAr)}</span><span class="sep">·</span>` : ""}<span class="en">${escapeHtml(sigName)}</span>
+    </div>
+  </div>` : ""}
+
+  <div class="rule"></div>
 </div>
 </body>
 </html>`;
