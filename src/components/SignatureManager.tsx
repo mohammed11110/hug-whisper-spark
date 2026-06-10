@@ -257,7 +257,7 @@ export function SignatureManager() {
               variant="outline"
               size="sm"
               className="rounded-xl col-span-1"
-              onClick={refresh}
+              onClick={() => refresh({ hard: true })}
               disabled={saving}
             >
               <RefreshCw className="h-4 w-4 me-1.5" />
