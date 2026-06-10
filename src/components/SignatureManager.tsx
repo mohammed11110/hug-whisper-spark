@@ -240,7 +240,8 @@ export function SignatureManager() {
         </p>
       )}
 
-      <SignatureSyncPanel diag={diag} lang={lang} />
+
+
 
 
 
