@@ -169,10 +169,12 @@ export function SignatureManager() {
       sub.subscription.unsubscribe();
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", onFocus);
+      offBus();
       if (realtimeChannel) {
         try { supabase.removeChannel(realtimeChannel); } catch { /* noop */ }
       }
     };
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
