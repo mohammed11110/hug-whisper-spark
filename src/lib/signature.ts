@@ -289,11 +289,17 @@ export async function preloadSignature(): Promise<void> {
 let lastVerifyAt = 0;
 export async function verifySignatureFresh(opts: { force?: boolean } = {}): Promise<boolean> {
   const now = Date.now();
-  if (!opts.force && now - lastVerifyAt < 1500) return false;
+  if (!opts.force && now - lastVerifyAt < 1500) {
+    signatureDiag._update({ lastVerifyAt: now, lastVerifyResult: "throttled" });
+    return false;
+  }
   lastVerifyAt = now;
 
   const uid = await currentUid();
-  if (!uid) return false;
+  if (!uid) {
+    signatureDiag._update({ lastVerifyAt: now, lastVerifyResult: "error" });
+    return false;
+  }
 
   const fetchProfile = async () => await supabase
     .from("profiles")
@@ -305,7 +311,10 @@ export async function verifySignatureFresh(opts: { force?: boolean } = {}): Prom
   if (error) {
     await new Promise((r) => setTimeout(r, 400));
     ({ data, error } = await fetchProfile());
-    if (error) return false;
+    if (error) {
+      signatureDiag._update({ lastVerifyAt: Date.now(), lastVerifyResult: "error" });
+      return false;
+    }
   }
 
   const serverPath = (data as any)?.signature_path ?? null;
@@ -325,26 +334,55 @@ export async function verifySignatureFresh(opts: { force?: boolean } = {}): Prom
     if (hasLocal) {
       clearSignatureCache();
       signatureBus.emit();
+      signatureDiag._update({ lastVerifyAt: Date.now(), lastVerifyResult: "no-server" });
       return true;
     }
+    signatureDiag._update({ lastVerifyAt: Date.now(), lastVerifyResult: "no-server" });
     return false;
   }
 
-  if (hasLocal && serverTs && localTs === serverTs) return false;
+  if (hasLocal && serverTs && localTs === serverTs) {
+    signatureDiag._update({
+      lastVerifyAt: Date.now(),
+      lastVerifyResult: "unchanged",
+      lastFetchAt: Date.now(),
+      lastFetchResult: "skip-cache-match",
+      lastFetchError: null,
+    });
+    return false;
+  }
 
-  // Suppress echo from our own just-completed save on this device.
-  if (isRecentLocalPrime(serverTs)) return false;
+  if (isRecentLocalPrime(serverTs)) {
+    signatureDiag._update({ lastVerifyAt: Date.now(), lastVerifyResult: "unchanged" });
+    return false;
+  }
 
   clearSignatureCache();
   try {
     const { data: blob, error: dlErr } = await supabase
       .storage.from("signatures").download(serverPath);
-    if (dlErr || !blob) return false;
+    if (dlErr || !blob) {
+      signatureDiag._update({
+        lastVerifyAt: Date.now(), lastVerifyResult: "error",
+        lastFetchAt: Date.now(), lastFetchResult: "error",
+        lastFetchError: dlErr?.message || "download_failed",
+      });
+      return false;
+    }
     const dataUrl = await blobToDataUrl(blob);
     writeCache(uid, dataUrl, serverTs);
     signatureBus.emit();
+    signatureDiag._update({
+      lastVerifyAt: Date.now(), lastVerifyResult: "updated",
+      lastFetchAt: Date.now(), lastFetchResult: "ok", lastFetchError: null,
+    });
     return true;
-  } catch {
+  } catch (e: any) {
+    signatureDiag._update({
+      lastVerifyAt: Date.now(), lastVerifyResult: "error",
+      lastFetchAt: Date.now(), lastFetchResult: "error",
+      lastFetchError: e?.message || "download_failed",
+    });
     return false;
   }
 }
