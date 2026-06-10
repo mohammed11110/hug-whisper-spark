@@ -1,0 +1,4 @@
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS cr_number TEXT,
+  ADD COLUMN IF NOT EXISTS brand_name_en TEXT,
+  ADD COLUMN IF NOT EXISTS default_currency TEXT NOT NULL DEFAULT 'OMR';

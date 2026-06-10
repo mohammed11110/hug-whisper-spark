@@ -14,10 +14,13 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface BrandData {
   name: string;
+  nameEn?: string;
   phone: string;
   address: string;
   landlordName?: string;
   landlordNameEn?: string;
+  crNumber?: string;
+  defaultCurrency?: string;
   logo: string | null; // data URL or public URL
 }
 
@@ -87,7 +90,7 @@ export async function loadBrand(): Promise<BrandData | null> {
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("brand_name, brand_phone, brand_address, brand_landlord_name, brand_landlord_name_en, brand_logo_path")
+    .select("brand_name, brand_name_en, brand_phone, brand_address, brand_landlord_name, brand_landlord_name_en, brand_logo_path, cr_number, default_currency")
     .eq("id", uid)
     .maybeSingle();
   if (error || !data) return null;
@@ -108,10 +111,13 @@ export async function loadBrand(): Promise<BrandData | null> {
 
   return {
     name: data.brand_name ?? "",
+    nameEn: (data as any).brand_name_en ?? "",
     phone: data.brand_phone ?? "",
     address: data.brand_address ?? "",
     landlordName: data.brand_landlord_name ?? "",
     landlordNameEn: data.brand_landlord_name_en ?? "",
+    crNumber: (data as any).cr_number ?? "",
+    defaultCurrency: (data as any).default_currency ?? "OMR",
     logo,
   };
 }
@@ -120,20 +126,16 @@ export async function loadBrand(): Promise<BrandData | null> {
 export async function saveBrandFields(patch: Partial<Omit<BrandData, "logo">>): Promise<void> {
   const uid = await currentUid();
   if (!uid) return;
-  const row: {
-    brand_name?: string | null;
-    brand_phone?: string | null;
-    brand_address?: string | null;
-    brand_landlord_name?: string | null;
-    brand_landlord_name_en?: string | null;
-    brand_updated_at: string;
-  } = { brand_updated_at: new Date().toISOString() };
+  const row: Record<string, unknown> = { brand_updated_at: new Date().toISOString() };
   if (patch.name !== undefined) row.brand_name = patch.name || null;
+  if (patch.nameEn !== undefined) row.brand_name_en = patch.nameEn || null;
   if (patch.phone !== undefined) row.brand_phone = patch.phone || null;
   if (patch.address !== undefined) row.brand_address = patch.address || null;
   if (patch.landlordName !== undefined) row.brand_landlord_name = patch.landlordName || null;
   if (patch.landlordNameEn !== undefined) row.brand_landlord_name_en = patch.landlordNameEn || null;
-  await supabase.from("profiles").update(row).eq("id", uid);
+  if (patch.crNumber !== undefined) row.cr_number = patch.crNumber || null;
+  if (patch.defaultCurrency !== undefined) row.default_currency = patch.defaultCurrency || "OMR";
+  await supabase.from("profiles").update(row as any).eq("id", uid);
 }
 
 /** Uploads (or replaces) the logo. Accepts a data URL or a Blob. Returns the data URL. */

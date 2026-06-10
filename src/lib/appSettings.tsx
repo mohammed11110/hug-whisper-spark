@@ -12,7 +12,7 @@ export const PAGE_SIZES_MM: Record<PageSize, { w: number; h: number }> = {
 };
 export interface Margins { top: number; right: number; bottom: number; left: number }
 export interface MessageTemplates { reminder: string; late: string; receipt: string }
-export interface BusinessBrand { name: string; logo: string | null; phone: string; address: string; landlordName?: string; landlordNameEn?: string }
+export interface BusinessBrand { name: string; nameEn?: string; logo: string | null; phone: string; address: string; landlordName?: string; landlordNameEn?: string; crNumber?: string; defaultCurrency?: string }
 export interface ReceiptNumbering {
   prefix: string;
   startNumber: number;
@@ -65,7 +65,7 @@ const DEFAULTS: AppSettings = {
   templates: { ...DEFAULT_TEMPLATES },
   upcomingDays: 7,
   contractWarnDays: 30,
-  brand: { name: "أملاكي · Amlaki", logo: null, phone: "", address: "", landlordName: "", landlordNameEn: "" },
+  brand: { name: "أملاكي · Amlaki", nameEn: "", logo: null, phone: "", address: "", landlordName: "", landlordNameEn: "", crNumber: "", defaultCurrency: "OMR" },
   showAiFab: false,
   receipt: { prefix: "R-", startNumber: 1, padding: 0, nextNumber: 1 },
   autoSendReceiptWhatsApp: true,
@@ -189,8 +189,9 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
     skipNextBrandSyncRef.current = true;
     setSettings((s) => ({ ...s, brand: { ...s.brand, ...remote } }));
     lastSavedBrandRef.current = JSON.stringify({
-      name: remote.name, phone: remote.phone, address: remote.address,
+      name: remote.name, nameEn: remote.nameEn ?? "", phone: remote.phone, address: remote.address,
       landlordName: remote.landlordName ?? "", landlordNameEn: remote.landlordNameEn ?? "",
+      crNumber: remote.crNumber ?? "", defaultCurrency: remote.defaultCurrency ?? "OMR",
     });
     brandLoadedForUid.current = uid;
   }, []);
@@ -266,16 +267,18 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
     if (!uid) return; // not signed in / not yet hydrated
     const b = settings.brand;
     const fieldsKey = JSON.stringify({
-      name: b.name, phone: b.phone, address: b.address,
+      name: b.name, nameEn: b.nameEn ?? "", phone: b.phone, address: b.address,
       landlordName: b.landlordName ?? "", landlordNameEn: b.landlordNameEn ?? "",
+      crNumber: b.crNumber ?? "", defaultCurrency: b.defaultCurrency ?? "OMR",
     });
     const fieldsChanged = fieldsKey !== lastSavedBrandRef.current;
 
     const t = setTimeout(async () => {
       if (fieldsChanged) {
         await saveBrandFields({
-          name: b.name, phone: b.phone, address: b.address,
+          name: b.name, nameEn: b.nameEn, phone: b.phone, address: b.address,
           landlordName: b.landlordName, landlordNameEn: b.landlordNameEn,
+          crNumber: b.crNumber, defaultCurrency: b.defaultCurrency,
         });
         lastSavedBrandRef.current = fieldsKey;
       }

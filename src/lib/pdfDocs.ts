@@ -3,6 +3,7 @@ import jsPDF from "jspdf";
 import type { AppSettings, BusinessBrand, Margins, PageSize } from "@/lib/appSettings";
 import { isIOS, canShareFiles } from "@/lib/platform";
 import { isNative, handlePdfBlobNative, previewBlobNative } from "@/lib/nativeFiles";
+import { amountToWordsAr, amountToWordsEn } from "@/lib/numberToWords";
 
 // ---- Embedded fonts (loaded once, cached as data URLs) ----
 // Loading fonts as data URLs guarantees they are available the instant
@@ -170,11 +171,14 @@ async function registerLeasePdfFonts(pdf: jsPDF) {
 
 export interface BrandInfo {
   name: string;
+  nameEn?: string;
   logo: string | null;
   phone: string;
   address: string;
   landlordName?: string;
   landlordNameEn?: string;
+  crNumber?: string;
+  defaultCurrency?: string;
 }
 
 export interface ReceiptData {
@@ -578,78 +582,219 @@ const brandBlock = (brand: BrandInfo, title: string, subtitle?: string | null, m
 `;
 
 export function buildReceiptHTML(data: ReceiptData): string {
-  const rtl = data.lang === "ar";
-  const partial = data.expectedAmount && data.amount < data.expectedAmount;
-  const L = (ar: string, en: string) => (rtl ? ar : en);
-  const unpaidRows = (data.unpaidMonths || [])
-    .map(
-      (m) => `<tr><td>${escapeHtml(m.label)}</td><td>${escapeHtml(formatMoney(m.remaining, data.currency))}</td></tr>`
-    )
-    .join("");
-  const amountStr = formatMoney(data.amount, data.currency);
-  const dateStr = formatDate(data.paymentDate, rtl);
-  const periodHtml = `<bdi>${escapeHtml(data.periodLabel || "—")}</bdi>`;
-  const intro = L(
-    `استلمنا من السيد/ة <strong>${escapeHtml(data.tenantName || "—")}</strong> مبلغاً وقدره <strong>${escapeHtml(amountStr)}</strong> وذلك بدل إيجار الوحدة رقم <strong>${escapeHtml(data.unitNumber || "—")}</strong> بمبنى <strong>${escapeHtml(data.building || "—")}</strong> عن فترة <strong>${periodHtml}</strong> بتاريخ <strong>${escapeHtml(dateStr)}</strong>.`,
-    `Received from <strong>${escapeHtml(data.tenantName || "—")}</strong> the sum of <strong>${escapeHtml(amountStr)}</strong> as rent for unit <strong>${escapeHtml(data.unitNumber || "—")}</strong> at <strong>${escapeHtml(data.building || "—")}</strong>, for the period <strong>${periodHtml}</strong>, on <strong>${escapeHtml(dateStr)}</strong>.`
-  );
-  const body = `
-    ${brandBlock(
-      data.brand,
-      L("سند استلام إيجار", "Rent Receipt"),
-      data.brand.name,
-      `<div>${L("رقم السند", "Receipt no.")}: ${escapeHtml(data.receiptNumber)}</div><div>${L("التاريخ", "Date")}: ${escapeHtml(dateStr)}</div>`
-    )}
-    <div class="content">
-      <p style="font-size:13px; line-height:2; margin-bottom:18px; color:var(--ink);">${intro}</p>
-      <div class="grid">
-        <div class="card"><div class="label">${L("المبنى", "Building")}</div><div class="value">${escapeHtml(data.building || "—")}</div></div>
-        <div class="card"><div class="label">${L("رقم الوحدة", "Unit")}</div><div class="value">${escapeHtml(data.unitNumber || "—")}</div></div>
-        <div class="card"><div class="label">${L("اسم المستأجر", "Tenant")}</div><div class="value">${escapeHtml(data.tenantName || "—")}</div></div>
-        <div class="card"><div class="label">${L("طريقة السداد", "Method")}</div><div class="value">${escapeHtml(data.method || "—")}</div></div>
-        <div class="card"><div class="label">${L("المبلغ المستلم", "Amount paid")}</div><div class="value amount-positive">${escapeHtml(amountStr)}</div></div>
-        <div class="card"><div class="label">${L("عن فترة الإيجار", "Rent period")}</div><div class="value">${periodHtml}</div></div>
-      </div>
-      ${data.settlementNote ? `<div class="note" style="background:#eef5ec;border-color:#cfe0ce;color:#2c5a36;"><strong>${L("إشعار سداد", "Settlement notice")}:</strong> ${escapeHtml(data.settlementNote)}</div>` : ""}
-      ${(data.collectedArrears && data.collectedArrears.length) ? `
-        <div class="section-title">${L("تفاصيل التحصيل", "Collection breakdown")}</div>
-        <table>
-          <thead><tr><th>${L("البند", "Item")}</th><th>${L("المبلغ", "Amount")}</th></tr></thead>
-          <tbody>
-            <tr><td>${L("إيجار", "Rent")} — ${periodHtml}</td><td>${escapeHtml(formatMoney(data.amount - (data.collectedArrears.reduce((s,a)=>s+a.amount,0)), data.currency))}</td></tr>
-            ${data.collectedArrears.map(a => `<tr><td>${L("متأخرات", "Arrears")} — ${escapeHtml(a.label)}</td><td>${escapeHtml(formatMoney(a.amount, data.currency))}</td></tr>`).join("")}
-            <tr style="font-weight:800;background:#f5f0e0;"><td>${L("الإجمالي المحصَّل", "Total collected")}</td><td class="amount-positive">${escapeHtml(formatMoney(data.grandTotal ?? data.amount, data.currency))}</td></tr>
-          </tbody>
-        </table>
-      ` : ""}
-      ${!data.settlementNote && data.expectedAmount ? `<div class="note">${L("الإيجار المتوقع للفترة", "Expected rent")}: <strong>${escapeHtml(formatMoney(data.expectedAmount, data.currency))}</strong>${partial ? ` — <span class="pill">${L("دفعة جزئية", "Partial payment")}</span>` : ""}</div>` : ""}
-      ${unpaidRows ? `
-        <div class="section-title">${L("الأشهر غير المسدّدة على المستأجر", "Remaining unpaid months")}</div>
-        <table>
-          <thead><tr><th>${L("الشهر", "Month")}</th><th>${L("المبلغ المتبقي", "Remaining amount")}</th></tr></thead>
-          <tbody>${unpaidRows}</tbody>
-        </table>
-        ${data.unpaidTotal != null ? `<div class="note"><strong>${L("إجمالي المتأخرات", "Total outstanding")}${data.unpaidUpToLabel ? ` ${L("حتى نهاية", "through")} ${escapeHtml(data.unpaidUpToLabel)}` : ""}:</strong> <span class="amount-negative">${escapeHtml(formatMoney(data.unpaidTotal, data.currency))}</span></div>` : ""}
-      ` : (data.unpaidTotal != null && !data.settlementNote ? `<div class="note"><strong>${L("إجمالي المتأخرات", "Total outstanding")}${data.unpaidUpToLabel ? ` ${L("حتى نهاية", "through")} ${escapeHtml(data.unpaidUpToLabel)}` : ""}:</strong> <span class="amount-positive">${escapeHtml(formatMoney(data.unpaidTotal, data.currency))}</span></div>` : "")}
-      ${data.notes ? `<div class="section-title">${L("ملاحظات", "Notes")}</div><div class="card"><div class="value">${escapeHtml(data.notes)}</div></div>` : ""}
+  // Bilingual A4 receipt. We always render BOTH Arabic and English, regardless
+  // of `data.lang`, to match the institutional template. Sheet direction is
+  // RTL so Arabic blocks read naturally; English blocks override with dir=ltr.
+  const rtl = true;
+  const currency = (data.currency || data.brand.defaultCurrency || "OMR").toUpperCase();
+  const currencyAr = currency === "OMR" ? "ر.ع" : currency === "BHD" ? "ب.د" : currency === "KWD" ? "د.ك" : currency === "SAR" ? "ر.س" : currency === "AED" ? "د.إ" : currency;
+  const amountNum = Number(data.amount || 0);
+  const amountStr = amountNum.toLocaleString("en-US", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 
-      <div style="margin-top:32px; display:flex; justify-content:space-between; gap:24px;">
-        <div style="flex:1;">
-          <div style="border-top:1px dashed var(--line); padding-top:8px; text-align:center; color:var(--muted); font-size:12px;">${L("توقيع المستلم", "Recipient signature")}</div>
+  // Bilingual date: Arabic (Latin digits) + English
+  let dateAr = "—", dateEn = "—";
+  if (data.paymentDate) {
+    const d = new Date(data.paymentDate);
+    if (!Number.isNaN(d.getTime())) {
+      const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, "0"), day = String(d.getDate()).padStart(2, "0");
+      dateAr = `${y}/${m}/${day}`;
+      dateEn = d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+    }
+  }
+
+  // Method bilingual mapping
+  const methodKey = String(data.method || "").toLowerCase().trim();
+  const methodMap: Record<string, { ar: string; en: string }> = {
+    cash: { ar: "نقداً", en: "Cash" },
+    bank_transfer: { ar: "تحويل بنكي", en: "Bank Transfer" },
+    transfer: { ar: "تحويل بنكي", en: "Bank Transfer" },
+    bank: { ar: "تحويل بنكي", en: "Bank Transfer" },
+    cheque: { ar: "شيك", en: "Cheque" },
+    check: { ar: "شيك", en: "Cheque" },
+    card: { ar: "بطاقة", en: "Card" },
+    online: { ar: "إلكتروني", en: "Online" },
+  };
+  const methodAr = methodMap[methodKey]?.ar || (data.method || "—");
+  const methodEn = methodMap[methodKey]?.en || (data.method || "—");
+
+  // Amount in words (Arabic + English) via top-level import.
+  const wordsAr = amountToWordsAr(amountNum, currency);
+  const wordsEn = amountToWordsEn(amountNum, currency);
+
+  // Balance / status
+  const remaining = Number(data.cycleRemaining ?? 0);
+  const isPaid = remaining <= 0.0009 && data.statusKey !== "partial";
+  const remainingStr = Math.max(0, remaining).toLocaleString("en-US", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+
+  const brand = data.brand;
+  const companyAr = brand.name || "—";
+  const companyEn = brand.nameEn || "";
+  const crLine = brand.crNumber ? `س.ت ${escapeHtml(brand.crNumber)}` : "";
+  const enSubLine = [companyEn, crLine ? `CR ${escapeHtml(brand.crNumber || "")}` : ""].filter(Boolean).join(" · ");
+
+  const signerAr = brand.landlordName || "";
+  const signerEn = brand.landlordNameEn || "";
+  const signerLine = [signerAr, signerEn].filter(Boolean).join(" · ") || "—";
+
+  const logoHtml = brand.logo
+    ? `<img src="${escapeHtml(brand.logo)}" alt="logo" style="width:100%;height:100%;object-fit:contain;border-radius:12px;background:#B8924A;" />`
+    : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;background:#B8924A;border-radius:12px;">⚜</div>`;
+
+  const signatureBlock = data.signatureDataUrl
+    ? `<img src="${escapeHtml(data.signatureDataUrl)}" alt="signature" style="height:54px;width:auto;max-width:240px;object-fit:contain;" />`
+    : `<div style="height:54px;display:flex;align-items:flex-end;color:#8A8779;font-size:11px;">${escapeHtml(rtl ? "لا يوجد توقيع محفوظ" : "No saved signature")}</div>`;
+
+  const body = `
+    <style>
+      .rcp-sheet { width:210mm; min-height:297mm; margin:0 auto; background:#FBFAF7; color:#1A1C24;
+        display:flex; flex-direction:column; }
+      .rcp-head { background:#272B3A; color:#fff; padding:26px 34px; display:flex; justify-content:space-between;
+        align-items:flex-start; gap:18px; }
+      .rcp-brand { text-align:right; }
+      .rcp-brand .logo { width:46px; height:46px; border-radius:12px; margin-inline-start:auto; margin-bottom:10px; overflow:hidden; }
+      .rcp-brand .co { font-size:17px; font-weight:700; }
+      .rcp-brand .sub { font-size:12px; color:#B9BBC6; margin-top:3px; direction:ltr; text-align:right; }
+      .rcp-title { text-align:left; direction:ltr; }
+      .rcp-title .ar { font-size:21px; font-weight:700; direction:rtl; text-align:left; }
+      .rcp-title .en { font-family: Georgia, "Times New Roman", serif; font-size:15px; color:#C7B27E;
+        letter-spacing:2px; text-transform:uppercase; margin-top:4px; }
+      .rcp-badge { display:inline-block; margin-top:12px; padding:5px 14px; border-radius:999px; font-size:12px;
+        font-weight:700; direction:ltr; }
+      .rcp-badge.paid { background:rgba(60,122,90,.18); color:#8FD3AC; border:1px solid rgba(143,211,172,.4); }
+      .rcp-badge.due  { background:rgba(180,80,63,.18);  color:#F1B3A6; border:1px solid rgba(241,179,166,.4); }
+      .rcp-meta { display:grid; grid-template-columns:1fr 1fr 1fr; border-bottom:1px solid #E3E0D8; }
+      .rcp-meta .cell { padding:16px 18px; text-align:center; border-inline-start:1px solid #E3E0D8; }
+      .rcp-meta .cell:first-child { border-inline-start:0; }
+      .rcp-meta .k { font-size:11px; color:#8A8779; letter-spacing:.3px; }
+      .rcp-meta .k .en { display:block; direction:ltr; font-size:10px; margin-top:1px; }
+      .rcp-meta .v { font-size:15px; font-weight:700; margin-top:5px; }
+      .rcp-meta .v.mono { font-variant-numeric:tabular-nums; letter-spacing:.5px; }
+      .rcp-body { padding:24px 34px 8px; flex:1; }
+      .rcp-row { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:14px;
+        padding:13px 0; border-bottom:1px solid #E3E0D8; }
+      .rcp-row .lab-ar { text-align:right; font-size:14px; color:#8A8779; }
+      .rcp-row .lab-en { text-align:left; direction:ltr; font-size:12px; color:#B6B3A6; letter-spacing:.3px; }
+      .rcp-row .val { font-size:16px; font-weight:700; text-align:center; white-space:nowrap; }
+      .rcp-amount { margin:22px 0 18px; background:linear-gradient(95deg,#B8924A 0%,#A37E36 100%);
+        border-radius:12px; color:#fff; padding:20px 26px; display:flex; align-items:center;
+        justify-content:space-between; }
+      .rcp-amount .cur-ar { font-size:20px; font-weight:700; }
+      .rcp-amount .cur-en { font-size:13px; font-weight:600; letter-spacing:2px; direction:ltr; opacity:.85; }
+      .rcp-amount .figure { font-size:40px; font-weight:800; font-variant-numeric:tabular-nums;
+        letter-spacing:1px; direction:ltr; line-height:1; text-align:center; flex:1; }
+      .rcp-amount .side { display:flex; flex-direction:column; align-items:center; min-width:62px; gap:3px; }
+      .rcp-words { background:#E9DFC8; border-radius:10px; padding:12px 16px; margin-bottom:18px; }
+      .rcp-words .line { display:flex; justify-content:space-between; gap:12px; padding:3px 0; }
+      .rcp-words .tag { font-size:11px; color:#9A8A5E; font-weight:700; min-width:78px; }
+      .rcp-words .tag.en { direction:ltr; text-align:left; }
+      .rcp-words .txt { font-size:13.5px; color:#5d5536; flex:1; text-align:right; }
+      .rcp-words .txt.en { direction:ltr; text-align:left; font-style:italic; }
+      .rcp-esign { display:flex; align-items:flex-end; justify-content:space-between; gap:20px;
+        padding:24px 34px 6px; }
+      .rcp-esign .block { min-width:220px; }
+      .rcp-esign .who { border-top:1px solid #E3E0D8; margin-top:6px; padding-top:7px;
+        font-size:13px; font-weight:700; }
+      .rcp-foot { background:#F4F1E9; border-top:1px solid #E3E0D8; padding:14px 34px;
+        font-size:11px; color:#8A8779; line-height:1.7; }
+      .rcp-foot .en { display:block; direction:ltr; }
+      @page { size: A4; margin: 0; }
+    </style>
+
+    <div class="rcp-sheet">
+      <div class="rcp-head">
+        <div class="rcp-brand">
+          <div class="logo">${logoHtml}</div>
+          <div class="co">${escapeHtml(companyAr)}</div>
+          ${enSubLine ? `<div class="sub">${enSubLine}</div>` : ""}
         </div>
-        <div style="flex:1;">
-          <div style="border-top:1px dashed var(--line); padding-top:8px; text-align:center; color:var(--muted); font-size:12px;">${L("ختم المؤسسة", "Company stamp")}</div>
+        <div class="rcp-title">
+          <div class="ar">إيصال استلام دفعة</div>
+          <div class="en">Payment Receipt</div>
+          ${isPaid
+            ? `<span class="rcp-badge paid">● PAID · مدفوع</span>`
+            : `<span class="rcp-badge due">● DUE · متبقي</span>`}
         </div>
       </div>
-    </div>
-    <div class="footer">
-      <div>${escapeHtml(data.brand.phone || "")}</div>
-      <div>${escapeHtml(data.brand.address || "")}</div>
-      <div style="margin-top:6px; font-style:italic;">${L("يُعدّ هذا السند إثباتاً لاستلام المبلغ المذكور أعلاه.", "This receipt confirms the amount received above.")}</div>
+
+      <div class="rcp-meta">
+        <div class="cell">
+          <div class="k">رقم الإيصال<span class="en">Receipt No.</span></div>
+          <div class="v mono">${escapeHtml(data.receiptNumber || "—")}</div>
+        </div>
+        <div class="cell">
+          <div class="k">تاريخ الإصدار<span class="en">Issue Date</span></div>
+          <div class="v mono">${escapeHtml(dateAr)} · ${escapeHtml(dateEn)}</div>
+        </div>
+        <div class="cell">
+          <div class="k">طريقة الدفع<span class="en">Method</span></div>
+          <div class="v">${escapeHtml(methodAr)}<br><span style="font-size:11px;color:#8A8779;direction:ltr;">${escapeHtml(methodEn)}</span></div>
+        </div>
+      </div>
+
+      <div class="rcp-body">
+        <div class="rcp-row">
+          <div class="lab-ar">المستأجر</div>
+          <div class="val">${escapeHtml(data.tenantName || "—")}</div>
+          <div class="lab-en">Tenant</div>
+        </div>
+        <div class="rcp-row">
+          <div class="lab-ar">المبنى — الوحدة</div>
+          <div class="val">${escapeHtml(data.building || "—")} — ${escapeHtml(data.unitNumber || "—")}</div>
+          <div class="lab-en">Building — Unit</div>
+        </div>
+        <div class="rcp-row">
+          <div class="lab-ar">عن فترة الإيجار</div>
+          <div class="val">${escapeHtml(data.periodLabel || "—")}</div>
+          <div class="lab-en">Rent Period</div>
+        </div>
+
+        <div class="rcp-amount">
+          <div class="side">
+            <span class="cur-ar">${escapeHtml(currencyAr)}</span>
+            <span style="font-size:10px;opacity:.8;">العملة</span>
+          </div>
+          <div class="figure">${amountStr}</div>
+          <div class="side">
+            <span class="cur-en">${escapeHtml(currency)}</span>
+            <span style="font-size:10px;opacity:.8;">Amount</span>
+          </div>
+        </div>
+
+        <div class="rcp-words">
+          <div class="line">
+            <span class="tag">المبلغ كتابةً</span>
+            <span class="txt">${escapeHtml(wordsAr)}</span>
+          </div>
+          <div class="line">
+            <span class="tag en">In words</span>
+            <span class="txt en">${escapeHtml(wordsEn)}</span>
+          </div>
+        </div>
+
+        <div class="rcp-row" style="border-bottom:0;">
+          <div class="lab-ar">المتبقي على المستأجر</div>
+          <div class="val" style="color:${isPaid ? "#3C7A5A" : "#B4503F"};">
+            ${remainingStr}${isPaid ? " — مسدّد بالكامل" : ""}
+          </div>
+          <div class="lab-en">Balance Due</div>
+        </div>
+      </div>
+
+      <div class="rcp-esign">
+        <div class="block">
+          <div style="height:54px;display:flex;align-items:flex-end;">${signatureBlock}</div>
+          <div class="who">${escapeHtml(signerLine)}</div>
+        </div>
+      </div>
+
+      <div class="rcp-foot">
+        هذا الإيصال صادر إلكترونياً ويُعد سنداً رسمياً لاستلام المبلغ المذكور أعلاه.
+        <span class="en">This receipt is electronically issued and serves as official proof of payment.</span>
+      </div>
     </div>
   `;
 
-  return pageShell(L("سند استلام إيجار", "Rent Receipt"), body, { rtl });
+  return pageShell("إيصال استلام دفعة · Payment Receipt", body, { rtl });
 }
 
 export function buildLeaseHTML(data: Lease): string {
