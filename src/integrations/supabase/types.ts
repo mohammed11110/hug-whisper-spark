@@ -844,13 +844,16 @@ export type Database = {
           brand_landlord_name_en: string | null
           brand_logo_path: string | null
           brand_name: string | null
+          brand_name_en: string | null
           brand_phone: string | null
           brand_updated_at: string | null
           business_whatsapp: string | null
           canceled_at: string | null
           country_code: string | null
+          cr_number: string | null
           created_at: string
           deactivated_at: string | null
+          default_currency: string
           email: string | null
           grace_ends_at: string | null
           id: string
@@ -879,13 +882,16 @@ export type Database = {
           brand_landlord_name_en?: string | null
           brand_logo_path?: string | null
           brand_name?: string | null
+          brand_name_en?: string | null
           brand_phone?: string | null
           brand_updated_at?: string | null
           business_whatsapp?: string | null
           canceled_at?: string | null
           country_code?: string | null
+          cr_number?: string | null
           created_at?: string
           deactivated_at?: string | null
+          default_currency?: string
           email?: string | null
           grace_ends_at?: string | null
           id: string
@@ -914,13 +920,16 @@ export type Database = {
           brand_landlord_name_en?: string | null
           brand_logo_path?: string | null
           brand_name?: string | null
+          brand_name_en?: string | null
           brand_phone?: string | null
           brand_updated_at?: string | null
           business_whatsapp?: string | null
           canceled_at?: string | null
           country_code?: string | null
+          cr_number?: string | null
           created_at?: string
           deactivated_at?: string | null
+          default_currency?: string
           email?: string | null
           grace_ends_at?: string | null
           id?: string
