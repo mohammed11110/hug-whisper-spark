@@ -124,12 +124,22 @@ export function RealtimeSync() {
           },
         );
       }
-      ch.subscribe();
+      ch.subscribe((status) => {
+        const map: Record<string, "joining" | "subscribed" | "closed" | "error" | "timeout"> = {
+          SUBSCRIBED: "subscribed",
+          CHANNEL_ERROR: "error",
+          TIMED_OUT: "timeout",
+          CLOSED: "closed",
+        };
+        signatureDiag.noteChannelStatus(map[status] ?? "joining");
+      });
       channel = ch;
+      signatureDiag.noteChannelStatus("joining");
       // Always verify signature freshness against the server when the channel
       // is (re)established — guarantees cross-device sync even if Realtime
       // missed an event while this device was suspended.
       void verifySignatureFresh({ force: true });
+
 
     };
 
