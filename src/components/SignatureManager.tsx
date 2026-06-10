@@ -212,6 +212,7 @@ export function SignatureManager() {
     try {
       await deleteSignature();
       setDataUrl(null);
+      setUpdatedAt(null);
       toast.success(tr(lang, "تم الحذف", "Deleted"));
     } catch (e: any) {
       toast.error(e?.message || tr(lang, "تعذّر الحذف", "Delete failed"));
