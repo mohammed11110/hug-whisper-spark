@@ -14,10 +14,13 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface BrandData {
   name: string;
+  nameEn?: string;
   phone: string;
   address: string;
   landlordName?: string;
   landlordNameEn?: string;
+  crNumber?: string;
+  defaultCurrency?: string;
   logo: string | null; // data URL or public URL
 }
 
