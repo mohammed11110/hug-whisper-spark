@@ -103,9 +103,13 @@ export function RealtimeSync() {
                   const oldPath = (payload?.old as any)?.signature_path ?? null;
                   const oldTs = (payload?.old as any)?.signature_updated_at ?? null;
                   if (newPath !== oldPath || newTs !== oldTs) {
-                    clearSignatureCache();
-                    void preloadSignature();
-                    signatureBus.emit();
+                    // Suppress echoes from a save we just performed on this
+                    // same device — they would wipe the freshly-primed cache.
+                    if (!isRecentLocalPrime(newTs)) {
+                      clearSignatureCache();
+                      void preloadSignature();
+                      signatureBus.emit();
+                    }
                   }
                 }
               } catch { /* noop */ }
