@@ -13,9 +13,20 @@ import { supabase } from "@/integrations/supabase/client";
 // launches and after iOS killed the app).
 const CACHE_KEY = "amlaki_signature_dataurl_v2";
 const CACHE_USER_KEY = "amlaki_signature_uid_v2";
+const CACHE_UPDATED_KEY = "amlaki_signature_updated_at_v2";
 // Legacy v1 sessionStorage keys — cleaned up on read.
 const LEGACY_CACHE_KEY = "amlaki_signature_dataurl_v1";
 const LEGACY_USER_KEY = "amlaki_signature_uid_v1";
+
+/** Tiny event bus so every mounted UI refreshes when the signature changes
+ *  on this device OR on any other signed-in device (via Realtime). */
+type SigListener = () => void;
+const sigListeners = new Set<SigListener>();
+export const signatureBus = {
+  on(fn: SigListener) { sigListeners.add(fn); return () => sigListeners.delete(fn); },
+  emit() { sigListeners.forEach((f) => { try { f(); } catch { /* noop */ } }); },
+};
+
 
 function pathFor(uid: string) {
   return `${uid}.png`;
