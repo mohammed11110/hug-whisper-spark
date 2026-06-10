@@ -107,15 +107,6 @@ export function SignatureManager() {
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [drawOpen, setDrawOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [diag, setDiag] = useState<SignatureDiag>(() => signatureDiag.get());
-  const [, force] = useState(0);
-
-  // Tick every 5s so "X ثانية مضت" stays accurate.
-  useEffect(() => {
-    const id = window.setInterval(() => force((n) => n + 1), 5000);
-    const off = signatureDiag.on(() => setDiag(signatureDiag.get()));
-    return () => { window.clearInterval(id); off(); };
-  }, []);
 
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -143,38 +134,13 @@ export function SignatureManager() {
 
   useEffect(() => {
     void refresh();
-
-    // Cross-device bus fires after verifySignatureFresh or Realtime detect a
-    // server change. Reload from the (now-updated) cache without re-hitting
-    // the network.
+    // Cross-device updates: global RealtimeSync invalidates queries and the
+    // signatureBus fires whenever the cache is replaced. Re-read silently.
     const offBus = signatureBus.on(() => { void refresh({ silent: true }); });
-
-    // Always-verify on resume: this is the real cross-device guarantee.
-    const verify = () => { void verifySignatureFresh(); };
-    const onVisible = () => {
-      if (document.visibilityState === "visible") verify();
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("focus", verify);
-    window.addEventListener("online", verify);
-    // Periodic safety net while the tab is open (every 60s).
-    const interval = window.setInterval(verify, 60_000);
-
-    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") {
-        verify();
-      }
-    });
-    return () => {
-      sub.subscription.unsubscribe();
-      document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("focus", verify);
-      window.removeEventListener("online", verify);
-      window.clearInterval(interval);
-      offBus();
-    };
+    return () => { offBus(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
 
   /** Save + show immediately from the in-memory blob (no round-trip). */
   const persistAndShow = async (blob: Blob) => {
