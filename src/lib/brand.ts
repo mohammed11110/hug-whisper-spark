@@ -135,7 +135,7 @@ export async function saveBrandFields(patch: Partial<Omit<BrandData, "logo">>): 
   if (patch.landlordNameEn !== undefined) row.brand_landlord_name_en = patch.landlordNameEn || null;
   if (patch.crNumber !== undefined) row.cr_number = patch.crNumber || null;
   if (patch.defaultCurrency !== undefined) row.default_currency = patch.defaultCurrency || "OMR";
-  await supabase.from("profiles").update(row).eq("id", uid);
+  await supabase.from("profiles").update(row as any).eq("id", uid);
 }
 
 /** Uploads (or replaces) the logo. Accepts a data URL or a Blob. Returns the data URL. */
