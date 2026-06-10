@@ -11,15 +11,11 @@ import {
   clearSignatureCache,
   primeSignatureCache,
   signatureBus,
-  verifySignatureFresh,
   getCachedSignatureUpdatedAt,
-  signatureDiag,
-  type SignatureDiag,
 } from "@/lib/signature";
 
-import { supabase } from "@/integrations/supabase/client";
-
 const tr = (lang: string, ar: string, en: string) => (lang === "ar" ? ar : en);
+
 
 type Point = { x: number; y: number; t: number; p: number };
 
