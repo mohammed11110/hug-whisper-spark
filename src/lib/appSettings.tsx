@@ -189,8 +189,9 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
     skipNextBrandSyncRef.current = true;
     setSettings((s) => ({ ...s, brand: { ...s.brand, ...remote } }));
     lastSavedBrandRef.current = JSON.stringify({
-      name: remote.name, phone: remote.phone, address: remote.address,
+      name: remote.name, nameEn: remote.nameEn ?? "", phone: remote.phone, address: remote.address,
       landlordName: remote.landlordName ?? "", landlordNameEn: remote.landlordNameEn ?? "",
+      crNumber: remote.crNumber ?? "", defaultCurrency: remote.defaultCurrency ?? "OMR",
     });
     brandLoadedForUid.current = uid;
   }, []);
