@@ -566,6 +566,24 @@ export default function Settings() {
                       className="rounded-xl border-sage-200 bg-card h-10" />
                   </Field>
                 </div>
+
+                <Button
+                  onClick={() => {
+                    // Force-flush to localStorage (the effect already syncs, but we re-write
+                    // synchronously to guarantee persistence before showing confirmation).
+                    try {
+                      localStorage.setItem(
+                        "amlaki.appSettings.v1",
+                        JSON.stringify(settings),
+                      );
+                    } catch { /* ignore quota errors */ }
+                    toast.success(tr(lang, "تم حفظ بيانات المؤسسة", "Organization details saved"));
+                  }}
+                  className="w-full h-11 rounded-xl bg-gradient-sage font-bold mt-2"
+                >
+                  <Check className="h-4 w-4 me-2" />
+                  {tr(lang, "حفظ بيانات المؤسسة", "Save organization details")}
+                </Button>
               </div>
             </Card>
 
