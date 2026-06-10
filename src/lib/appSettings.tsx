@@ -65,7 +65,7 @@ const DEFAULTS: AppSettings = {
   templates: { ...DEFAULT_TEMPLATES },
   upcomingDays: 7,
   contractWarnDays: 30,
-  brand: { name: "أملاكي · Amlaki", logo: null, phone: "", address: "", landlordName: "", landlordNameEn: "" },
+  brand: { name: "أملاكي · Amlaki", nameEn: "", logo: null, phone: "", address: "", landlordName: "", landlordNameEn: "", crNumber: "", defaultCurrency: "OMR" },
   showAiFab: false,
   receipt: { prefix: "R-", startNumber: 1, padding: 0, nextNumber: 1 },
   autoSendReceiptWhatsApp: true,
