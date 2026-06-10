@@ -267,16 +267,18 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
     if (!uid) return; // not signed in / not yet hydrated
     const b = settings.brand;
     const fieldsKey = JSON.stringify({
-      name: b.name, phone: b.phone, address: b.address,
+      name: b.name, nameEn: b.nameEn ?? "", phone: b.phone, address: b.address,
       landlordName: b.landlordName ?? "", landlordNameEn: b.landlordNameEn ?? "",
+      crNumber: b.crNumber ?? "", defaultCurrency: b.defaultCurrency ?? "OMR",
     });
     const fieldsChanged = fieldsKey !== lastSavedBrandRef.current;
 
     const t = setTimeout(async () => {
       if (fieldsChanged) {
         await saveBrandFields({
-          name: b.name, phone: b.phone, address: b.address,
+          name: b.name, nameEn: b.nameEn, phone: b.phone, address: b.address,
           landlordName: b.landlordName, landlordNameEn: b.landlordNameEn,
+          crNumber: b.crNumber, defaultCurrency: b.defaultCurrency,
         });
         lastSavedBrandRef.current = fieldsKey;
       }
