@@ -171,10 +171,11 @@ export function SignatureManager() {
 
   /** Save + show immediately from the in-memory blob (no round-trip). */
   const persistAndShow = async (blob: Blob) => {
-    const { updatedAt } = await saveSignature(blob);
+    const { updatedAt: ts } = await saveSignature(blob);
     const url = await blobToDataUrl(blob);
-    await primeSignatureCache(url, updatedAt);
+    await primeSignatureCache(url, ts);
     setDataUrl(url);
+    setUpdatedAt(ts);
   };
 
   const handleUpload = async (file: File) => {
