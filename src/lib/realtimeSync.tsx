@@ -17,7 +17,7 @@ import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { queryClient } from "@/lib/queryClient";
 import { paymentsBus } from "@/lib/paymentsBus";
-import { clearSignatureCache, preloadSignature, signatureBus } from "@/lib/signature";
+import { clearSignatureCache, isRecentLocalPrime, preloadSignature, signatureBus } from "@/lib/signature";
 
 
 export const SYNC_EVENT = "amlaki:data-changed" as const;
@@ -103,9 +103,13 @@ export function RealtimeSync() {
                   const oldPath = (payload?.old as any)?.signature_path ?? null;
                   const oldTs = (payload?.old as any)?.signature_updated_at ?? null;
                   if (newPath !== oldPath || newTs !== oldTs) {
-                    clearSignatureCache();
-                    void preloadSignature();
-                    signatureBus.emit();
+                    // Suppress echoes from a save we just performed on this
+                    // same device — they would wipe the freshly-primed cache.
+                    if (!isRecentLocalPrime(newTs)) {
+                      clearSignatureCache();
+                      void preloadSignature();
+                      signatureBus.emit();
+                    }
                   }
                 }
               } catch { /* noop */ }

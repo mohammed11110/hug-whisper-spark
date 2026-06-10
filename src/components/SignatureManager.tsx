@@ -116,13 +116,16 @@ export function SignatureManager() {
     setDataUrl(res.url);
     setLoading(false);
     if (res.hasRemotePointer && !res.url && res.error) {
-      toast.error(tr(
-        lang,
-        "تعذّر تحميل التوقيع — تحقق من الاتصال ثم أعد المحاولة",
-        "Could not load your signature — check your connection and retry",
-      ));
+      if (!opts.silent) {
+        toast.error(tr(
+          lang,
+          "تعذّر تحميل التوقيع — تحقق من الاتصال ثم أعد المحاولة",
+          "Could not load your signature — check your connection and retry",
+        ));
+      } else {
+        console.warn("[signature] silent refresh failed:", res.error);
+      }
     } else if (res.fromCache && res.error) {
-      // We showed the cached copy; server unreachable. No toast — non-blocking.
       console.warn("[signature] showing cached copy:", res.error);
     }
   };
@@ -130,31 +133,16 @@ export function SignatureManager() {
   useEffect(() => {
     void refresh();
 
-    let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
-    const setupRealtime = async () => {
-      const { data } = await supabase.auth.getUser();
-      const uid = data.user?.id;
-      if (!uid) return;
-      realtimeChannel = supabase
-        .channel(`signature-sync-${uid}`)
-        .on(
-          "postgres_changes",
-          { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${uid}` },
-          () => { void refresh({ hard: true, silent: true }); },
-        )
-        .subscribe();
-    };
-    void setupRealtime();
-
     // Cross-device bus: fires when another device (or the global RealtimeSync)
-    // detects a signature change.
-    const offBus = signatureBus.on(() => { void refresh({ hard: true, silent: true }); });
-
+    // detects a signature change. Note: NOT `hard: true` — the loader compares
+    // server `signature_updated_at` with the cached one and only re-downloads
+    // when they differ, so the freshly-primed cache from a local save survives.
+    const offBus = signatureBus.on(() => { void refresh({ silent: true }); });
 
     const onVisible = () => {
-      if (document.visibilityState === "visible") void refresh({ hard: true, silent: true });
+      if (document.visibilityState === "visible") void refresh({ silent: true });
     };
-    const onFocus = () => { void refresh({ hard: true, silent: true }); };
+    const onFocus = () => { void refresh({ silent: true }); };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", onFocus);
 
@@ -170,9 +158,6 @@ export function SignatureManager() {
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", onFocus);
       offBus();
-      if (realtimeChannel) {
-        try { supabase.removeChannel(realtimeChannel); } catch { /* noop */ }
-      }
     };
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -180,9 +165,9 @@ export function SignatureManager() {
 
   /** Save + show immediately from the in-memory blob (no round-trip). */
   const persistAndShow = async (blob: Blob) => {
-    await saveSignature(blob);
+    const { updatedAt } = await saveSignature(blob);
     const url = await blobToDataUrl(blob);
-    await primeSignatureCache(url);
+    await primeSignatureCache(url, updatedAt);
     setDataUrl(url);
   };
 
