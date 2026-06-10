@@ -119,11 +119,16 @@ export function SignatureManager() {
     setLoading(false);
     if (res.hasRemotePointer && !res.url && res.error) {
       if (!opts.silent) {
-        toast.error(tr(
-          lang,
-          "تعذّر تحميل التوقيع — تحقق من الاتصال ثم أعد المحاولة",
-          "Could not load your signature — check your connection and retry",
-        ));
+        const msg = (res.error || "").toLowerCase();
+        const isPerm = msg.includes("permission") || msg.includes("denied") || msg.includes("rls") || msg.includes("not authorized") || msg.includes("401") || msg.includes("403");
+        const isNet = msg.includes("network") || msg.includes("fetch") || msg.includes("offline") || msg.includes("timeout");
+        toast.error(
+          isPerm
+            ? tr(lang, "تعذّر تحميل التوقيع — صلاحية الوصول مرفوضة", "Could not load signature — access denied")
+            : isNet
+            ? tr(lang, "تعذّر تحميل التوقيع — تحقق من اتصال الإنترنت", "Could not load signature — check your internet connection")
+            : tr(lang, `تعذّر تحميل التوقيع: ${res.error}`, `Could not load signature: ${res.error}`),
+        );
       } else {
         console.warn("[signature] silent refresh failed:", res.error);
       }
