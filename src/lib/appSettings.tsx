@@ -176,6 +176,80 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
     return () => { sub.subscription.unsubscribe(); };
   }, [refreshReceiptCounter]);
 
+  // ---- Server-synced brand (institution info + logo) ----
+  // Source of truth is the user's `profiles` row + the `branding` storage
+  // bucket. localStorage acts as an offline cache only.
+  const brandLoadedForUid = useRef<string | null>(null);
+  const lastSavedBrandRef = useRef<string>("");
+  const skipNextBrandSyncRef = useRef(false);
+
+  const hydrateBrandFromServer = useCallback(async (uid: string) => {
+    const remote = await loadBrand();
+    if (!remote) return;
+    skipNextBrandSyncRef.current = true;
+    setSettings((s) => ({ ...s, brand: { ...s.brand, ...remote } }));
+    lastSavedBrandRef.current = JSON.stringify({
+      name: remote.name, phone: remote.phone, address: remote.address,
+      landlordName: remote.landlordName ?? "", landlordNameEn: remote.landlordNameEn ?? "",
+    });
+    brandLoadedForUid.current = uid;
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.auth.getUser();
+      const uid = data.user?.id;
+      if (uid && !cancelled) await hydrateBrandFromServer(uid);
+    })();
+    const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
+      const uid = session?.user?.id;
+      if (uid) {
+        if (brandLoadedForUid.current !== uid) hydrateBrandFromServer(uid);
+      } else {
+        brandLoadedForUid.current = null;
+        lastSavedBrandRef.current = "";
+        clearBrandCache();
+      }
+    });
+    return () => { cancelled = true; sub.subscription.unsubscribe(); };
+  }, [hydrateBrandFromServer]);
+
+  // Debounced sync of brand text fields + logo upload/delete on changes.
+  useEffect(() => {
+    if (skipNextBrandSyncRef.current) { skipNextBrandSyncRef.current = false; return; }
+    const uid = brandLoadedForUid.current;
+    if (!uid) return; // not signed in / not yet hydrated
+    const b = settings.brand;
+    const fieldsKey = JSON.stringify({
+      name: b.name, phone: b.phone, address: b.address,
+      landlordName: b.landlordName ?? "", landlordNameEn: b.landlordNameEn ?? "",
+    });
+    const fieldsChanged = fieldsKey !== lastSavedBrandRef.current;
+
+    const t = setTimeout(async () => {
+      if (fieldsChanged) {
+        await saveBrandFields({
+          name: b.name, phone: b.phone, address: b.address,
+          landlordName: b.landlordName, landlordNameEn: b.landlordNameEn,
+        });
+        lastSavedBrandRef.current = fieldsKey;
+      }
+      // Logo: upload new data URLs, delete when cleared.
+      if (b.logo && b.logo.startsWith("data:")) {
+        const url = await uploadBrandLogo(b.logo);
+        if (url && url !== b.logo) {
+          skipNextBrandSyncRef.current = true;
+          setSettings((s) => ({ ...s, brand: { ...s.brand, logo: url } }));
+        }
+      } else if (!b.logo) {
+        // Only call delete if server still has one — cheap idempotent op.
+        await deleteBrandLogo();
+      }
+    }, 600);
+    return () => clearTimeout(t);
+  }, [settings.brand]);
+
 
   const update = (patch: Partial<AppSettings>) => setSettings((s) => ({ ...s, ...patch }));
   const setStatusColor: Ctx["setStatusColor"] = (k, c) =>
