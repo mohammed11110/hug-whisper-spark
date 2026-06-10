@@ -36,6 +36,7 @@ export function AppShell() {
   return (
     <SidebarProvider defaultOpen={defaultOpen}>
       <RealtimeSync />
+      <AppResumeSync />
       <ActivityNotifier />
       <TourLauncher />
       <OfflineBanner />
