@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logActivity } from "@/lib/activityLogger";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
+import { useLiveData } from "@/lib/useLiveData";
 
 interface Expense {
   id: string;
@@ -61,6 +62,7 @@ export default function BuildingExpenses() {
   };
 
   useEffect(() => { load(); }, [id]);
+  useLiveData(["expenses", "units", "payments"], load);
 
   const openAdd = () => { setForm(emptyForm); setOpen(true); };
 

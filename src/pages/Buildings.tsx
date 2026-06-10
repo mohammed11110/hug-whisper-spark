@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/auth";
 import { useCurrency } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
+import { useLiveData } from "@/lib/useLiveData";
 
 interface Building {
   id: string;
@@ -119,6 +120,7 @@ export default function Buildings() {
   };
 
   useEffect(() => { load(); }, [user]);
+  useLiveData(["buildings", "units"], load);
   useEffect(() => { localStorage.setItem("buildings_sort", sortKey); }, [sortKey]);
 
   const filtered = filter === "all" ? items : items.filter((b) => b.type === filter);

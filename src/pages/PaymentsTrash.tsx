@@ -9,6 +9,7 @@ import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
 import { useAppSettings } from "@/lib/appSettings";
 import { PinDialog } from "@/components/PinDialog";
+import { useLiveData } from "@/lib/useLiveData";
 import { ConfirmDeleteDialog } from "@/components/ConfirmDeleteDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -79,6 +80,7 @@ export default function PaymentsTrash() {
   };
 
   useEffect(() => { load(); }, []);
+  useLiveData(["payments"], load);
 
   // auto-purge older than 30 days
   useEffect(() => {

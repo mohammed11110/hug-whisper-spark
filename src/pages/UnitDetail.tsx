@@ -27,6 +27,7 @@ import { AdjustBalanceDialog } from "@/components/AdjustBalanceDialog";
 import { UnitHealthBadge } from "@/components/UnitHealthBadge";
 import { exportToCSV } from "@/lib/exportCSV";
 import { FilePreviewDialog, type FilePreviewPayload } from "@/components/FilePreviewDialog";
+import { useLiveData } from "@/lib/useLiveData";
 
 interface Unit {
   id: string; building_id: string; unit_number: string; floor: number; type: string;
@@ -89,6 +90,7 @@ export default function UnitDetail() {
     setActiveTenancyId(active?.id || null);
   };
   useEffect(() => { load(); }, [id]);
+  useLiveData(["units", "tenancies", "payments", "maintenance_requests", "expenses"], load);
   useEffect(() => {
     let unsub: (() => void) | null = null;
     import("@/lib/paymentsBus").then(({ paymentsBus }) => {

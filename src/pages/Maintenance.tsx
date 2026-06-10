@@ -12,6 +12,7 @@ import { logActivity } from "@/lib/activityLogger";
 import { resolveMaintenancePhotoUrl } from "@/lib/maintenancePhotos";
 import { toast } from "sonner";
 import { openExternal } from "@/lib/nativeFiles";
+import { useLiveData } from "@/lib/useLiveData";
 
 function MaintenancePhoto({ value }: { value: string }) {
   const [url, setUrl] = useState<string>("");
@@ -92,6 +93,7 @@ export default function Maintenance() {
     })));
   };
   useEffect(() => { load(); }, []);
+  useLiveData(["maintenance_requests", "units", "expenses"], load);
 
   const setStatus = async (id: string, status: string) => {
     const patch: any = { status };
