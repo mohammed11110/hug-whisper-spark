@@ -17,7 +17,7 @@ import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { queryClient } from "@/lib/queryClient";
 import { paymentsBus } from "@/lib/paymentsBus";
-import { clearSignatureCache, isRecentLocalPrime, preloadSignature, signatureBus } from "@/lib/signature";
+import { clearSignatureCache, isRecentLocalPrime, preloadSignature, signatureBus, verifySignatureFresh } from "@/lib/signature";
 
 
 export const SYNC_EVENT = "amlaki:data-changed" as const;
@@ -91,25 +91,19 @@ export function RealtimeSync() {
                 paymentsBus.emit(unitId);
               } catch { /* noop */ }
             }
-            // Cross-device signature sync: when the user's own profile row
-            // changes and the signature pointer/timestamp moves, drop the
-            // local cache and notify subscribers to re-pull from Storage.
+            // Cross-device signature sync: when our own profile row changes,
+            // rely on the new timestamp (old row often missing due to RLS).
+            // If new isn't present either, fall through to verifySignatureFresh
+            // which guarantees server consistency.
             if (t === "profiles") {
               try {
-                const row: any = payload?.new ?? payload?.old ?? {};
-                if (row?.id === uid) {
-                  const newPath = (payload?.new as any)?.signature_path ?? null;
-                  const newTs = (payload?.new as any)?.signature_updated_at ?? null;
-                  const oldPath = (payload?.old as any)?.signature_path ?? null;
-                  const oldTs = (payload?.old as any)?.signature_updated_at ?? null;
-                  if (newPath !== oldPath || newTs !== oldTs) {
-                    // Suppress echoes from a save we just performed on this
-                    // same device — they would wipe the freshly-primed cache.
-                    if (!isRecentLocalPrime(newTs)) {
-                      clearSignatureCache();
-                      void preloadSignature();
-                      signatureBus.emit();
-                    }
+                const newRow: any = payload?.new ?? null;
+                const newId = newRow?.id ?? payload?.old?.id ?? null;
+                if (!newId || newId === uid) {
+                  const newTs = newRow?.signature_updated_at ?? null;
+                  if (!isRecentLocalPrime(newTs)) {
+                    // Authoritative check + emit done inside verifySignatureFresh.
+                    void verifySignatureFresh({ force: true });
                   }
                 }
               } catch { /* noop */ }
@@ -130,10 +124,10 @@ export function RealtimeSync() {
       }
       ch.subscribe();
       channel = ch;
-      // Warm the signature cache on this device so PDF generation and the
-      // Settings screen show the latest signature without waiting for a UI
-      // interaction. Runs once per login / device.
-      void preloadSignature();
+      // Always verify signature freshness against the server when the channel
+      // is (re)established — guarantees cross-device sync even if Realtime
+      // missed an event while this device was suspended.
+      void verifySignatureFresh({ force: true });
 
     };
 

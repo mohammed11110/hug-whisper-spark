@@ -1,54 +1,42 @@
-# المشكلة الجذرية
+## المشكلة الفعلية
 
-بعد رفع/رسم التوقيع، يحدث التسلسل التالي خلال أقل من ثانية:
+التزامن الحالي يعتمد على Realtime عبر جدول `profiles`. هذا يفشل في حالات شائعة:
+- الجهاز الثاني في الخلفية (iOS يجمّد WebSocket تماماً)، فلا تصل رسالة Realtime.
+- اشتراك Realtime على `profiles` يتطلب أن تسمح RLS بقراءة الصف المعدّل — وكثيراً ما يصل الحدث بدون payload `new` بسبب RLS، فيخفق `signature_updated_at !== oldTs` بصمت.
+- الكاش المحلي في الجهاز الثاني يحمل `signature_updated_at` قديم. عند فتح التطبيق لاحقاً، `loadSignature` يقارن الطابعَين فقط إذا نجح استعلام `profiles`. لو حدث أي خطأ شبكة عابر يعود الكاش القديم ولا يُعاد المحاولة.
 
-1. `persistAndShow` يرفع الملف لـ Storage ويحدّث `profiles.signature_path` + `signature_updated_at`.
-2. ينشئ data URL محلياً ويستدعي `primeSignatureCache(url)` → الذي **يُطلق `signatureBus.emit()` على نفس الجهاز**.
-3. تظهر رسالة "تم حفظ التوقيع" ✅
-4. لكن بالتوازي تنطلق **ثلاث آليات تحديث متزامنة**:
-   - `signatureBus.on(...)` داخل `SignatureManager` → `refresh({ hard: true })` → **يمسح الكاش الذي للتوّ كُتب** ويحاول إعادة التنزيل من Storage.
-   - اشتراك Realtime المحلي على `profiles` (UPDATE) → نفس المسح والتنزيل.
-   - `RealtimeSync` العام يرى نفس حدث `profiles` UPDATE → يمسح الكاش ويستدعي `preloadSignature()` ويطلق البص.
+## الحل الجذري — مصدر حقيقة واحد + إبطال إجباري عند الرجوع
 
-نتيجة هذا التدافع:
-- التنزيل من Storage يحدث قبل أن تنتشر صلاحيات الملف الجديد على عُقد التخزين على iOS أحياناً، فيفشل بهدوء.
-- `loadSignature` يرى `signature_path` موجود لكن `download` يفشل → يُعيد `url=null` (لأن الكاش كان قد مُسح للتوّ).
-- `setDataUrl(null)` يُفرغ المعاينة، فيظن المستخدم أن التوقيع لم يُحفظ.
+### 1. سياسة "always-verify on resume" بدل الاعتماد على Realtime
+في كل **mount / focus / visibilitychange→visible / online / SIGNED_IN / TOKEN_REFRESHED**:
+- اجلب `signature_updated_at` من الخادم.
+- قارنه بـ `localStorage[amlaki_signature_updated_at_v2]`.
+- إن اختلف → امسح الكاش، نزّل من Storage، أعِد العرض، وأطلق `signatureBus`.
 
-أيضاً عند فشل التنزيل يخرج toast خطأ "تعذّر تحميل التوقيع" حتى في وضع `silent` لأن شرط الخطأ في `refresh()` لا يحترم `silent`.
+هذا يضمن أن **أي رجوع للتطبيق ⇒ التوقيع الجديد يظهر فوراً**، حتى لو لم يصل Realtime أبداً.
 
-# الحل
+### 2. تأكيد أن Realtime يرى الحدث فعلاً (مساعد فقط)
+- التحقق من أن `profiles` ضمن `supabase_realtime` publication و`REPLICA IDENTITY FULL` (موجود).
+- تعديل اشتراك `RealtimeSync` على `profiles` ليفلتر `id=eq.${uid}` صراحةً (أسرع وأكثر موثوقية).
+- عند وصول الحدث، نعتمد فقط على وجود `payload.new.signature_updated_at` ونقارنه بـ localStorage — لا نعتمد على `payload.old`.
 
-## 1. لا تمسح الكاش الذي للتوّ كُتب
-في `src/lib/signature.ts`:
-- إضافة طابع زمني `lastLocalPrimeAt` داخل الموديول يُضبط داخل `primeSignatureCache` و`saveSignature`.
-- `clearSignatureCache` يقبل خياراً `respectRecentPrime` يتجاهل المسح إذا مرّ أقل من 5 ثوانٍ على آخر prime محلي.
-- `preloadSignature` و`loadSignature` يحترمان نفس النافذة: إذا الكاش الحالي يطابق `signature_updated_at` من الخادم → استخدمه مباشرة بدون أي تنزيل.
+### 3. إصلاح حالة "الكاش يبقى قديماً للأبد"
+- إضافة عدّاد TTL: إن مرّ أكثر من 30 ثانية بدون تحقق، أي قراءة لـ `getSignatureDataUrl` (PDF أو UI) تستدعي `loadSignature` بدل العودة الفورية للكاش.
+- `loadSignature` الحالي يقارن timestamps لكنه لا يُجبر إبطال الكاش لو فشل استعلام `profiles` — سنُعيد المحاولة مرة واحدة قبل القبول.
 
-## 2. منع الـ echo داخل نفس الجهاز
-- `primeSignatureCache` **لا يُطلق `signatureBus.emit()` فوراً**. السبب: التطبيق الذي حفظ يعرف القيمة الجديدة، ولا يحتاج إشعار نفسه.
-- يُطلق البص فقط من `deleteSignature` ومن مستمعي Realtime على الأجهزة الأخرى.
+### 4. شارة تأكيد بصرية صغيرة
+في `SignatureManager`: شارة تعرض آخر تحديث للتوقيع (مثلاً "محدّث الآن" / "محدّث قبل دقيقتين") مأخوذة من `signature_updated_at`، حتى يرى المستخدم أن الجهاز فعلاً جلب آخر نسخة.
 
-## 3. تبسيط `SignatureManager`
-- إزالة اشتراك Realtime المحلي المكرر (يُغطّيه `RealtimeSync` العام).
-- مستمع `signatureBus` و`visibilitychange`/`focus` يستخدم `refresh({ silent: true })` بدون `hard: true`. مسح الكاش يصبح من اختصاص `loadSignature` فقط عند اكتشاف اختلاف الـ timestamp.
-- إخفاء toast الخطأ في وضع `silent` (يبقى `console.warn` فقط).
+## الملفات المتأثرة
 
-## 4. تأخير قصير قبل أول تنزيل بعد الرفع
-- في `saveSignature`، بعد `upload` ناجح، نعتبر القيمة المرفوعة هي المصدر المعتمد ولا نعيد جلبها. الكاش يُكتب من الـ blob الأصلي مع `signature_updated_at` المرسل في `UPDATE`.
-- لو احتجنا تأكيد، نقرأ `signature_updated_at` بعد `update().select().single()` بدلاً من توليده محلياً.
+- `src/lib/signature.ts` — دالة `verifySignatureFresh()` جديدة تُستدعى عند resume، TTL 30 ثانية، إعادة محاولة عند فشل profiles.
+- `src/components/SignatureManager.tsx` — استدعاء `verifySignatureFresh` بدل `refresh({silent:true})` في visibilitychange/focus/online، وعرض شارة آخر تحديث.
+- `src/lib/realtimeSync.tsx` — فلترة `id=eq.${uid}` على اشتراك profiles، الاعتماد على `new.signature_updated_at` فقط.
+- (اختياري) إضافة مستمع `window 'online'` event للتحقق فور عودة الإنترنت.
 
-## 5. حماية إضافية في `RealtimeSync`
-- عند استقبال UPDATE على `profiles` لنفس المستخدم، نقارن `signature_updated_at` الجديد مع آخر طابع زمني محلي. إذا متطابق (نحن من أحدثه) → لا شيء. وإلاّ → امسح الكاش وأطلق البص.
+## النتيجة المتوقعة
 
-# الملفات المتأثرة
-
-- `src/lib/signature.ts` — منطق الكاش، `lastLocalPrimeAt`، إصلاح `primeSignatureCache`، `saveSignature` يُرجع `signature_updated_at` الفعلي.
-- `src/components/SignatureManager.tsx` — إزالة اشتراك Realtime المحلي، إزالة `hard: true` من المستمعين، احترام `silent` في رسائل الخطأ.
-- `src/lib/realtimeSync.tsx` — مقارنة الطابع الزمني المحلي قبل مسح الكاش وإطلاق البص.
-
-# النتيجة المتوقعة
-
-- بعد الحفظ، التوقيع يظهر فوراً ويبقى ظاهراً (لا يختفي بعد ثانية).
-- لا تنزيل تخزيني فوري بعد كل رفع — الكاش هو نفس الـ blob المرفوع.
-- المزامنة بين الأجهزة الأخرى تبقى كما هي عبر Realtime + مقارنة الطابع الزمني.
+- iPhone يحفظ التوقيع → iPad في الخلفية → فور فتحه/تركيزه ⇒ التوقيع الجديد يظهر **بدون أي ضغط على تحديث**.
+- لو وصل Realtime، التحديث فوري حتى والـ iPad مفتوح.
+- لو فشل Realtime (شبكة سيئة، iOS جمّد WebSocket)، فالـ "verify on resume" يضمن المزامنة خلال أقل من ثانية بعد الفتح.
+- PDF/الإيصالات تستخدم دائماً آخر توقيع لأن `getSignatureDataUrl` يحترم TTL.

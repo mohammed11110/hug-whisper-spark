@@ -11,6 +11,8 @@ import {
   clearSignatureCache,
   primeSignatureCache,
   signatureBus,
+  verifySignatureFresh,
+  getCachedSignatureUpdatedAt,
 } from "@/lib/signature";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -104,6 +106,7 @@ export function SignatureManager() {
 
   const [loading, setLoading] = useState(true);
   const [dataUrl, setDataUrl] = useState<string | null>(null);
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [drawOpen, setDrawOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -114,6 +117,7 @@ export function SignatureManager() {
     if (opts.hard) clearSignatureCache();
     const res = await loadSignature();
     setDataUrl(res.url);
+    setUpdatedAt(getCachedSignatureUpdatedAt());
     setLoading(false);
     if (res.hasRemotePointer && !res.url && res.error) {
       if (!opts.silent) {
@@ -133,42 +137,45 @@ export function SignatureManager() {
   useEffect(() => {
     void refresh();
 
-    // Cross-device bus: fires when another device (or the global RealtimeSync)
-    // detects a signature change. Note: NOT `hard: true` — the loader compares
-    // server `signature_updated_at` with the cached one and only re-downloads
-    // when they differ, so the freshly-primed cache from a local save survives.
+    // Cross-device bus fires after verifySignatureFresh or Realtime detect a
+    // server change. Reload from the (now-updated) cache without re-hitting
+    // the network.
     const offBus = signatureBus.on(() => { void refresh({ silent: true }); });
 
+    // Always-verify on resume: this is the real cross-device guarantee.
+    const verify = () => { void verifySignatureFresh(); };
     const onVisible = () => {
-      if (document.visibilityState === "visible") void refresh({ silent: true });
+      if (document.visibilityState === "visible") verify();
     };
-    const onFocus = () => { void refresh({ silent: true }); };
     document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("focus", onFocus);
+    window.addEventListener("focus", verify);
+    window.addEventListener("online", verify);
+    // Periodic safety net while the tab is open (every 60s).
+    const interval = window.setInterval(verify, 60_000);
 
-    // Re-fetch when auth session is restored (e.g. iOS cold start where the
-    // component mounts before the session is rehydrated).
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") {
-        void refresh({ silent: true });
+        verify();
       }
     });
     return () => {
       sub.subscription.unsubscribe();
       document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("focus", verify);
+      window.removeEventListener("online", verify);
+      window.clearInterval(interval);
       offBus();
     };
-
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /** Save + show immediately from the in-memory blob (no round-trip). */
   const persistAndShow = async (blob: Blob) => {
-    const { updatedAt } = await saveSignature(blob);
+    const { updatedAt: ts } = await saveSignature(blob);
     const url = await blobToDataUrl(blob);
-    await primeSignatureCache(url, updatedAt);
+    await primeSignatureCache(url, ts);
     setDataUrl(url);
+    setUpdatedAt(ts);
   };
 
   const handleUpload = async (file: File) => {
@@ -205,6 +212,7 @@ export function SignatureManager() {
     try {
       await deleteSignature();
       setDataUrl(null);
+      setUpdatedAt(null);
       toast.success(tr(lang, "تم الحذف", "Deleted"));
     } catch (e: any) {
       toast.error(e?.message || tr(lang, "تعذّر الحذف", "Delete failed"));
@@ -251,6 +259,15 @@ export function SignatureManager() {
           </p>
         )}
       </div>
+
+      {dataUrl && updatedAt && (
+        <p className="text-[10px] text-muted-foreground text-center mb-2">
+          {tr(lang, "آخر تحديث:", "Last updated:")}{" "}
+          {new Date(updatedAt).toLocaleString(lang === "ar" ? "ar" : "en")}
+        </p>
+      )}
+
+
 
       <div className="grid grid-cols-2 gap-2">
         <Button
