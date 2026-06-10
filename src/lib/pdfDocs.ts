@@ -625,8 +625,17 @@ export function buildReceiptHTML(data: ReceiptData): string {
 
   // Balance / status
   const remaining = Number(data.cycleRemaining ?? 0);
-  const isPaid = remaining <= 0.0009 && data.statusKey !== "partial";
-  const remainingStr = Math.max(0, remaining).toLocaleString("en-US", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+  const hasRemaining = data.cycleRemaining != null;
+  const isPaid = remaining <= 0.0009 && data.statusKey !== "partial" && data.statusKey !== "late";
+  const isPartial = data.statusKey === "partial" || (hasRemaining && remaining > 0.0009 && data.statusKey !== "late");
+  const isLate = data.statusKey === "late";
+  const remainingStr = Math.max(0, remaining).toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  const badgeHtml = isLate
+    ? `<span class="rcp-badge late">● OVERDUE · متأخر</span>`
+    : isPartial
+    ? `<span class="rcp-badge partial">● PARTIAL · جزئي</span>`
+    : `<span class="rcp-badge paid">● PAID · مدفوع</span>`;
+
 
   const brand = data.brand;
   const companyAr = brand.name || "—";
