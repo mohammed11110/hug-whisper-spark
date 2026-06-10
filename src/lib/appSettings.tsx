@@ -197,22 +197,66 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
+
+    const hydrate = async () => {
       const { data } = await supabase.auth.getUser();
       const uid = data.user?.id;
-      if (uid && !cancelled) await hydrateBrandFromServer(uid);
-    })();
+      if (!uid || cancelled) return;
+      await hydrateBrandFromServer(uid);
+    };
+
+    const setupRealtime = async () => {
+      const { data } = await supabase.auth.getUser();
+      const uid = data.user?.id;
+      if (!uid || cancelled) return;
+      if (realtimeChannel) {
+        try { supabase.removeChannel(realtimeChannel); } catch { /* noop */ }
+      }
+      realtimeChannel = supabase
+        .channel(`brand-sync-${uid}`)
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${uid}` },
+          () => { void hydrateBrandFromServer(uid); },
+        )
+        .subscribe();
+    };
+
+    void hydrate();
+    void setupRealtime();
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void hydrate();
+    };
+    const onFocus = () => { void hydrate(); };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onFocus);
+
     const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
       const uid = session?.user?.id;
       if (uid) {
-        if (brandLoadedForUid.current !== uid) hydrateBrandFromServer(uid);
+        void hydrateBrandFromServer(uid);
+        void setupRealtime();
       } else {
         brandLoadedForUid.current = null;
         lastSavedBrandRef.current = "";
         clearBrandCache();
+        if (realtimeChannel) {
+          try { supabase.removeChannel(realtimeChannel); } catch { /* noop */ }
+          realtimeChannel = null;
+        }
       }
     });
-    return () => { cancelled = true; sub.subscription.unsubscribe(); };
+    return () => {
+      cancelled = true;
+      sub.subscription.unsubscribe();
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onFocus);
+      if (realtimeChannel) {
+        try { supabase.removeChannel(realtimeChannel); } catch { /* noop */ }
+      }
+    };
   }, [hydrateBrandFromServer]);
 
   // Debounced sync of brand text fields + logo upload/delete on changes.
