@@ -92,22 +92,11 @@ export function RealtimeSync() {
               } catch { /* noop */ }
             }
             // Cross-device signature sync: when our own profile row changes,
-            // rely on the new timestamp (old row often missing due to RLS).
-            // If new isn't present either, fall through to verifySignatureFresh
-            // which guarantees server consistency.
+            // signal the signature UI to re-read from cache/server via React Query.
             if (t === "profiles") {
               try {
-                const newRow: any = payload?.new ?? null;
-                const newId = newRow?.id ?? payload?.old?.id ?? null;
-                if (!newId || newId === uid) {
-                  const newTs = newRow?.signature_updated_at ?? null;
-                  if (isRecentLocalPrime(newTs)) {
-                    signatureDiag.noteRealtime("self");
-                  } else {
-                    signatureDiag.noteRealtime("remote");
-                    void verifySignatureFresh({ force: true });
-                  }
-                }
+                const newId = (payload?.new as any)?.id ?? (payload?.old as any)?.id ?? null;
+                if (!newId || newId === uid) signatureBus.emit();
               } catch { /* noop */ }
             }
             try {
@@ -124,24 +113,10 @@ export function RealtimeSync() {
           },
         );
       }
-      ch.subscribe((status) => {
-        const map: Record<string, "joining" | "subscribed" | "closed" | "error" | "timeout"> = {
-          SUBSCRIBED: "subscribed",
-          CHANNEL_ERROR: "error",
-          TIMED_OUT: "timeout",
-          CLOSED: "closed",
-        };
-        signatureDiag.noteChannelStatus(map[status] ?? "joining");
-      });
+      ch.subscribe();
       channel = ch;
-      signatureDiag.noteChannelStatus("joining");
-      // Always verify signature freshness against the server when the channel
-      // is (re)established — guarantees cross-device sync even if Realtime
-      // missed an event while this device was suspended.
-      void verifySignatureFresh({ force: true });
-
-
     };
+
 
     void setup();
     const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
