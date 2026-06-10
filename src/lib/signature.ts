@@ -114,52 +114,57 @@ export async function loadSignature(): Promise<SignatureLoadResult> {
 
   const cached = readCache(uid);
 
-  // Profile lookup
+  // Profile lookup — also pull updated_at to detect remote changes.
   let signaturePath: string | null = null;
+  let signatureUpdatedAt: string | null = null;
   let profileErr: string | null = null;
   try {
     const { data, error } = await supabase
       .from("profiles")
-      .select("signature_path")
+      .select("signature_path, signature_updated_at")
       .eq("id", uid)
       .maybeSingle();
     if (error) profileErr = error.message;
     signaturePath = data?.signature_path ?? null;
+    signatureUpdatedAt = (data as any)?.signature_updated_at ?? null;
   } catch (e: any) {
     profileErr = e?.message || "profile_lookup_failed";
   }
 
   // No registered signature server-side
   if (!signaturePath) {
-    // Profile read failed AND we have a cache → optimistic fallback
     if (profileErr && cached) {
-      return { url: cached, hasRemotePointer: false, error: profileErr, fromCache: true };
+      return { url: cached.dataUrl, hasRemotePointer: false, error: profileErr, fromCache: true };
     }
-    // Clean stale cache if the user genuinely has no signature anymore
     if (!profileErr && cached) clearSignatureCache();
     return { url: null, hasRemotePointer: false, error: profileErr, fromCache: false };
   }
 
-  // Try Storage download
+  // If cache exists AND server timestamp matches → reuse cache, skip download.
+  if (cached && signatureUpdatedAt && cached.updatedAt === signatureUpdatedAt) {
+    return { url: cached.dataUrl, hasRemotePointer: true, error: null, fromCache: true };
+  }
+
+  // Cache is stale (or missing, or server is newer) → download fresh.
   try {
     const { data, error } = await supabase
       .storage
       .from("signatures")
-      .download(signaturePath);
+      .download(`${signaturePath}?v=${signatureUpdatedAt ?? Date.now()}`);
     if (error || !data) {
       const msg = error?.message || "download_failed";
       if (cached) {
-        return { url: cached, hasRemotePointer: true, error: msg, fromCache: true };
+        return { url: cached.dataUrl, hasRemotePointer: true, error: msg, fromCache: true };
       }
       return { url: null, hasRemotePointer: true, error: msg, fromCache: false };
     }
     const dataUrl = await blobToDataUrl(data);
-    writeCache(uid, dataUrl);
+    writeCache(uid, dataUrl, signatureUpdatedAt);
     return { url: dataUrl, hasRemotePointer: true, error: null, fromCache: false };
   } catch (e: any) {
     const msg = e?.message || "download_failed";
     if (cached) {
-      return { url: cached, hasRemotePointer: true, error: msg, fromCache: true };
+      return { url: cached.dataUrl, hasRemotePointer: true, error: msg, fromCache: true };
     }
     return { url: null, hasRemotePointer: true, error: msg, fromCache: false };
   }
@@ -190,9 +195,6 @@ export async function saveSignature(blob: Blob): Promise<void> {
     .update({ signature_path: path, signature_updated_at: new Date().toISOString() })
     .eq("id", uid);
   if (profErr) throw profErr;
-
-  // Don't clear cache here — `primeSignatureCache` will seed it with the
-  // freshly-saved data URL so the UI can show it instantly.
 }
 
 export async function deleteSignature(): Promise<void> {
@@ -204,16 +206,25 @@ export async function deleteSignature(): Promise<void> {
     .update({ signature_path: null, signature_updated_at: null })
     .eq("id", uid);
   clearSignatureCache();
+  signatureBus.emit();
 }
 
 export function clearSignatureCache() {
   try {
     localStorage.removeItem(CACHE_KEY);
     localStorage.removeItem(CACHE_USER_KEY);
+    localStorage.removeItem(CACHE_UPDATED_KEY);
     sessionStorage.removeItem(LEGACY_CACHE_KEY);
     sessionStorage.removeItem(LEGACY_USER_KEY);
   } catch { /* noop */ }
 }
+
+/** Quietly ensure the local cache holds the latest signature. Safe to call
+ *  on every login / app resume — no UI side effects. */
+export async function preloadSignature(): Promise<void> {
+  try { await loadSignature(); } catch { /* noop */ }
+}
+
 
 /** Seed the cache with a freshly-saved data URL so subsequent reads
  *  (e.g. receipt PDF generation, page reloads, next-day launches) don't need
