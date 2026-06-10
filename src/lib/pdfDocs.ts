@@ -671,8 +671,10 @@ export function buildReceiptHTML(data: ReceiptData): string {
         letter-spacing:2px; text-transform:uppercase; margin-top:4px; }
       .rcp-badge { display:inline-block; margin-top:12px; padding:5px 14px; border-radius:999px; font-size:12px;
         font-weight:700; direction:ltr; }
-      .rcp-badge.paid { background:rgba(60,122,90,.18); color:#8FD3AC; border:1px solid rgba(143,211,172,.4); }
-      .rcp-badge.due  { background:rgba(180,80,63,.18);  color:#F1B3A6; border:1px solid rgba(241,179,166,.4); }
+      .rcp-badge.paid    { background:rgba(60,122,90,.18); color:#8FD3AC; border:1px solid rgba(143,211,172,.4); }
+      .rcp-badge.partial { background:rgba(184,146,74,.22); color:#E9CC8E; border:1px solid rgba(233,204,142,.45); }
+      .rcp-badge.late    { background:rgba(180,80,63,.22);  color:#F1B3A6; border:1px solid rgba(241,179,166,.45); }
+
       .rcp-meta { display:grid; grid-template-columns:1fr 1fr 1fr; border-bottom:1px solid #E3E0D8; }
       .rcp-meta .cell { padding:16px 18px; text-align:center; border-inline-start:1px solid #E3E0D8; }
       .rcp-meta .cell:first-child { border-inline-start:0; }
