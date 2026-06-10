@@ -17,6 +17,7 @@ import { RecentActivityCard } from "@/components/dashboard/RecentActivityCard";
 import { useCountUp } from "@/hooks/useCountUp";
 import { useSubscription } from "@/hooks/useSubscription";
 import { getUnitArrears, type PaymentForBalance } from "@/lib/balance";
+import { useLiveData } from "@/lib/useLiveData";
 
 
 interface Stats {
@@ -53,6 +54,11 @@ export default function Dashboard() {
   const [occupiedCount, setOccupiedCount] = useState(0);
   const [arrears, setArrears] = useState<ArrearsSummary>({ count: 0, total: 0, oldest: null });
   const [avgDueDay, setAvgDueDay] = useState<number | null>(null);
+  const [syncTick, setSyncTick] = useState(0);
+  useLiveData(
+    ["units", "payments", "tenancies", "buildings", "expenses", "maintenance_requests"],
+    () => setSyncTick((n) => n + 1),
+  );
 
   useEffect(() => {
     if (!user) return;
@@ -141,7 +147,7 @@ export default function Dashboard() {
         occupiedUnits: occupied.length,
       }));
     })();
-  }, [user, lang]);
+  }, [user, lang, syncTick]);
 
   const { monthKey, monthLabel } = useMemo(() => {
     const d = new Date();

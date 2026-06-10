@@ -12,6 +12,7 @@ import { exportToCSV } from "@/lib/exportCSV";
 import { buildReportHTML, downloadHTMLAsPDF, downloadReportPDFDirect, type ReportData } from "@/lib/pdfDocsLazy";
 import { useAppSettings } from "@/lib/appSettings";
 import { getUnitArrears } from "@/lib/balance";
+import { useLiveData } from "@/lib/useLiveData";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -81,6 +82,10 @@ export default function Reports() {
     });
     return () => { if (unsub) unsub(); };
   }, []);
+  useLiveData(
+    ["units", "payments", "expenses", "buildings", "tenancies"],
+    () => setPaymentsTick((t) => t + 1),
+  );
 
 
   useEffect(() => {

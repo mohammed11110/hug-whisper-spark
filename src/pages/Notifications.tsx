@@ -9,6 +9,7 @@ import { useAppSettings } from "@/lib/appSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { openWhatsApp, fillTemplate } from "@/lib/whatsapp";
 import { getNextDueInfo, getUnitArrears } from "@/lib/balance";
+import { useLiveData } from "@/lib/useLiveData";
 
 interface AlertItem {
   kind: "late" | "upcoming" | "contract";
@@ -41,6 +42,10 @@ export default function Notifications() {
     });
     return () => { if (unsub) unsub(); };
   }, []);
+  useLiveData(
+    ["units", "tenancies", "payments", "buildings", "in_app_notifications"],
+    () => setPaymentsTick((t) => t + 1),
+  );
 
   useEffect(() => {
     if (!user) return;

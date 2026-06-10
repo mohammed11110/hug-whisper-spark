@@ -9,6 +9,7 @@ import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useLiveData } from "@/lib/useLiveData";
 
 type Role = "manager" | "accountant" | "viewer";
 interface Building { id: string; name: string }
@@ -66,6 +67,7 @@ export default function Team() {
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [user]);
+  useLiveData(["building_members", "invitations", "buildings", "profiles"], load);
 
   const isUnlimited = allowance >= 2147483647;
   const atLimit = !isUnlimited && usage >= allowance;

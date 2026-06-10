@@ -15,6 +15,7 @@ import { useI18n, docLang } from "@/lib/i18n";
 import { useT2 } from "@/lib/i18n2";
 import { useCurrency } from "@/lib/currency";
 import { useAppSettings, readFilters, writeFilters } from "@/lib/appSettings";
+import { useLiveData } from "@/lib/useLiveData";
 import { getUnitArrears, getCycleForPeriodStart, type PaymentForBalance } from "@/lib/balance";
 import { suffixOf, isPartialSuffix, isFinalSuffix, derivePartialMetaForDisplay, type DerivedPartialMeta } from "@/lib/receiptNumbering";
 import { supabase } from "@/integrations/supabase/client";
@@ -198,6 +199,7 @@ export default function Payments() {
   };
 
   useEffect(() => { load(); }, []);
+  useLiveData(["payments", "units", "tenancies"], load);
   useEffect(() => {
     const h = () => load();
     window.addEventListener("amlaki:payment-added", h);

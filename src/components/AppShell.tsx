@@ -10,6 +10,7 @@ import { ScrollToTopButton } from "@/components/ScrollToTopButton";
 import { LifecycleBanner } from "@/components/GraceBanner";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { OfflineBanner } from "@/components/OfflineBanner";
+import { RealtimeSync } from "@/lib/realtimeSync";
 
 import { useAuth } from "@/lib/auth";
 import { enablePushIfNative } from "@/lib/push";
@@ -33,6 +34,7 @@ export function AppShell() {
   }, [user?.id]);
   return (
     <SidebarProvider defaultOpen={defaultOpen}>
+      <RealtimeSync />
       <ActivityNotifier />
       <TourLauncher />
       <OfflineBanner />
