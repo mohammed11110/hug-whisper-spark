@@ -120,7 +120,14 @@ export async function loadBrand(): Promise<BrandData | null> {
 export async function saveBrandFields(patch: Partial<Omit<BrandData, "logo">>): Promise<void> {
   const uid = await currentUid();
   if (!uid) return;
-  const row: Record<string, unknown> = { brand_updated_at: new Date().toISOString() };
+  const row: {
+    brand_name?: string | null;
+    brand_phone?: string | null;
+    brand_address?: string | null;
+    brand_landlord_name?: string | null;
+    brand_landlord_name_en?: string | null;
+    brand_updated_at: string;
+  } = { brand_updated_at: new Date().toISOString() };
   if (patch.name !== undefined) row.brand_name = patch.name || null;
   if (patch.phone !== undefined) row.brand_phone = patch.phone || null;
   if (patch.address !== undefined) row.brand_address = patch.address || null;
