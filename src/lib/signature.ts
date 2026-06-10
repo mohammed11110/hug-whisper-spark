@@ -33,14 +33,23 @@ export type SignatureDiag = {
   lastRealtimeKind: "self" | "remote" | null;
   lastVerifyAt: number | null;
   lastVerifyResult: "unchanged" | "updated" | "no-server" | "error" | "throttled" | null;
+  lastVerifyStage: "auth" | "profile" | "download" | "done" | null;
+  lastVerifyError: string | null;
   lastFetchAt: number | null;
   lastFetchResult: "ok" | "error" | "skip-cache-match" | null;
   lastFetchError: string | null;
+  verifyCount: number;
+  realtimeCount: number;
+  channelStatus: "idle" | "joining" | "subscribed" | "closed" | "error" | "timeout" | null;
+  channelStatusAt: number | null;
 };
 const diag: SignatureDiag = {
   lastRealtimeAt: null, lastRealtimeKind: null,
   lastVerifyAt: null, lastVerifyResult: null,
+  lastVerifyStage: null, lastVerifyError: null,
   lastFetchAt: null, lastFetchResult: null, lastFetchError: null,
+  verifyCount: 0, realtimeCount: 0,
+  channelStatus: null, channelStatusAt: null,
 };
 const diagListeners = new Set<() => void>();
 export const signatureDiag = {
@@ -51,9 +60,17 @@ export const signatureDiag = {
     diagListeners.forEach((f) => { try { f(); } catch { /* noop */ } });
   },
   noteRealtime(kind: "self" | "remote") {
-    this._update({ lastRealtimeAt: Date.now(), lastRealtimeKind: kind });
+    this._update({
+      lastRealtimeAt: Date.now(),
+      lastRealtimeKind: kind,
+      realtimeCount: diag.realtimeCount + 1,
+    });
+  },
+  noteChannelStatus(status: SignatureDiag["channelStatus"]) {
+    this._update({ channelStatus: status, channelStatusAt: Date.now() });
   },
 };
+
 
 
 /** Tracks the last time *this device* primed the cache after a local save.
