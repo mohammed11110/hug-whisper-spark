@@ -1,6 +1,7 @@
-import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, useCallback, ReactNode } from "react";
 import { DEFAULT_TEMPLATES } from "@/lib/whatsapp";
 import { supabase } from "@/integrations/supabase/client";
+import { loadBrand, saveBrandFields, uploadBrandLogo, deleteBrandLogo, clearBrandCache } from "@/lib/brand";
 
 export interface StatusColor { bg: string; fg: string }
 export type PageSize = "A4" | "A5" | "Letter";
