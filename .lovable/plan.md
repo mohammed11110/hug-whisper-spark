@@ -1,61 +1,30 @@
-## التشخيص
+## Plan
 
-تحققت من قاعدة البيانات: التوقيع يُحفظ فعلاً بشكل صحيح:
-- جدول `profiles` يحتوي `signature_path = "{uid}.png"` مع `signature_updated_at` صحيح ✅
-- ملف PNG موجود في bucket `signatures` ✅
-- سياسات RLS على Storage و Profiles صحيحة ✅
+1. Update `src/lib/nativeGoogleAuth.ts` so the iOS Google path is exclusively:
+   - get `idToken` from the native plugin
+   - call `supabase.functions.invoke('google-native-signin', { body: { idToken, nonce } })`
+   - read `access_token` and `refresh_token` from the response
+   - call `supabase.auth.setSession(...)`
+   - remove any direct `signInWithIdToken` usage from the iOS branch
 
-**جذر المشكلة في الكود**: `src/lib/signature.ts` يستخدم `sessionStorage` للكاش، وهو يُمسح عند:
-- إغلاق التطبيق على iOS (WKWebView يُنهي الجلسة)
-- إعادة تشغيل الجهاز
-- اليوم التالي بعد قتل التطبيق
+2. Tighten `supabase/functions/google-native-signin/index.ts` so it:
+   - logs at the start of execution
+   - manually verifies the Google JWT with Google JWKS
+   - accepts both web and iOS client IDs as valid audiences
+   - validates issuer, expiry, and hashed nonce
+   - creates the app session through the admin/service-role flow instead of `signInWithIdToken`
+   - returns `access_token` and `refresh_token` in a stable response shape
 
-عند فقدان الكاش، الكود يحاول تحميل الملف من Storage. لكن `getSignatureDataUrl()` **يبتلع كل الأخطاء بصمت** ويُرجع `null`:
+3. Verify the implementation paths before finishing:
+   - confirm the iOS branch contains no direct `signInWithIdToken`
+   - confirm the edge function response matches what `setSession` expects
+   - confirm the edge function start log is present for device-side debugging
 
-```ts
-const { data, error } = await supabase.storage.from("signatures").download(...);
-if (error || !data) return null;   // ← يفشل بصمت
-```
+4. Make one focused code change set so Lovable generates a fresh sync commit to `main`, then report the new commit message back to you.
 
-النتيجة: المستخدم يرى "لا يوجد توقيع" بدون أي تفسير، رغم أن الملف موجود في السحابة.
+## Technical details
 
-السبب الفعلي لفشل التحميل في اليوم التالي (الأكثر احتمالاً):
-1. على iOS بدون شبكة لحظة الفتح → التحميل من Storage يفشل
-2. الجلسة لم تُستعد بعد عند أول `mount` للمكوّن
-3. كاش `sessionStorage` فارغ ولا يوجد بديل دائم
-
-## الحل الجذري
-
-### 1) تحويل الكاش إلى دائم (`localStorage`) بدل `sessionStorage`
-يبقى التوقيع متاحاً فوراً عند فتح التطبيق في اليوم التالي، بدون انتظار الشبكة.
-
-### 2) Fallback ذكي عند فشل التحميل
-إن فشل تحميل Storage (شبكة/جلسة) لكن لدينا كاش `localStorage` لنفس UID → نُرجعه بدل `null`.
-
-### 3) إظهار سبب الفشل بدل البلع الصامت
-تمرير الخطأ الفعلي حتى `SignatureManager` يعرض toast واضح ("تعذّر تحميل التوقيع — تحقق من الاتصال") بدل "لم تُنشئ توقيعاً بعد".
-
-### 4) إعادة المحاولة عند استعادة الجلسة
-الاستماع لحدث `auth.onAuthStateChange("SIGNED_IN" / "TOKEN_REFRESHED")` داخل `SignatureManager` لإعادة جلب التوقيع تلقائياً إذا تأخرت الجلسة في التهيئة.
-
-### 5) التحقق المسبق قبل عرض "لا يوجد توقيع"
-إذا `profiles.signature_path` موجود لكن التحميل فشل، نعرض حالة "جاري التحميل/خطأ" مع زر إعادة محاولة — لا نعرض حالة "لا يوجد".
-
-## الملفات التي ستتغيّر
-
-- `src/lib/signature.ts`
-  - استبدال `sessionStorage` بـ `localStorage` (مفاتيح جديدة بإصدار v2)
-  - `getSignatureDataUrl()` يُرجع `{ url, error }` بدل `null` صامت
-  - Fallback على كاش `localStorage` عند فشل Storage إذا UID مطابق
-  - تنظيف الكاش عند تغيير المستخدم (logout/switch)
-
-- `src/components/SignatureManager.tsx`
-  - استخدام التوقيع الكاش من `localStorage` فوراً عند mount (عرض متفائل)
-  - إعادة جلب من السحابة في الخلفية للتحقق من التحديث
-  - toast واضح عند فشل التحميل + زر إعادة محاولة
-  - مستمع `onAuthStateChange` لإعادة المحاولة بعد استعادة الجلسة
-
-## ما لن يتغيّر
-- بنية قاعدة البيانات (السياسات والجدول صحيحة)
-- bucket `signatures` (يعمل بشكل صحيح)
-- منطق الرفع/الرسم (يعمل ويُحفظ كما يجب)
+- Web/native non-iOS Google flow stays unchanged unless required by the iOS fix.
+- Apple sign-in is untouched.
+- No auth changes will be made in the generated client file.
+- The goal is a new code commit on `main` that clearly includes `nativeGoogleAuth.ts` and `google-native-signin/index.ts`.
