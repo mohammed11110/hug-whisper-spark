@@ -10,7 +10,9 @@ import {
   deleteSignature,
   clearSignatureCache,
   primeSignatureCache,
+  signatureBus,
 } from "@/lib/signature";
+
 import { supabase } from "@/integrations/supabase/client";
 
 const tr = (lang: string, ar: string, en: string) => (lang === "ar" ? ar : en);
