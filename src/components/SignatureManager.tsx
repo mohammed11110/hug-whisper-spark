@@ -260,6 +260,15 @@ export function SignatureManager() {
         )}
       </div>
 
+      {dataUrl && updatedAt && (
+        <p className="text-[10px] text-muted-foreground text-center mb-2">
+          {tr(lang, "آخر تحديث:", "Last updated:")}{" "}
+          {new Date(updatedAt).toLocaleString(lang === "ar" ? "ar" : "en")}
+        </p>
+      )}
+
+
+
       <div className="grid grid-cols-2 gap-2">
         <Button
           type="button"
