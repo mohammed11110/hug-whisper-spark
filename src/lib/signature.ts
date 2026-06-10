@@ -27,6 +27,35 @@ export const signatureBus = {
   emit() { sigListeners.forEach((f) => { try { f(); } catch { /* noop */ } }); },
 };
 
+/** Diagnostics for the SignatureManager status panel. */
+export type SignatureDiag = {
+  lastRealtimeAt: number | null;
+  lastRealtimeKind: "self" | "remote" | null;
+  lastVerifyAt: number | null;
+  lastVerifyResult: "unchanged" | "updated" | "no-server" | "error" | "throttled" | null;
+  lastFetchAt: number | null;
+  lastFetchResult: "ok" | "error" | "skip-cache-match" | null;
+  lastFetchError: string | null;
+};
+const diag: SignatureDiag = {
+  lastRealtimeAt: null, lastRealtimeKind: null,
+  lastVerifyAt: null, lastVerifyResult: null,
+  lastFetchAt: null, lastFetchResult: null, lastFetchError: null,
+};
+const diagListeners = new Set<() => void>();
+export const signatureDiag = {
+  get(): SignatureDiag { return { ...diag }; },
+  on(fn: () => void) { diagListeners.add(fn); return () => diagListeners.delete(fn); },
+  _update(patch: Partial<SignatureDiag>) {
+    Object.assign(diag, patch);
+    diagListeners.forEach((f) => { try { f(); } catch { /* noop */ } });
+  },
+  noteRealtime(kind: "self" | "remote") {
+    this._update({ lastRealtimeAt: Date.now(), lastRealtimeKind: kind });
+  },
+};
+
+
 /** Tracks the last time *this device* primed the cache after a local save.
  *  Used to suppress echo refreshes from Realtime UPDATE events that this
  *  same device just triggered (otherwise they wipe the freshly-saved cache
