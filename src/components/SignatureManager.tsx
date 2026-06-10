@@ -127,6 +127,30 @@ export function SignatureManager() {
 
   useEffect(() => {
     void refresh();
+
+    let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
+    const setupRealtime = async () => {
+      const { data } = await supabase.auth.getUser();
+      const uid = data.user?.id;
+      if (!uid) return;
+      realtimeChannel = supabase
+        .channel(`signature-sync-${uid}`)
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${uid}` },
+          () => { void refresh({ hard: true, silent: true }); },
+        )
+        .subscribe();
+    };
+    void setupRealtime();
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refresh({ hard: true, silent: true });
+    };
+    const onFocus = () => { void refresh({ hard: true, silent: true }); };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onFocus);
+
     // Re-fetch when auth session is restored (e.g. iOS cold start where the
     // component mounts before the session is rehydrated).
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
@@ -134,7 +158,14 @@ export function SignatureManager() {
         void refresh({ silent: true });
       }
     });
-    return () => sub.subscription.unsubscribe();
+    return () => {
+      sub.subscription.unsubscribe();
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onFocus);
+      if (realtimeChannel) {
+        try { supabase.removeChannel(realtimeChannel); } catch { /* noop */ }
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
