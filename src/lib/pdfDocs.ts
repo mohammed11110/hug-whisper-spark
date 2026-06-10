@@ -588,8 +588,10 @@ export function buildReceiptHTML(data: ReceiptData): string {
   const rtl = true;
   const currency = (data.currency || data.brand.defaultCurrency || "OMR").toUpperCase();
   const currencyAr = currency === "OMR" ? "ر.ع" : currency === "BHD" ? "ب.د" : currency === "KWD" ? "د.ك" : currency === "SAR" ? "ر.س" : currency === "AED" ? "د.إ" : currency;
+  const decimals = ["OMR", "BHD", "KWD"].includes(currency) ? 3 : 2;
   const amountNum = Number(data.amount || 0);
-  const amountStr = amountNum.toLocaleString("en-US", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+  const amountStr = amountNum.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+
 
   // Bilingual date: Arabic (Latin digits) + English
   let dateAr = "—", dateEn = "—";
@@ -623,8 +625,17 @@ export function buildReceiptHTML(data: ReceiptData): string {
 
   // Balance / status
   const remaining = Number(data.cycleRemaining ?? 0);
-  const isPaid = remaining <= 0.0009 && data.statusKey !== "partial";
-  const remainingStr = Math.max(0, remaining).toLocaleString("en-US", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+  const hasRemaining = data.cycleRemaining != null;
+  const isPaid = remaining <= 0.0009 && data.statusKey !== "partial" && data.statusKey !== "late";
+  const isPartial = data.statusKey === "partial" || (hasRemaining && remaining > 0.0009 && data.statusKey !== "late");
+  const isLate = data.statusKey === "late";
+  const remainingStr = Math.max(0, remaining).toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  const badgeHtml = isLate
+    ? `<span class="rcp-badge late">● OVERDUE · متأخر</span>`
+    : isPartial
+    ? `<span class="rcp-badge partial">● PARTIAL · جزئي</span>`
+    : `<span class="rcp-badge paid">● PAID · مدفوع</span>`;
+
 
   const brand = data.brand;
   const companyAr = brand.name || "—";
@@ -660,8 +671,10 @@ export function buildReceiptHTML(data: ReceiptData): string {
         letter-spacing:2px; text-transform:uppercase; margin-top:4px; }
       .rcp-badge { display:inline-block; margin-top:12px; padding:5px 14px; border-radius:999px; font-size:12px;
         font-weight:700; direction:ltr; }
-      .rcp-badge.paid { background:rgba(60,122,90,.18); color:#8FD3AC; border:1px solid rgba(143,211,172,.4); }
-      .rcp-badge.due  { background:rgba(180,80,63,.18);  color:#F1B3A6; border:1px solid rgba(241,179,166,.4); }
+      .rcp-badge.paid    { background:rgba(60,122,90,.18); color:#8FD3AC; border:1px solid rgba(143,211,172,.4); }
+      .rcp-badge.partial { background:rgba(184,146,74,.22); color:#E9CC8E; border:1px solid rgba(233,204,142,.45); }
+      .rcp-badge.late    { background:rgba(180,80,63,.22);  color:#F1B3A6; border:1px solid rgba(241,179,166,.45); }
+
       .rcp-meta { display:grid; grid-template-columns:1fr 1fr 1fr; border-bottom:1px solid #E3E0D8; }
       .rcp-meta .cell { padding:16px 18px; text-align:center; border-inline-start:1px solid #E3E0D8; }
       .rcp-meta .cell:first-child { border-inline-start:0; }
@@ -710,9 +723,8 @@ export function buildReceiptHTML(data: ReceiptData): string {
         <div class="rcp-title">
           <div class="ar">إيصال استلام دفعة</div>
           <div class="en">Payment Receipt</div>
-          ${isPaid
-            ? `<span class="rcp-badge paid">● PAID · مدفوع</span>`
-            : `<span class="rcp-badge due">● DUE · متبقي</span>`}
+          ${badgeHtml}
+
         </div>
       </div>
 
@@ -771,21 +783,24 @@ export function buildReceiptHTML(data: ReceiptData): string {
           </div>
         </div>
 
+        ${hasRemaining ? `
         <div class="rcp-row" style="border-bottom:0;">
           <div class="lab-ar">المتبقي على المستأجر</div>
           <div class="val" style="color:${isPaid ? "#3C7A5A" : "#B4503F"};">
             ${remainingStr}${isPaid ? " — مسدّد بالكامل" : ""}
           </div>
           <div class="lab-en">Balance Due</div>
-        </div>
+        </div>` : ""}
       </div>
 
+      ${data.signatureDataUrl ? `
       <div class="rcp-esign">
         <div class="block">
           <div style="height:54px;display:flex;align-items:flex-end;">${signatureBlock}</div>
           <div class="who">${escapeHtml(signerLine)}</div>
         </div>
-      </div>
+      </div>` : ""}
+
 
       <div class="rcp-foot">
         هذا الإيصال صادر إلكترونياً ويُعد سنداً رسمياً لاستلام المبلغ المذكور أعلاه.
