@@ -101,8 +101,10 @@ export function RealtimeSync() {
                 const newId = newRow?.id ?? payload?.old?.id ?? null;
                 if (!newId || newId === uid) {
                   const newTs = newRow?.signature_updated_at ?? null;
-                  if (!isRecentLocalPrime(newTs)) {
-                    // Authoritative check + emit done inside verifySignatureFresh.
+                  if (isRecentLocalPrime(newTs)) {
+                    signatureDiag.noteRealtime("self");
+                  } else {
+                    signatureDiag.noteRealtime("remote");
                     void verifySignatureFresh({ force: true });
                   }
                 }
