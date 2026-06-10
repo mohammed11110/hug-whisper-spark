@@ -106,6 +106,7 @@ export function SignatureManager() {
 
   const [loading, setLoading] = useState(true);
   const [dataUrl, setDataUrl] = useState<string | null>(null);
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [drawOpen, setDrawOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -116,6 +117,7 @@ export function SignatureManager() {
     if (opts.hard) clearSignatureCache();
     const res = await loadSignature();
     setDataUrl(res.url);
+    setUpdatedAt(getCachedSignatureUpdatedAt());
     setLoading(false);
     if (res.hasRemotePointer && !res.url && res.error) {
       if (!opts.silent) {
@@ -135,33 +137,35 @@ export function SignatureManager() {
   useEffect(() => {
     void refresh();
 
-    // Cross-device bus: fires when another device (or the global RealtimeSync)
-    // detects a signature change. Note: NOT `hard: true` — the loader compares
-    // server `signature_updated_at` with the cached one and only re-downloads
-    // when they differ, so the freshly-primed cache from a local save survives.
+    // Cross-device bus fires after verifySignatureFresh or Realtime detect a
+    // server change. Reload from the (now-updated) cache without re-hitting
+    // the network.
     const offBus = signatureBus.on(() => { void refresh({ silent: true }); });
 
+    // Always-verify on resume: this is the real cross-device guarantee.
+    const verify = () => { void verifySignatureFresh(); };
     const onVisible = () => {
-      if (document.visibilityState === "visible") void refresh({ silent: true });
+      if (document.visibilityState === "visible") verify();
     };
-    const onFocus = () => { void refresh({ silent: true }); };
     document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("focus", onFocus);
+    window.addEventListener("focus", verify);
+    window.addEventListener("online", verify);
+    // Periodic safety net while the tab is open (every 60s).
+    const interval = window.setInterval(verify, 60_000);
 
-    // Re-fetch when auth session is restored (e.g. iOS cold start where the
-    // component mounts before the session is rehydrated).
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") {
-        void refresh({ silent: true });
+        verify();
       }
     });
     return () => {
       sub.subscription.unsubscribe();
       document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("focus", verify);
+      window.removeEventListener("online", verify);
+      window.clearInterval(interval);
       offBus();
     };
-
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
