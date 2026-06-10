@@ -107,15 +107,36 @@ export function SignatureManager() {
 
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const refresh = async () => {
-    setLoading(true);
-    clearSignatureCache();
-    const url = await getSignatureDataUrl();
-    setDataUrl(url);
+  const refresh = async (opts: { hard?: boolean; silent?: boolean } = {}) => {
+    if (!opts.silent) setLoading(true);
+    if (opts.hard) clearSignatureCache();
+    const res = await loadSignature();
+    setDataUrl(res.url);
     setLoading(false);
+    if (res.hasRemotePointer && !res.url && res.error) {
+      toast.error(tr(
+        lang,
+        "تعذّر تحميل التوقيع — تحقق من الاتصال ثم أعد المحاولة",
+        "Could not load your signature — check your connection and retry",
+      ));
+    } else if (res.fromCache && res.error) {
+      // We showed the cached copy; server unreachable. No toast — non-blocking.
+      console.warn("[signature] showing cached copy:", res.error);
+    }
   };
 
-  useEffect(() => { void refresh(); }, []);
+  useEffect(() => {
+    void refresh();
+    // Re-fetch when auth session is restored (e.g. iOS cold start where the
+    // component mounts before the session is rehydrated).
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") {
+        void refresh({ silent: true });
+      }
+    });
+    return () => sub.subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /** Save + show immediately from the in-memory blob (no round-trip). */
   const persistAndShow = async (blob: Blob) => {
