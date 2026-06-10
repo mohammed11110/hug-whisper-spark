@@ -617,12 +617,7 @@ export function buildReceiptHTML(data: ReceiptData): string {
   const methodAr = methodMap[methodKey]?.ar || (data.method || "—");
   const methodEn = methodMap[methodKey]?.en || (data.method || "—");
 
-  // Amount in words — lazy-imported via require-style; numberToWords is small.
-  // We inline via dynamic import isn't sync, so we re-implement minimal call here:
-  // We expose helpers from numberToWords (top-level import would create circular concerns; safe).
-  // Using a relative require below.
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { amountToWordsAr, amountToWordsEn } = require("./numberToWords") as typeof import("./numberToWords");
+  // Amount in words (Arabic + English) via top-level import.
   const wordsAr = amountToWordsAr(amountNum, currency);
   const wordsEn = amountToWordsEn(amountNum, currency);
 
