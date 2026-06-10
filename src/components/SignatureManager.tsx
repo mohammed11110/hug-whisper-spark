@@ -13,6 +13,8 @@ import {
   signatureBus,
   verifySignatureFresh,
   getCachedSignatureUpdatedAt,
+  signatureDiag,
+  type SignatureDiag,
 } from "@/lib/signature";
 
 import { supabase } from "@/integrations/supabase/client";
