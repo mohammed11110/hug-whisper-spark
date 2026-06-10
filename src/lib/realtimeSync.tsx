@@ -91,25 +91,19 @@ export function RealtimeSync() {
                 paymentsBus.emit(unitId);
               } catch { /* noop */ }
             }
-            // Cross-device signature sync: when the user's own profile row
-            // changes and the signature pointer/timestamp moves, drop the
-            // local cache and notify subscribers to re-pull from Storage.
+            // Cross-device signature sync: when our own profile row changes,
+            // rely on the new timestamp (old row often missing due to RLS).
+            // If new isn't present either, fall through to verifySignatureFresh
+            // which guarantees server consistency.
             if (t === "profiles") {
               try {
-                const row: any = payload?.new ?? payload?.old ?? {};
-                if (row?.id === uid) {
-                  const newPath = (payload?.new as any)?.signature_path ?? null;
-                  const newTs = (payload?.new as any)?.signature_updated_at ?? null;
-                  const oldPath = (payload?.old as any)?.signature_path ?? null;
-                  const oldTs = (payload?.old as any)?.signature_updated_at ?? null;
-                  if (newPath !== oldPath || newTs !== oldTs) {
-                    // Suppress echoes from a save we just performed on this
-                    // same device — they would wipe the freshly-primed cache.
-                    if (!isRecentLocalPrime(newTs)) {
-                      clearSignatureCache();
-                      void preloadSignature();
-                      signatureBus.emit();
-                    }
+                const newRow: any = payload?.new ?? null;
+                const newId = newRow?.id ?? payload?.old?.id ?? null;
+                if (!newId || newId === uid) {
+                  const newTs = newRow?.signature_updated_at ?? null;
+                  if (!isRecentLocalPrime(newTs)) {
+                    // Authoritative check + emit done inside verifySignatureFresh.
+                    void verifySignatureFresh({ force: true });
                   }
                 }
               } catch { /* noop */ }
