@@ -206,7 +206,7 @@ export function SignatureManager() {
       </div>
 
       {/* Preview */}
-      <div className="rounded-xl border border-sage-200/60 bg-[#FBFAF7] min-h-[120px] grid place-items-center p-3 mb-3">
+      <div className="rounded-xl border border-sage-200/60 bg-[#FBFAF7] min-h-[220px] grid place-items-center p-4 mb-3">
         {loading ? (
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         ) : dataUrl ? (
@@ -214,7 +214,7 @@ export function SignatureManager() {
             key={dataUrl.slice(-32)}
             src={dataUrl}
             alt={tr(lang, "توقيعك", "Your signature")}
-            className="max-h-[110px] object-contain"
+            className="max-h-[200px] w-auto max-w-full object-contain"
           />
         ) : (
           <p className="text-xs text-muted-foreground text-center px-4">
