@@ -278,6 +278,10 @@ export function SignatureManager() {
         </p>
       )}
 
+      <SignatureSyncPanel diag={diag} lang={lang} />
+
+
+
 
 
       <div className="grid grid-cols-2 gap-2">
