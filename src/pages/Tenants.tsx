@@ -14,6 +14,7 @@ import { openWhatsApp, fillTemplate } from "@/lib/whatsapp";
 import { getUnitArrears, type PaymentForBalance } from "@/lib/balance";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useLiveData } from "@/lib/useLiveData";
 
 interface TenantRow {
   unit_id: string;
@@ -63,6 +64,10 @@ export default function Tenants() {
     });
     return () => { if (unsub) unsub(); };
   }, []);
+  useLiveData(
+    ["units", "tenancies", "payments", "buildings"],
+    () => setPaymentsTick((t) => t + 1),
+  );
 
   const quickCollect = async (r: TenantRow) => {
     const priorArrears = Math.max(0, r.outstanding - r.rent_amount);

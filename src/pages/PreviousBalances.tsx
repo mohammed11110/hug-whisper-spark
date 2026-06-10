@@ -15,6 +15,7 @@ import { useAppSettings, formatReceipt } from "@/lib/appSettings";
 import { allocateReceiptNumbers } from "@/lib/receiptNumbering";
 import { logActivity } from "@/lib/activityLogger";
 import { toast } from "sonner";
+import { useLiveData } from "@/lib/useLiveData";
 
 interface DebtRow {
   tenancy_id: string;
@@ -44,6 +45,11 @@ export default function PreviousBalances() {
   const [writeOffFor, setWriteOffFor] = useState<DebtRow | null>(null);
   const [writeOffReason, setWriteOffReason] = useState("");
   const [saving, setSaving] = useState(false);
+
+  useLiveData(
+    ["tenancies", "payments", "units", "buildings"],
+    () => setTick((t) => t + 1),
+  );
 
   useEffect(() => {
     let cancelled = false;
