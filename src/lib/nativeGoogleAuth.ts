@@ -159,6 +159,7 @@ async function doGoogleSignInOnce(): Promise<void> {
 }
 
 export async function nativeGoogleSignIn(): Promise<void> {
+  console.log("[nativeGoogleSignIn] Starting Google authentication flow...");
   await ensureInit(Capacitor.getPlatform() === "ios");
   try {
     try {
