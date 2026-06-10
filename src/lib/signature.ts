@@ -46,11 +46,13 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
-function readCache(uid: string): string | null {
+function readCache(uid: string): { dataUrl: string; updatedAt: string | null } | null {
   try {
     const cachedUid = localStorage.getItem(CACHE_USER_KEY);
     const cached = localStorage.getItem(CACHE_KEY);
-    if (cached && cachedUid === uid) return cached;
+    if (cached && cachedUid === uid) {
+      return { dataUrl: cached, updatedAt: localStorage.getItem(CACHE_UPDATED_KEY) };
+    }
     // Migrate from legacy session cache if present and matches uid.
     const legacyUid = sessionStorage.getItem(LEGACY_USER_KEY);
     const legacy = sessionStorage.getItem(LEGACY_CACHE_KEY);
@@ -59,18 +61,21 @@ function readCache(uid: string): string | null {
         localStorage.setItem(CACHE_KEY, legacy);
         localStorage.setItem(CACHE_USER_KEY, uid);
       } catch { /* quota */ }
-      return legacy;
+      return { dataUrl: legacy, updatedAt: null };
     }
   } catch { /* storage unavailable */ }
   return null;
 }
 
-function writeCache(uid: string, dataUrl: string) {
+function writeCache(uid: string, dataUrl: string, updatedAt?: string | null) {
   try {
     localStorage.setItem(CACHE_KEY, dataUrl);
     localStorage.setItem(CACHE_USER_KEY, uid);
+    if (updatedAt) localStorage.setItem(CACHE_UPDATED_KEY, updatedAt);
+    else localStorage.removeItem(CACHE_UPDATED_KEY);
   } catch { /* quota / private mode */ }
 }
+
 
 /** Returns true if the current user has a signature on file. Reads profile only. */
 export async function hasSignature(): Promise<boolean> {
