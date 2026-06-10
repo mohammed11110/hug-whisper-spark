@@ -17,7 +17,7 @@ import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { queryClient } from "@/lib/queryClient";
 import { paymentsBus } from "@/lib/paymentsBus";
-import { clearSignatureCache, isRecentLocalPrime, preloadSignature, signatureBus, verifySignatureFresh } from "@/lib/signature";
+import { clearSignatureCache, isRecentLocalPrime, preloadSignature, signatureBus, signatureDiag, verifySignatureFresh } from "@/lib/signature";
 
 
 export const SYNC_EVENT = "amlaki:data-changed" as const;
@@ -101,8 +101,10 @@ export function RealtimeSync() {
                 const newId = newRow?.id ?? payload?.old?.id ?? null;
                 if (!newId || newId === uid) {
                   const newTs = newRow?.signature_updated_at ?? null;
-                  if (!isRecentLocalPrime(newTs)) {
-                    // Authoritative check + emit done inside verifySignatureFresh.
+                  if (isRecentLocalPrime(newTs)) {
+                    signatureDiag.noteRealtime("self");
+                  } else {
+                    signatureDiag.noteRealtime("remote");
                     void verifySignatureFresh({ force: true });
                   }
                 }

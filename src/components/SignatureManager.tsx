@@ -13,6 +13,8 @@ import {
   signatureBus,
   verifySignatureFresh,
   getCachedSignatureUpdatedAt,
+  signatureDiag,
+  type SignatureDiag,
 } from "@/lib/signature";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -109,6 +111,15 @@ export function SignatureManager() {
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [drawOpen, setDrawOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [diag, setDiag] = useState<SignatureDiag>(() => signatureDiag.get());
+  const [, force] = useState(0);
+
+  // Tick every 5s so "X ثانية مضت" stays accurate.
+  useEffect(() => {
+    const id = window.setInterval(() => force((n) => n + 1), 5000);
+    const off = signatureDiag.on(() => setDiag(signatureDiag.get()));
+    return () => { window.clearInterval(id); off(); };
+  }, []);
 
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -266,6 +277,10 @@ export function SignatureManager() {
           {new Date(updatedAt).toLocaleString(lang === "ar" ? "ar" : "en")}
         </p>
       )}
+
+      <SignatureSyncPanel diag={diag} lang={lang} />
+
+
 
 
 
@@ -573,5 +588,84 @@ function SignaturePadDialog({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function ago(lang: string, ts: number | null): string {
+  if (!ts) return tr(lang, "—", "—");
+  const s = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+  if (s < 5) return tr(lang, "الآن", "just now");
+  if (s < 60) return tr(lang, `قبل ${s} ث`, `${s}s ago`);
+  const m = Math.floor(s / 60);
+  if (m < 60) return tr(lang, `قبل ${m} د`, `${m}m ago`);
+  const h = Math.floor(m / 60);
+  return tr(lang, `قبل ${h} س`, `${h}h ago`);
+}
+
+function verifyLabel(lang: string, r: SignatureDiag["lastVerifyResult"]): { text: string; color: string } {
+  switch (r) {
+    case "updated":   return { text: tr(lang, "تم التحديث", "updated"), color: "text-emerald-600" };
+    case "unchanged": return { text: tr(lang, "متطابق", "in sync"), color: "text-muted-foreground" };
+    case "no-server": return { text: tr(lang, "لا يوجد على الخادم", "none on server"), color: "text-muted-foreground" };
+    case "throttled": return { text: tr(lang, "مؤجَّل", "throttled"), color: "text-muted-foreground" };
+    case "error":     return { text: tr(lang, "خطأ", "error"), color: "text-red-600" };
+    default:          return { text: tr(lang, "—", "—"), color: "text-muted-foreground" };
+  }
+}
+
+function fetchLabel(lang: string, r: SignatureDiag["lastFetchResult"]): { text: string; color: string } {
+  switch (r) {
+    case "ok":               return { text: tr(lang, "ناجح", "ok"), color: "text-emerald-600" };
+    case "skip-cache-match": return { text: tr(lang, "كاش مطابق", "cache hit"), color: "text-muted-foreground" };
+    case "error":            return { text: tr(lang, "فشل", "failed"), color: "text-red-600" };
+    default:                 return { text: tr(lang, "—", "—"), color: "text-muted-foreground" };
+  }
+}
+
+function SignatureSyncPanel({ diag, lang }: { diag: SignatureDiag; lang: string }) {
+  const verify = verifyLabel(lang, diag.lastVerifyResult);
+  const fetchR = fetchLabel(lang, diag.lastFetchResult);
+  const rtKind = diag.lastRealtimeKind === "self"
+    ? tr(lang, "من هذا الجهاز", "self")
+    : diag.lastRealtimeKind === "remote"
+    ? tr(lang, "من جهاز آخر", "remote")
+    : tr(lang, "—", "—");
+
+  return (
+    <div className="mb-3 rounded-xl border border-sage-200/60 bg-muted/30 px-3 py-2 text-[11px] space-y-1">
+      <p className="font-semibold text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
+        {tr(lang, "حالة المزامنة", "Sync status")}
+      </p>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-muted-foreground">{tr(lang, "آخر حدث Realtime", "Last Realtime event")}</span>
+        <span className="font-mono">
+          {ago(lang, diag.lastRealtimeAt)} <span className="text-muted-foreground">· {rtKind}</span>
+        </span>
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-muted-foreground">{tr(lang, "آخر تحقق", "Last verify")}</span>
+        <span className="font-mono">
+          {ago(lang, diag.lastVerifyAt)} <span className={verify.color}>· {verify.text}</span>
+        </span>
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-muted-foreground">{tr(lang, "آخر جلب من الخادم", "Last server fetch")}</span>
+        <span className="font-mono">
+          {ago(lang, diag.lastFetchAt)} <span className={fetchR.color}>· {fetchR.text}</span>
+        </span>
+      </div>
+      {diag.lastFetchError && (
+        <p className="text-[10px] text-red-600 truncate" title={diag.lastFetchError}>
+          {diag.lastFetchError}
+        </p>
+      )}
+      <button
+        type="button"
+        className="mt-1 text-[10px] text-primary underline underline-offset-2"
+        onClick={() => { void verifySignatureFresh({ force: true }); }}
+      >
+        {tr(lang, "تحقق الآن", "Verify now")}
+      </button>
+    </div>
   );
 }
