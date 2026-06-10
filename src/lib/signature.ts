@@ -33,14 +33,23 @@ export type SignatureDiag = {
   lastRealtimeKind: "self" | "remote" | null;
   lastVerifyAt: number | null;
   lastVerifyResult: "unchanged" | "updated" | "no-server" | "error" | "throttled" | null;
+  lastVerifyStage: "auth" | "profile" | "download" | "done" | null;
+  lastVerifyError: string | null;
   lastFetchAt: number | null;
   lastFetchResult: "ok" | "error" | "skip-cache-match" | null;
   lastFetchError: string | null;
+  verifyCount: number;
+  realtimeCount: number;
+  channelStatus: "idle" | "joining" | "subscribed" | "closed" | "error" | "timeout" | null;
+  channelStatusAt: number | null;
 };
 const diag: SignatureDiag = {
   lastRealtimeAt: null, lastRealtimeKind: null,
   lastVerifyAt: null, lastVerifyResult: null,
+  lastVerifyStage: null, lastVerifyError: null,
   lastFetchAt: null, lastFetchResult: null, lastFetchError: null,
+  verifyCount: 0, realtimeCount: 0,
+  channelStatus: null, channelStatusAt: null,
 };
 const diagListeners = new Set<() => void>();
 export const signatureDiag = {
@@ -51,9 +60,17 @@ export const signatureDiag = {
     diagListeners.forEach((f) => { try { f(); } catch { /* noop */ } });
   },
   noteRealtime(kind: "self" | "remote") {
-    this._update({ lastRealtimeAt: Date.now(), lastRealtimeKind: kind });
+    this._update({
+      lastRealtimeAt: Date.now(),
+      lastRealtimeKind: kind,
+      realtimeCount: diag.realtimeCount + 1,
+    });
+  },
+  noteChannelStatus(status: SignatureDiag["channelStatus"]) {
+    this._update({ channelStatus: status, channelStatusAt: Date.now() });
   },
 };
+
 
 
 /** Tracks the last time *this device* primed the cache after a local save.
@@ -290,14 +307,18 @@ let lastVerifyAt = 0;
 export async function verifySignatureFresh(opts: { force?: boolean } = {}): Promise<boolean> {
   const now = Date.now();
   if (!opts.force && now - lastVerifyAt < 1500) {
-    signatureDiag._update({ lastVerifyAt: now, lastVerifyResult: "throttled" });
+    signatureDiag._update({ lastVerifyAt: now, lastVerifyResult: "throttled", lastVerifyStage: null, lastVerifyError: null });
     return false;
   }
   lastVerifyAt = now;
+  signatureDiag._update({ verifyCount: signatureDiag.get().verifyCount + 1 });
 
   const uid = await currentUid();
   if (!uid) {
-    signatureDiag._update({ lastVerifyAt: now, lastVerifyResult: "error" });
+    signatureDiag._update({
+      lastVerifyAt: now, lastVerifyResult: "error",
+      lastVerifyStage: "auth", lastVerifyError: "no-user (not signed in)",
+    });
     return false;
   }
 
@@ -312,7 +333,11 @@ export async function verifySignatureFresh(opts: { force?: boolean } = {}): Prom
     await new Promise((r) => setTimeout(r, 400));
     ({ data, error } = await fetchProfile());
     if (error) {
-      signatureDiag._update({ lastVerifyAt: Date.now(), lastVerifyResult: "error" });
+      signatureDiag._update({
+        lastVerifyAt: Date.now(), lastVerifyResult: "error",
+        lastVerifyStage: "profile",
+        lastVerifyError: `profile: ${error.message || "query_failed"}`,
+      });
       return false;
     }
   }
@@ -334,10 +359,10 @@ export async function verifySignatureFresh(opts: { force?: boolean } = {}): Prom
     if (hasLocal) {
       clearSignatureCache();
       signatureBus.emit();
-      signatureDiag._update({ lastVerifyAt: Date.now(), lastVerifyResult: "no-server" });
+      signatureDiag._update({ lastVerifyAt: Date.now(), lastVerifyResult: "no-server", lastVerifyStage: "done", lastVerifyError: null });
       return true;
     }
-    signatureDiag._update({ lastVerifyAt: Date.now(), lastVerifyResult: "no-server" });
+    signatureDiag._update({ lastVerifyAt: Date.now(), lastVerifyResult: "no-server", lastVerifyStage: "done", lastVerifyError: null });
     return false;
   }
 
@@ -345,6 +370,7 @@ export async function verifySignatureFresh(opts: { force?: boolean } = {}): Prom
     signatureDiag._update({
       lastVerifyAt: Date.now(),
       lastVerifyResult: "unchanged",
+      lastVerifyStage: "done", lastVerifyError: null,
       lastFetchAt: Date.now(),
       lastFetchResult: "skip-cache-match",
       lastFetchError: null,
@@ -353,7 +379,7 @@ export async function verifySignatureFresh(opts: { force?: boolean } = {}): Prom
   }
 
   if (isRecentLocalPrime(serverTs)) {
-    signatureDiag._update({ lastVerifyAt: Date.now(), lastVerifyResult: "unchanged" });
+    signatureDiag._update({ lastVerifyAt: Date.now(), lastVerifyResult: "unchanged", lastVerifyStage: "done", lastVerifyError: null });
     return false;
   }
 
@@ -364,6 +390,8 @@ export async function verifySignatureFresh(opts: { force?: boolean } = {}): Prom
     if (dlErr || !blob) {
       signatureDiag._update({
         lastVerifyAt: Date.now(), lastVerifyResult: "error",
+        lastVerifyStage: "download",
+        lastVerifyError: `download: ${dlErr?.message || "download_failed"}`,
         lastFetchAt: Date.now(), lastFetchResult: "error",
         lastFetchError: dlErr?.message || "download_failed",
       });
@@ -374,18 +402,22 @@ export async function verifySignatureFresh(opts: { force?: boolean } = {}): Prom
     signatureBus.emit();
     signatureDiag._update({
       lastVerifyAt: Date.now(), lastVerifyResult: "updated",
+      lastVerifyStage: "done", lastVerifyError: null,
       lastFetchAt: Date.now(), lastFetchResult: "ok", lastFetchError: null,
     });
     return true;
   } catch (e: any) {
     signatureDiag._update({
       lastVerifyAt: Date.now(), lastVerifyResult: "error",
+      lastVerifyStage: "download",
+      lastVerifyError: `download: ${e?.message || "download_failed"}`,
       lastFetchAt: Date.now(), lastFetchResult: "error",
       lastFetchError: e?.message || "download_failed",
     });
     return false;
   }
 }
+
 
 /** Returns the last known server `signature_updated_at` from local cache. */
 export function getCachedSignatureUpdatedAt(): string | null {

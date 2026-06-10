@@ -1,42 +1,60 @@
-## المشكلة الفعلية
+# تشخيص: لماذا تظهر "آخر تحقق · خطأ" و"آخر حدث Realtime —"؟
 
-التزامن الحالي يعتمد على Realtime عبر جدول `profiles`. هذا يفشل في حالات شائعة:
-- الجهاز الثاني في الخلفية (iOS يجمّد WebSocket تماماً)، فلا تصل رسالة Realtime.
-- اشتراك Realtime على `profiles` يتطلب أن تسمح RLS بقراءة الصف المعدّل — وكثيراً ما يصل الحدث بدون payload `new` بسبب RLS، فيخفق `signature_updated_at !== oldTs` بصمت.
-- الكاش المحلي في الجهاز الثاني يحمل `signature_updated_at` قديم. عند فتح التطبيق لاحقاً، `loadSignature` يقارن الطابعَين فقط إذا نجح استعلام `profiles`. لو حدث أي خطأ شبكة عابر يعود الكاش القديم ولا يُعاد المحاولة.
+اللوحة الحالية تخفي **سبب** الخطأ في `verifySignatureFresh`، وأيضاً لا تخبرنا إن كانت قناة Realtime متصلة أصلاً. سأوسّع التشخيص حتى نعرف بالضبط أين تنكسر السلسلة.
 
-## الحل الجذري — مصدر حقيقة واحد + إبطال إجباري عند الرجوع
+## الفرضيات المحتملة لـ "verify · خطأ"
+1. `supabase.auth.getUser()` يرجع `null` (مثلاً عند زيارة `/welcome` بدون جلسة) → اللوحة تعرض خطأ بينما السبب الحقيقي هو "غير مسجّل دخول".
+2. استعلام `profiles` يفشل بسبب RLS أو شبكة.
+3. تنزيل الملف من Storage يفشل.
 
-### 1. سياسة "always-verify on resume" بدل الاعتماد على Realtime
-في كل **mount / focus / visibilitychange→visible / online / SIGNED_IN / TOKEN_REFRESHED**:
-- اجلب `signature_updated_at` من الخادم.
-- قارنه بـ `localStorage[amlaki_signature_updated_at_v2]`.
-- إن اختلف → امسح الكاش، نزّل من Storage، أعِد العرض، وأطلق `signatureBus`.
+## "آخر حدث Realtime —" يعني
+- لم يصل أي حدث `profiles` للقناة منذ فتح الصفحة. قد يكون السبب:
+  - لم يحدث تحديث فعلي على `profiles` من جهاز آخر بعد.
+  - القناة لم تصل لحالة `SUBSCRIBED` (شبكة/توكن).
+  - `profiles` غير مُضافة لـ `supabase_realtime` publication.
 
-هذا يضمن أن **أي رجوع للتطبيق ⇒ التوقيع الجديد يظهر فوراً**، حتى لو لم يصل Realtime أبداً.
+## الخطوات
 
-### 2. تأكيد أن Realtime يرى الحدث فعلاً (مساعد فقط)
-- التحقق من أن `profiles` ضمن `supabase_realtime` publication و`REPLICA IDENTITY FULL` (موجود).
-- تعديل اشتراك `RealtimeSync` على `profiles` ليفلتر `id=eq.${uid}` صراحةً (أسرع وأكثر موثوقية).
-- عند وصول الحدث، نعتمد فقط على وجود `payload.new.signature_updated_at` ونقارنه بـ localStorage — لا نعتمد على `payload.old`.
+### 1) `src/lib/signature.ts` — توسيع `SignatureDiag`
+أضف حقول:
+- `lastVerifyError: string | null` — رسالة الخطأ الفعلية (auth/profile/download).
+- `lastVerifyStage: "auth" | "profile" | "download" | "done" | null` — أين توقّفنا.
+- `verifyCount`, `realtimeCount` — عدّادات تراكمية.
 
-### 3. إصلاح حالة "الكاش يبقى قديماً للأبد"
-- إضافة عدّاد TTL: إن مرّ أكثر من 30 ثانية بدون تحقق، أي قراءة لـ `getSignatureDataUrl` (PDF أو UI) تستدعي `loadSignature` بدل العودة الفورية للكاش.
-- `loadSignature` الحالي يقارن timestamps لكنه لا يُجبر إبطال الكاش لو فشل استعلام `profiles` — سنُعيد المحاولة مرة واحدة قبل القبول.
+عدّل كل فرع خطأ في `verifySignatureFresh` ليكتب `lastVerifyError` بنص واضح:
+- `no-user` عندما `uid === null`.
+- `profile: <message>` عند فشل استعلام `profiles` (بعد المحاولة الثانية).
+- `download: <message>` عند فشل Storage.
 
-### 4. شارة تأكيد بصرية صغيرة
-في `SignatureManager`: شارة تعرض آخر تحديث للتوقيع (مثلاً "محدّث الآن" / "محدّث قبل دقيقتين") مأخوذة من `signature_updated_at`، حتى يرى المستخدم أن الجهاز فعلاً جلب آخر نسخة.
+### 2) `src/lib/realtimeSync.tsx` — تشخيص حالة القناة
+أضف لـ `signatureDiag` حقول:
+- `channelStatus: "idle" | "joining" | "subscribed" | "closed" | "error" | null`
+- `channelStatusAt: number | null`
 
-## الملفات المتأثرة
+في `ch.subscribe((status) => { ... })` مرّر callback يحدّث `channelStatus` لكل تغيّر حالة (SUBSCRIBED/CHANNEL_ERROR/TIMED_OUT/CLOSED).
 
-- `src/lib/signature.ts` — دالة `verifySignatureFresh()` جديدة تُستدعى عند resume، TTL 30 ثانية، إعادة محاولة عند فشل profiles.
-- `src/components/SignatureManager.tsx` — استدعاء `verifySignatureFresh` بدل `refresh({silent:true})` في visibilitychange/focus/online، وعرض شارة آخر تحديث.
-- `src/lib/realtimeSync.tsx` — فلترة `id=eq.${uid}` على اشتراك profiles، الاعتماد على `new.signature_updated_at` فقط.
-- (اختياري) إضافة مستمع `window 'online'` event للتحقق فور عودة الإنترنت.
+### 3) `src/components/SignatureManager.tsx` — توسيع `SignatureSyncPanel`
+أضف صفوف جديدة:
+- **حالة القناة**: `subscribed` (أخضر) / `joining` (رمادي) / `error/closed` (أحمر) + وقت آخر تغيير.
+- **عدّاد الأحداث**: "Realtime: 3 · Verify: 7".
+- **المرحلة + رسالة الخطأ**: عند `lastVerifyResult === "error"` اعرض `lastVerifyStage` و`lastVerifyError` بخط أحمر صغير.
+- زر إضافي: **"اختبر الاتصال بـ profiles"** ينفّذ `supabase.from('profiles').select('id').limit(1)` ويعرض النتيجة فوراً — يكشف فوراً إن كان الخطأ من الشبكة/RLS أم من المصادقة.
 
-## النتيجة المتوقعة
+### 4) لا تغييرات في قاعدة البيانات
+كل العمل عرض/تشخيص فقط. لن نلمس RLS أو migrations.
 
-- iPhone يحفظ التوقيع → iPad في الخلفية → فور فتحه/تركيزه ⇒ التوقيع الجديد يظهر **بدون أي ضغط على تحديث**.
-- لو وصل Realtime، التحديث فوري حتى والـ iPad مفتوح.
-- لو فشل Realtime (شبكة سيئة، iOS جمّد WebSocket)، فالـ "verify on resume" يضمن المزامنة خلال أقل من ثانية بعد الفتح.
-- PDF/الإيصالات تستخدم دائماً آخر توقيع لأن `getSignatureDataUrl` يحترم TTL.
+## النتيجة المتوقّعة
+بعد التطبيق سترى في اللوحة شيئاً مثل:
+```
+حالة القناة: subscribed (منذ 4 ث)
+عدّاد: Realtime 0 · Verify 5
+آخر تحقق: قبل 3 ث · خطأ
+  المرحلة: auth
+  السبب: no-user
+```
+أو
+```
+المرحلة: profile
+السبب: JWT expired
+```
+وعندها نعرف بدقة الإصلاح التالي (تجديد جلسة، RLS، أو إضافة `profiles` للـ publication).

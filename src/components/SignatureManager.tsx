@@ -622,20 +622,67 @@ function fetchLabel(lang: string, r: SignatureDiag["lastFetchResult"]): { text: 
   }
 }
 
+function channelLabel(lang: string, s: SignatureDiag["channelStatus"]): { text: string; color: string } {
+  switch (s) {
+    case "subscribed": return { text: tr(lang, "متصل", "subscribed"), color: "text-emerald-600" };
+    case "joining":    return { text: tr(lang, "جاري الاتصال", "joining"), color: "text-muted-foreground" };
+    case "closed":     return { text: tr(lang, "مغلق", "closed"), color: "text-red-600" };
+    case "error":      return { text: tr(lang, "خطأ", "error"), color: "text-red-600" };
+    case "timeout":    return { text: tr(lang, "انتهت المهلة", "timeout"), color: "text-red-600" };
+    default:           return { text: tr(lang, "—", "—"), color: "text-muted-foreground" };
+  }
+}
+
 function SignatureSyncPanel({ diag, lang }: { diag: SignatureDiag; lang: string }) {
   const verify = verifyLabel(lang, diag.lastVerifyResult);
   const fetchR = fetchLabel(lang, diag.lastFetchResult);
+  const channel = channelLabel(lang, diag.channelStatus);
   const rtKind = diag.lastRealtimeKind === "self"
     ? tr(lang, "من هذا الجهاز", "self")
     : diag.lastRealtimeKind === "remote"
     ? tr(lang, "من جهاز آخر", "remote")
     : tr(lang, "—", "—");
 
+  const [probing, setProbing] = useState(false);
+  const [probeResult, setProbeResult] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  const runProbe = async () => {
+    setProbing(true);
+    setProbeResult(null);
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) {
+        setProbeResult({ ok: false, msg: tr(lang, "غير مسجّل دخول", "Not signed in") });
+        return;
+      }
+      const { error } = await supabase.from("profiles").select("id").eq("id", u.user.id).limit(1);
+      if (error) setProbeResult({ ok: false, msg: error.message });
+      else setProbeResult({ ok: true, msg: tr(lang, `متصل (uid: ${u.user.id.slice(0, 8)}…)`, `OK (uid: ${u.user.id.slice(0, 8)}…)`) });
+    } catch (e: any) {
+      setProbeResult({ ok: false, msg: e?.message || "probe_failed" });
+    } finally {
+      setProbing(false);
+    }
+  };
+
   return (
     <div className="mb-3 rounded-xl border border-sage-200/60 bg-muted/30 px-3 py-2 text-[11px] space-y-1">
       <p className="font-semibold text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
         {tr(lang, "حالة المزامنة", "Sync status")}
       </p>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-muted-foreground">{tr(lang, "حالة القناة", "Channel status")}</span>
+        <span className="font-mono">
+          <span className={channel.color}>{channel.text}</span>{" "}
+          <span className="text-muted-foreground">· {ago(lang, diag.channelStatusAt)}</span>
+        </span>
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-muted-foreground">{tr(lang, "العدّاد", "Counters")}</span>
+        <span className="font-mono text-muted-foreground">
+          RT {diag.realtimeCount} · V {diag.verifyCount}
+        </span>
+      </div>
       <div className="flex items-center justify-between gap-2">
         <span className="text-muted-foreground">{tr(lang, "آخر حدث Realtime", "Last Realtime event")}</span>
         <span className="font-mono">
@@ -654,18 +701,49 @@ function SignatureSyncPanel({ diag, lang }: { diag: SignatureDiag; lang: string 
           {ago(lang, diag.lastFetchAt)} <span className={fetchR.color}>· {fetchR.text}</span>
         </span>
       </div>
-      {diag.lastFetchError && (
+      {diag.lastVerifyResult === "error" && (diag.lastVerifyStage || diag.lastVerifyError) && (
+        <div className="rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200/60 dark:border-red-900/40 px-2 py-1 mt-1">
+          <p className="text-[10px] text-red-700 dark:text-red-300">
+            <span className="font-semibold">{tr(lang, "المرحلة:", "Stage:")} </span>
+            <span className="font-mono">{diag.lastVerifyStage || "—"}</span>
+          </p>
+          {diag.lastVerifyError && (
+            <p className="text-[10px] text-red-700 dark:text-red-300 font-mono break-all" title={diag.lastVerifyError}>
+              {diag.lastVerifyError}
+            </p>
+          )}
+        </div>
+      )}
+      {diag.lastFetchError && diag.lastVerifyResult !== "error" && (
         <p className="text-[10px] text-red-600 truncate" title={diag.lastFetchError}>
           {diag.lastFetchError}
         </p>
       )}
-      <button
-        type="button"
-        className="mt-1 text-[10px] text-primary underline underline-offset-2"
-        onClick={() => { void verifySignatureFresh({ force: true }); }}
-      >
-        {tr(lang, "تحقق الآن", "Verify now")}
-      </button>
+      <div className="flex flex-wrap items-center gap-3 pt-1">
+        <button
+          type="button"
+          className="text-[10px] text-primary underline underline-offset-2"
+          onClick={() => { void verifySignatureFresh({ force: true }); }}
+        >
+          {tr(lang, "تحقق الآن", "Verify now")}
+        </button>
+        <button
+          type="button"
+          className="text-[10px] text-primary underline underline-offset-2 disabled:opacity-50"
+          onClick={runProbe}
+          disabled={probing}
+        >
+          {probing
+            ? tr(lang, "جارٍ الاختبار…", "Testing…")
+            : tr(lang, "اختبر الاتصال بـ profiles", "Test profiles connection")}
+        </button>
+      </div>
+      {probeResult && (
+        <p className={`text-[10px] font-mono break-all ${probeResult.ok ? "text-emerald-600" : "text-red-600"}`}>
+          {probeResult.ok ? "✓ " : "✗ "}{probeResult.msg}
+        </p>
+      )}
     </div>
   );
 }
+
