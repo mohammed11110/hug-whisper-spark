@@ -588,8 +588,10 @@ export function buildReceiptHTML(data: ReceiptData): string {
   const rtl = true;
   const currency = (data.currency || data.brand.defaultCurrency || "OMR").toUpperCase();
   const currencyAr = currency === "OMR" ? "ر.ع" : currency === "BHD" ? "ب.د" : currency === "KWD" ? "د.ك" : currency === "SAR" ? "ر.س" : currency === "AED" ? "د.إ" : currency;
+  const decimals = ["OMR", "BHD", "KWD"].includes(currency) ? 3 : 2;
   const amountNum = Number(data.amount || 0);
-  const amountStr = amountNum.toLocaleString("en-US", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+  const amountStr = amountNum.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+
 
   // Bilingual date: Arabic (Latin digits) + English
   let dateAr = "—", dateEn = "—";
