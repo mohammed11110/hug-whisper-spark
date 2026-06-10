@@ -537,9 +537,14 @@ export default function Settings() {
                   )}
                 </div>
 
-                <Field label={tr(lang, "اسم العمل", "Business name")}>
-                  <Input value={settings.brand.name}
+                <Field label={tr(lang, "اسم العمل (عربي)", "Business name (AR)")}>
+                  <Input value={settings.brand.name} dir="rtl"
                     onChange={(e) => update({ brand: { ...settings.brand, name: e.target.value } })}
+                    className="rounded-xl border-sage-200 bg-card h-10" />
+                </Field>
+                <Field label={tr(lang, "اسم العمل (إنجليزي)", "Business name (EN)")}>
+                  <Input value={settings.brand.nameEn || ""} dir="ltr"
+                    onChange={(e) => update({ brand: { ...settings.brand, nameEn: e.target.value } })}
                     className="rounded-xl border-sage-200 bg-card h-10" />
                 </Field>
                 <div className="grid grid-cols-2 gap-2">
@@ -566,6 +571,19 @@ export default function Settings() {
                       className="rounded-xl border-sage-200 bg-card h-10" />
                   </Field>
                 </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label={tr(lang, "السجل التجاري", "CR number")}>
+                    <Input value={settings.brand.crNumber || ""}
+                      onChange={(e) => update({ brand: { ...settings.brand, crNumber: e.target.value } })}
+                      className="rounded-xl border-sage-200 bg-card h-10" />
+                  </Field>
+                  <Field label={tr(lang, "العملة الافتراضية", "Default currency")}>
+                    <Input value={settings.brand.defaultCurrency || "OMR"}
+                      onChange={(e) => update({ brand: { ...settings.brand, defaultCurrency: e.target.value.toUpperCase().slice(0, 4) } })}
+                      className="rounded-xl border-sage-200 bg-card h-10" />
+                  </Field>
+                </div>
+
 
                 <Button
                   onClick={() => {
