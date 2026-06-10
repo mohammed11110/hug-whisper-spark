@@ -17,6 +17,8 @@ import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { queryClient } from "@/lib/queryClient";
 import { paymentsBus } from "@/lib/paymentsBus";
+import { clearSignatureCache, preloadSignature, signatureBus } from "@/lib/signature";
+
 
 export const SYNC_EVENT = "amlaki:data-changed" as const;
 
