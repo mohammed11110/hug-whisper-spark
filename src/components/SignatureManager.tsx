@@ -146,6 +146,11 @@ export function SignatureManager() {
     };
     void setupRealtime();
 
+    // Cross-device bus: fires when another device (or the global RealtimeSync)
+    // detects a signature change.
+    const offBus = signatureBus.on(() => { void refresh({ hard: true, silent: true }); });
+
+
     const onVisible = () => {
       if (document.visibilityState === "visible") void refresh({ hard: true, silent: true });
     };
