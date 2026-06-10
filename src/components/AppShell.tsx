@@ -11,6 +11,7 @@ import { LifecycleBanner } from "@/components/GraceBanner";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { RealtimeSync } from "@/lib/realtimeSync";
+import { AppResumeSync } from "@/lib/appResumeSync";
 
 import { useAuth } from "@/lib/auth";
 import { enablePushIfNative } from "@/lib/push";
@@ -35,6 +36,7 @@ export function AppShell() {
   return (
     <SidebarProvider defaultOpen={defaultOpen}>
       <RealtimeSync />
+      <AppResumeSync />
       <ActivityNotifier />
       <TourLauncher />
       <OfflineBanner />
