@@ -85,11 +85,11 @@ export default function Auth() {
   const handleOAuth = async (provider: "google" | "apple") => {
     // Platform policy: Google is web-only, Apple is app-only.
     if (isNative() && provider === "google") {
-      toast.error(t2("google_web_only") || "Google sign-in is available on the web only");
+      toast.error("Google sign-in is available on the web only");
       return;
     }
     if (!isNative() && provider === "apple") {
-      toast.error(t2("apple_app_only") || "Apple sign-in is available in the app only");
+      toast.error("Apple sign-in is available in the app only");
       return;
     }
     setBusy(true);
