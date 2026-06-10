@@ -1,12 +1,25 @@
-Make the saved signature preview larger and more prominent inside the Settings > Brand tab.
+# مشكلة المزامنة بين iPhone و iPad
 
-Changes:
+البيانات (التوقيع + معلومات المؤسسة) محفوظة فعلياً على السيرفر لكل حساب، لكن جهاز الـ iPad يجلبها **مرة واحدة فقط** عند تسجيل الدخول، ثم يعرض النسخة المخزنة محلياً. لذلك أي تعديل من الـ iPhone لا يظهر على الـ iPad حتى تخرج وتعيد تسجيل الدخول.
 
-1. **SignatureManager.tsx** — enlarge the preview area:
-   - Increase the preview container from `min-h-[120px]` to `min-h-[200px]` and remove the `max-h-[110px]` cap on the image so the signature renders at a readable size.
-   - Keep the placeholder text and loading state unchanged.
-   - Ensure the existing action buttons (Redraw / Upload / Refresh / Delete) remain below the preview.
+## الإصلاحات
 
-2. **Settings.tsx brand tab** — keep `SignatureManager` in its current position between the tab switcher card and the pricing link.
+### 1) `src/lib/appSettings.tsx` — إعادة جلب بيانات المؤسسة تلقائياً
+- إزالة شرط `brandLoadedForUid.current !== uid` الذي يمنع إعادة الجلب لنفس المستخدم.
+- إضافة مستمعَين:
+  - `visibilitychange` (عند العودة لتبويب التطبيق على الـ iPad).
+  - `focus` (عند فتح التطبيق من الخلفية).
+  - عند تشغيل أي منهما → استدعاء `hydrateBrandFromServer(uid)` لجلب آخر نسخة من السيرفر.
+- إضافة اشتراك **Realtime** على صف `profiles` للمستخدم الحالي: عند أي تحديث للأعمدة `brand_*` أو `brand_logo_path` يُعاد الجلب فوراً، فيرى الـ iPad التغييرات خلال ثوانٍ بدون أي تدخل يدوي.
 
-No data or logic changes. Only visual sizing adjustments.
+### 2) `src/components/SignatureManager.tsx` — تحديث تلقائي للتوقيع
+- إضافة نفس مستمعَي `visibilitychange` و`focus` لاستدعاء `refresh({ hard: true, silent: true })`، بحيث يجلب التوقيع المحدّث من السيرفر بدلاً من إظهار النسخة المخزنة في `localStorage`.
+- اشتراك Realtime على `profiles.signature_path` للمستخدم الحالي → عند تغيّره من جهاز آخر، يتم تحديث الواجهة مباشرة.
+
+### 3) لا حاجة لأي تغيير في قاعدة البيانات
+- جدول `profiles` فيه RLS تسمح للمستخدم بقراءة صفه فقط، وهذا يكفي لـ Realtime.
+- لا تغييرات على Storage أو الـ schema.
+
+## النتيجة المتوقعة
+- تعديل التوقيع أو معلومات المؤسسة من الـ iPhone → يظهر تلقائياً على الـ iPad خلال ثوانٍ (Realtime)، وعلى أبعد تقدير بمجرد فتح التطبيق على الـ iPad (visibility/focus).
+- الحساب الواحد = معلومات واحدة عبر كل الأجهزة.
