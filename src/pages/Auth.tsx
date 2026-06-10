@@ -33,6 +33,7 @@ export default function Auth() {
   const [showPw, setShowPw] = useState(false);
   const [remember, setRemember] = useState(true);
   const [pwError, setPwError] = useState(false);
+  const native = isNative();
 
   useEffect(() => {
     const saved = localStorage.getItem(REMEMBER_KEY);
@@ -82,6 +83,15 @@ export default function Auth() {
   };
 
   const handleOAuth = async (provider: "google" | "apple") => {
+    // Platform policy: Google is web-only, Apple is app-only.
+    if (isNative() && provider === "google") {
+      toast.error(t2("google_web_only") || "Google sign-in is available on the web only");
+      return;
+    }
+    if (!isNative() && provider === "apple") {
+      toast.error(t2("apple_app_only") || "Apple sign-in is available in the app only");
+      return;
+    }
     setBusy(true);
     try {
       // Native (iOS/Android): use the native SDKs so the OS shows the
@@ -137,34 +147,38 @@ export default function Auth() {
 
         {!showEmail ? (
           <div className="space-y-3 animate-float-up">
-            {/* Apple — white button, black logo (Apple HIG) */}
-            <Button
-              type="button"
-              disabled={busy}
-              onClick={() => handleOAuth("apple")}
-              className="w-full h-13 py-3.5 rounded-2xl bg-white text-black hover:bg-white/90 font-semibold flex items-center justify-center gap-3 shadow-soft"
-            >
-              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
-              </svg>
-              {t("continue_with_apple")}
-            </Button>
+            {/* Apple — app-only (iOS/Android). White button, black logo (Apple HIG) */}
+            {native && (
+              <Button
+                type="button"
+                disabled={busy}
+                onClick={() => handleOAuth("apple")}
+                className="w-full h-13 py-3.5 rounded-2xl bg-white text-black hover:bg-white/90 font-semibold flex items-center justify-center gap-3 shadow-soft"
+              >
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
+                </svg>
+                {t("continue_with_apple")}
+              </Button>
+            )}
 
-            {/* Google — white button with official G logo */}
-            <Button
-              type="button"
-              disabled={busy}
-              onClick={() => handleOAuth("google")}
-              className="w-full h-13 py-3.5 rounded-2xl bg-white text-black hover:bg-white/90 font-semibold flex items-center justify-center gap-3 shadow-soft"
-            >
-              <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.99.66-2.25 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                <path fill="#FBBC05" d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.83z" />
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.83C6.71 7.31 9.14 5.38 12 5.38z" />
-              </svg>
-              {t("continue_with_google")}
-            </Button>
+            {/* Google — web-only. White button with official G logo */}
+            {!native && (
+              <Button
+                type="button"
+                disabled={busy}
+                onClick={() => handleOAuth("google")}
+                className="w-full h-13 py-3.5 rounded-2xl bg-white text-black hover:bg-white/90 font-semibold flex items-center justify-center gap-3 shadow-soft"
+              >
+                <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.99.66-2.25 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.83z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.83C6.71 7.31 9.14 5.38 12 5.38z" />
+                </svg>
+                {t("continue_with_google")}
+              </Button>
+            )}
 
             <div className="relative my-2">
               <div className="absolute inset-0 flex items-center">
@@ -314,7 +328,7 @@ export default function Auth() {
                 onClick={() => setShowEmail(false)}
                 className="w-full text-sm text-muted-foreground hover:text-foreground py-2"
               >
-                ← {t("continue_with_apple")} / {t("continue_with_google")}
+                ← {native ? t("continue_with_apple") : t("continue_with_google")}
               </button>
             </form>
           </>
