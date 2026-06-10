@@ -27,64 +27,17 @@ export const signatureBus = {
   emit() { sigListeners.forEach((f) => { try { f(); } catch { /* noop */ } }); },
 };
 
-/** Diagnostics for the SignatureManager status panel. */
-export type SignatureDiag = {
-  lastRealtimeAt: number | null;
-  lastRealtimeKind: "self" | "remote" | null;
-  lastVerifyAt: number | null;
-  lastVerifyResult: "unchanged" | "updated" | "no-server" | "error" | "throttled" | null;
-  lastVerifyStage: "auth" | "profile" | "download" | "done" | null;
-  lastVerifyError: string | null;
-  lastFetchAt: number | null;
-  lastFetchResult: "ok" | "error" | "skip-cache-match" | null;
-  lastFetchError: string | null;
-  verifyCount: number;
-  realtimeCount: number;
-  channelStatus: "idle" | "joining" | "subscribed" | "closed" | "error" | "timeout" | null;
-  channelStatusAt: number | null;
-};
-const diag: SignatureDiag = {
-  lastRealtimeAt: null, lastRealtimeKind: null,
-  lastVerifyAt: null, lastVerifyResult: null,
-  lastVerifyStage: null, lastVerifyError: null,
-  lastFetchAt: null, lastFetchResult: null, lastFetchError: null,
-  verifyCount: 0, realtimeCount: 0,
-  channelStatus: null, channelStatusAt: null,
-};
-const diagListeners = new Set<() => void>();
-export const signatureDiag = {
-  get(): SignatureDiag { return { ...diag }; },
-  on(fn: () => void) { diagListeners.add(fn); return () => diagListeners.delete(fn); },
-  _update(patch: Partial<SignatureDiag>) {
-    Object.assign(diag, patch);
-    diagListeners.forEach((f) => { try { f(); } catch { /* noop */ } });
-  },
-  noteRealtime(kind: "self" | "remote") {
-    this._update({
-      lastRealtimeAt: Date.now(),
-      lastRealtimeKind: kind,
-      realtimeCount: diag.realtimeCount + 1,
-    });
-  },
-  noteChannelStatus(status: SignatureDiag["channelStatus"]) {
-    this._update({ channelStatus: status, channelStatusAt: Date.now() });
-  },
-};
-
-
-
 /** Tracks the last time *this device* primed the cache after a local save.
- *  Used to suppress echo refreshes from Realtime UPDATE events that this
- *  same device just triggered (otherwise they wipe the freshly-saved cache
- *  and force a premature Storage round-trip that can fail on iOS). */
+ *  Used to suppress echo refreshes that this device just triggered. */
 let lastLocalPrimeAt = 0;
 let lastLocalUpdatedAt: string | null = null;
 const LOCAL_PRIME_WINDOW_MS = 8000;
-export function isRecentLocalPrime(remoteUpdatedAt?: string | null): boolean {
+function isRecentLocalPrime(remoteUpdatedAt?: string | null): boolean {
   if (Date.now() - lastLocalPrimeAt > LOCAL_PRIME_WINDOW_MS) return false;
   if (!remoteUpdatedAt || !lastLocalUpdatedAt) return true;
   return remoteUpdatedAt === lastLocalUpdatedAt;
 }
+
 
 
 function pathFor(uid: string) {
@@ -294,129 +247,12 @@ export async function preloadSignature(): Promise<void> {
   try { await loadSignature(); } catch { /* noop */ }
 }
 
-/**
- * Force-verify the local cache against the server's `signature_updated_at`.
- * Always runs the profile lookup (one retry on failure). If the server has a
- * newer timestamp — or the cache is missing entirely — clears the cache,
- * re-downloads from Storage, and emits `signatureBus` so every mounted UI
- * refreshes. Cheap enough to call on every focus / visibilitychange / online.
- *
- * Returns true when something actually changed.
- */
-let lastVerifyAt = 0;
-export async function verifySignatureFresh(opts: { force?: boolean } = {}): Promise<boolean> {
-  const now = Date.now();
-  if (!opts.force && now - lastVerifyAt < 1500) {
-    signatureDiag._update({ lastVerifyAt: now, lastVerifyResult: "throttled", lastVerifyStage: null, lastVerifyError: null });
-    return false;
-  }
-  lastVerifyAt = now;
-  signatureDiag._update({ verifyCount: signatureDiag.get().verifyCount + 1 });
+// Note: verifySignatureFresh and the diagnostics layer were removed.
+// Cross-device sync now relies on React Query invalidation triggered by the
+// global RealtimeSync channel (see src/lib/realtimeSync.tsx).
+void isRecentLocalPrime; // retained for potential future use
 
-  const uid = await currentUid();
-  if (!uid) {
-    signatureDiag._update({
-      lastVerifyAt: now, lastVerifyResult: "error",
-      lastVerifyStage: "auth", lastVerifyError: "no-user (not signed in)",
-    });
-    return false;
-  }
 
-  const fetchProfile = async () => await supabase
-    .from("profiles")
-    .select("signature_path, signature_updated_at")
-    .eq("id", uid)
-    .maybeSingle();
-
-  let { data, error } = await fetchProfile();
-  if (error) {
-    await new Promise((r) => setTimeout(r, 400));
-    ({ data, error } = await fetchProfile());
-    if (error) {
-      signatureDiag._update({
-        lastVerifyAt: Date.now(), lastVerifyResult: "error",
-        lastVerifyStage: "profile",
-        lastVerifyError: `profile: ${error.message || "query_failed"}`,
-      });
-      return false;
-    }
-  }
-
-  const serverPath = (data as any)?.signature_path ?? null;
-  const serverTs = (data as any)?.signature_updated_at ?? null;
-
-  let localTs: string | null = null;
-  let hasLocal = false;
-  try {
-    const cachedUid = localStorage.getItem(CACHE_USER_KEY);
-    if (cachedUid === uid) {
-      hasLocal = !!localStorage.getItem(CACHE_KEY);
-      localTs = localStorage.getItem(CACHE_UPDATED_KEY);
-    }
-  } catch { /* noop */ }
-
-  if (!serverPath) {
-    if (hasLocal) {
-      clearSignatureCache();
-      signatureBus.emit();
-      signatureDiag._update({ lastVerifyAt: Date.now(), lastVerifyResult: "no-server", lastVerifyStage: "done", lastVerifyError: null });
-      return true;
-    }
-    signatureDiag._update({ lastVerifyAt: Date.now(), lastVerifyResult: "no-server", lastVerifyStage: "done", lastVerifyError: null });
-    return false;
-  }
-
-  if (hasLocal && serverTs && localTs === serverTs) {
-    signatureDiag._update({
-      lastVerifyAt: Date.now(),
-      lastVerifyResult: "unchanged",
-      lastVerifyStage: "done", lastVerifyError: null,
-      lastFetchAt: Date.now(),
-      lastFetchResult: "skip-cache-match",
-      lastFetchError: null,
-    });
-    return false;
-  }
-
-  if (isRecentLocalPrime(serverTs)) {
-    signatureDiag._update({ lastVerifyAt: Date.now(), lastVerifyResult: "unchanged", lastVerifyStage: "done", lastVerifyError: null });
-    return false;
-  }
-
-  clearSignatureCache();
-  try {
-    const { data: blob, error: dlErr } = await supabase
-      .storage.from("signatures").download(serverPath);
-    if (dlErr || !blob) {
-      signatureDiag._update({
-        lastVerifyAt: Date.now(), lastVerifyResult: "error",
-        lastVerifyStage: "download",
-        lastVerifyError: `download: ${dlErr?.message || "download_failed"}`,
-        lastFetchAt: Date.now(), lastFetchResult: "error",
-        lastFetchError: dlErr?.message || "download_failed",
-      });
-      return false;
-    }
-    const dataUrl = await blobToDataUrl(blob);
-    writeCache(uid, dataUrl, serverTs);
-    signatureBus.emit();
-    signatureDiag._update({
-      lastVerifyAt: Date.now(), lastVerifyResult: "updated",
-      lastVerifyStage: "done", lastVerifyError: null,
-      lastFetchAt: Date.now(), lastFetchResult: "ok", lastFetchError: null,
-    });
-    return true;
-  } catch (e: any) {
-    signatureDiag._update({
-      lastVerifyAt: Date.now(), lastVerifyResult: "error",
-      lastVerifyStage: "download",
-      lastVerifyError: `download: ${e?.message || "download_failed"}`,
-      lastFetchAt: Date.now(), lastFetchResult: "error",
-      lastFetchError: e?.message || "download_failed",
-    });
-    return false;
-  }
-}
 
 
 /** Returns the last known server `signature_updated_at` from local cache. */
