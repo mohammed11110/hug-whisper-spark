@@ -5,12 +5,13 @@ import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
 import { PenTool, Upload, Trash2, RefreshCw, Loader2, Check } from "lucide-react";
 import {
-  getSignatureDataUrl,
+  loadSignature,
   saveSignature,
   deleteSignature,
   clearSignatureCache,
   primeSignatureCache,
 } from "@/lib/signature";
+import { supabase } from "@/integrations/supabase/client";
 
 const tr = (lang: string, ar: string, en: string) => (lang === "ar" ? ar : en);
 
@@ -106,15 +107,36 @@ export function SignatureManager() {
 
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const refresh = async () => {
-    setLoading(true);
-    clearSignatureCache();
-    const url = await getSignatureDataUrl();
-    setDataUrl(url);
+  const refresh = async (opts: { hard?: boolean; silent?: boolean } = {}) => {
+    if (!opts.silent) setLoading(true);
+    if (opts.hard) clearSignatureCache();
+    const res = await loadSignature();
+    setDataUrl(res.url);
     setLoading(false);
+    if (res.hasRemotePointer && !res.url && res.error) {
+      toast.error(tr(
+        lang,
+        "تعذّر تحميل التوقيع — تحقق من الاتصال ثم أعد المحاولة",
+        "Could not load your signature — check your connection and retry",
+      ));
+    } else if (res.fromCache && res.error) {
+      // We showed the cached copy; server unreachable. No toast — non-blocking.
+      console.warn("[signature] showing cached copy:", res.error);
+    }
   };
 
-  useEffect(() => { void refresh(); }, []);
+  useEffect(() => {
+    void refresh();
+    // Re-fetch when auth session is restored (e.g. iOS cold start where the
+    // component mounts before the session is rehydrated).
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") {
+        void refresh({ silent: true });
+      }
+    });
+    return () => sub.subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /** Save + show immediately from the in-memory blob (no round-trip). */
   const persistAndShow = async (blob: Blob) => {
@@ -235,7 +257,7 @@ export function SignatureManager() {
               variant="outline"
               size="sm"
               className="rounded-xl col-span-1"
-              onClick={refresh}
+              onClick={() => refresh({ hard: true })}
               disabled={saving}
             >
               <RefreshCw className="h-4 w-4 me-1.5" />

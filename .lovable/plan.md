@@ -1,52 +1,61 @@
+## التشخيص
 
-## المشكلتان
+تحققت من قاعدة البيانات: التوقيع يُحفظ فعلاً بشكل صحيح:
+- جدول `profiles` يحتوي `signature_path = "{uid}.png"` مع `signature_updated_at` صحيح ✅
+- ملف PNG موجود في bucket `signatures` ✅
+- سياسات RLS على Storage و Profiles صحيحة ✅
 
-1. **الرفع لا "يظهر" بعد الحفظ**: في `SignatureManager.tsx` نعتمد بعد الحفظ على دورة كاملة (تحديث `profiles.signature_path` → تنزيل الملف من جديد من Storage → تحويله إلى Data URL). أي خطأ صامت في أي خطوة (تحديث الملف الشخصي يعيد 0 سطر، كاش متصفح، عدم انتظار الكاش، أو فشل قراءة الصورة في الـ`<img>`) ينتج عنه بقاء المعاينة فارغة رغم نجاح الرفع.
-2. **خانة رسم التوقيع صغيرة 3:1 داخل مودال صغير**، والخط 2.2px ثابت يبدو خشناً.
+**جذر المشكلة في الكود**: `src/lib/signature.ts` يستخدم `sessionStorage` للكاش، وهو يُمسح عند:
+- إغلاق التطبيق على iOS (WKWebView يُنهي الجلسة)
+- إعادة تشغيل الجهاز
+- اليوم التالي بعد قتل التطبيق
 
-## الحل (واجهة فقط — لا تغييرات على قاعدة البيانات)
-
-### 1) ملف `src/components/SignatureManager.tsx`
-
-- **عرض فوري بعد الحفظ بدون round-trip**: بعد `saveSignature(blob)` بنجاح، نحوّل نفس `blob` المرفوع إلى Data URL ونضعه مباشرة في `setDataUrl(...)` بدل الاعتماد على `refresh()`. `refresh()` يبقى للتحميل الأول/التحديث اليدوي فقط.
-- **قبول أوسع للملفات + حماية HEIC**: تغيير `accept` إلى `image/*` (مع إبقاء قائمة بيضاء PNG/JPEG/WEBP في الكود)، ورسالة واضحة عند HEIC: "صيغة HEIC غير مدعومة — حوّلها إلى JPG/PNG".
-- **معالجة JPG بشكل صحيح**: ملء خلفية بيضاء قبل `drawImage` لتجنّب ظهور سواد عند بعض المتصفحات، وضمان أن الناتج PNG فعلاً (`Blob.type === image/png`).
-- **رسائل خطأ تشخيصية**: التقاط الخطأ الفعلي من Storage/profile.update وعرضه (بدل "تعذّر الحفظ" المبهم) حتى نرى السبب الحقيقي إن تكرر.
-- **تنظيف الـ `<img>` cache**: إضافة `?v={Date.now()}` على Data URL غير ضروري، لكن سنفرض إعادة mount عبر `key={dataUrl}` لضمان إعادة الرسم.
-
-### 2) مودال الرسم — أكبر وأدق
-
-- **ملء الشاشة**: `DialogContent` بـ `max-w-[100vw] w-screen h-[100dvh] sm:rounded-none p-0` مع شريط علوي (عنوان + زر إغلاق) وشريط سفلي (مسح/تراجع/حفظ) ومنطقة canvas تأخذ كل المساحة المتبقية.
-- **نسبة العرض الذكية**: على الموبايل nudge للوضع الأفقي عبر CSS `landscape` hint، والـcanvas يستخدم `width:100%; height:100%` بدل `aspect-ratio: 3/1`.
-- **دقة عالية**: `devicePixelRatio` يبقى، لكن نزيد سقفه إلى `min(dpr, 3)` لتجنّب canvases ضخمة على شاشات 4x.
-- **خط أدق وأكثر سلاسة**:
-  - تقليل `lineWidth` الأساسي إلى 1.4px.
-  - **سُمك متغيّر حسب السرعة** (pressure-like): عند الحركة البطيئة 2.0px، السريعة 0.8px — يعطي إحساس قلم حقيقي.
-  - استخدام `pressure` من PointerEvent عند توفّره (Apple Pencil / S-Pen).
-  - تنعيم Catmull-Rom spline بدل quadratic بسيط، مع رسم تدريجي للـstroke الحالي فقط (لا redraw كامل عند كل حركة — تحسين أداء كبير).
-  - `getCoalescedEvents()` لالتقاط نقاط أكثر بين الإطارات على الأجهزة عالية الـHz.
-
-### تفاصيل تقنية
+عند فقدان الكاش، الكود يحاول تحميل الملف من Storage. لكن `getSignatureDataUrl()` **يبتلع كل الأخطاء بصمت** ويُرجع `null`:
 
 ```ts
-// instead of refresh() after save:
-const dataUrl = await blobToDataUrl(blob);
-setDataUrl(dataUrl);
-// also persist in sessionStorage so other pages see it
-sessionStorage.setItem("amlaki_signature_dataurl_v1", dataUrl);
-sessionStorage.setItem("amlaki_signature_uid_v1", uid);
+const { data, error } = await supabase.storage.from("signatures").download(...);
+if (error || !data) return null;   // ← يفشل بصمت
 ```
 
-```ts
-// variable-width stroke segment
-const dist = Math.hypot(p1.x - p0.x, p1.y - p0.y);
-const speed = dist / Math.max(1, dt);          // px/ms
-const width = clamp(2.0 - speed * 0.9, 0.8, 2.0) 
-            * (event.pressure > 0 ? 0.6 + event.pressure * 0.8 : 1);
-ctx.lineWidth = width;
-```
+النتيجة: المستخدم يرى "لا يوجد توقيع" بدون أي تفسير، رغم أن الملف موجود في السحابة.
 
-## خارج النطاق
+السبب الفعلي لفشل التحميل في اليوم التالي (الأكثر احتمالاً):
+1. على iOS بدون شبكة لحظة الفتح → التحميل من Storage يفشل
+2. الجلسة لم تُستعد بعد عند أول `mount` للمكوّن
+3. كاش `sessionStorage` فارغ ولا يوجد بديل دائم
 
-- لا تغيير على bucket `signatures`، RLS، أو جدول `profiles`.
-- لا تغيير على حقن التوقيع في PDF (`pdfDocs.ts`) — يقرأ من نفس الـcache.
+## الحل الجذري
+
+### 1) تحويل الكاش إلى دائم (`localStorage`) بدل `sessionStorage`
+يبقى التوقيع متاحاً فوراً عند فتح التطبيق في اليوم التالي، بدون انتظار الشبكة.
+
+### 2) Fallback ذكي عند فشل التحميل
+إن فشل تحميل Storage (شبكة/جلسة) لكن لدينا كاش `localStorage` لنفس UID → نُرجعه بدل `null`.
+
+### 3) إظهار سبب الفشل بدل البلع الصامت
+تمرير الخطأ الفعلي حتى `SignatureManager` يعرض toast واضح ("تعذّر تحميل التوقيع — تحقق من الاتصال") بدل "لم تُنشئ توقيعاً بعد".
+
+### 4) إعادة المحاولة عند استعادة الجلسة
+الاستماع لحدث `auth.onAuthStateChange("SIGNED_IN" / "TOKEN_REFRESHED")` داخل `SignatureManager` لإعادة جلب التوقيع تلقائياً إذا تأخرت الجلسة في التهيئة.
+
+### 5) التحقق المسبق قبل عرض "لا يوجد توقيع"
+إذا `profiles.signature_path` موجود لكن التحميل فشل، نعرض حالة "جاري التحميل/خطأ" مع زر إعادة محاولة — لا نعرض حالة "لا يوجد".
+
+## الملفات التي ستتغيّر
+
+- `src/lib/signature.ts`
+  - استبدال `sessionStorage` بـ `localStorage` (مفاتيح جديدة بإصدار v2)
+  - `getSignatureDataUrl()` يُرجع `{ url, error }` بدل `null` صامت
+  - Fallback على كاش `localStorage` عند فشل Storage إذا UID مطابق
+  - تنظيف الكاش عند تغيير المستخدم (logout/switch)
+
+- `src/components/SignatureManager.tsx`
+  - استخدام التوقيع الكاش من `localStorage` فوراً عند mount (عرض متفائل)
+  - إعادة جلب من السحابة في الخلفية للتحقق من التحديث
+  - toast واضح عند فشل التحميل + زر إعادة محاولة
+  - مستمع `onAuthStateChange` لإعادة المحاولة بعد استعادة الجلسة
+
+## ما لن يتغيّر
+- بنية قاعدة البيانات (السياسات والجدول صحيحة)
+- bucket `signatures` (يعمل بشكل صحيح)
+- منطق الرفع/الرسم (يعمل ويُحفظ كما يجب)
