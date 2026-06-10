@@ -12,7 +12,7 @@ export const PAGE_SIZES_MM: Record<PageSize, { w: number; h: number }> = {
 };
 export interface Margins { top: number; right: number; bottom: number; left: number }
 export interface MessageTemplates { reminder: string; late: string; receipt: string }
-export interface BusinessBrand { name: string; logo: string | null; phone: string; address: string; landlordName?: string; landlordNameEn?: string }
+export interface BusinessBrand { name: string; nameEn?: string; logo: string | null; phone: string; address: string; landlordName?: string; landlordNameEn?: string; crNumber?: string; defaultCurrency?: string }
 export interface ReceiptNumbering {
   prefix: string;
   startNumber: number;
