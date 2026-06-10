@@ -27,64 +27,17 @@ export const signatureBus = {
   emit() { sigListeners.forEach((f) => { try { f(); } catch { /* noop */ } }); },
 };
 
-/** Diagnostics for the SignatureManager status panel. */
-export type SignatureDiag = {
-  lastRealtimeAt: number | null;
-  lastRealtimeKind: "self" | "remote" | null;
-  lastVerifyAt: number | null;
-  lastVerifyResult: "unchanged" | "updated" | "no-server" | "error" | "throttled" | null;
-  lastVerifyStage: "auth" | "profile" | "download" | "done" | null;
-  lastVerifyError: string | null;
-  lastFetchAt: number | null;
-  lastFetchResult: "ok" | "error" | "skip-cache-match" | null;
-  lastFetchError: string | null;
-  verifyCount: number;
-  realtimeCount: number;
-  channelStatus: "idle" | "joining" | "subscribed" | "closed" | "error" | "timeout" | null;
-  channelStatusAt: number | null;
-};
-const diag: SignatureDiag = {
-  lastRealtimeAt: null, lastRealtimeKind: null,
-  lastVerifyAt: null, lastVerifyResult: null,
-  lastVerifyStage: null, lastVerifyError: null,
-  lastFetchAt: null, lastFetchResult: null, lastFetchError: null,
-  verifyCount: 0, realtimeCount: 0,
-  channelStatus: null, channelStatusAt: null,
-};
-const diagListeners = new Set<() => void>();
-export const signatureDiag = {
-  get(): SignatureDiag { return { ...diag }; },
-  on(fn: () => void) { diagListeners.add(fn); return () => diagListeners.delete(fn); },
-  _update(patch: Partial<SignatureDiag>) {
-    Object.assign(diag, patch);
-    diagListeners.forEach((f) => { try { f(); } catch { /* noop */ } });
-  },
-  noteRealtime(kind: "self" | "remote") {
-    this._update({
-      lastRealtimeAt: Date.now(),
-      lastRealtimeKind: kind,
-      realtimeCount: diag.realtimeCount + 1,
-    });
-  },
-  noteChannelStatus(status: SignatureDiag["channelStatus"]) {
-    this._update({ channelStatus: status, channelStatusAt: Date.now() });
-  },
-};
-
-
-
 /** Tracks the last time *this device* primed the cache after a local save.
- *  Used to suppress echo refreshes from Realtime UPDATE events that this
- *  same device just triggered (otherwise they wipe the freshly-saved cache
- *  and force a premature Storage round-trip that can fail on iOS). */
+ *  Used to suppress echo refreshes that this device just triggered. */
 let lastLocalPrimeAt = 0;
 let lastLocalUpdatedAt: string | null = null;
 const LOCAL_PRIME_WINDOW_MS = 8000;
-export function isRecentLocalPrime(remoteUpdatedAt?: string | null): boolean {
+function isRecentLocalPrime(remoteUpdatedAt?: string | null): boolean {
   if (Date.now() - lastLocalPrimeAt > LOCAL_PRIME_WINDOW_MS) return false;
   if (!remoteUpdatedAt || !lastLocalUpdatedAt) return true;
   return remoteUpdatedAt === lastLocalUpdatedAt;
 }
+
 
 
 function pathFor(uid: string) {
